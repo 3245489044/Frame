@@ -27,6 +27,9 @@
       S. Stream 形态 ⇒ 身份模板单键（S-1 · Error）：Agent 节点域声明 placements[].form=stream 的位置，
          其所属域 identity 模板不得含逐事件坐标（round/kind/ordinal/seq）——含之则每事件一键，退化为多行；
          与 C# 侧 NodeSpecValidator 的 spec.stream-identity-multi-row 对偶（附正/负对照）。
+      I. 帧分区纯净性（FR5/FR6/FR9 · Error）：Modules/Node/Frame/ 禁领域词（session/history/agent 标识符与字面量）、
+         禁 UI 资产（模板/HTML/样式）、禁折叠与面序词（fold/expanded/openLatest/RenderSurface/surfaces）；
+         正/负对照恒常执行（不受目录存在性影响），目录缺失仅跳过扫描（N-F0 建分区前不阻断）。
 
     层序（向上引用）由 Share/Solution/Test-ProjectReferences.ps1 统一校验，本脚本不重复实现。
     CI 集成：返回码 0 = 无违规；非 0 = 存在违规（架构回归）。
@@ -323,6 +326,73 @@ elseif ($ShowDetail)
     Write-Host "SKIP(H): 未找到实例分区（$instancesDir）。" -ForegroundColor Gray
 }
 
+# ---------------- I. 帧分区纯净性（节点与帧统一 · FR5/FR6/FR9 · Error） ----------------
+# 判据：Modules/Node/Frame/ 是「帧 = 节点 Form 变体」分区 ——
+#   ① 禁领域词（Session/History/Agent 标识符；session/history/task/agent 字符串字面量）；
+#   ② 禁 UI 资产（HTML 标签 / class= / style= / templates.*）；
+#   ③ 禁折叠与面序词（fold/expanded/openLatest/RenderSurface/surfaces）。
+# 注释与文档说明不判违规（避免自指误报）；目录不存在 ⇒ 仅跳过扫描，正/负对照恒常执行。
+$frameDir = Join-Path $nodeDir 'Frame'
+$frameDomainIdentifierRegex = '(?<![A-Za-z0-9_])(Session|History|Agent)[A-Za-z]*(?![A-Za-z0-9_])'
+$frameDomainLiteralRegex = '"[^"]*\b(session|history|task|agent)\b[^"]*"'
+$frameUiAssetRegex = '<\s*(div|span|table|img)\b|\bclass\s*=\s*"|\bstyle\s*=\s*"|templates\.'
+$frameFoldSurfaceRegex = '(?<![A-Za-z0-9_])(fold[A-Za-z]*|expanded|openLatest|RenderSurface|surfaces)(?![A-Za-z0-9_])'
+
+# 正/负对照（防判据恒真/恒假）：负样必需命中，正样必须全放行。
+$iNegDomain = 'public sealed class SessionFrameIndex'
+$iNegUi = '<div class="row">'
+$iNegFold = 'public bool FoldOpen { get; init; }'
+$iPos = 'public sealed record FrameRecord(string Kind, int Round, long Seq)'
+$iControlsOk = (($iNegDomain -match $frameDomainIdentifierRegex) -and
+                ($iNegUi -match $frameUiAssetRegex) -and
+                ($iNegFold -match $frameFoldSurfaceRegex) -and
+                (-not ($iPos -match $frameDomainIdentifierRegex)) -and
+                (-not ($iPos -match $frameUiAssetRegex)) -and
+                (-not ($iPos -match $frameFoldSurfaceRegex)))
+if (-not $iControlsOk)
+{
+    $violations.Add('[I/FR6] 对照失效：帧分区纯净判据恒真或恒假（负样须三命中，正样须三放行）')
+}
+elseif ($ShowDetail) { Write-Host "OK(I): 帧分区纯净判据正/负对照通过。" -ForegroundColor Green }
+
+if (Test-Path $frameDir)
+{
+    $frameFiles = @(Get-ChildItem -Path $frameDir -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' })
+
+    foreach ($f in $frameFiles)
+    {
+        $lineNo = 0
+        foreach ($line in [System.IO.File]::ReadAllLines($f.FullName))
+        {
+            $lineNo++
+            $trimmed = $line.TrimStart()
+            if ($trimmed.StartsWith('//') -or $trimmed.StartsWith('*') -or $trimmed.StartsWith('/*')) { continue }
+            if ($line -match $frameDomainIdentifierRegex -or $line -match $frameDomainLiteralRegex)
+            {
+                $violations.Add("[I/FR5] $($f.FullName):$lineNo 帧分区出现领域词（kind 语义/领域标识不得进通用件）: $($line.Trim())")
+            }
+            if ($line -match $frameUiAssetRegex)
+            {
+                $violations.Add("[I/FR6] $($f.FullName):$lineNo 帧分区出现 UI 资产（模板/HTML/样式属消费方）: $($line.Trim())")
+            }
+            if ($line -match $frameFoldSurfaceRegex)
+            {
+                $violations.Add("[I/FR9] $($f.FullName):$lineNo 帧分区出现折叠/面序词（属视图状态，不进 Node）: $($line.Trim())")
+            }
+        }
+    }
+
+    if ($frameFiles.Count -gt 0 -and $violations.Count -eq 0 -and $ShowDetail)
+    {
+        Write-Host "OK(I): 帧分区（$($frameFiles.Count) 文件）零领域词 / 零 UI 资产 / 零折叠面序词。" -ForegroundColor Green
+    }
+}
+elseif ($ShowDetail)
+{
+    Write-Host "SKIP(I): 未找到帧分区（$frameDir）—— 跳过帧分区扫描（正/负对照已执行）。" -ForegroundColor Gray
+}
+
 # ---------------- 汇总 ----------------
 Write-Host ""
 Write-Host "  扫描源码文件: $($csFiles.Count) 个" -ForegroundColor Gray
@@ -343,6 +413,6 @@ if ($violations.Count -gt 0)
     exit 1
 }
 
-Write-Host "  [成功] A/B/C/D/F/H/S 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
+Write-Host "  [成功] A/B/C/D/F/H/I/S 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
 Write-Host ""
 exit 0

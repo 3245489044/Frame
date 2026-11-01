@@ -128,6 +128,15 @@ elseif (-not ((Get-Content -LiteralPath $endpointPath -Raw).Contains('AnswerFact
     Add-Violation 'A4' '端点未调用 AnswerFactWriter.Close（终答写侧收口点成孤儿）'
 }
 
+# ---- A6 非事实源不得写 Terminal 常量（false = 静默假事实） ----
+$falseSites = @($csFiles | Select-String -Pattern 'Terminal:\s*false' -ErrorAction SilentlyContinue)
+if ($falseSites.Count -gt 0) {
+    foreach ($hit in $falseSites) {
+        $rel = $hit.Path.Substring($root.Length).TrimStart('\', '/')
+        Add-Violation 'A6' ("非事实源写 Terminal: false（须 null = 未知）：{0}:{1}" -f $rel, $hit.LineNumber)
+    }
+}
+
 # ---- 负对照（判据自证可判红） ----
 if ($NegativeControl) {
     $bad = 'private static void FrameFieldsWithFacts() { copy[MessageFrameFacts.TerminalField] = false; }'

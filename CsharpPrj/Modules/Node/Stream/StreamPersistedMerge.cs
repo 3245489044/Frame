@@ -4,11 +4,13 @@ using System.Threading.Tasks;
 using Modules.Node;
 using Modules.Node.Placement;
 
+using Modules.Node.Frame;
+
 namespace Modules.Node.Stream;
 
 /// <summary>
 /// 单行 Stream 域的**既有载荷读取 + 跨轮合并**（唯一复用点）：读该域 Stream 位置的既有行，经
-/// <see cref="StreamPayloadMerge"/> 与本次载荷按轮合并（同轮覆盖）。运行期结算（<c>NodeDomainPort.CommitRunAsync</c>）
+/// <see cref="FramePayloadMerge"/> 与本次载荷按轮合并（同轮覆盖）。运行期结算（<c>NodeDomainPort.CommitRunAsync</c>）
 /// 与 standalone 追加（命令面）共用，避免两处各写一套合并（SingleImplementation）。
 /// </summary>
 public static class StreamPersistedMerge
@@ -45,7 +47,7 @@ public static class StreamPersistedMerge
             }
 
             var existing = framework.FormCodec.Decode(placement.Form, record.Json);
-            return StreamPayloadMerge.Merge(existing, incomingJson, StreamPayloadSchema.Default);
+            return FramePayloadMerge.Merge(existing, incomingJson, FramePayloadSchema.Default);
         }
 
         return incomingJson;

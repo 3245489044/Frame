@@ -48,16 +48,6 @@ public static class WhenVocabulary
         return static _ => true;
     }
 
-    /// <summary>直接求值（无委托分配场景）。</summary>
-    public static bool Probe(ISegmentContext context, string? when)
-    {
-        if (string.Equals(when, Continue, StringComparison.OrdinalIgnoreCase))
-            return !FactIsTrue(context, FactIsFirstStep);
-        if (string.Equals(when, Replan, StringComparison.OrdinalIgnoreCase))
-            return FactIsTrue(context, FactIsReplan);
-        return true;
-    }
-
     private static bool FactIsTrue(ISegmentContext context, string key)
         => context.TryGet(key, out var value) && value is bool flag && flag;
 }

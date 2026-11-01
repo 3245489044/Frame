@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Modules.Node.Frame;
 using Share.Conversation;
 using Share.Conversation.Presentation;
 using Share.Conversation.Rendering;

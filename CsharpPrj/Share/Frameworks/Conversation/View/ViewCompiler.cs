@@ -46,15 +46,17 @@ public static class ViewCompiler
         var presentations = ParsePresentationClasses(sources.PresentationJson, list);
         var terminalPresentation = ParseTerminalPresentation(sources.PresentationJson);
         var sourcesList = ParseReadSources(sources.ReadPathsJson, list);
+        var planBindings = ParsePlanBindings(sources.ReadPathsJson, list);
         var answer = ParseAnswerRule(sources.AnswerFactsJson, terminalPresentation, list);
         var views = ParseViews(sources.UiRegionsJson, sources.GatherViewsJson, list);
 
         ValidateCross(frames, presentations, sourcesList, views, list);
 
+        var reads = BuildReadPlans(views, sourcesList, answer, planBindings, list);
+
         errors = list;
         if (list.Count > 0) return null;
 
-        var reads = BuildReadPlans(views, sourcesList, answer);
         var fingerprint = Fingerprint(frames, reads, views);
         return new ViewCompiled(
             frames with { Fingerprint = fingerprint },
@@ -178,13 +180,21 @@ public static class ViewCompiler
                 errors.Add($"[R1] read-paths 域 {domain} 的 facts 为空（读路径无事实声明）");
             }
 
+            var role = ReadString(entry, "role") ?? ReadSourceRoles.Spine;
+            if (role is not (ReadSourceRoles.Spine or ReadSourceRoles.Supplement))
+            {
+                errors.Add($"[R1] read-paths 域 {domain} 的 role '{role}' 不在受控词（{ReadSourceRoles.Spine}/{ReadSourceRoles.Supplement}）");
+                role = ReadSourceRoles.Spine;
+            }
+
             list.Add(new ReadSource(
                 domain!,
                 ReadString(entry, "selector") ?? string.Empty,
                 ReadInt(entry, "precedence") ?? index,
                 ReadBool(entry, "anchorCapable"),
                 ReadString(entry, "surface"),
-                facts));
+                facts,
+                role));
             index++;
         }
 
@@ -371,17 +381,92 @@ public static class ViewCompiler
 
     // ---------- ReadPlan 派生 ----------
 
-    private static ReadPlanTable BuildReadPlans(
-        ViewPlanTable views, IReadOnlyList<ReadSource> sources, AnswerRule answer)
+    // ---------- read-paths.json：按计划绑定源 ----------
+
+    private sealed record PlanBinding(IReadOnlyList<string> Spine, IReadOnlyList<string> Supplement);
+
+    private static IReadOnlyDictionary<string, PlanBinding> ParsePlanBindings(string json, List<string> errors)
     {
+        var result = new Dictionary<string, PlanBinding>(StringComparer.Ordinal);
+        if (!TryParse(json, "read-paths", errors, out var root)) return result;
+        if (!root.TryGetProperty("plans", out var plans) || plans.ValueKind != JsonValueKind.Object) return result;
+
+        foreach (var entry in plans.EnumerateObject())
+        {
+            if (entry.Value.ValueKind != JsonValueKind.Object)
+            {
+                errors.Add($"[R2] read-paths.plans.{entry.Name} 非对象");
+                continue;
+            }
+
+            var spine = ReadStringArray(entry.Value, "spine");
+            var supplement = ReadStringArray(entry.Value, "supplement");
+            if (spine.Count == 0 && supplement.Count == 0)
+            {
+                errors.Add($"[R2] read-paths.plans.{entry.Name} 未声明 spine/supplement");
+                continue;
+            }
+
+            result[entry.Name] = new PlanBinding(spine, supplement);
+        }
+
+        return result;
+    }
+
+    private static ReadPlanTable BuildReadPlans(
+        ViewPlanTable views,
+        IReadOnlyList<ReadSource> sources,
+        AnswerRule answer,
+        IReadOnlyDictionary<string, PlanBinding> bindings,
+        List<string> errors)
+    {
+        var byDomain = new Dictionary<string, ReadSource>(StringComparer.Ordinal);
+        foreach (var source in sources) byDomain.TryAdd(source.Domain, source);
+
+        IReadOnlyList<ReadSource> All() => sources.OrderBy(static s => s.Precedence).ToArray();
+
+        IReadOnlyList<ReadSource> Select(string key, PlanBinding binding)
+        {
+            var picked = new List<ReadSource>(binding.Spine.Count + binding.Supplement.Count);
+            Add(binding.Spine, ReadSourceRoles.Spine);
+            Add(binding.Supplement, ReadSourceRoles.Supplement);
+            return picked.OrderBy(static s => s.Precedence).ToArray();
+
+            void Add(IReadOnlyList<string> domains, string expectedRole)
+            {
+                foreach (var domain in domains)
+                {
+                    if (!byDomain.TryGetValue(domain, out var source))
+                    {
+                        errors.Add($"[R2] read-paths.plans.{key} 引用未声明域 '{domain}'");
+                        continue;
+                    }
+
+                    if (!string.Equals(source.Role, expectedRole, StringComparison.Ordinal))
+                    {
+                        errors.Add($"[R2] read-paths.plans.{key} 把域 '{domain}' 列入 {expectedRole}，但其 paths[].role='{source.Role}'（两处声明须一致）");
+                    }
+
+                    picked.Add(source);
+                }
+            }
+        }
+
         var plans = new Dictionary<string, ReadPlan>(StringComparer.Ordinal);
         foreach (var view in views.Views.Keys)
         {
             plans[view] = new ReadPlan(
                 view,
-                sources.OrderBy(static s => s.Precedence).ToArray(),
+                bindings.TryGetValue(view, out var binding) ? Select(view, binding) : All(),
                 answer,
                 string.Empty);
+        }
+
+        // 视图之外的读计划（如 LLM 会话脊梁 session）同样来自声明，禁在 C# 另写源集。
+        foreach (var pair in bindings)
+        {
+            if (plans.ContainsKey(pair.Key)) continue;
+            plans[pair.Key] = new ReadPlan(pair.Key, Select(pair.Key, pair.Value), answer, string.Empty);
         }
 
         return new ReadPlanTable(plans, string.Empty);
@@ -411,7 +496,8 @@ public static class ViewCompiler
             {
                 builder.Append("\nS|").Append(source.Domain).Append('|').Append(source.Selector).Append('|')
                     .Append(source.Precedence).Append('|').Append(source.AnchorCapable ? 1 : 0).Append('|')
-                    .Append(source.Surface ?? string.Empty).Append('|').Append(string.Join(',', source.Facts));
+                    .Append(source.Surface ?? string.Empty).Append('|').Append(source.Role).Append('|')
+                    .Append(string.Join(',', source.Facts));
             }
         }
 

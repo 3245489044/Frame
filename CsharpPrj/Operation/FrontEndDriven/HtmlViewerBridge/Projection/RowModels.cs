@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Globalization;
+using Modules.Node.Frame;
 using Share.Conversation;
 using Share.Conversation.Presentation;
 using Share.Conversation.Rendering;
@@ -55,7 +56,7 @@ internal static class RowModels
 
     /// <summary>附属行模型（attachItem 绑定字段集）；只写模板消费的字段。</summary>
     public static Dictionary<string, object?> AttachRow(
-        AttachRowSpec row,
+        FrameRowSpec<ConversationRenderItem> row,
         string key,
         string group,
         ConversationProjectionContext context)

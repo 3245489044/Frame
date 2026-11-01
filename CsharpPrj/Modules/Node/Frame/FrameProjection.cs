@@ -1,10 +1,10 @@
 using Modules.Node.Gather;
 using Modules.Node.Projection;
 
-namespace Modules.Node.Stream;
+namespace Modules.Node.Frame;
 
 /// <summary>帧级塑形单元（中性；域无关）：<see cref="Seq"/> = 容器级到达序，塑形字段由声明面驱动。</summary>
-public sealed record StreamShapedFrame(
+public sealed record FrameShapedFrame(
     string Kind,
     string? Badge,
     string? Title,
@@ -13,14 +13,14 @@ public sealed record StreamShapedFrame(
     string? AtUtc);
 
 /// <summary>一轮内的帧族分组（中性）：族键 + 表头 + 帧序列（按 <c>seq</c> 升序）。</summary>
-public sealed record StreamFamilyGroup(
+public sealed record FrameFamilyGroup(
     string Family,
     string Label,
     int Count,
-    IReadOnlyList<StreamShapedFrame> Frames);
+    IReadOnlyList<FrameShapedFrame> Frames);
 
 /// <summary>帧级轮分组（中性）：轮升序；组内族按声明序。</summary>
-public sealed record StreamRoundGroup(int Round, IReadOnlyList<StreamFamilyGroup> Groups);
+public sealed record FrameRoundGroup(int Round, IReadOnlyList<FrameFamilyGroup> Groups);
 
 /// <summary>
 /// 帧级投影结果（中性；域无关）：<see cref="Reasons"/> 非空 ⇒ 不产出（不采信/⊥），调用方按空/⊥处理。
@@ -30,8 +30,8 @@ public sealed record StreamRoundGroup(int Round, IReadOnlyList<StreamFamilyGroup
 /// <param name="StartedAtUtc">首次成轮时刻（可空）。</param>
 /// <param name="EndedAtUtc">最后一帧到达时刻（可空）。</param>
 /// <param name="Reasons">可见化原因（空 = 产出）。</param>
-public sealed record StreamProjectionResult(
-    IReadOnlyList<StreamRoundGroup> Rounds,
+public sealed record FrameProjectionResult(
+    IReadOnlyList<FrameRoundGroup> Rounds,
     int Total,
     string? StartedAtUtc,
     string? EndedAtUtc,
@@ -48,14 +48,14 @@ public sealed record StreamProjectionResult(
 /// 差异参数 = 显示键前缀 + 位置 id + 载荷字段面。<b>零领域 DTO</b>：输出为中性记录，域 DTO 由上层映射。
 /// </para>
 /// </summary>
-public sealed class StreamFrameProjection
+public sealed class FrameProjection
 {
     private readonly NodeGatherSpec _spec;
-    private readonly StreamFrameSelector _selector;
+    private readonly FrameSelector _selector;
     private readonly DeclaredShaper _shaper;
-    private readonly Func<string, StreamFrameRecord, string> _displayKeyOf;
+    private readonly Func<string, FrameRecord, string> _displayKeyOf;
     private readonly string _placementId;
-    private readonly StreamPayloadSchema _schema;
+    private readonly FramePayloadSchema _schema;
     private readonly IFrameKeyRenderer _renderer;
     private readonly string _familyId;
 
@@ -66,14 +66,14 @@ public sealed class StreamFrameProjection
     /// <param name="placementId">落库位置 id（帧项携带）。</param>
     /// <param name="schema">载荷字段面差异参数。</param>
     /// <param name="displayKeyOf">帧级显示键工厂（缺省 = 声明面渲染；显式迁移期可注入）。</param>
-    public StreamFrameProjection(
+    public FrameProjection(
         NodeGatherSpec spec,
-        StreamFrameSelector selector,
+        FrameSelector selector,
         IFrameKeyRenderer renderer,
         string familyId,
         string placementId,
-        StreamPayloadSchema schema,
-        Func<string, StreamFrameRecord, string>? displayKeyOf = null)
+        FramePayloadSchema schema,
+        Func<string, FrameRecord, string>? displayKeyOf = null)
     {
         _spec = spec ?? throw new ArgumentNullException(nameof(spec));
         _selector = selector ?? throw new ArgumentNullException(nameof(selector));
@@ -93,10 +93,10 @@ public sealed class StreamFrameProjection
     /// <param name="payloadJson">单行载荷 JSON（可空）。</param>
     /// <param name="container">容器（分区键）。</param>
     /// <param name="selectionId">帧级选择名（缺省 = 全量）。</param>
-    public StreamProjectionResult Project(
+    public FrameProjectionResult Project(
         string? payloadJson, string container, string? selectionId = null)
     {
-        if (!StreamPayloadReader.TryRead(payloadJson, container, _schema, out var payload, out var readReason))
+        if (!FramePayloadReader.TryRead(payloadJson, container, _schema, out var payload, out var readReason))
         {
             return Empty(new[] { readReason! });
         }
@@ -113,10 +113,10 @@ public sealed class StreamFrameProjection
         var rounds = selected
             .GroupBy(frame => frame.Round)
             .OrderBy(group => group.Key)
-            .Select(group => new StreamRoundGroup(group.Key, BuildGroups(group.ToArray(), container)))
+            .Select(group => new FrameRoundGroup(group.Key, BuildGroups(group.ToArray(), container)))
             .ToArray();
 
-        return new StreamProjectionResult(
+        return new FrameProjectionResult(
             rounds,
             selected.Length,
             payload.StartedAtUtc,
@@ -124,10 +124,10 @@ public sealed class StreamFrameProjection
             Array.Empty<string>());
     }
 
-    private static StreamProjectionResult Empty(IReadOnlyList<string> reasons)
-        => new(Array.Empty<StreamRoundGroup>(), 0, null, null, reasons);
+    private static FrameProjectionResult Empty(IReadOnlyList<string> reasons)
+        => new(Array.Empty<FrameRoundGroup>(), 0, null, null, reasons);
 
-    private StreamFamilyGroup[] BuildGroups(IReadOnlyList<StreamFrameRecord> frames, string taskKey)
+    private FrameFamilyGroup[] BuildGroups(IReadOnlyList<FrameRecord> frames, string taskKey)
         => frames
             .GroupBy(frame => _spec.FamilyOf(frame.Kind))
             .OrderBy(group => FamilyOrder(group.Key))
@@ -135,7 +135,7 @@ public sealed class StreamFrameProjection
             .Select(group =>
             {
                 var ordered = group.OrderBy(frame => frame.Seq).Select(frame => Shape(frame, taskKey)).ToArray();
-                return new StreamFamilyGroup(group.Key, group.Key, ordered.Length, ordered);
+                return new FrameFamilyGroup(group.Key, group.Key, ordered.Length, ordered);
             })
             .ToArray();
 
@@ -155,7 +155,7 @@ public sealed class StreamFrameProjection
         return _spec.FamilyOrder.Count;
     }
 
-    private StreamShapedFrame Shape(StreamFrameRecord frame, string taskKey)
+    private FrameShapedFrame Shape(FrameRecord frame, string taskKey)
     {
         var item = new NodeProjectionItem(
             _displayKeyOf(taskKey, frame),
@@ -165,7 +165,7 @@ public sealed class StreamFrameProjection
         var shape = _shaper.Shape(item);
         var atUtc = shape?.Updated ??
                     (frame.Fields.TryGetValue(_schema.AtUtcField, out var value) ? value : null);
-        return new StreamShapedFrame(
+        return new FrameShapedFrame(
             frame.Kind, shape?.Badge, shape?.Title, shape?.Summary, frame.Seq, atUtc);
     }
 }

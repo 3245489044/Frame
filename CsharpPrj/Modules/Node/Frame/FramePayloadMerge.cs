@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
 
-namespace Modules.Node.Stream;
+namespace Modules.Node.Frame;
 
 /// <summary>
 /// 合并产物（通用；域无关）：载荷 JSON + 合并账（既有/本轮/结果帧数、覆盖数、身份不可识别数、是否整载荷替换）。
@@ -18,7 +18,7 @@ namespace Modules.Node.Stream;
 /// <param name="ReplacedFrames">被本轮同身份帧覆盖的条数。</param>
 /// <param name="UnidentifiableFrames">身份不可识别（回落文本键）的条数。</param>
 /// <param name="ReplacedWholePayload">是否因 run 变更整载荷替换（单 run 语义）。</param>
-public sealed record StreamPayloadMergeResult(
+public sealed record FramePayloadMergeResult(
     string PayloadJson,
     int ExistingFrames,
     int IncomingFrames,
@@ -32,33 +32,33 @@ public sealed record StreamPayloadMergeResult(
 /// **按轮合并**（本轮覆盖同轮），使「一个容器恰一行 + 载荷内 <c>rounds[]→frames[]</c>」在多次 run
 /// 之间**累积**（否则每轮 upsert 会以「仅本轮帧」覆盖旧载荷 ⇒ 历史轮次丢失）。
 /// <para>
-/// 身份口径（SingleImplementation）：去重键 = <see cref="StreamFrameIdentity.Key"/>（run + 轮 + 到达序），
+/// 身份口径（SingleImplementation）：去重键 = <see cref="FrameIdentity.Key"/>（run + 轮 + 到达序），
 /// **禁**以整帧 JSON 文本当键（<c>atUtc</c> 每次提交不同 ⇒ 去重恒不命中 ⇒ 同 seq 反复并集）。
 /// 同键语义 = **新到覆盖旧**（本轮覆盖同轮）；身份不可读 ⇒ 回落文本键并计入账目（不静默丢）。
 /// </para>
 /// <para>分区键不一致 ⇒ 不合并（返回新载荷，不把他容器数据并入）。</para>
 /// </summary>
-public static class StreamPayloadMerge
+public static class FramePayloadMerge
 {
     /// <summary>合并既有载荷与本次载荷（按轮去重覆盖；返回合并后的 JSON）。</summary>
     /// <param name="existingJson">既有单行载荷 JSON（可空）。</param>
     /// <param name="incomingJson">本次 run 聚合载荷 JSON。</param>
     /// <param name="schema">载荷字段面差异参数。</param>
-    public static string Merge(string? existingJson, string incomingJson, StreamPayloadSchema schema)
+    public static string Merge(string? existingJson, string incomingJson, FramePayloadSchema schema)
         => MergeResult(existingJson, incomingJson, schema).PayloadJson;
 
     /// <summary>合并并返回账目（身份去重 + 覆盖计数 + run 变更替换）。</summary>
     /// <param name="existingJson">既有单行载荷 JSON（可空）。</param>
     /// <param name="incomingJson">本次 run 聚合载荷 JSON。</param>
     /// <param name="schema">载荷字段面差异参数。</param>
-    public static StreamPayloadMergeResult MergeResult(
-        string? existingJson, string incomingJson, StreamPayloadSchema schema)
+    public static FramePayloadMergeResult MergeResult(
+        string? existingJson, string incomingJson, FramePayloadSchema schema)
     {
         ArgumentNullException.ThrowIfNull(schema);
         if (string.IsNullOrWhiteSpace(existingJson))
         {
             var incomingOnly = CountFrames(incomingJson, schema);
-            return new StreamPayloadMergeResult(incomingJson, 0, incomingOnly, incomingOnly, 0, 0, false);
+            return new FramePayloadMergeResult(incomingJson, 0, incomingOnly, incomingOnly, 0, 0, false);
         }
 
         JsonObject? existing;
@@ -70,12 +70,12 @@ public static class StreamPayloadMerge
         }
         catch (System.Text.Json.JsonException)
         {
-            return new StreamPayloadMergeResult(incomingJson, 0, 0, 0, 0, 0, false);
+            return new FramePayloadMergeResult(incomingJson, 0, 0, 0, 0, 0, false);
         }
 
         if (existing is null || incoming is null)
         {
-            return new StreamPayloadMergeResult(incomingJson, 0, 0, 0, 0, 0, false);
+            return new FramePayloadMergeResult(incomingJson, 0, 0, 0, 0, 0, false);
         }
 
         var existingFrames = CountFrames(existing, schema);
@@ -86,7 +86,7 @@ public static class StreamPayloadMerge
         if (!string.Equals(incomingKey, existingKey, StringComparison.Ordinal))
         {
             // 分区键不一致：不并入他容器数据（防串味）。
-            return new StreamPayloadMergeResult(
+            return new FramePayloadMergeResult(
                 incomingJson, existingFrames, incomingFrames, incomingFrames, 0, 0, false);
         }
 
@@ -97,7 +97,7 @@ public static class StreamPayloadMerge
             && incomingRun is not null
             && !string.Equals(existingRun, incomingRun, StringComparison.Ordinal))
         {
-            return new StreamPayloadMergeResult(
+            return new FramePayloadMergeResult(
                 incomingJson, existingFrames, incomingFrames, incomingFrames, 0, 0, true);
         }
 
@@ -152,7 +152,7 @@ public static class StreamPayloadMerge
             [schema.RoundsField] = JsonNode.Parse(roundsJson.ToString()),
         };
 
-        return new StreamPayloadMergeResult(
+        return new FramePayloadMergeResult(
             merged.ToJsonString(), existingFrames, incomingFrames, mergedFrames, replaced, unidentifiable, false);
     }
 
@@ -167,7 +167,7 @@ public static class StreamPayloadMerge
     /// <summary>采集一载荷的帧到轮桶：身份键去重；<paramref name="replace"/> ⇒ 同键覆盖（新到胜）。</summary>
     private static void Collect(
         JsonObject root,
-        StreamPayloadSchema schema,
+        FramePayloadSchema schema,
         SortedDictionary<int, FrameBucket> buckets,
         bool replace,
         ref int replaced,
@@ -205,7 +205,7 @@ public static class StreamPayloadMerge
             foreach (var frame in frames)
             {
                 var identityKey = frame is JsonObject frameObject
-                    ? StreamFrameIdentityReader.KeyOf(frameObject, round, runId, schema)
+                    ? FrameIdentityReader.KeyOf(frameObject, round, runId, schema)
                     : null;
                 if (identityKey is null)
                 {
@@ -240,7 +240,7 @@ public static class StreamPayloadMerge
             StringComparison.Ordinal);
 
     /// <summary>按到达序数值升序稳定排序（身份不可读者保持原序靠后）。</summary>
-    private static List<JsonNode?> OrderedFrames(FrameBucket bucket, StreamPayloadSchema schema)
+    private static List<JsonNode?> OrderedFrames(FrameBucket bucket, FramePayloadSchema schema)
         => bucket.Frames
             .Select((frame, index) => (frame, index, seq: SeqOf(frame, schema)))
             .OrderBy(entry => entry.seq ?? long.MaxValue)
@@ -248,7 +248,7 @@ public static class StreamPayloadMerge
             .Select(entry => entry.frame)
             .ToList();
 
-    private static long? SeqOf(JsonNode? frame, StreamPayloadSchema schema)
+    private static long? SeqOf(JsonNode? frame, FramePayloadSchema schema)
     {
         if (frame is not JsonObject obj || obj[schema.SeqField] is not JsonValue value)
         {
@@ -266,7 +266,7 @@ public static class StreamPayloadMerge
             : null;
     }
 
-    private static int CountFrames(string payloadJson, StreamPayloadSchema schema)
+    private static int CountFrames(string payloadJson, FramePayloadSchema schema)
     {
         if (string.IsNullOrWhiteSpace(payloadJson))
         {
@@ -283,7 +283,7 @@ public static class StreamPayloadMerge
         }
     }
 
-    private static int CountFrames(JsonObject root, StreamPayloadSchema schema)
+    private static int CountFrames(JsonObject root, FramePayloadSchema schema)
     {
         if (root[schema.RoundsField] is not JsonArray rounds)
         {

@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using Modules.Node.Gather;
 using Modules.Node.Projection;
 
-namespace Modules.Node.Stream;
+namespace Modules.Node.Frame;
 
 /// <summary>
 /// Stream 域**帧级读适配器**（通用；域无关）：内包 <see cref="INodeReadAdapter"/>（读单行聚合节点），
-/// 把单行载荷经 <see cref="StreamPayloadReader"/> 解析、<see cref="StreamFrameSelector"/> 帧级选择后，
+/// 把单行载荷经 <see cref="FramePayloadReader"/> 解析、<see cref="FrameSelector"/> 帧级选择后，
 /// **展平为帧级 <see cref="NodeProjectionItem"/> 序列**（合成显示键仅读侧内存合成）。
 /// <para>
 /// 存在理由：聚拢引擎按「一节点一行」分组，而 Stream 域是「一任务一行 + 载荷内 N 帧」⇒
@@ -18,16 +18,16 @@ namespace Modules.Node.Stream;
 /// <c>OkButEmpty</c>（**不清面**）；选择不可用（⊥）⇒ 空 + 原因。
 /// </para>
 /// </summary>
-public sealed class StreamFrameReadAdapter : INodeReadAdapter
+public sealed class FrameReadAdapter : INodeReadAdapter
 {
     private readonly INodeReadAdapter _inner;
-    private readonly StreamFrameSelector _selector;
+    private readonly FrameSelector _selector;
     private readonly IFrameKeyRenderer _renderer;
     private readonly string _familyId;
     private readonly string _placementId;
-    private readonly StreamPayloadSchema _schema;
+    private readonly FramePayloadSchema _schema;
     private readonly string? _frameSelectionId;
-    private readonly Func<string, StreamFrameRecord, string> _displayKeyOf;
+    private readonly Func<string, FrameRecord, string> _displayKeyOf;
     private readonly string? _domainKey;
     private readonly Func<string, string?>? _containerOf;
     private readonly Func<IReadOnlyDictionary<string, string>, IReadOnlyDictionary<string, string>>? _classify;
@@ -45,15 +45,15 @@ public sealed class StreamFrameReadAdapter : INodeReadAdapter
     /// 给出且请求容器为空时（<c>read-source=full</c> 全量读），逐行解析自身容器；解析失败 ⇒ 该行跳过并可见化（不猜）。</param>
     /// <param name="frameClassify">帧字段袋**分类器**（声明驱动的呈现类注入；缺省 null = 不改字段）。
     /// 分类先于选择求值 ⇒ 选择表达式可直接用 <c>presentation hasany (…)</c>，无需按 kind 集合写第二张表。</param>
-    public StreamFrameReadAdapter(
+    public FrameReadAdapter(
         INodeReadAdapter inner,
-        StreamFrameSelector selector,
+        FrameSelector selector,
         IFrameKeyRenderer renderer,
         string familyId,
         string placementId,
-        StreamPayloadSchema schema,
+        FramePayloadSchema schema,
         string? frameSelectionId = null,
-        Func<string, StreamFrameRecord, string>? displayKeyOf = null,
+        Func<string, FrameRecord, string>? displayKeyOf = null,
         string? domainKey = null,
         Func<string, string?>? containerOf = null,
         Func<IReadOnlyDictionary<string, string>, IReadOnlyDictionary<string, string>>? frameClassify = null)
@@ -108,7 +108,7 @@ public sealed class StreamFrameReadAdapter : INodeReadAdapter
                 }
             }
 
-            if (!StreamPayloadReader.TryRead(row.PayloadJson, rowContainer, _schema, out var payload, out var readReason))
+            if (!FramePayloadReader.TryRead(row.PayloadJson, rowContainer, _schema, out var payload, out var readReason))
             {
                 reasons.Add(readReason!);
                 continue;

@@ -1,14 +1,14 @@
 using System;
 using System.Text.Json.Nodes;
 
-namespace Modules.Node.Stream;
+namespace Modules.Node.Frame;
 
 /// <summary>
 /// 帧载荷**事实字段**写入（通用；域无关）：按「匹配字段 = 匹配值」在帧上补写事实字段，
 /// 供写侧把「终答 / 已归档」等**事实**落进载荷（读侧据字段选择，禁位置推断）。
 /// <para>唯一实现：字段名与匹配条件一律由调用方给出，本件不含任何领域词。</para>
 /// </summary>
-public static class StreamPayloadFacts
+public static class FramePayloadFacts
 {
     /// <summary>
     /// 在 <c>rounds[].frames[]</c> 上，对 <paramref name="matchField"/> 等于

@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup Label="ModuleRule">
-    <ModuleRule_Title>节点通用框架（Node）</ModuleRule_Title>
+    <ModuleRule_Title>节点与帧通用框架（Node）</ModuleRule_Title>
     <ModuleRule_Layer>2</ModuleRule_Layer>
-    <ModuleRule_Description>与位置无关的节点框架：节点 = ⟨Key(身份), JSON(载荷), Placement*(位置), Form(形态)⟩。身份/位置/物化/读投影/对账为框架件；载体、声明来源、位置反解、序列化与领域语义一律经注入端口提供（零 Frame 依赖、零 Usharp 类型、零进程静态）。</ModuleRule_Description>
-    <ModuleRule_Keywords>节点;键连接;位置无关;Placement;物化;单写门;读投影;JSON;声明驱动;端口</ModuleRule_Keywords>
+    <ModuleRule_Description>与位置无关的节点与帧框架：节点 = ⟨Key(身份), JSON(载荷), Placement*(位置), Form(形态)⟩；帧 = Form∈{raw,stream,view} 的载荷内子节点（帧键由 KeyTemplateEvaluator 派生，帧间关系 = 节点关系）。身份/位置/物化/读投影/帧序列/对账为框架件；载体、声明来源、位置反解、序列化与领域语义一律经注入端口提供（零 Frame 依赖、零 Usharp 类型、零进程静态）。</ModuleRule_Description>
+    <ModuleRule_Keywords>节点;帧;帧键;帧边;键连接;位置无关;Placement;物化;单写门;读投影;JSON;声明驱动;端口</ModuleRule_Keywords>
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
@@ -15,6 +15,8 @@
     <ModuleRule_Rule Include="禁 Usharp* 类型 / AsyncLocal 可变配置 / 硬编码 loc→carrier 映射（P20/P14/P22）；由 PowerShellScript/Modules/Node/Check-NodeFramework.ps1 门禁" />
     <ModuleRule_Rule Include="写计划只搬模型/介质端口/编排（V-1′）：NodeWritePlanExecutor 复用 NodeWriteGate（target=medium|collection|key）；介质实现与库级 WriteCoordinator/SingleWriteGuard 留宿主，禁双写门/双补偿（P16）；介质词不进框架" />
     <ModuleRule_Rule Include="键模板收编（D1-②）：节点库键族的**文法声明单源** = Identity\NodeStoreKeyGrammars.cs（config / checkpoint / keymapping / relations / session-message 五族；含具体键名），**图端点 Id 单源** = Identity\NodeEndpointIds.cs（history.{historyId} / {workflowId}.{nodeKey}；不入 NodeStoreKeyGrammars.Registry）；二者只承载键模板事实、**不含领域语义**（轮内序数重置/旧键容忍/时序比较留上层域类）；词法、正反解、族判据一律取键文法内核 Modules.Parsing.Keys，禁自建第二套正则" />
+    <ModuleRule_Rule Include="帧 = 节点 Form 变体（FR1/FR2/FR3）：帧身份由键文法内核派生（stream-frame 族模板 {run}|{round}|{seq}，禁手拼键/正则）；帧分组与配对实现全仓唯一（Frame\FrameSequencer）；帧间关系复用节点关系内核，禁第二套可达算法；身份键与显示键分列，禁互用" />
+    <ModuleRule_Rule Include="Frame\ 分区纯净（FR5/FR6/FR9）：禁领域词（session/history/agent 标识符与字面量）、禁 UI 资产（模板/HTML/样式/文案）、禁折叠与面序词（fold/expanded/openLatest/RenderSurface/surfaces）；由 PowerShellScript/Modules/Node/Check-NodeFramework.ps1 I 段门禁" />
   </ItemGroup>
 
   <PropertyGroup>

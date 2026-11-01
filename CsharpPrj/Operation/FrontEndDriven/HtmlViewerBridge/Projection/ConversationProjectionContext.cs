@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Modules.Node.Frame;
 using Share.Conversation;
 using Share.Conversation.ContextBinding;
 using Share.Conversation.Presentation;

@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using Modules.Node.Spec;
 
-namespace Modules.Node.Stream;
+namespace Modules.Node.Frame;
 
 /// <summary>
 /// Stream **帧级选择**应用器（通用；域无关）：唯一权威 = 声明面的
@@ -16,7 +16,7 @@ namespace Modules.Node.Stream;
 /// 经 <see cref="FromSelections"/> / <see cref="FromDeclaration"/> 注入。
 /// </para>
 /// </summary>
-public class StreamFrameSelector
+public class FrameSelector
 {
     private readonly IReadOnlyDictionary<string, ExpressionSelectionPredicate> _predicates;
     private readonly string _declarationSubPath;
@@ -26,7 +26,7 @@ public class StreamFrameSelector
     /// <param name="predicates">选择名 → 谓词。</param>
     /// <param name="declarationSubPath">声明相对路径（原因可见化用）。</param>
     /// <param name="defaultSelectionId">缺省选择名。</param>
-    protected StreamFrameSelector(
+    protected FrameSelector(
         IReadOnlyDictionary<string, ExpressionSelectionPredicate> predicates,
         string declarationSubPath,
         string defaultSelectionId)
@@ -78,7 +78,7 @@ public class StreamFrameSelector
     /// <param name="selections">选择名 → 表达式（可空表达式 = 未识别）。</param>
     /// <param name="declarationSubPath">声明相对路径（原因可见化用）。</param>
     /// <param name="defaultSelectionId">缺省选择名。</param>
-    public static StreamFrameSelector FromSelections(
+    public static FrameSelector FromSelections(
         IReadOnlyDictionary<string, string?> selections, string declarationSubPath, string defaultSelectionId)
     {
         var predicates = new Dictionary<string, ExpressionSelectionPredicate>(StringComparer.Ordinal);
@@ -91,14 +91,14 @@ public class StreamFrameSelector
         }
 
         predicates.TryAdd(defaultSelectionId, ExpressionSelectionPredicate.All());
-        return new StreamFrameSelector(predicates, declarationSubPath, defaultSelectionId);
+        return new FrameSelector(predicates, declarationSubPath, defaultSelectionId);
     }
 
     /// <summary>从声明 JSON 文本编译帧级选择（缺缺省名时补全量谓词；无声明 ⇒ 仅全量）。</summary>
     /// <param name="declarationJson">声明 JSON（可空）。</param>
     /// <param name="declarationSubPath">声明相对路径（原因可见化用）。</param>
     /// <param name="defaultSelectionId">缺省选择名。</param>
-    public static StreamFrameSelector FromDeclaration(
+    public static FrameSelector FromDeclaration(
         string? declarationJson, string declarationSubPath, string defaultSelectionId)
     {
         var predicates = new Dictionary<string, ExpressionSelectionPredicate>(StringComparer.Ordinal);
@@ -130,6 +130,6 @@ public class StreamFrameSelector
         }
 
         predicates.TryAdd(defaultSelectionId, ExpressionSelectionPredicate.All());
-        return new StreamFrameSelector(predicates, declarationSubPath, defaultSelectionId);
+        return new FrameSelector(predicates, declarationSubPath, defaultSelectionId);
     }
 }

@@ -1,4 +1,4 @@
-namespace Modules.Node.Stream;
+namespace Modules.Node.Frame;
 
 /// <summary>
 /// 帧级键渲染端口（通用；域无关）：把**帧身份**按该域声明的 <c>Display</c> 面渲染成键。
@@ -14,5 +14,5 @@ public interface IFrameKeyRenderer
     /// <param name="familyId">键族 id（声明面单源）。</param>
     /// <param name="container">容器（分区键）。</param>
     /// <param name="identity">帧身份（轴值来源）。</param>
-    string Render(string familyId, string container, StreamFrameIdentity identity);
+    string Render(string familyId, string container, FrameIdentity identity);
 }

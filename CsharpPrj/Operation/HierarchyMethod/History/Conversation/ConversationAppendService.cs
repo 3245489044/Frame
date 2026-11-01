@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Node.Materialization;
+using Modules.Node.Frame;
 using Modules.Node.Stream;
 using Operation.Container.Content;
 using Operation.Container.Ports;

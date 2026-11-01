@@ -68,6 +68,19 @@ public static class NodeStoreKeyGrammars
         legacyTemplates: new[] { "proc.{container}.r{round:digits}.step{ordinal:digits}" },
         orderKeys: new[] { "round", "ordinal" });
 
+    /// <summary>
+    /// 帧身份键文法（<c>{run}|{round}|{seq}</c>；run 缺失由调用侧规范化为 <c>-</c>）。
+    /// <para>
+    /// **不入 <see cref="Registry"/>**：无族前缀的文法会让 <c>TryResolve</c> 对任意键恒命中而破坏归属消歧；
+    /// 因此本族只供 <c>Frame\FrameKey</c> 直接求值/反解（文法事实仍在本类单源）。
+    /// </para>
+    /// </summary>
+    public static readonly KeyGrammar FrameGrammar = KeyGrammar.Create(
+        "stream-frame",
+        "{run}|{round}|{seq}",
+        familyPrefix: string.Empty,
+        sequenceKeys: new[] { "seq" });
+
     /// <summary>节点库键族文法注册表（读侧归属反解唯一入口；歧义/未命中即诊断可见化）。</summary>
     public static readonly KeyGrammarRegistry Registry = CreateRegistry();
 

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json.Nodes;
 
-namespace Modules.Node.Stream;
+namespace Modules.Node.Frame;
 
 /// <summary>
 /// 一条**帧级读记录**（通用；域无关）：<see cref="Round"/> 来自外层轮分组、<see cref="Seq"/> 来自帧载荷，
@@ -15,12 +15,12 @@ namespace Modules.Node.Stream;
 /// <param name="Fields">帧对象展平字段袋（塑形/选择共用）。</param>
 /// <param name="Identity">帧身份（唯一载体；<see cref="IdentityReason"/> 非空 ⇒ 不可识别）。</param>
 /// <param name="IdentityReason">身份不可识别原因（可空；不静默）。</param>
-public sealed record StreamFrameRecord(
+public sealed record FrameRecord(
     int Round,
     long Seq,
     string Kind,
     IReadOnlyDictionary<string, string> Fields,
-    StreamFrameIdentity Identity = default,
+    FrameIdentity Identity = default,
     string? IdentityReason = null)
 {
     /// <summary>身份是否可识别（可识别 ⇒ 合并/显示键/绑定锚共用同一键）。</summary>
@@ -33,11 +33,11 @@ public sealed record StreamFrameRecord(
 /// <param name="EndedAtUtc">最后一帧到达时刻（可空）。</param>
 /// <param name="Frames">帧记录序列（保序）。</param>
 /// <param name="RunId">载荷根 run 身份（旧载荷缺失 ⇒ null，不伪造）。</param>
-public sealed record StreamPayload(
+public sealed record FramePayload(
     string PartitionKey,
     string? StartedAtUtc,
     string? EndedAtUtc,
-    IReadOnlyList<StreamFrameRecord> Frames,
+    IReadOnlyList<FrameRecord> Frames,
     string? RunId = null);
 
 /// <summary>
@@ -59,7 +59,7 @@ public sealed record StreamPayload(
 /// 跨 run 驻留策略：<c>true</c> ⇒ 既有载荷与本轮 run 不同则**整载荷替换**（单 run 语义，旧 run 帧不再并集）；
 /// <c>false</c>（缺省）⇒ 跨 run 保持并集（零回归）。
 /// </param>
-public sealed record StreamPayloadSchema(
+public sealed record FramePayloadSchema(
     string Label,
     string PartitionKeyField,
     string RoundField,
@@ -70,14 +70,14 @@ public sealed record StreamPayloadSchema(
     string AtUtcField,
     string StartedAtUtcField,
     string EndedAtUtcField,
-    string RunField = StreamPayloadSchema.DefaultRunField,
+    string RunField = FramePayloadSchema.DefaultRunField,
     bool ReplaceOnRunChange = false)
 {
     /// <summary>run 身份字段名缺省值（累积器写入与读取共用，禁第二处字面量）。</summary>
     public const string DefaultRunField = "runId";
 
     /// <summary>现行累积器序列化口径（轮嵌套；分区键 <c>taskKey</c>）。</summary>
-    public static StreamPayloadSchema Default { get; } = new(
+    public static FramePayloadSchema Default { get; } = new(
         "stream", "taskKey", "round", "frames", "rounds", "kind", "seq", "atUtc", "startedAtUtc", "endedAtUtc");
 }
 
@@ -87,11 +87,11 @@ public sealed record StreamPayloadSchema(
 /// 帧记录序列，并校验分区键与容器一致（不一致 ⇒ 不采信 + 可见化原因）。
 /// <para>失败/不一致一律返回原因串（结构事实，非叙述），不抛、不静默放行。</para>
 /// </summary>
-public static class StreamPayloadReader
+public static class FramePayloadReader
 {
     /// <summary>
     /// 解析单行载荷。返回 <c>false</c> ⇒ 不采信（原因见 <paramref name="reason"/>）。
-    /// 无轮/无帧属**合法空**：返回 <c>true</c> 且 <see cref="StreamPayload.Frames"/> 为空。
+    /// 无轮/无帧属**合法空**：返回 <c>true</c> 且 <see cref="FramePayload.Frames"/> 为空。
     /// </summary>
     /// <param name="payloadJson">单行载荷 JSON（可空）。</param>
     /// <param name="container">容器（分区键；须与载荷自述一致）。</param>
@@ -101,8 +101,8 @@ public static class StreamPayloadReader
     public static bool TryRead(
         string? payloadJson,
         string container,
-        StreamPayloadSchema schema,
-        out StreamPayload? payload,
+        FramePayloadSchema schema,
+        out FramePayload? payload,
         out string? reason)
     {
         ArgumentNullException.ThrowIfNull(schema);
@@ -140,7 +140,7 @@ public static class StreamPayloadReader
         }
 
         var runId = ReadText(root[schema.RunField]);
-        var frames = new List<StreamFrameRecord>();
+        var frames = new List<FrameRecord>();
         if (root[schema.RoundsField] is JsonArray rounds)
         {
             foreach (var roundNode in rounds)
@@ -171,16 +171,16 @@ public static class StreamPayloadReader
                         : 0L;
 
                     // 身份单点解析：可识别 ⇒ 合并/显示键/绑定锚共用；不可识别 ⇒ 显式原因（调用方回落文本键）。
-                    var hasIdentity = StreamFrameIdentityReader.TryRead(
+                    var hasIdentity = FrameIdentityReader.TryRead(
                         frameObject, round, runId, schema, out var identity);
-                    frames.Add(new StreamFrameRecord(
+                    frames.Add(new FrameRecord(
                         round, seq, kind, fields, identity,
                         hasIdentity ? null : $"{schema.Label}.frame-identity-missing（{schema.SeqField} 非正/缺失）"));
                 }
             }
         }
 
-        payload = new StreamPayload(
+        payload = new FramePayload(
             partition,
             ReadText(root[schema.StartedAtUtcField]),
             ReadText(root[schema.EndedAtUtcField]),

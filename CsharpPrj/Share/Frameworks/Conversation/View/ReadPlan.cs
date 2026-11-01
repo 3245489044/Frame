@@ -28,13 +28,25 @@ public enum AnswerStatus
 /// <param name="AnchorCapable">该源能否提供气泡锚点。</param>
 /// <param name="Surface">该源呈现面（如 <c>process</c>；null = 不限定）。</param>
 /// <param name="Facts">该源声明的事实字段名。</param>
+/// <param name="Role">读源角色（<c>spine</c> = 会话脊梁，首非空即用；<c>supplement</c> = 合并补位）。</param>
 public sealed record ReadSource(
     string Domain,
     string Selector,
     int Precedence,
     bool AnchorCapable,
     string? Surface,
-    IReadOnlyList<string> Facts);
+    IReadOnlyList<string> Facts,
+    string Role = ReadSourceRoles.Spine);
+
+/// <summary>读源角色受控词（声明面 <c>read-paths.paths[].role</c> 的唯一取值域）。</summary>
+public static class ReadSourceRoles
+{
+    /// <summary>会话脊梁：按 precedence 首非空即采用。</summary>
+    public const string Spine = "spine";
+
+    /// <summary>补位源：与脊梁结果合并（去重/归位），不参与首非空短路。</summary>
+    public const string Supplement = "supplement";
+}
 
 /// <summary>终答规则（编译期合并 <c>answer-facts.json</c>）。</summary>
 /// <param name="Authority">可投影的终答权威级。</param>

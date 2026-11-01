@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
+using Modules.Node.Frame;
+
 namespace Modules.Node.Stream;
 
 /// <summary>
@@ -312,7 +314,7 @@ public class AggregateRun
             var document = new JsonObject
             {
                 ["taskKey"] = PartitionKey,
-                [StreamPayloadSchema.DefaultRunField] = _runId,
+                [FramePayloadSchema.DefaultRunField] = _runId,
                 ["startedAtUtc"] = _startedAtUtc?.ToString("O"),
                 ["endedAtUtc"] = _endedAtUtc?.ToString("O"),
                 ["rounds"] = new JsonArray(

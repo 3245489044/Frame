@@ -1,4 +1,4 @@
-# Modules.Node — 节点通用框架（与位置无关 · JSON 键连接版）
+# Modules.Node — 节点与帧通用框架（与位置无关 · JSON 键连接版）
 
 > **状态**：`P0 骨架` + `P1 提取融入`（D-1 案 A 口径）+ `P2–P5 框架件与合同测试` **已落地并通过验证**（构建 0 警告 0 错误、合同测试 95 例全绿）；`P6 应用` 中 **A-1（端口键空间/端口提取/节点单写门三件）、A-2 七件（形态/缺省/运行态/合并/校验/引用/指令）、A-3/A-3b（键格式与阈值声明化）、D-3（委托接线门禁）已落地**（Operation 侧接线，见[下一步计划](./docs/下一步计划.md) §1.1）；P6 剩余 A-4（Agent 边写点收敛）、P6-B 阶段 A–D 与 `P7 语言接入` 待开展；**P8 候选（本框架泛化为通用实例管理框架）待裁决**，见导航末条。
 > **2026-10-22 增量（三源语义融合 · 框架件 P-A…P-F 已落地，宿主 H1–H6 待接线）**：地址轴（`Identity/NodeAddress` + 存储键/端点文法）、关系轴（`Relations/NodeEdge*` + 溯源推导 + 可达闭包）、记录完整化（`NodeProjectionItem` 追加 `Address/Tags/Signal` + `NodeRecordValidator`）、读侧选择/排名/预算（`Spec/NodeSelectionSpec` + `Projection/NodeSelectionService` + `BudgetedRender`）、写计划（`Materialization/WritePlan/*`）、容器/产物（`Instances/NodeContainerSpec`、`NodeArtifact*`、`Stream/StreamArtifactAdapter`）、执行声明与沿边继承（`Spec/NodeExecutionBinding`、`AttributeInheritance`）、轴化词表（`Spec/TagVocabulary*`）。逐项证据见[`docs/三源语义融合-实施记录.md`](./docs/三源语义融合-实施记录.md)。
@@ -24,6 +24,8 @@
 | `Placement` | 键在哪个容器/载体上物化（可多个）；**位置不改变身份**，是 `Key` 的函数 |
 | `Form` | 该位置的载荷形态（`raw` / `view` / `digest`） |
 
+**帧 = 节点的 Form 变体**（2026-11-01 统一口径）：`raw` = 逐事件一行；`stream` = 一容器恰一行（载荷内 `rounds[]→frames[]`）；`view` = 读侧投影（不落库）。帧键由 `KeyTemplateEvaluator` 派生（禁手拼），帧间关系（锚点归属 / 调用-结果 / 分组）复用节点关系内核；呈现只做机制（`FramePresentation` 数据表 + 纯投影）。**折叠开合、面序、模板、文案不属于本工程**（留消费方 / 产品声明）。
+
 **框架定位**：本模块是既有三套机制**之间的位置层**，复用而非替代（`Strategy.SingleImplementation`）：
 
 | 既有机制 | 视角 | 本框架关系 |
@@ -48,7 +50,9 @@ Modules/Node/
     ├── Materialization/ NodeMaterializer(唯一写入口) / NodeWriteGate / NodeFormCodec / NodeCompensation / SpecDefaults
     ├── Ports/           PortKeySpace / NodePortBinding
     ├── Gather/          INodeReadAdapter / NodeGatherEngine / CompositeNodeReadAdapter / DeclaredShaper / **NodeGatherService（泛型聚拢服务）** / NodeGatherSpec
-    ├── Stream/          StreamPayload* / StreamFrameKeys / AggregateRun / **StreamFrameReadAdapter + StreamFrameSelector + StreamFrameProjection（帧级展开/选择/投影）**
+    ├── Stream/          AggregateRun / AggregateRegistry / AggregateAccounting / StreamPersistedMerge（写侧聚合与物化通道）
+    ├── Frame/           FrameRecord / FrameIdentity / FramePayload / FrameSelector / FrameReadAdapter / FrameProjection /
+    │                   FrameKey / FrameSequencer / FrameEdge / FramePresentation / IFrameShapingSource（帧 = 节点 Form 变体）
     ├── Spec/            NodeFrameworkSpecLoader / NodeSpecValidator / NodeReferenceIndex / NodeDirectiveSet / NodeChainComposer / **NodeDomainSchema + NodeDomainRegistry（域描述基底 + 域查询机制）**
     ├── Projection/      NodeReadProjection / **LocResolution（loc 声明派生）** / **NodeIdentityTrim（读侧身份裁剪）**
     ├── Governance/      NodeReconciler
@@ -143,6 +147,9 @@ Frame\PowerShellScript\Share\Solution\Test-ProjectReferences.ps1
 | ❌ 自建第二套端口键空间 / 单写门 / 读视图 / 键格式全局 | N8 / P14 / P22；P1 为**迁址收编**，非重写 |
 | ❌ 写侧为某消费者裁剪副本 | N7（裁剪只发生在读侧 `selection`） |
 | ❌ 承接执行体/状态根/终止裁决 | 属引擎与领域层（见 9.22 方案 §7） |
+| ❌ 承接折叠开合状态（`fold` / `expanded` / `openLatest`） | 属视图状态，留消费方（FR9 / D3） |
+| ❌ 承接面序 / 模板 / 文案（`surfaces` / `templates.*` / labels） | 属 UI 资产与产品声明（FR6 / D4） |
+| ❌ 源码出现领域 kind 词或领域标识（session / history / agent） | FR5 / FR6；由 `Check-NodeFramework.ps1` I 段门禁 |
 | ⚠️ 写计划：**只搬计划模型 + 介质端口 + 编排**；介质实现与库级门留宿主（V-1′ 修订） | `Materialization/WritePlan/*` 只含 `NodeWritePlan`/`IWriteMediumHandler`/`NodeWritePlanExecutor`，target = 位置级 `medium|collection|key`（复用 `NodeWriteGate`）；`WritePlanCoordinator` 的库级门（target=`ur_nodes.plan`，`SingleWriteGuard`）仍在 Operation。两级 target 不同层；合并即造双写门/双补偿（P16）。两级门关系登记见 `Docs\analysis\2026\10\10.3\...通用框架提取与JSON单源-重构方案.md` §10.1 |
 | ❌ 把工作流骨架 `RoundSpec`/`BindingSpec` 塞入本工程（V-4 裁定：冻结） | 绑 `Share.HierarchySupport.PortSpec` + `ParameterResolver.KeyMapping.KeyMappingConfig`，破层2 签名契约（D-1 案 A）；属执行域，未来通用化另起 `Modules.ExecutionFramework` |
 | ⚠️ `NodeJson` 以 BCL `System.Text.Json` 自理 JSON（V-3 裁定 = A：**平台规则显式豁免**） | 保「零 Frame 依赖（仅 BCL + `Modules.Parsing.Keys`）」；载荷经 Operation 适配器落库时一律走 `Plate.JsonMethod`；豁免条目登记于 `Plate\JsonMethod\JsonMethod.csproj` 的 `ModuleRule_Rule` |

@@ -1,16 +1,14 @@
 #nullable enable
 
-using Share.Conversation;
+using System;
+using Modules.Node.Frame;
 using Share.Conversation.Rendering;
 
 namespace Share.Conversation.Presentation;
 
 /// <summary>
-/// **呈现身份唯一裁决点**（纯函数，表驱动短路）：事实 → 声明投影 → 旧数据兜底 → 未知。
-/// <para>
-/// 判据全部来自 <see cref="PresentationDeclaration"/>（产品声明面）；框架不持有任何具体词。
-/// 判定顺序（自上而下短路，不得交换）：
-/// </para>
+/// **呈现身份唯一裁决点**（领域绑定；机制已下沉 <see cref="FramePresentation"/>）：
+/// 把本地枚举投影为通道词/角色兜底类，再委托框架六步短路（顺序不得交换）。
 /// <list type="number">
 /// <item><c>terminal == true</c> ⇒ 声明的事实类（终答）</item>
 /// <item><c>channel == Operation</c> ⇒ 声明的操作面类</item>
@@ -19,10 +17,12 @@ namespace Share.Conversation.Presentation;
 /// <item>角色兜底表命中 ⇒ 该类（旧数据）</item>
 /// <item>否则 ⇒ <see cref="PresentationDeclaration.UnknownId"/>（可见占位）</item>
 /// </list>
-/// <para><c>Stage</c> 不参与判定：参与即等于把已删除的 role:kind 锚点规则换名保留。</para>
 /// </summary>
 public static class PresentationResolver
 {
+    private const string OperationChannelWord = "operation";
+    private const string ProcessChannelWord = "process";
+
     /// <summary>呈现身份 + 来源。</summary>
     /// <param name="declaration">呈现声明（产品策略；缺失用 <see cref="PresentationDeclaration.Empty"/>）。</param>
     /// <param name="role">产生方角色。</param>
@@ -38,42 +38,20 @@ public static class PresentationResolver
     {
         ArgumentNullException.ThrowIfNull(declaration);
 
-        // P1 写侧事实：终答。
-        if (terminal == true && declaration.TerminalClass.Length > 0)
-        {
-            return (declaration.TerminalClass, PresentationOrigin.Fact);
-        }
+        var fallback = declaration.RoleFallback.TryGetValue(role, out var value) ? value : null;
+        var (classId, origin) = FramePresentation.Resolve(
+            declaration.Classes.Keys,
+            declaration.TerminalClass,
+            ChannelWord(channel),
+            OperationChannelWord,
+            declaration.OperationChannelClass,
+            ProcessChannelWord,
+            declaration.ProcessChannelClass,
+            fallback,
+            presentation,
+            terminal);
 
-        // P2 写侧事实：操作面。
-        if (channel == MessageChannel.Operation && declaration.OperationChannelClass.Length > 0)
-        {
-            return (declaration.OperationChannelClass, PresentationOrigin.Fact);
-        }
-
-        // P3 声明投影（词必须已在声明类清单中登记）。
-        if (!string.IsNullOrWhiteSpace(presentation))
-        {
-            var word = presentation.Trim().ToLowerInvariant();
-            if (declaration.Classes.ContainsKey(word))
-            {
-                return (word, PresentationOrigin.Declared);
-            }
-        }
-
-        // P4 过程通道（旧数据）：不得因角色被提升为气泡。
-        if (channel == MessageChannel.Process && declaration.ProcessChannelClass.Length > 0)
-        {
-            return (declaration.ProcessChannelClass, PresentationOrigin.Fact);
-        }
-
-        // P5 旧数据兜底（角色 → 声明类）。
-        if (declaration.RoleFallback.TryGetValue(role, out var fallback))
-        {
-            return (fallback, PresentationOrigin.Legacy);
-        }
-
-        // P6 未知：可见，不猜。
-        return (PresentationDeclaration.UnknownId, PresentationOrigin.Unknown);
+        return (classId, ToOrigin(origin));
     }
 
     /// <summary>消息 → 呈现身份（单一入口；渲染项与合并逻辑共用）。</summary>
@@ -95,5 +73,21 @@ public static class PresentationResolver
         ArgumentNullException.ThrowIfNull(item);
         return Resolve(declaration, item.Role, item.Channel, item.Presentation, item.Terminal);
     }
-}
 
+    private static string ChannelWord(MessageChannel channel)
+        => channel switch
+        {
+            MessageChannel.Operation => OperationChannelWord,
+            MessageChannel.Process => ProcessChannelWord,
+            _ => "dialogue",
+        };
+
+    private static PresentationOrigin ToOrigin(string origin)
+        => origin switch
+        {
+            FramePresentation.OriginFact => PresentationOrigin.Fact,
+            FramePresentation.OriginDeclared => PresentationOrigin.Declared,
+            FramePresentation.OriginLegacy => PresentationOrigin.Legacy,
+            _ => PresentationOrigin.Unknown,
+        };
+}

@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Modules.Node;
 using Modules.Node.Projection;
+using Modules.Node.Frame;
 using Modules.Node.Stream;
 using Operation.Container.Ports;
 
@@ -146,7 +147,7 @@ public sealed class ConversationComposer
     }
 
     /// <summary>
-    /// Stream 域展开：单行聚合载荷经 <see cref="StreamPayloadReader"/> 解析 → 帧级选择 → 帧消息序列。
+    /// Stream 域展开：单行聚合载荷经 <see cref="FramePayloadReader"/> 解析 → 帧级选择 → 帧消息序列。
     /// 选择未声明/不可识别 ⇒ 空集（⊥，不放行，不伪造）；分区键与容器不一致 ⇒ 该行不采信。
     /// </summary>
     private List<ComposedMessage> ExpandStreamFrames(
@@ -166,8 +167,8 @@ public sealed class ConversationComposer
                 continue;
             }
 
-            if (!StreamPayloadReader.TryRead(
-                    item.PayloadJson, container, StreamPayloadSchema.Default, out var payload, out _) ||
+            if (!FramePayloadReader.TryRead(
+                    item.PayloadJson, container, FramePayloadSchema.Default, out var payload, out _) ||
                 payload is null)
             {
                 continue;
@@ -186,7 +187,7 @@ public sealed class ConversationComposer
     }
 
     /// <summary>帧记录 → 消息（显示键 = 域帧级显示键；帧字段面与原逐事件载荷逐字等价）。</summary>
-    private ComposedMessage ToMessage(string container, StreamFrameRecord frame)
+    private ComposedMessage ToMessage(string container, FrameRecord frame)
     {
         var fields = frame.Fields;
         var kind = fields.TryGetValue("kind", out var value) && !string.IsNullOrEmpty(value)

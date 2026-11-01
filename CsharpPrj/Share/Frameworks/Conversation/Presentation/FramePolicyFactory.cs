@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using Modules.Node.Frame;
 using Modules.Node.Gather;
 using Share.Conversation.Rendering;
 

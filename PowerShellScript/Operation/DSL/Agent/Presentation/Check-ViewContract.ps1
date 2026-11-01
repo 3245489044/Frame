@@ -78,6 +78,33 @@ function Test-ViewLayout($names, $texts) {
     return $errors
 }
 
+# 读面单路径判据（C9–C11；输入 = 文本，便于负对照复用）。
+function Test-ReadFace($engineText, $builderText, $uiViewText, $sourcesText) {
+    $errors = [System.Collections.Generic.List[string]]::new()
+
+    if ((Count-Match ([string]$engineText) 'public\s+async\s+Task<ConversationReadOutcome>\s+ReadPlanAsync\s*\(') -ne 1) {
+        $errors.Add('[C9] ConversationReadEngine.ReadPlanAsync 定义点 ≠ 1（读入口须单源）')
+    }
+
+    if ((Count-Match ([string]$builderText) 'ReadMarkedAsync|ReadArchiveRoundsAsync|ReadDeclaredSourcesAsync|AppendNodeOutputsAsync|ReadArchiveAsync\s*\(') -gt 0) {
+        $errors.Add('[C9] StandardContextBuilder 仍含源选择/直读（须只经执行器）')
+    }
+
+    if ((Count-Match ([string]$engineText) 'OrderBy\(static s => s\.Precedence\)') -lt 1) {
+        $errors.Add('[C10] 执行器未按声明 precedence 排序（读序不得来自数组序）')
+    }
+
+    if ((Count-Match ([string]$uiViewText) 'ReadDeclaredSourcesAsync|historyFallback') -gt 0) {
+        $errors.Add('[C10] UI 仍有第二读序（ReadDeclaredSourcesAsync/historyFallback）')
+    }
+
+    if ((Count-Match ([string]$sourcesText) 'Terminal:\s*(true|false)') -gt 0) {
+        $errors.Add('[C11] 非事实源写了 Terminal 常量（须 null = 未知）')
+    }
+
+    return $errors
+}
+
 # ---- C1–C5（平台层契约） ----
 $viewDir = Join-Path $root 'Frame\CsharpPrj\Share\Frameworks\Conversation\View'
 if (-not (Test-Path -LiteralPath $viewDir)) {
@@ -92,6 +119,38 @@ else {
 
     foreach ($e in (Test-ViewLayout $names $texts)) { Add-Violation 'P1' $e }
     Write-Host ("[ViewContract] 平台层：files={0} stage={1}" -f $names.Count, $Stage)
+}
+
+# ---- C9–C11（会话读面单路径） ----
+$sessionDir = Join-Path $root 'Projects\Plug\Agent\src\Agent.Session'
+$enginePath = Join-Path $sessionDir 'Projection\ConversationReadEngine.cs'
+$builderPath = Join-Path $sessionDir 'Projection\StandardContextBuilder.cs'
+$sourcesPath = Join-Path $sessionDir 'Projection\ConversationSources.cs'
+$uiViewPath = Join-Path $root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.View.cs'
+
+$readFaceInputs = @{
+    Engine = if (Test-Path -LiteralPath $enginePath) { Get-Content -LiteralPath $enginePath -Raw } else { '' }
+    Builder = if (Test-Path -LiteralPath $builderPath) { Get-Content -LiteralPath $builderPath -Raw } else { '' }
+    UiView = if (Test-Path -LiteralPath $uiViewPath) { Get-Content -LiteralPath $uiViewPath -Raw } else { '' }
+    Sources = if (Test-Path -LiteralPath $sourcesPath) { Get-Content -LiteralPath $sourcesPath -Raw } else { '' }
+}
+
+if ([string]::IsNullOrWhiteSpace($readFaceInputs.Engine)) { Add-Violation 'C9' '执行器缺失：Agent.Session/Projection/ConversationReadEngine.cs' }
+if ([string]::IsNullOrWhiteSpace($readFaceInputs.Builder)) { Add-Violation 'C9' '构建器缺失：Agent.Session/Projection/StandardContextBuilder.cs' }
+foreach ($e in (Test-ReadFace $readFaceInputs.Engine $readFaceInputs.Builder $readFaceInputs.UiView $readFaceInputs.Sources)) { Add-Violation 'P1' $e }
+
+# C12：灰度开关必须有删除日期（dep），过期判红。
+if (-not [string]::IsNullOrWhiteSpace($readFaceInputs.Builder)) {
+    $dep = [regex]::Match([string]$readFaceInputs.Builder, 'dep:\s*(\d{4}-\d{2}-\d{2})')
+    if (-not $dep.Success) {
+        Add-Violation 'C12' 'ConversationReadEngineSwitch 缺删除日期（// dep:yyyy-MM-dd）'
+    }
+    else {
+        $depDate = [datetime]::ParseExact($dep.Groups[1].Value, 'yyyy-MM-dd', $null)
+        if ($depDate -lt [datetime]::Today) {
+            Add-Violation 'C12' ("灰度开关已过期：{0}（须删除旧路径）" -f $dep.Groups[1].Value)
+        }
+    }
 }
 
 # ---- C6（Stage=p2：UI 不写呈现身份判断） ----
@@ -162,6 +221,17 @@ if ($NegativeControl) {
     }
 
     Write-Host ("[ViewContract] 负对照：codes={0}" -f ($codes -join ','))
+
+    # 读面单路径（C9/C10/C11）负对照：合成违规形态必须被判红。
+    $badRead = Test-ReadFace `
+        'public sealed class E { }' `
+        'if (marked.Count > 0) return marked; ReadMarkedAsync(); AppendNodeOutputsAsync();' `
+        'var x = ReadDeclaredSourcesAsync(key); // historyFallback' `
+        'new ConversationMessage(role: ConversationRole.Tool, Terminal: false);'
+    $readCodes = @($badRead | ForEach-Object { ($_ -split ']')[0].TrimStart('[') })
+    foreach ($expected in @('C9', 'C10', 'C11')) {
+        if ($readCodes -notcontains $expected) { Add-Violation 'NC' "读面负对照未命中：期望判据 $expected 未触发" }
+    }
 }
 
 if ($violations.Count -gt 0) {

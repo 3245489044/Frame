@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using Modules.Node.Frame;
 using Share.Conversation;
 using Share.Conversation.Presentation;
 using Share.Conversation.Rendering;
@@ -69,9 +70,9 @@ internal static class RoundSectionProjector
         IReadOnlyList<ConversationRenderItem> items, int round, bool open, ConversationProjectionContext context)
     {
         var plan = AttachPlanner.Plan(items, context.Policy);
-        var merged = new List<AttachEntry>(plan.Lead.Count + plan.Entries.Count);
+        var merged = new List<FrameEntry<ConversationRenderItem>>(plan.Lead.Count + plan.Entries.Count);
         foreach (var item in plan.Lead)
-            merged.Add(new AttachEntry(item, System.Array.Empty<ConversationRenderItem>()));
+            merged.Add(new FrameEntry<ConversationRenderItem>(item, System.Array.Empty<ConversationRenderItem>()));
         merged.AddRange(plan.Entries);
 
         var model = new Dictionary<string, object?>

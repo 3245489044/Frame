@@ -12,7 +12,8 @@ namespace Share.Conversation.Presentation;
 /// <param name="Mode">折叠模式。</param>
 /// <param name="OpenLatest">收起态下是否打开最新轮。</param>
 /// <param name="Supported">该词是否已实现（false ⇒ 可见诊断，禁静默等同 none）。</param>
-public sealed record FoldModeSpec(string Id, RoundFoldMode Mode, bool OpenLatest, bool Supported);
+/// <param name="SuppressHeader">是否抑制段头（视图声明 `grouping=none`；词表产出，代码禁字面量）。</param>
+public sealed record FoldModeSpec(string Id, RoundFoldMode Mode, bool OpenLatest, bool Supported, bool SuppressHeader = false);
 
 /// <summary>折叠解析结果（策略 + 诊断；诊断非空 ⇒ 调用方须可见化）。</summary>
 /// <param name="Policy">折叠策略。</param>
@@ -32,6 +33,9 @@ public sealed record FoldDeclaration(IReadOnlyDictionary<string, FoldModeSpec> M
 
     /// <summary>未实现词诊断码。</summary>
     public const string UnsupportedWordCode = "unsupported-fold-word";
+
+    /// <summary>扁平化词（不分组、不产段头；声明面 <c>fold.json:flat</c>）。</summary>
+    public const string FlatWord = "flat";
 
     /// <summary>空声明（声明不可用）：任何词都视为未知。</summary>
     public static readonly FoldDeclaration Empty = new(
@@ -67,7 +71,7 @@ public sealed record FoldDeclaration(IReadOnlyDictionary<string, FoldModeSpec> M
                 UnknownWordCode);
         }
 
-        var policy = new FoldPolicy(spec.Mode, spec.OpenLatest, spec.Id);
+        var policy = new FoldPolicy(spec.Mode, spec.OpenLatest, spec.Id, SuppressHeader: spec.SuppressHeader);
         if (spec.Supported)
         {
             return new FoldResolution(policy, null, null);
@@ -75,7 +79,7 @@ public sealed record FoldDeclaration(IReadOnlyDictionary<string, FoldModeSpec> M
 
         var degradation = UnsupportedWordCode + ":" + spec.Id;
         return new FoldResolution(
-            new FoldPolicy(spec.Mode, spec.OpenLatest, spec.Id, degradation),
+            new FoldPolicy(spec.Mode, spec.OpenLatest, spec.Id, degradation, spec.SuppressHeader),
             null,
             degradation);
     }
@@ -104,7 +108,9 @@ public sealed record FoldDeclaration(IReadOnlyDictionary<string, FoldModeSpec> M
                                  || openLatestElement.ValueKind != JsonValueKind.False;
                 var supported = !entry.Value.TryGetProperty("supported", out var supportedElement)
                                 || supportedElement.ValueKind != JsonValueKind.False;
-                modes[id] = new FoldModeSpec(id, mode, openLatest, supported);
+                var suppressHeader = entry.Value.TryGetProperty("suppressHeader", out var suppressElement)
+                                     && suppressElement.ValueKind == JsonValueKind.True;
+                modes[id] = new FoldModeSpec(id, mode, openLatest, supported, suppressHeader);
             }
         }
 

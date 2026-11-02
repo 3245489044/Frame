@@ -102,12 +102,15 @@ internal static class RowModels
         };
 
     /// <summary>头提示层行（无锚点语义；round=0）。</summary>
-    public static Dictionary<string, object?> Head(ConversationRenderItem item, int index)
+    /// <param name="item">渲染项。</param>
+    /// <param name="index">序号（稳定键）。</param>
+    /// <param name="showRound">是否写出轮次字段（视图声明不展示轮次 ⇒ false，字段置空）。</param>
+    public static Dictionary<string, object?> Head(ConversationRenderItem item, int index, bool showRound = true)
         => new()
         {
             ["key"] = FragmentKeys.Head(index),
             ["role"] = item.Role.ToString().ToLowerInvariant(),
-            ["round"] = "0",
+            ["round"] = showRound ? "0" : string.Empty,
             ["stage"] = item.Stage ?? string.Empty,
             ["subagent"] = item.SubAgent ?? string.Empty,
             ["showSubagent"] = string.IsNullOrWhiteSpace(item.SubAgent) ? string.Empty : "1",

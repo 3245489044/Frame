@@ -31,6 +31,10 @@ internal static class RoundSectionProjector
         var roundFoldKey = context.Surface.KeyOf(TemplateRegions.RoundFold);
         var open = context.Fold.IsOpen(round, latestRound);
 
+        // 视图声明 grouping=none（SuppressHeader）⇒ 只出行、不产轮段头（无轮次展示）。
+        if (context.Fold.SuppressHeader)
+            return RowsOnly(items, round, context);
+
         if (!context.Surface.HasRoundFold)
             return Flat(items, round, open, context);
 
@@ -63,6 +67,22 @@ internal static class RoundSectionProjector
             ? new List<object?> { LeadFold(plan.Lead, leadRows, round, plan.Entries.Count == 0, context) }
             : new List<object?>();
         return UiFragmentWriter.Render(templates, roundFoldKey, model);
+    }
+
+    /// <summary>无段头渲染（视图声明不展示轮次：只出行，不产轮段/会话级段头）。</summary>
+    private static IReadOnlyList<UiNode> RowsOnly(
+        IReadOnlyList<ConversationRenderItem> items, int round, ConversationProjectionContext context)
+    {
+        var rowKey = context.Surface.KeyOf(TemplateRegions.Row);
+        var nodes = new List<UiNode>(items.Count);
+        for (var index = 0; index < items.Count; index++)
+        {
+            var model = RowModels.Message(
+                items[index], context, isAnchor: false, key: FragmentKeys.Lead(round, index));
+            nodes.AddRange(UiFragmentWriter.Render(context.Surface.Templates, rowKey, model));
+        }
+
+        return nodes;
     }
 
     /// <summary>无轮折叠能力：前导帧与锚点按合并序顶层呈现（等价旧定位，帧零丢失）。</summary>

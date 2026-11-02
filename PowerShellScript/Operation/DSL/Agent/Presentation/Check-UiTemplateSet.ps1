@@ -165,6 +165,52 @@ if (-not (Test-Path -LiteralPath $resolverPath)) {
     }
 }
 
+# ---- T7 History 渲染模板去轮次（行模板不得含 {round}）----
+$historyRowKeys = @('boardCard', 'processRow', 'bubbleRow', 'operationRow', 'feedRow')
+$effectiveTemplates = @{}
+foreach ($sourcePath in @($defaultsPath, $configPath)) {
+    if (-not (Test-Path -LiteralPath $sourcePath)) { continue }
+    try {
+        $sourceDecl = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json -Depth 64
+        $sourceTemplates = Get-Prop $sourceDecl 'templates'
+        if ($null -ne $sourceTemplates) {
+            foreach ($tp in @($sourceTemplates.PSObject.Properties)) {
+                if ($tp.Value -is [string]) { $effectiveTemplates[$tp.Name] = $tp.Value }
+            }
+        }
+    }
+    catch { Add-Violation "[T7] 模板解析失败: $sourcePath" }
+}
+$roundKeys = @()
+foreach ($rowKey in $historyRowKeys) {
+    if ($effectiveTemplates.ContainsKey($rowKey) -and $effectiveTemplates[$rowKey] -match '\{round\}') {
+        $roundKeys += $rowKey
+    }
+}
+if ($roundKeys.Count -gt 0) {
+    Add-Violation ("[T7] History 渲染模板仍含 {round} 占位：{0}" -f ($roundKeys -join ','))
+}
+# T7 负对照（判据可区分正/负样本）
+if (-not ('<div>{round}</div>' -match '\{round\}')) { Add-Violation '[T7] 负对照失效：{round} 样本未被判出' }
+
+# ---- T8 配置副本一致（源 → 4 副本；禁手工漂移）----
+$configCopies = @(
+    'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json',
+    'Projects\FileDriven\BuildOutput\Debug\Configs\AgentRuntimeUI.json',
+    'Projects\FileDriven\BuildOutput\Release\Configs\AgentRuntimeUI.json',
+    'Environment\CentralTest\BuildOutput\Debug\net10.0-windows\Configs\AgentRuntimeUI.json',
+    'Runtime\Config\DrivenConfig\JsonConfig\AgentRuntimeUI.json'
+)
+$copyHashes = [System.Collections.Generic.List[string]]::new()
+foreach ($copyRel in $configCopies) {
+    $copyPath = Join-Path $Root $copyRel
+    if (-not (Test-Path -LiteralPath $copyPath)) { Add-Violation "[T8] 缺配置副本：$copyRel"; continue }
+    $copyHashes.Add((Get-FileHash -LiteralPath $copyPath -Algorithm SHA256).Hash)
+}
+if ($copyHashes.Count -gt 0 -and (@($copyHashes | Sort-Object -Unique).Count -gt 1)) {
+    Add-Violation '[T8] AgentRuntimeUI.json 副本不一致（应由构建同步源，禁手工漂移）'
+}
+
 # ---- T5 负对照（防判据恒真） ----
 $negDefault = [pscustomobject]@{ layoutShell = '<div></div>'; emptyDiv = '<div></div>' }
 $negOut = [System.Collections.Generic.List[string]]::new()

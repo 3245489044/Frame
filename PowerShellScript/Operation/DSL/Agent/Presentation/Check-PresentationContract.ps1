@@ -97,6 +97,30 @@ foreach ($key in @('bubbleRow', 'processRow', 'noticeRow', 'operationRow')) {
     if ($templateKeys -notcontains $key) { Add-Violation 'P5' ("缺行模板 '{0}'" -f $key) }
 }
 
+# P8 呈现契约单源（ui-regions.json：regionRules 覆盖已声明区域；history 事实优先级 turn 优先）
+$uiRegionsPath = Join-Path $root 'Projects\Plug\Agent\Config\ui\ui-regions.json'
+if (Test-Path -LiteralPath $uiRegionsPath) {
+    $uiRegions = Get-Content -LiteralPath $uiRegionsPath -Raw | ConvertFrom-Json -Depth 32
+    foreach ($v in @($uiRegions.views)) {
+        $viewName = [string]$v.view
+        $declaredRegions = @($v.regions | ForEach-Object { [string]$_ })
+        $rules = $v.regionRules
+        if ($null -ne $rules) {
+            foreach ($ruleProp in @($rules.PSObject.Properties)) {
+                if ($declaredRegions -notcontains $ruleProp.Name) {
+                    Add-Violation 'P8' ("视图 '{0}' regionRules 引用未声明区域 '{1}'" -f $viewName, $ruleProp.Name)
+                }
+            }
+        }
+        $priority = @($v.factPriority | ForEach-Object { [string]$_ })
+        if ($viewName -eq 'history' -and $priority.Count -gt 0 -and $priority[0] -ne 'turn') {
+            Add-Violation 'P8' 'history factPriority 首项应为 turn（事实合并声明）'
+        }
+    }
+} else {
+    Add-Violation 'P8' '缺 ui-regions.json（呈现契约单源不可判）'
+}
+
 if ($NegativeControl) {
     $pos = [regex]::IsMatch('<div class="block {?role=tool}assistant{/}">', $roleCondition)
     $neg = [regex]::IsMatch('<span>{?presentationUnknown}未知{/}</span>', $roleCondition)

@@ -113,6 +113,11 @@ public sealed class NodeWritePlanExecutor
                     .ConfigureAwait(false);
                 applied.Add(work.Id);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // 取消不是“步骤失败”：按取消语义向上传播，禁吞成 Rejected + 补偿。
+                throw;
+            }
             catch (Exception ex)
             {
                 var compensated = await CompensateAsync(order, applied, diagnostics, cancellationToken)

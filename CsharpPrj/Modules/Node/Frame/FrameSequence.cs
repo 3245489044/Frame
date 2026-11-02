@@ -203,10 +203,39 @@ public sealed class FrameSequencer<T>
                 edges.Add(new FrameEdge(FrameEdgeType.AnchorAttach, anchorKind, _project(attached).Kind));
             }
 
-            PlanGroups(entry.Attach);
+            foreach (var group in PlanGroups(entry.Attach).Groups)
+            {
+                foreach (var row in group.Rows)
+                {
+                    edges.Add(new FrameEdge(FrameEdgeType.GroupMember, group.Kind, row.Kind, group.Kind));
+                }
+            }
+
+            AppendCallResultEdges(edges, entry.Attach);
         }
 
         return edges;
+    }
+
+    /// <summary>调用-结果配对（LIFO，与 <see cref="BuildRows"/> 同一配对口径）。</summary>
+    private void AppendCallResultEdges(List<FrameEdge> edges, IReadOnlyList<T> attach)
+    {
+        var calls = new Stack<string>();
+        foreach (var item in attach)
+        {
+            var kind = _project(item).Kind;
+            var role = RoleOf(kind);
+            if (role == FrameRoleIds.Call)
+            {
+                calls.Push(kind);
+                continue;
+            }
+
+            if (role == FrameRoleIds.Result && calls.Count > 0)
+            {
+                edges.Add(new FrameEdge(FrameEdgeType.CallResult, calls.Pop(), kind));
+            }
+        }
     }
 
     /// <summary>kind → 角色标识（未登记 ⇒ plain，可见不丢）。</summary>

@@ -93,16 +93,6 @@ public sealed class DeclaredShaper : INodeShaper<DeclaredNodeShape>
         return ports.Count == 0 ? null : ports;
     }
 
-    private static string? Field(IReadOnlyDictionary<string, string> fields, string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return null;
-        }
-
-        return fields.TryGetValue(name!, out var value) && !string.IsNullOrEmpty(value) ? value : null;
-    }
-
     private static string? JoinSummary(NodeProjectionItem item, IReadOnlyList<string> keys)
     {
         if (keys.Count == 0)

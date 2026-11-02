@@ -13,4 +13,6 @@ public sealed record NodeDocumentQuery(
     int? Round = null,
     int? Limit = null,
     IReadOnlyList<string>? ExplicitKeys = null,
-    bool Full = false);
+    bool Full = false,
+    IReadOnlyList<string>? PlacementIds = null,
+    IReadOnlyList<Modules.Node.Projection.NodeProjectionItem>? Overlays = null);

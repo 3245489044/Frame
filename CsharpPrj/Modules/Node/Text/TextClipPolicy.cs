@@ -34,6 +34,15 @@ public static class TextClipPolicy
         }
 
         var s = flatten ? text!.Replace('\r', ' ').Replace('\n', ' ') : text!;
-        return s.Length > max ? s[..max] + "…" : s;
+        if (s.Length <= max)
+        {
+            return s;
+        }
+
+        // 截断点不得落在代理对中间（否则输出半个 UTF-16 码元）。
+        var cut = max > 0 && max < s.Length && char.IsHighSurrogate(s[max - 1]) && char.IsLowSurrogate(s[max])
+            ? max - 1
+            : max;
+        return s[..cut] + "…";
     }
 }

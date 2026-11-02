@@ -30,12 +30,7 @@ public static class FramePayloadFacts
             return payloadJson;
         }
 
-        JsonNode? parsed;
-        try
-        {
-            parsed = JsonNode.Parse(payloadJson);
-        }
-        catch (System.Text.Json.JsonException)
+        if (!NodeJson.TryParse(payloadJson, out var parsed, out _) || parsed is null)
         {
             return payloadJson;
         }
@@ -64,7 +59,7 @@ public static class FramePayloadFacts
             }
         }
 
-        return changed ? root.ToJsonString() : payloadJson;
+        return changed ? root.ToJsonString(NodeJson.WriteOptions) : payloadJson;
     }
 
     /// <summary>读帧字段布尔值（JSON 布尔或 "true"/"false" 文本；不可判定 ⇒ false + false）。</summary>

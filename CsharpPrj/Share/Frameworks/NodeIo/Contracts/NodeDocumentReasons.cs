@@ -16,6 +16,10 @@ public static class NodeDocumentReasons
     public const string IdentityUnparsable = "identity-unparsable";
     public const string FormMismatch = "form-mismatch";
     public const string LocUnresolved = "loc-unresolved";
+    public const string DomainUnregistered = "domain-unregistered";
+    public const string KeyUnresolved = "key-unresolved";
+    public const string KeyAmbiguous = "key-ambiguous";
+    public const string ProjectionUnknown = "projection-unknown";
 
     public const string PayloadMissing = "payload-missing";
     public const string PayloadNotObject = "payload-not-object";

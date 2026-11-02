@@ -30,4 +30,6 @@ public sealed record NodeDocumentChange(
     string? PayloadJson = null,
     NodeChangeMode Mode = NodeChangeMode.Upsert,
     IReadOnlyList<NodeDocumentPatch>? Patches = null,
-    string? ExpectedDigest = null);
+    string? ExpectedDigest = null,
+    Modules.Node.Carriers.CarrierWriteMeta? RecordMeta = null,
+    IReadOnlyList<string>? PlacementIds = null);

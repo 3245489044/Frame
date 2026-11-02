@@ -11,7 +11,8 @@ public sealed record ResolvedPlacement(
     string WriterId,
     string? PayloadSchemaId,
     string? RecordType,
-    string? ThreadCoordinate);
+    string? ThreadCoordinate,
+    string? ProjectionId);
 
 /// <summary>作用域解析结果（失败给原因；<see cref="Ok"/> 由 <see cref="Placements"/> 非空决定）。</summary>
 public sealed record ResolvedScope(

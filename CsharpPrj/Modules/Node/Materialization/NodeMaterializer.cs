@@ -19,7 +19,8 @@ public sealed record NodeMaterializeRequest(
     string Json,
     string? Domain = null,
     IReadOnlyList<string>? PlacementIds = null,
-    string? WriterId = null);
+    string? WriterId = null,
+    CarrierWriteMeta? Meta = null);
 
 public sealed record NodePlacementResult(
     string PlacementId,
@@ -384,7 +385,10 @@ public sealed class NodeMaterializer
             try
             {
                 write = await _writeGate
-                    .RunAsync(target, () => carrier.UpsertAsync(placementKey, payload, cancellationToken), cancellationToken)
+                    .RunAsync(
+                        target,
+                        () => carrier.UpsertAsync(placementKey, payload, cancellationToken, request.Meta),
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (NodeWriteConflictException ex)
@@ -395,6 +399,22 @@ public sealed class NodeMaterializer
                     ex.Message,
                     spec.PlacementId));
                 results.Add(new NodePlacementResult(spec.PlacementId, placementKey, CarrierWriteStatus.Rejected, "gate-conflict"));
+                continue;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // 载体异常不得半静默穿透：该位置明确失败 + 可见化，其余位置继续（不丢归因）。
+                collected.Add(new NodeDiagnostic(
+                    "write.carrier-failed",
+                    NodeDiagnosticSeverity.Error,
+                    $"载体 '{spec.CarrierId}' 写入异常：{ex.Message}（该位置未完成）",
+                    spec.PlacementId));
+                results.Add(new NodePlacementResult(
+                    spec.PlacementId, placementKey, CarrierWriteStatus.Rejected, "carrier-failed"));
                 continue;
             }
 

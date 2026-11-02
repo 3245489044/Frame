@@ -139,7 +139,8 @@ public sealed class NodeFramework
         Reconciler = new NodeReconciler(Placements, Carriers, Diagnostics);
         Compensation = new NodeCompensation(Carriers, Diagnostics);
         Validator = new NodeSpecValidator(Carriers, Diagnostics);
-        ReferenceIndexImpl = new NodeReferenceIndex(ReferenceIndex.ReferenceFields, Diagnostics);
+        ReferenceIndexImpl = ReferenceIndex as NodeReferenceIndex
+                             ?? new NodeReferenceIndex(ReferenceIndex.ReferenceFields, Diagnostics);
         ChainComposer = new NodeChainComposer(ReferenceIndexImpl, Diagnostics);
         Directives = new NodeDirectiveSet(Diagnostics);
         PortBinding = new NodePortBinding(Diagnostics);

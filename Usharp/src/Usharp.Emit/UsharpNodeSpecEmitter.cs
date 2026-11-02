@@ -80,6 +80,22 @@ public static class UsharpNodeSpecEmitter
             {
                 item["state"] = placement.State;
             }
+            if (!string.IsNullOrWhiteSpace(placement.RecordType))
+            {
+                item["record-type"] = placement.RecordType;
+            }
+            if (!string.IsNullOrWhiteSpace(placement.ThreadCoordinate))
+            {
+                item["thread-coordinate"] = placement.ThreadCoordinate;
+            }
+            if (!string.IsNullOrWhiteSpace(placement.PayloadSchema))
+            {
+                item["payload-schema"] = placement.PayloadSchema;
+            }
+            if (!string.IsNullOrWhiteSpace(placement.Projection))
+            {
+                item["projection"] = placement.Projection;
+            }
             placements.Add(item);
         }
         root["placements"] = placements;

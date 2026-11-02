@@ -56,14 +56,31 @@ public sealed class NodeKeyOrdinalComparer : IComparer<string>
         var rightMatch = NumericSuffix.Match(right);
 
         if (leftMatch.Success && rightMatch.Success &&
-            string.Equals(leftMatch.Groups["prefix"].Value, rightMatch.Groups["prefix"].Value, StringComparison.Ordinal) &&
-            long.TryParse(leftMatch.Groups["number"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var leftValue) &&
-            long.TryParse(rightMatch.Groups["number"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var rightValue))
+            string.Equals(leftMatch.Groups["prefix"].Value, rightMatch.Groups["prefix"].Value, StringComparison.Ordinal))
         {
-            return leftValue.CompareTo(rightValue);
+            var leftDigits = leftMatch.Groups["number"].Value;
+            var rightDigits = rightMatch.Groups["number"].Value;
+            if (long.TryParse(leftDigits, NumberStyles.None, CultureInfo.InvariantCulture, out var leftValue) &&
+                long.TryParse(rightDigits, NumberStyles.None, CultureInfo.InvariantCulture, out var rightValue))
+            {
+                return leftValue.CompareTo(rightValue);
+            }
+
+            // 超长数字段（long 溢出）：去前导零后按“位数 → 序数”比较，避免长短不一的十进制串被字典序排反。
+            var leftNormalized = TrimLeadingZeros(leftDigits);
+            var rightNormalized = TrimLeadingZeros(rightDigits);
+            return leftNormalized.Length != rightNormalized.Length
+                ? leftNormalized.Length.CompareTo(rightNormalized.Length)
+                : string.CompareOrdinal(leftNormalized, rightNormalized);
         }
 
-        // 超长数字段（long 溢出）与非数字段一律退化序数比较：不得因溢出抛异常
+        // 非数字段（前缀不同/无数字）一律退化序数比较
         return string.CompareOrdinal(left, right);
+    }
+
+    private static string TrimLeadingZeros(string digits)
+    {
+        var trimmed = digits.TrimStart('0');
+        return trimmed.Length == 0 ? "0" : trimmed;
     }
 }

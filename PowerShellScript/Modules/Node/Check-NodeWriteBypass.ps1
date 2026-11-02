@@ -147,6 +147,35 @@ if (Test-Path $portFile) {
 }
 elseif ($ShowDetail) { Write-Host "SKIP(I): 未找到 NodeDomainPort.cs（Frame-only 检出）。" -ForegroundColor Gray }
 
+# ---------------- J. Agent 节点写单源（J1 · Error） ----------------
+# 判据：Agent 生产代码中 INodeStore 的写原语调用只允许出现在唯一载体文件 AgentSqlNodeCarrier.cs。
+$agentSrcDir = Join-Path $Root 'Projects\Plug\Agent\src'
+$agentWriteAllowed = @('AgentSqlNodeCarrier.cs')
+function Test-AgentNodeWrite([string]$file, [string]$text) {
+    if ($text -match '\b(nodes|nodeStore|_nodes|store)\.PutAsync\s*\(') {
+        $leaf = Split-Path $file -Leaf
+        if ($agentWriteAllowed -notcontains $leaf) {
+            return "[J/J1] $file 直接调用 INodeStore 写原语（唯一写点 = AgentSqlNodeCarrier.cs）"
+        }
+    }
+    return $null
+}
+if (Test-Path $agentSrcDir)
+{
+    $agentFiles = @(Get-ChildItem -LiteralPath $agentSrcDir -Recurse -Filter *.cs -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\(obj|bin|BuildOutput)\\' })
+    foreach ($file in $agentFiles) {
+        $text = [System.IO.File]::ReadAllText($file.FullName)
+        $hit = Test-AgentNodeWrite $file.FullName $text
+        if ($hit) { $violations.Add($hit) }
+    }
+    # 负对照：合成裸写在非白名单文件必须被同一判据捕获。
+    if (-not (Test-AgentNodeWrite 'Agent.Ui/Forbidden.cs' 'await nodes.PutAsync(record, ct);')) {
+        $violations.Add('[J/J1] 负对照失效：合成裸写未被判据捕获')
+    }
+}
+elseif ($ShowDetail) { Write-Host "SKIP(J): 未找到 Agent 源码目录（Frame-only 检出）。" -ForegroundColor Gray }
+
 # ---------------- D. （告警）疑似裸键容器 ----------------
 $bareContainerHits = @($csFiles | Select-String -Pattern 'HashSet<string>\s+\w*[Bb]are' -ErrorAction SilentlyContinue)
 foreach ($h in $bareContainerHits) { $warnings.Add("[D/G2] $($h.FullName):$($h.LineNumber) 疑似自建裸键容器（应经 PortKeySpace）") }
@@ -171,6 +200,6 @@ if ($violations.Count -gt 0)
     exit 1
 }
 
-Write-Host "  [成功] A/B/C/I 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
+Write-Host "  [成功] A/B/C/I/J 全部通过（告警 $($warnings.Count) 项）" -ForegroundColor Green
 Write-Host ""
 exit 0

@@ -86,7 +86,8 @@ public class FrameSelector
         {
             if (!string.IsNullOrWhiteSpace(pair.Key))
             {
-                predicates[pair.Key] = new ExpressionSelectionPredicate(pair.Key, pair.Value ?? string.Empty);
+                predicates[pair.Key] = new ExpressionSelectionPredicate(
+                    pair.Key, ExpressionOrUnrecognized(pair.Value));
             }
         }
 
@@ -105,25 +106,16 @@ public class FrameSelector
         if (!string.IsNullOrWhiteSpace(declarationJson))
         {
             JsonNode? parsed;
-            try
-            {
-                parsed = JsonNode.Parse(declarationJson!);
-            }
-            catch (System.Text.Json.JsonException)
-            {
-                parsed = null;
-            }
-
-            if (parsed is JsonObject root && root["selections"] is JsonObject selections)
+            if (NodeJson.TryParse(declarationJson, out parsed, out _) &&
+                parsed is JsonObject root && root["selections"] is JsonObject selections)
             {
                 foreach (var pair in selections)
                 {
-                    var expression = pair.Value is JsonValue value && value.TryGetValue<string>(out var text)
-                        ? text
-                        : null;
+                    var expression = NodeJson.TryReadString(pair.Value, out var text) ? text : null;
                     if (!string.IsNullOrWhiteSpace(pair.Key))
                     {
-                        predicates[pair.Key] = new ExpressionSelectionPredicate(pair.Key, expression!);
+                        predicates[pair.Key] = new ExpressionSelectionPredicate(
+                            pair.Key, ExpressionOrUnrecognized(expression));
                     }
                 }
             }
@@ -132,4 +124,10 @@ public class FrameSelector
         predicates.TryAdd(defaultSelectionId, ExpressionSelectionPredicate.All());
         return new FrameSelector(predicates, declarationSubPath, defaultSelectionId);
     }
+
+    /// <summary>空/非字符串表达式 ⇒ 显式不可识别（⊥），禁静默当成全选。</summary>
+    private static string ExpressionOrUnrecognized(string? expression)
+        => string.IsNullOrWhiteSpace(expression)
+            ? ExpressionSelectionPredicate.UnrecognizedExpression
+            : expression!;
 }

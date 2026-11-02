@@ -115,14 +115,9 @@ public static class FramePayloadReader
             return false;
         }
 
-        JsonNode? parsed;
-        try
+        if (!NodeJson.TryParse(payloadJson, out var parsed, out var parseError) || parsed is null)
         {
-            parsed = JsonNode.Parse(payloadJson!);
-        }
-        catch (System.Text.Json.JsonException ex)
-        {
-            reason = $"{schema.Label}.payload-unparsable：{ex.Message}";
+            reason = $"{schema.Label}.payload-unparsable：{parseError ?? "空载荷"}";
             return false;
         }
 
@@ -200,31 +195,15 @@ public static class FramePayloadReader
                 continue;
             }
 
-            fields[pair.Key] = pair.Value is JsonValue value && value.TryGetValue<string>(out var text)
-                ? text ?? string.Empty
-                : pair.Value.ToJsonString();
+            fields[pair.Key] = NodeJson.ValueToText(pair.Value);
         }
 
         return fields;
     }
 
     private static string? ReadText(JsonNode? node)
-    {
-        if (node is JsonValue value && value.TryGetValue<string>(out var text))
-        {
-            return text;
-        }
-
-        return null;
-    }
+        => NodeJson.TryReadString(node, out var text) ? text : null;
 
     private static int? ReadInt(JsonNode? node)
-    {
-        if (node is JsonValue value && value.TryGetValue<int>(out var number))
-        {
-            return number;
-        }
-
-        return null;
-    }
+        => NodeJson.TryReadInt(node, out var number) ? number : null;
 }

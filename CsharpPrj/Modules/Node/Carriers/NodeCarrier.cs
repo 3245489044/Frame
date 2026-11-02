@@ -43,6 +43,12 @@ public sealed record CarrierRecord(
     string? ThreadId = null);
 
 /// <summary>
+/// 记录级写元数据（NodeType / ThreadId / Status）：通用域逐次写入时覆盖载体构造期约定；
+/// <c>null</c> 字段 ⇒ 回退载体自身约定（零回归）。
+/// </summary>
+public sealed record CarrierWriteMeta(string? NodeType = null, string? ThreadId = null, string? Status = null);
+
+/// <summary>
 /// 载体四原语（N4/N5/N10）：载体细节（库/表/控件）只在其实现内，不进框架。
 /// 读写均以键 + JSON 字符串为界（D-1 案 A）。
 /// </summary>
@@ -55,7 +61,11 @@ public interface INodeCarrier
 
     Task EnsureAsync(string key, CancellationToken cancellationToken = default);
 
-    Task<CarrierWriteResult> UpsertAsync(string key, string json, CancellationToken cancellationToken = default);
+    Task<CarrierWriteResult> UpsertAsync(
+        string key,
+        string json,
+        CancellationToken cancellationToken = default,
+        CarrierWriteMeta? meta = null);
 
     Task<CarrierRecord?> ReadAsync(string key, CancellationToken cancellationToken = default);
 
@@ -122,7 +132,11 @@ public sealed class NullNodeCarrier : INodeCarrier
         return Task.CompletedTask;
     }
 
-    public Task<CarrierWriteResult> UpsertAsync(string key, string json, CancellationToken cancellationToken = default)
+    public Task<CarrierWriteResult> UpsertAsync(
+        string key,
+        string json,
+        CancellationToken cancellationToken = default,
+        CarrierWriteMeta? meta = null)
     {
         Report("upsert", key);
         return Task.FromResult(CarrierWriteResult.Rejected("carrier-unbound"));

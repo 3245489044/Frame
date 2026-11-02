@@ -47,9 +47,17 @@ public sealed partial class NodeDocumentPort
                 diagnostics);
         }
 
+        var placementIds = (change.PlacementIds is { Count: > 0 }
+            ? resolved.PlacementIds.Where(id => change.PlacementIds.Contains(id))
+            : resolved.PlacementIds).ToArray();
+        if (placementIds.Length == 0)
+        {
+            return Rejected(change.Scope, new[] { NodeDocumentReasons.NoWritablePlacement + ":" + change.Scope.Domain });
+        }
+
         return await _framework.Materializer.MaterializeAsync(
                 new NodeMaterializeRequest(
-                    change.Scope.KeyContext, json!, change.Scope.Domain, resolved.PlacementIds),
+                    change.Scope.KeyContext, json!, change.Scope.Domain, placementIds, Meta: change.RecordMeta),
                 cancellationToken)
             .ConfigureAwait(false);
     }

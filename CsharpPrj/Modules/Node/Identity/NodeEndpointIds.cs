@@ -197,11 +197,20 @@ public static class NodeEndpointIds
 
     /// <summary>已知的其它族（<c>history.*</c> / <c>session.*</c> / <c>history:</c> / <c>session:</c>）判据（结构事实，禁手列前缀）。</summary>
     public static bool IsForeignFamily(string value)
-        => !string.IsNullOrWhiteSpace(value)
-           && (HierarchyKeys.IsKeyOf(HistoryFamily.Id, KeySurface.Endpoint, value)
-               || HierarchyKeys.IsKeyOf(HistoryFamily.Id, KeySurface.Storage, value)
-               || HierarchyKeys.IsKeyOf(SessionFamily.Id, KeySurface.Endpoint, value)
-               || HierarchyKeys.IsKeyOf(SessionFamily.Id, KeySurface.Storage, value));
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var raw = value.Trim();
+        // 只判**端点面**：History 存储面声明了只读兼容裸模板 {historyId}，会命中一切裸键，
+        // 用它判“外来族”会反过来拒绝所有节点裸键（身份反解恒 false）。
+        return HierarchyKeys.IsKeyOf(HistoryFamily.Id, KeySurface.Endpoint, raw)
+               || HierarchyKeys.IsKeyOf(SessionFamily.Id, KeySurface.Endpoint, raw)
+               || raw.StartsWith(HistoryTypePrefix, StringComparison.Ordinal)
+               || raw.StartsWith(SessionTypePrefix, StringComparison.Ordinal);
+    }
 
     /// <summary>
     /// 由历史端点 Id 还原 historyId（含 <c>.</c> 的 Id 整段归还）；非历史端点返回 false。
@@ -238,6 +247,8 @@ public static class NodeEndpointIds
             return Storage(key, instanceKey);
         }
 
+        // 与 Node() 同一归一：本 workflowId 前缀只剥一次（构造不动点），禁两入口产出不同 Id。
+        key = StripOnce(key, wf + Separator);
         return HierarchyKeys.Render(
             HierarchyKeys.With(
                 HierarchyKeys.With(

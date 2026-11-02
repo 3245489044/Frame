@@ -61,19 +61,10 @@ public static class FramePayloadMerge
             return new FramePayloadMergeResult(incomingJson, 0, incomingOnly, incomingOnly, 0, 0, false);
         }
 
-        JsonObject? existing;
-        JsonObject? incoming;
-        try
-        {
-            existing = JsonNode.Parse(existingJson) as JsonObject;
-            incoming = JsonNode.Parse(incomingJson) as JsonObject;
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return new FramePayloadMergeResult(incomingJson, 0, 0, 0, 0, 0, false);
-        }
-
-        if (existing is null || incoming is null)
+        if (!NodeJson.TryParse(existingJson, out var existingNode, out _) ||
+            existingNode is not JsonObject existing ||
+            !NodeJson.TryParse(incomingJson, out var incomingNode, out _) ||
+            incomingNode is not JsonObject incoming)
         {
             return new FramePayloadMergeResult(incomingJson, 0, 0, 0, 0, 0, false);
         }
@@ -133,7 +124,7 @@ public static class FramePayloadMerge
                 }
 
                 firstFrame = false;
-                roundsJson.Append(frame?.ToJsonString() ?? "null");
+                roundsJson.Append(frame?.ToJsonString(NodeJson.WriteOptions) ?? "null");
             }
 
             roundsJson.Append("]}");
@@ -141,19 +132,26 @@ public static class FramePayloadMerge
 
         roundsJson.Append(']');
 
-        var merged = new JsonObject
-        {
-            [schema.PartitionKeyField] = incomingKey,
-            [schema.RunField] = incomingRun ?? existingRun,
-            [schema.StartedAtUtcField] = existing[schema.StartedAtUtcField]?.ToString()
-                                          ?? incoming[schema.StartedAtUtcField]?.ToString(),
-            [schema.EndedAtUtcField] = incoming[schema.EndedAtUtcField]?.ToString()
-                                        ?? existing[schema.EndedAtUtcField]?.ToString(),
-            [schema.RoundsField] = JsonNode.Parse(roundsJson.ToString()),
-        };
+        // 以既有载荷为基底**只覆盖已知键**：其它根级字段原样保留（N5 只增不丢）。
+        var merged = existing.DeepClone() as JsonObject ?? new JsonObject();
+        merged[schema.PartitionKeyField] = incomingKey;
+        merged[schema.RunField] = incomingRun ?? existingRun;
+        merged[schema.StartedAtUtcField] = existing[schema.StartedAtUtcField]?.ToString()
+                                          ?? incoming[schema.StartedAtUtcField]?.ToString();
+        merged[schema.EndedAtUtcField] = incoming[schema.EndedAtUtcField]?.ToString()
+                                        ?? existing[schema.EndedAtUtcField]?.ToString();
+        merged[schema.RoundsField] = NodeJson.TryParse(roundsJson.ToString(), out var roundsNode, out _)
+            ? roundsNode
+            : null;
 
         return new FramePayloadMergeResult(
-            merged.ToJsonString(), existingFrames, incomingFrames, mergedFrames, replaced, unidentifiable, false);
+            merged.ToJsonString(NodeJson.WriteOptions),
+            existingFrames,
+            incomingFrames,
+            mergedFrames,
+            replaced,
+            unidentifiable,
+            false);
     }
 
     /// <summary>轮分组桶：帧序（保序）+ 身份键 → 帧序索引（同键覆盖）。</summary>
@@ -235,8 +233,8 @@ public static class FramePayloadMerge
     /// <summary>同身份帧内容是否一致（幂等重提交判定；文本口径 = 载荷原文）。</summary>
     private static bool SameFrame(JsonNode? left, JsonNode? right)
         => string.Equals(
-            left?.ToJsonString() ?? string.Empty,
-            right?.ToJsonString() ?? string.Empty,
+            left?.ToJsonString(NodeJson.WriteOptions) ?? string.Empty,
+            right?.ToJsonString(NodeJson.WriteOptions) ?? string.Empty,
             StringComparison.Ordinal);
 
     /// <summary>按到达序数值升序稳定排序（身份不可读者保持原序靠后）。</summary>
@@ -268,19 +266,9 @@ public static class FramePayloadMerge
 
     private static int CountFrames(string payloadJson, FramePayloadSchema schema)
     {
-        if (string.IsNullOrWhiteSpace(payloadJson))
-        {
-            return 0;
-        }
-
-        try
-        {
-            return JsonNode.Parse(payloadJson) is JsonObject root ? CountFrames(root, schema) : 0;
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return 0;
-        }
+        return !NodeJson.TryParse(payloadJson, out var node, out _) || node is not JsonObject root
+            ? 0
+            : CountFrames(root, schema);
     }
 
     private static int CountFrames(JsonObject root, FramePayloadSchema schema)
@@ -302,6 +290,5 @@ public static class FramePayloadMerge
         return count;
     }
 
-    private static JsonNode? Clone(JsonNode? node)
-        => node is null ? null : JsonNode.Parse(node.ToJsonString());
+    private static JsonNode? Clone(JsonNode? node) => node?.DeepClone();
 }

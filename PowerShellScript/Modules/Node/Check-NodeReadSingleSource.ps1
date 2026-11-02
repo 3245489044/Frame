@@ -148,6 +148,14 @@ if ($bareReasonHits.Count -gt 0) {
     $violations.Add("Agent 侧仍出现裸原因词 prefix-undefined：$($bareReasonHits[0].Path):$($bareReasonHits[0].LineNumber)")
 }
 
+# ===== I8 帧载荷解析单源（J2）：FramePayloadReader 生产调用点 ⊆ Share.NodeIo/Payload =====
+$frameReaderHits = @(Get-ChildItem -LiteralPath (Join-Path $Root 'Projects\Plug\Agent\src') -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
+    Select-String -Pattern 'FramePayloadReader\.' |
+    Where-Object { $_.Line.TrimStart() -notmatch '^(//|/\*|\*)' })
+if ($frameReaderHits.Count -gt 0) {
+    $violations.Add("Agent 侧仍直接调用 FramePayloadReader：$($frameReaderHits[0].Path):$($frameReaderHits[0].LineNumber)（唯一解析入口 = Share.NodeIo.NodePayloadReader）")
+}
+
 # ===== I7 声明可达（装配期校验器在位） =====
 $validatorFile = Join-Path $nodeDir 'Spec\NodeSpecValidator.cs'
 if ((Test-Path $validatorFile) -and ((Get-Content -LiteralPath $validatorFile -Raw) -notmatch 'ValidateGather')) {

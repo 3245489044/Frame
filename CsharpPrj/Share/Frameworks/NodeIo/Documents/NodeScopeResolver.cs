@@ -80,7 +80,7 @@ public sealed partial class NodeScopeResolver
 
             resolved.Add(new ResolvedPlacement(
                 spec.PlacementId, spec.CarrierId, key, spec.Form, spec.WriterId,
-                spec.PayloadSchemaId, spec.RecordType, spec.ThreadCoordinate));
+                spec.PayloadSchemaId, spec.RecordType, spec.ThreadCoordinate, spec.ProjectionId));
         }
 
         return new ResolvedScope(

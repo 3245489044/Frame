@@ -24,7 +24,11 @@ public sealed record UsharpPlacementDecl(
     string Retention,
     string Selection,
     string Writer,
-    string? State);
+    string? State,
+    string? RecordType = null,
+    string? ThreadCoordinate = null,
+    string? PayloadSchema = null,
+    string? Projection = null);
 
 /// <summary>身份坐标绑定：<c>container | family=agent.task | axis=container | canonical=required</c>。</summary>
 /// <param name="Name">身份占位符名（须与 identity 模板一致）。</param>
@@ -233,9 +237,17 @@ public sealed record UsharpDomainDecl(
         if (!fields.TryGetValue(UsharpLanguage.FieldWriter, out var writer) || writer.Length == 0) return false;
 
         fields.TryGetValue(UsharpLanguage.FieldState, out var state);
+        fields.TryGetValue("record-type", out var recordType);
+        fields.TryGetValue("thread-coordinate", out var threadCoordinate);
+        fields.TryGetValue("payload-schema", out var payloadSchema);
+        fields.TryGetValue("projection", out var projection);
         placement = new UsharpPlacementDecl(
             id, level, carrier, key, form, retention, selection, writer,
-            string.IsNullOrWhiteSpace(state) ? null : state);
+            string.IsNullOrWhiteSpace(state) ? null : state,
+            string.IsNullOrWhiteSpace(recordType) ? null : recordType,
+            string.IsNullOrWhiteSpace(threadCoordinate) ? null : threadCoordinate,
+            string.IsNullOrWhiteSpace(payloadSchema) ? null : payloadSchema,
+            string.IsNullOrWhiteSpace(projection) ? null : projection);
         return true;
     }
 

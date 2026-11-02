@@ -44,7 +44,11 @@ public sealed class InMemoryNodeCarrier : INodeCarrier
 
     public Task EnsureAsync(string key, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-    public Task<CarrierWriteResult> UpsertAsync(string key, string json, CancellationToken cancellationToken = default)
+    public Task<CarrierWriteResult> UpsertAsync(
+        string key,
+        string json,
+        CancellationToken cancellationToken = default,
+        CarrierWriteMeta? meta = null)
     {
         var digest = NodeJson.Sha256Hex(json);
 

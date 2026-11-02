@@ -124,7 +124,7 @@ public static class NodeFrameworkSpecLoader
             ?? throw new NodeFrameworkSpecException(
                 "位置反解表不可为空：唯一来源 = 位置反解声明面（[Matrix] LocToPlacement）");
 
-        var selections = ParseSelections(root, collected);
+        var selections = ParseSelections(root, collected, sink);
         var retentions = ParseMap(root, "retentions", collected);
         var marks = ParseMap(root, "marks", collected);
         var tags = ParseMap(root, "tags", collected);
@@ -277,7 +277,7 @@ public static class NodeFrameworkSpecLoader
             return null;
         }
 
-        var values = declaration["values"] is JsonObject map
+        var values = declaration["values"] is JsonObject
             ? ParseMap(declaration, "values", collected)
             : null;
         return new SignalFilter(fields, values);
@@ -383,10 +383,10 @@ public static class NodeFrameworkSpecLoader
                 carrierId,
                 keyTemplate,
                 ParsePlacementForm(declaration, collected),
-                ParseEnum(declaration, "retention", PlacementRetention.Contextual),
+                ParseEnum(declaration, "retention", PlacementRetention.Contextual, collected, placementId),
                 ReadString(declaration, "selection") ?? ExpressionSelectionPredicate.AllSelectionId,
                 writerId,
-                ParseEnum(declaration, "state", PlacementState.Active),
+                ParseEnum(declaration, "state", PlacementState.Active, collected, placementId),
                 localCoordinates,
                 ReadString(declaration, "record-type") ?? ReadString(declaration, "recordType"),
                 ReadString(declaration, "thread-coordinate") ?? ReadString(declaration, "threadCoordinate"),
@@ -454,9 +454,10 @@ public static class NodeFrameworkSpecLoader
         return parts.Length == 0 ? null : parts;
     }
 
-    private static SelectionSet ParseSelections(JsonObject root, List<NodeDiagnostic> collected)
+    private static SelectionSet ParseSelections(
+        JsonObject root, List<NodeDiagnostic> collected, INodeDiagnosticsSink sink)
     {
-        var selections = new SelectionSet();
+        var selections = new SelectionSet(sink);
 
         if (root["selections"] is not JsonObject declared)
         {
@@ -556,13 +557,28 @@ public static class NodeFrameworkSpecLoader
     private static string? ReadArrayJson(JsonObject obj, string propertyName) =>
         obj[propertyName] is JsonArray array ? array.ToJsonString(NodeJson.WriteOptions) : null;
 
-    private static TEnum ParseEnum<TEnum>(JsonObject obj, string propertyName, TEnum fallback)
+    private static TEnum ParseEnum<TEnum>(
+        JsonObject obj, string propertyName, TEnum fallback, List<NodeDiagnostic> collected, string subject)
         where TEnum : struct, Enum
     {
         var text = ReadString(obj, propertyName);
-        return !string.IsNullOrWhiteSpace(text) && Enum.TryParse<TEnum>(text, ignoreCase: true, out var parsed)
-            ? parsed
-            : fallback;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return fallback;
+        }
+
+        // 数值串也可能被 Enum.TryParse 接受（如 999）；IsDefined 把“未声明成员”一并拒掉。
+        if (Enum.TryParse<TEnum>(text, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed))
+        {
+            return parsed;
+        }
+
+        collected.Add(new NodeDiagnostic(
+            "spec.enum-value-invalid",
+            NodeDiagnosticSeverity.Warning,
+            $"属性 '{propertyName}' 值 '{text}' 不可识别：已回退为 '{fallback}'（不静默）",
+            subject));
+        return fallback;
     }
 }
 

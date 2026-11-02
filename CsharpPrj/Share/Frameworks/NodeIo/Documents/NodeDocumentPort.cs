@@ -17,17 +17,20 @@ public sealed partial class NodeDocumentPort : INodeDocumentPort
     private readonly NodeFramework _framework;
     private readonly NodeScopeResolver _resolver;
     private readonly NodePayloadSchemaRegistry _schemas;
+    private readonly NodeDocumentProjectionRegistry _projections;
     private readonly NodeWriteGate _rmwGate;
     private readonly ConcurrentDictionary<string, NodeStreamRun> _runs = new(StringComparer.Ordinal);
 
     public NodeDocumentPort(
         NodeFramework framework,
         NodePayloadSchemaRegistry? schemas = null,
-        NodeWriteGate? readModifyWriteGate = null)
+        NodeWriteGate? readModifyWriteGate = null,
+        NodeDocumentProjectionRegistry? projections = null)
     {
         _framework = framework ?? throw new ArgumentNullException(nameof(framework));
         _resolver = new NodeScopeResolver(_framework);
         _schemas = schemas ?? new NodePayloadSchemaRegistry();
+        _projections = projections ?? new NodeDocumentProjectionRegistry();
         _rmwGate = readModifyWriteGate ?? new NodeWriteGate("node-io:rmw", TimeSpan.Zero, _framework.Diagnostics);
     }
 
@@ -48,33 +51,93 @@ public sealed partial class NodeDocumentPort : INodeDocumentPort
             return Unavailable(scope.Domain, resolved.Reasons);
         }
 
+        if (query.PlacementIds is { Count: > 0 } placementIds)
+        {
+            var narrowed = resolved.Placements
+                .Where(placement => placementIds.Contains(placement.PlacementId))
+                .ToArray();
+            if (narrowed.Length == 0)
+            {
+                return Unavailable(
+                    scope.Domain,
+                    new[] { NodeDocumentReasons.NoReadablePlacement + ":" + scope.Domain });
+            }
+
+            resolved = new ResolvedScope(resolved.Scope, narrowed, true, resolved.Reasons, narrowed[0].Form);
+        }
+
         var items = new List<NodeProjectionItem>();
+        var reasons = new List<string>(resolved.Reasons);
         foreach (var placement in resolved.Placements)
         {
-            if (!_framework.Carriers.TryGet(placement.CarrierId, out _))
+            if (!_framework.Carriers.TryGet(placement.CarrierId, out var carrier))
             {
                 continue;
             }
 
-            var explicitKeys = query.ExplicitKeys ??
+            IReadOnlyList<string>? explicitKeys;
+            if (query.Full)
+            {
+                var enumerated = await carrier
+                    .EnumerateKeysAsync(query.KeyPrefix, cancellationToken)
+                    .ConfigureAwait(false);
+                if (enumerated.Count == 0)
+                {
+                    continue;
+                }
+
+                explicitKeys = enumerated;
+            }
+            else
+            {
+                explicitKeys = query.ExplicitKeys ??
                                (query.KeyPrefix is null ? new[] { placement.PositionKey } : null);
+            }
+
             var readScope = new ReadScope(
                 Domain: scope.Domain,
                 PlacementIds: new[] { placement.PlacementId },
                 SelectionId: scope.SelectionId,
-                KeyPrefix: query.KeyPrefix,
+                KeyPrefix: query.Full ? null : query.KeyPrefix,
                 Limit: query.Limit,
                 Loc: null,
                 Container: scope.KeyContext,
                 Round: query.Round,
                 Keys: explicitKeys);
 
-            items.AddRange(await _framework.Projection
+            var raw = await _framework.Projection
                 .ProjectAsync(readScope, null, cancellationToken)
-                .ConfigureAwait(false));
+                .ConfigureAwait(false);
+            if (raw.Count == 0)
+            {
+                continue;
+            }
+
+            if (!_projections.TryResolve(placement.ProjectionId, out var projection))
+            {
+                reasons.Add(NodeDocumentReasons.ProjectionUnknown + ":" + placement.ProjectionId);
+                projection = _projections.Resolve(null);
+            }
+
+            items.AddRange(projection.Project(scope, placement, raw, _schemas.Resolve(placement.PayloadSchemaId)));
         }
 
-        var reasons = new List<string>(resolved.Reasons);
+        if (query.Overlays is { Count: > 0 } overlays)
+        {
+            var byKey = new Dictionary<string, NodeProjectionItem>(StringComparer.Ordinal);
+            foreach (var item in items)
+            {
+                byKey[item.Key] = item;
+            }
+
+            foreach (var overlay in overlays)
+            {
+                byKey[overlay.Key] = overlay;
+            }
+
+            items = byKey.Values.ToList();
+        }
+
         if (items.Count == 0)
         {
             reasons.Add(NodeKeySetReasons.NoProjectionRows);

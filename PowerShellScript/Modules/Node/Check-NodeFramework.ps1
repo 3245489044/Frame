@@ -208,6 +208,30 @@ elseif ($ShowDetail)
     Write-Host "SKIP(F): 未找到 Agent 节点声明目录（$AgentNodesDir）—— 跳过运行态面声明判定。" -ForegroundColor Gray
 }
 
+# ---------------- F2. 可写位置须声明载荷契约（J5 · Error） ----------------
+# 判据：非 legacy 的 placement 行必须同时声明 record-type 与 payload-schema（写前校验/读侧同源解析的前置）。
+if (Test-Path $AgentNodesDir)
+{
+    $declFiles = @(Get-ChildItem -Path $AgentNodesDir -Filter *.ushar -File -ErrorAction SilentlyContinue)
+    foreach ($decl in $declFiles)
+    {
+        $lineNo = 0
+        foreach ($line in [System.IO.File]::ReadAllLines($decl.FullName))
+        {
+            $lineNo++
+            if ($line -notmatch '^\s*id=' -or $line -notmatch '\bwriter=') { continue }
+            if ($line -match '\bstate=legacy\b') { continue }
+            $placementId = if ($line -match '\bid=([^\s|]+)') { $Matches[1] } else { '?' }
+            if ($line -notmatch '\brecord-type=') {
+                $violations.Add("[F2/J5] $($decl.Name):$lineNo 可写位置 '$placementId' 缺 record-type（载荷落库判别值须声明）")
+            }
+            if ($line -notmatch '\bpayload-schema=') {
+                $violations.Add("[F2/J5] $($decl.Name):$lineNo 可写位置 '$placementId' 缺 payload-schema（写前校验/读侧同源解析的前置）")
+            }
+        }
+    }
+}
+
 # ---------------- G. （告警）声明运行态面须有 run 身份承接点（FW-5 · Warning） ----------------
 # 判据：域描述声明 RuntimeBound=true（有运行态内存面）时，须存在运行域承接点：
 #       ① 框架侧 INodeRunScopeSource（Modules.Node/Identity/NodeRunScope.cs）；

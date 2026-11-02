@@ -24,6 +24,9 @@ public sealed class ExpressionSelectionPredicate : ISelectionPredicate
     /// <summary>「全选」选择名缺省字面量（词表未装配时的回退；权威值经 <see cref="ISelectionVocabulary"/> 提供）。</summary>
     public const string AllSelectionId = "all";
 
+    /// <summary>不可识别表达式的显式占位（构造后 <see cref="IsRecognized"/> = false；禁把 null/空静默当全选）。</summary>
+    public const string UnrecognizedExpression = "\u0000unrecognized";
+
     private readonly Lazy<(bool Recognized, Func<IReadOnlyDictionary<string, string>, bool> Evaluate)> _compiled;
 
     public ExpressionSelectionPredicate(string selectionId, string expression)

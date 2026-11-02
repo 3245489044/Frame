@@ -8,6 +8,7 @@ namespace Modules.Node.Read;
 /// <param name="SelectionId">读侧 selection 名（可空 = 声明默认）。</param>
 /// <param name="Limit">条数上限。</param>
 /// <param name="Loc">位置坐标（可空；给出时经位置反解收窄）。</param>
+/// <param name="KeyPrefix">键前缀（可空；给出时在投影侧做前缀枚举）。</param>
 /// <param name="PlacementIds">位置收窄（可空 = 本域可读位置）。</param>
 /// <param name="Container">期望容器（FW-2 读限定；null = 不限）。</param>
 /// <param name="Round">期望轮次（FW-2；null = 不限）。</param>
@@ -77,18 +78,34 @@ public sealed class NodeReadService
             };
             keySet = await _keys.ResolveAsync(scope, ct).ConfigureAwait(false);
         }
+        else if (request.Keys is not null)
+        {
+            // 键集请求已声明但来源未装配：不可用（禁降级为“空”或意外全量读）。
+            var unavailable = new[] { NodeKeySetReasons.SourceUnavailable };
+            return new NodeReadResult(
+                request.DomainKey,
+                NodeKeySetResult.Empty(NodeKeySetOrigin.Full, unavailable),
+                Array.Empty<NodeProjectionItem>(),
+                unavailable,
+                NodeReadStatus.Unavailable,
+                MapCodes(unavailable));
+        }
         else
         {
             keySet = NodeKeySetResult.Empty(NodeKeySetOrigin.Full);
         }
 
-        // 限定必达（I2）：Scoped 且无键、无容器、未显式声明全量 ⇒ 不可用（禁静默读全域）。
-        var hasScopeCoordinate =
-            keySet.Keys.Count > 0 ||
+        // 限定必达（I2）：无任何作用域坐标 ⇒ 不可用（禁静默读全域）。
+        // 显式键集（含**空集**）与键集请求本身都是作用域坐标：空集属合法空，不得判成 scope-undefined。
+        var hasNonKeyScopeCoordinate =
             !string.IsNullOrWhiteSpace(request.Container) ||
             !string.IsNullOrWhiteSpace(request.KeyPrefix) ||
-            request.ExplicitFull ||
-            request.ExplicitKeys is { Count: > 0 };
+            request.ExplicitFull;
+        var hasScopeCoordinate =
+            keySet.Keys.Count > 0 ||
+            hasNonKeyScopeCoordinate ||
+            request.ExplicitKeys is not null ||
+            request.Keys is not null;
         if (!hasScopeCoordinate)
         {
             return new NodeReadResult(
@@ -100,16 +117,11 @@ public sealed class NodeReadService
                 new[] { NodeReadReason.ScopeUndefined });
         }
 
-        // 键集为空**且无其它作用域坐标**（容器 / 键前缀 / 显式全量）⇒ 键集即唯一限定源：合法空（no-binding 等）。
-        // 有坐标时**必须进投影**：容器轴 / 键前缀轴 / 全量轴的枚举发生在投影侧（读前缀 → 载体枚举），
-        // 此处提前返回会把「本可读到的行」判成空集 ⇒ 面板/库视图恒零行（读面不可用却报「可用但空」）。
-        var hasNonKeyScopeCoordinate =
-            !string.IsNullOrWhiteSpace(request.Container) ||
-            !string.IsNullOrWhiteSpace(request.KeyPrefix) ||
-            request.ExplicitFull;
-        if (keySet.Keys.Count == 0 && request.ExplicitKeys is null && !hasNonKeyScopeCoordinate)
+        // 键集为空的唯一限定源 ⇒ 合法空（no-binding / 显式空键集）：可用但空，不清面。
+        // 有容器 / 键前缀 / 全量坐标时**必须进投影**：这些轴的枚举发生在投影侧（读前缀 → 载体枚举），
+        // 此处提前返回会把「本可读到的行」判成空集 ⇒ 面板/库视图恒零行。
+        if (keySet.Keys.Count == 0 && !hasNonKeyScopeCoordinate)
         {
-            // 键集合法空（no-binding 等）：可用但空，不清面。
             return new NodeReadResult(
                 request.DomainKey,
                 keySet,

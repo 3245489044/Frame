@@ -8,11 +8,14 @@ namespace Share.NodeIo;
 /// </summary>
 public sealed class NodeDocumentFramework
 {
-    public NodeDocumentFramework(NodeFramework framework, NodePayloadSchemaRegistry? schemas = null)
+    public NodeDocumentFramework(
+        NodeFramework framework,
+        NodePayloadSchemaRegistry? schemas = null,
+        NodeDocumentProjectionRegistry? projections = null)
     {
         Framework = framework ?? throw new ArgumentNullException(nameof(framework));
         Schemas = schemas ?? new NodePayloadSchemaRegistry();
-        Port = new NodeDocumentPort(Framework, Schemas);
+        Port = new NodeDocumentPort(Framework, Schemas, projections: projections);
     }
 
     public NodeFramework Framework { get; }

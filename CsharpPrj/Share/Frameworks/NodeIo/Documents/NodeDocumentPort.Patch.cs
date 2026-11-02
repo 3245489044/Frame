@@ -80,7 +80,8 @@ public sealed partial class NodeDocumentPort
         }
 
         var payload = _framework.FormCodec.Encode(placement.Form, patched);
-        var write = await carrier.UpsertAsync(placement.PositionKey, payload, cancellationToken)
+        var write = await carrier
+            .UpsertAsync(placement.PositionKey, payload, cancellationToken, change.RecordMeta)
             .ConfigureAwait(false);
         return (write.Status, write.Reason);
     }

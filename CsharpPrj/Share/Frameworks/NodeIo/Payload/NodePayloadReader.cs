@@ -7,7 +7,9 @@ public sealed record NodeDocumentFrame(
     int Round,
     long Seq,
     string Kind,
-    IReadOnlyDictionary<string, string> Fields);
+    IReadOnlyDictionary<string, string> Fields,
+    /// <summary>帧原始 JSON（R6）：投影回写时必须保留原节点，禁由展平字段重建。</summary>
+    string? RawJson = null);
 
 /// <summary>
 /// Stream 载荷 → 帧记录（读侧**唯一解析入口**，与写侧 <see cref="NodePayloadValidator"/> 同一 schema）。
@@ -55,7 +57,7 @@ public static class NodePayloadReader
                     var kind = fields.TryGetValue(schema.KindField ?? "kind", out var kindText)
                         ? kindText
                         : string.Empty;
-                    list.Add(new NodeDocumentFrame(roundNo, seq, kind, fields));
+                    list.Add(new NodeDocumentFrame(roundNo, seq, kind, fields, frame.ToJsonString()));
                 }
             }
         }
@@ -76,7 +78,7 @@ public static class NodePayloadReader
                 var kind = fields.TryGetValue(schema.KindField ?? "kind", out var kindText)
                     ? kindText
                     : string.Empty;
-                list.Add(new NodeDocumentFrame(0, seq, kind, fields));
+                list.Add(new NodeDocumentFrame(0, seq, kind, fields, frame.ToJsonString()));
             }
         }
 

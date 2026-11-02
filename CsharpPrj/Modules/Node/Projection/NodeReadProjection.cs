@@ -49,7 +49,12 @@ public sealed record NodeProjectionItem(
     NodeAddress? Address = null,
     string? Tags = null,
     NodeSignal? Signal = null,
-    IReadOnlyDictionary<string, string>? RecordMeta = null);
+    IReadOnlyDictionary<string, string>? RecordMeta = null,
+    /// <summary>
+    /// 投影状态（E9）：null = 投影成功/未投影；非空 = 投影失败原因（如 <c>payload-rejected:...</c>），
+    /// 结果层必须并入 Reasons，禁把「投影失败退回文档行」与「原样文档」混为一谈。
+    /// </summary>
+    string? ProjectionStatus = null);
 
 /// <summary>
 /// 读投影范围（裁剪只在读侧：N7）。

@@ -50,16 +50,10 @@ public sealed partial class NodeDocumentPort
 
     private NodeMaterializationResult Rejected(NodeDocumentScope scope, IReadOnlyList<string> reasons)
     {
-        var diagnostics = reasons
-            .Select(reason => new NodeDiagnostic(
-                "document.rejected", NodeDiagnosticSeverity.Error, reason, scope.Domain))
-            .ToArray();
-        Report(diagnostics);
-        return new NodeMaterializationResult(
-            MaterializeStatus.Rejected,
-            scope.KeyContext,
-            Array.Empty<NodePlacementResult>(),
-            diagnostics);
+        // 结果构造单源（D3）：诊断 code/severity 只由 NodeDocumentResultFactory 决定。
+        var result = NodeDocumentResultFactory.Rejected(scope, reasons);
+        Report(result.Diagnostics);
+        return result;
     }
 
     private void Report(IReadOnlyList<NodeDiagnostic> diagnostics)

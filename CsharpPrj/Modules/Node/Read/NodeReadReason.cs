@@ -61,6 +61,12 @@ public enum NodeReadReason
 
     /// <summary>坐标已给但读投影无行（与 <see cref="NoBinding"/> 区分：空必须可归因）。</summary>
     NoProjectionRows,
+
+    /// <summary>域未注册（E10）：与「位置不可解析」分离，禁压成 <see cref="PlacementUnresolved"/>。</summary>
+    DomainUnregistered,
+
+    /// <summary>载体未绑定/未装配（E10）。</summary>
+    CarrierUnbound,
 }
 
 /// <summary>原因词文本 ↔ 注册枚举的唯一映射（禁各处 switch）。</summary>
@@ -83,6 +89,8 @@ public static class NodeReadReasons
             ["round-mismatch"] = NodeReadReason.RoundMismatch,
             ["unshaped"] = NodeReadReason.Unshaped,
             ["admitted"] = NodeReadReason.Admitted,
+            ["domain-unregistered"] = NodeReadReason.DomainUnregistered,
+            ["carrier-unbound"] = NodeReadReason.CarrierUnbound,
         };
 
     /// <summary>样本文本（<c>reason:key</c>）取前缀归类；未注册 ⇒ <c>false</c>（调用方须显式处理，禁静默吞）。</summary>
@@ -154,6 +162,8 @@ public static class NodeReadReasons
         NodeReadReason.ContainerMismatch => "container-mismatch",
         NodeReadReason.RoundMismatch => "round-mismatch",
         NodeReadReason.Unshaped => "unshaped",
+        NodeReadReason.DomainUnregistered => "domain-unregistered",
+        NodeReadReason.CarrierUnbound => "carrier-unbound",
         _ => "unknown",
     };
 }

@@ -20,6 +20,8 @@ public static class NodeDocumentReasons
     public const string KeyUnresolved = "key-unresolved";
     public const string KeyAmbiguous = "key-ambiguous";
     public const string ProjectionUnknown = "projection-unknown";
+    /// <summary>投影失败原因前缀（E9）：投影内部解析失败 ⇒ <c>payload-rejected:&lt;reason&gt;</c>。</summary>
+    public const string ProjectionPayloadRejected = "payload-rejected";
 
     public const string PayloadMissing = "payload-missing";
     public const string PayloadNotObject = "payload-not-object";

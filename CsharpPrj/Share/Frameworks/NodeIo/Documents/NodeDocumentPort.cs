@@ -72,6 +72,8 @@ public sealed partial class NodeDocumentPort : INodeDocumentPort
         {
             if (!_framework.Carriers.TryGet(placement.CarrierId, out var carrier))
             {
+                // 载体未绑定不得静默跳过（E10）：显式归因，避免「读不到」与「没有」同形。
+                reasons.Add(NodeDocumentReasons.CarrierUnbound + ":" + placement.CarrierId);
                 continue;
             }
 
@@ -119,7 +121,18 @@ public sealed partial class NodeDocumentPort : INodeDocumentPort
                 projection = _projections.Resolve(null);
             }
 
-            items.AddRange(projection.Project(scope, placement, raw, _schemas.Resolve(placement.PayloadSchemaId)));
+            // 投影失败原因上送（E9）：投影实现把失败标记在行上，结果层并入 Reasons（禁静默退回文档行）。
+            var projected = projection.Project(
+                scope, placement, raw, _schemas.Resolve(placement.PayloadSchemaId));
+            foreach (var row in projected)
+            {
+                if (!string.IsNullOrWhiteSpace(row.ProjectionStatus))
+                {
+                    reasons.Add(row.ProjectionStatus!);
+                }
+            }
+
+            items.AddRange(projected);
         }
 
         if (query.Overlays is { Count: > 0 } overlays)
@@ -196,11 +209,6 @@ public sealed partial class NodeDocumentPort : INodeDocumentPort
         scope.Domain + "|" + scope.Loc + "|" + scope.KeyContext;
 
     private static NodeReadResult Unavailable(string domain, IReadOnlyList<string> reasons) =>
-        new(
-            domain,
-            NodeKeySetResult.Empty(NodeKeySetOrigin.Container, reasons.ToArray()),
-            Array.Empty<NodeProjectionItem>(),
-            reasons,
-            NodeReadStatus.Unavailable,
-            new[] { NodeReadReason.PlacementUnresolved });
+        // 结果构造单源（D4）：与 Registry 共用同一工厂。
+        NodeDocumentResultFactory.Unavailable(domain, reasons);
 }

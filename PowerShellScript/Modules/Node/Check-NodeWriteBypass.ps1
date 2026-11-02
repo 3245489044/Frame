@@ -93,24 +93,9 @@ if ($writeHits.Count -gt 0)
 }
 elseif ($ShowDetail) { Write-Host "OK(C): 节点输出写路径唯一（NodeOutputPersistStage）。" -ForegroundColor Green }
 
-# ---------------- H. 运行态面结算必须经唯一写门（FW-5 · Error） ----------------
-# 判据：内存运行态面（过程节点等）的结算路径**禁**直接写存储（<c>INodeStore.PutAsync</c> 等裸写）；
-#       结算必须经唯一写门（NodeMaterializer → NodeWriteGate → 载体）。扫描面 = 内存面定义 + 域端口实现
-#       （Agent 侧；路径缺失即跳过，保持 Frame-only 检出可用）。
-$runtimeSurfaceFiles = @(
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Signal\ProcessNodes.cs'),
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\NodeSpec\NodeDomainPort.cs')
-)
-foreach ($f in $runtimeSurfaceFiles)
-{
-    if (-not (Test-Path $f)) { continue }
-    $bareWriteHits = @(Select-String -Path $f -Pattern '\.(PutAsync|DeleteAsync|DeleteManyAsync)\s*\(' -ErrorAction SilentlyContinue |
-        Where-Object { $_.Line.TrimStart() -notmatch '^(//|/\*|\*)' })
-    foreach ($h in $bareWriteHits)
-    {
-        $violations.Add("[H/FW-1] $(Split-Path $h.Path -Leaf):$($h.LineNumber) 运行态面结算路径直接写存储（须经唯一写门 NodeMaterializer）")
-    }
-}
+# ---------------- H. 已并入 J（D11 去重） ----------------
+# 原 H 段只扫运行态面两个文件、J 段扫全 Agent 面 + 白名单；两段同时命中即重复报告。
+# 判据合并为 J 段单一扫描（白名单 AgentSqlNodeCarrier.cs），并在 J 的写原语集补 Delete/DeleteMany。
 
 # ---------------- I. Stream 形态落库恰 1 次写（P5 · Error；防退回逐帧写） ----------------
 # 判据：运行态域结算 CommitRunAsync 的 Stream 形态把整任务帧聚合成**一个**载荷 ⇒ 经唯一写门**恰 1 次**
@@ -148,9 +133,11 @@ if (Test-Path $portFile) {
 elseif ($ShowDetail) { Write-Host "SKIP(I): 未找到 NodeDomainPort.cs（Frame-only 检出）。" -ForegroundColor Gray }
 
 # ---------------- J. Agent 节点写单源（J1 · Error） ----------------
-# 判据：Agent 生产代码中 INodeStore 的写原语调用只允许出现在唯一载体文件 AgentSqlNodeCarrier.cs。
+# 判据：Agent 生产代码中 INodeStore 写原语（PutAsync）调用只允许出现在唯一载体文件 AgentSqlNodeCarrier.cs；
+#       删除原语（DeleteAsync/DeleteManyAsync）仅在运行态面文件窄扫描（保留原 H 段覆盖面，不把既有非写门删除点扩散成红）。
 $agentSrcDir = Join-Path $Root 'Projects\Plug\Agent\src'
 $agentWriteAllowed = @('AgentSqlNodeCarrier.cs')
+$runtimeSurfaceLeaves = @('ProcessNodes.cs', 'NodeDomainPort.cs')
 function Test-AgentNodeWrite([string]$file, [string]$text) {
     if ($text -match '\b(nodes|nodeStore|_nodes|store)\.PutAsync\s*\(') {
         $leaf = Split-Path $file -Leaf
@@ -168,6 +155,11 @@ if (Test-Path $agentSrcDir)
         $text = [System.IO.File]::ReadAllText($file.FullName)
         $hit = Test-AgentNodeWrite $file.FullName $text
         if ($hit) { $violations.Add($hit) }
+        # 运行态面窄扫描（原 H 段覆盖保留）：Delete/DeleteMany 同属裸写，按 J 单码报告（不再单列 H 段）。
+        if ($runtimeSurfaceLeaves -contains (Split-Path $file.FullName -Leaf) -and
+            $text -match '\b(nodes|nodeStore|_nodes|store)\.(DeleteAsync|DeleteManyAsync)\s*\(') {
+            $violations.Add("[J/FW-1] $($file.FullName) 运行态面结算路径直接调用删除原语（须经唯一写门 NodeMaterializer）")
+        }
     }
     # 负对照：合成裸写在非白名单文件必须被同一判据捕获。
     if (-not (Test-AgentNodeWrite 'Agent.Ui/Forbidden.cs' 'await nodes.PutAsync(record, ct);')) {

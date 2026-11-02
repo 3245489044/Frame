@@ -324,8 +324,17 @@ public static class DeclaredBundleBuilder
                 Distinct(nodes.Values.SelectMany(n => n.OutputPorts))),
             bindings,
             BuildVocabulary(compilation),
-            BuildReadModels(compilation));
+            BuildReadModels(compilation),
+            BuildConstants(compilation));
     }
+
+    /// <summary>常量单元（G5）：<c>[Const]</c> 声明 → manifest <c>constants</c> 段（序 = target/valueType 升序）。</summary>
+    private static IReadOnlyList<ManifestConstant> BuildConstants(UsharpCompilation compilation)
+        => UsharpConstantsEmitter.Emit(compilation)
+            .Select(u => new ManifestConstant(
+                u.Target, u.Kind, u.Modifier, u.ValueType,
+                u.Members.Select(m => new ManifestConstantMember(m.Name, m.Value)).ToList()))
+            .ToList();
 
     /// <summary>词表（G4）：<c>[Space]</c> 声明 → 空间号 + 种类 + 坐标名表（键型/词元型空间即词表真源）。
     /// <para>坐标**保声明序**（位置即语义：消费方按声明序定位词表取值，禁排序）。</para></summary>
@@ -417,7 +426,16 @@ public static class DeclaredBundleBuilder
         IReadOnlyList<string> Functions, ManifestPorts Ports,
         IReadOnlyList<ManifestBinding> Bindings,
         IReadOnlyList<ManifestVocabulary> Vocabulary,
-        IReadOnlyList<ManifestReadModel> ReadModels);
+        IReadOnlyList<ManifestReadModel> ReadModels,
+        IReadOnlyList<ManifestConstant> Constants);
+
+    /// <summary>成员级声明单元（<c>[Const]</c>；生成器按此段回填 <c>partial</c> 成员）。</summary>
+    private sealed record ManifestConstant(
+        string Target, string Kind, string Modifier, string ValueType,
+        IReadOnlyList<ManifestConstantMember> Members);
+
+    /// <summary>常量成员（名 + 值原文；逐字输出，禁改写）。</summary>
+    private sealed record ManifestConstantMember(string Name, string Value);
 
     /// <summary>读模型声明条目（<c>[ReadModel]</c> 语法单元；漂移守卫按此段对账）。</summary>
     private sealed record ManifestReadModel(

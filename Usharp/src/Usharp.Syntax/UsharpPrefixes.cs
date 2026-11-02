@@ -32,6 +32,8 @@ public static class UsharpPrefixes
         // 配置/规则语言单元（L5 配置面）：配置项 / 规则（条件→动作）
         new(UsharpLanguage.ConfigPrefix, DslSymbolKind.Config, "Config"),
         new(UsharpLanguage.RulePrefix,   DslSymbolKind.Rule,   "Rule"),
+        // 成员级声明语言单元（[Const]）：C# 类型成员（名+值+类型身份）→ 生成 partial 成员
+        new(UsharpLanguage.ConstPrefix,  DslSymbolKind.Const,  "Const"),
         // LLM 判定契约语言单元（[LLMDecl]）：判定形状与契约外置（判定点 when + prompt/输入/输出 schema）
         new(UsharpLanguage.LlmDeclPrefix, DslSymbolKind.LlmDecl, "LLMDecl"),
         // 键空间声明语言单元（[KeySpace]）：键族/面/轴/端口/策略/回退链的声明面

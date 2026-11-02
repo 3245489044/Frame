@@ -92,6 +92,18 @@
             DueWhen            = ''
         }
         @{
+            Name               = 'GeneratedContractConstants'
+            Artifact           = 'Projects\Plug\Agent\src\Agent.Contract\Generated\GeneratedContractConstants.g.cs'
+            Generator          = 'Frame\PowerShellScript\Share\Usharp\Generate-ContractConstants.ps1'
+            GeneratorArgs      = @{ Manifest = 'Projects\Plug\Agent\src\Agent.Core\Declared\declared-manifest.json'; OutFile = '{TEMP}' }
+            Kind               = 'Text'
+            IgnoreLinePatterns = @()
+            SentinelPattern    = '此文件由 Generate-ContractConstants.ps1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Usharp\Generate-ContractConstants.ps1'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
             Name               = 'AgentKeySpace'
             Artifact           = 'Projects\Plug\Agent\Config\keyspaces\agent.keyspace.generated.json'
             Generator          = 'Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1'

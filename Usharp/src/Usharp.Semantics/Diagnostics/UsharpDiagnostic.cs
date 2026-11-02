@@ -84,6 +84,16 @@ public static class UsharpCodes
 
     public const string SegmentFieldMissing = UsharpDiagnosticCatalog.SegmentFieldMissing;
 
+    // 成员级声明面（[Const]）闸A
+    public const string ConstTargetInvalid = UsharpDiagnosticCatalog.ConstTargetInvalid;
+    public const string ConstKindInvalid = UsharpDiagnosticCatalog.ConstKindInvalid;
+    public const string ConstModifierInvalid = UsharpDiagnosticCatalog.ConstModifierInvalid;
+    public const string ConstMemberInvalid = UsharpDiagnosticCatalog.ConstMemberInvalid;
+    public const string ConstMemberDuplicate = UsharpDiagnosticCatalog.ConstMemberDuplicate;
+    public const string ConstTargetConflict = UsharpDiagnosticCatalog.ConstTargetConflict;
+    public const string ConstValueExpressionInvalid = UsharpDiagnosticCatalog.ConstValueExpressionInvalid;
+    public const string ConstLineUnparsed = UsharpDiagnosticCatalog.ConstLineUnparsed;
+
     /// <summary><c>[Rule] enabled=</c> 非法布尔值（禁止静默变 null）。</summary>
     public const string RuleEnabledInvalid = UsharpDiagnosticCatalog.RuleEnabledInvalid;
 

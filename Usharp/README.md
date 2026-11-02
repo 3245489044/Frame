@@ -1,6 +1,6 @@
 # Usharp —— 以矩阵为框架、引用关系为核心的逻辑语言
 
-> **层级**：语言框架（表层语言 + 编译器） | **状态**：20 前缀（`[Space]`/`[Matrix]`/`[Flow]`/`[Ref]`/`[Obs]`/`[Branch]`/`[Switch]`/`[Call]`/`[Region]`/`[When]`/`[Guard]`/`[Domain]`/`[Gather]`/`[Table]`/`[Record]`/`[Config]`/`[Rule]`/`[LLMDecl]`/`[KeySpace]`/`[Command]`）+ 闸A + 引用即边 + UR 接入 + 观测接入
+> **层级**：语言框架（表层语言 + 编译器） | **状态**：21 前缀（`[Space]`/`[Matrix]`/`[Flow]`/`[Ref]`/`[Obs]`/`[Branch]`/`[Switch]`/`[Call]`/`[Region]`/`[When]`/`[Guard]`/`[Domain]`/`[Gather]`/`[Table]`/`[Record]`/`[Config]`/`[Rule]`/`[Const]`/`[LLMDecl]`/`[KeySpace]`/`[Command]`）+ 闸A + 引用即边 + UR 接入 + 观测接入
 > **日期**：2026-09-22 | **基座**：`Frame\CsharpPrj`（不新造运行时）
 > **本文件 = 语言规范唯一权威**：语法/规则/诊断码在此定义，实现里不得重复语义（防抽象再生）。
 
@@ -80,6 +80,7 @@
 | `[Record]` | 记录载荷 | `Record` | 记录编解码 |
 | `[Config]` | 配置项声明 | `Config` | 配置树 |
 | `[Rule]` | 规则（条件 → 动作） | `Rule` | 规则集 |
+| `[Const]` | 成员级声明（`ns.Type: kind=… | modifier=… | valueType=…` + 续行 `Name = 值`） | `Const` | 生成同名 `partial` 成员（`GeneratedContractConstants.g.cs`） |
 | `[LLMDecl]` | LLM 判定契约 | `LlmDecl` | `llm.prompt` / `llm.contract` |
 | `[KeySpace]` | 键空间（族/面/轴/端口/策略/回退链） | `KeySpace` | 键声明产物 |
 | `[Command]` | 连接点命令（action/op 路由 + 键配方） | `Command` | `ui-commands-v2`（`readModels` 段随读模型声明落地） |

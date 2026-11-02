@@ -146,6 +146,10 @@ public sealed class UsharpGateModel : IUsharpFacetReader
     public IReadOnlyList<UsharpRuleDecl> Rules
         => _facets.TryGetFacet<IReadOnlyList<UsharpRuleDecl>>(out var rule) ? rule : Array.Empty<UsharpRuleDecl>();
 
+    /// <summary><c>[Const]</c> 成员级声明（空表 = 本编译无成员声明面）。</summary>
+    public IReadOnlyList<UsharpConstDecl> Consts
+        => _facets.TryGetFacet<IReadOnlyList<UsharpConstDecl>>(out var cst) ? cst : Array.Empty<UsharpConstDecl>();
+
     /// <summary>已声明流 id 集（规则 ③ 复用）。</summary>
     public HashSet<string> FlowIds { get; }
 

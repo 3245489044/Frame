@@ -249,6 +249,27 @@ public static class UsharpLanguage
     /// <summary>规则声明前缀（规则面：条件 → 动作；<c>[Rule]</c>）。</summary>
     public const string RulePrefix = "[Rule]";
 
+    /// <summary>成员级声明前缀（<c>[Const]</c>：C# 类型成员名 + 值 + 类型身份；生成同名 <c>partial</c> 成员）。</summary>
+    public const string ConstPrefix = "[Const]";
+
+    /// <summary><c>[Const]</c> 类型种类字段（<c>kind=class|record|struct</c>；缺省 <c>class</c>）。</summary>
+    public const string ConstFieldKind = "kind";
+
+    /// <summary><c>[Const]</c> 类型修饰字段（<c>modifier=static|sealed|abstract|plain</c>）。</summary>
+    public const string ConstFieldModifier = "modifier";
+
+    /// <summary><c>[Const]</c> 成员值类型字段（<c>valueType=string|int</c>；缺省 <c>string</c>）。</summary>
+    public const string ConstFieldValueType = "valueType";
+
+    /// <summary><c>[Const]</c> 类型种类受控词（<c>interface</c> 明确拒绝：C# 接口不能有 const）。</summary>
+    public static readonly string[] ConstKinds = { "class", "record", "struct" };
+
+    /// <summary><c>[Const]</c> 修饰受控词（<c>static record</c> 不存在 ⇒ 组合判据见闸A）。</summary>
+    public static readonly string[] ConstModifiers = { "static", "sealed", "abstract", "plain" };
+
+    /// <summary><c>[Const]</c> 成员值类型受控词（成员值表达式白名单见闸A）。</summary>
+    public static readonly string[] ConstValueTypes = { "string", "int" };
+
     // ---- LLM 判定契约语言单元（[LLMDecl]；判定时机/契约/输出→动作解析外置；LLM 推理不进声明语言）----
 
     /// <summary>LLM 判定契约声明前缀（<c>[LLMDecl]</c>）：描述一个 LLM 判定点的形状与契约。</summary>

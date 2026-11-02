@@ -271,6 +271,10 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpRuleDecl> Rules(DslDocument doc)
         => Project(doc, DslSymbolKind.Rule, UsharpRuleDecl.From);
 
+    /// <summary><c>[Const]</c> 成员级声明（C# 类型成员：名 + 值 + 类型身份）。</summary>
+    public static IReadOnlyList<UsharpConstDecl> Consts(DslDocument doc)
+        => Project(doc, DslSymbolKind.Const, UsharpConstDecl.From);
+
     /// <summary><c>[KeySpace]</c> 键空间声明（键族/面/轴/端口/策略/回退链）。</summary>
     public static IReadOnlyList<UsharpKeySpaceDecl> KeySpaces(DslDocument doc)
         => Project(doc, DslSymbolKind.KeySpace, UsharpKeySpaceDecl.From);

@@ -221,6 +221,31 @@ public static class UsharpDiagnosticCatalog
     public const string MountFieldInvalid = "US8126";
     public const string MountRelationUnbound = "US8127";
 
+    // ── US82xx 成员级声明（[Const]）闸A ─────────────────────────────────
+    /// <summary>[Const] target 形态非法（须「命名空间.类型」，至少两段）。</summary>
+    public const string ConstTargetInvalid = "US8201";
+
+    /// <summary>[Const] kind / valueType 不在受控词域。</summary>
+    public const string ConstKindInvalid = "US8202";
+
+    /// <summary>[Const] modifier 与 kind 组合非法（static record 不存在）。</summary>
+    public const string ConstModifierInvalid = "US8203";
+
+    /// <summary>[Const] 成员名非法（文法或 C# 关键字）。</summary>
+    public const string ConstMemberInvalid = "US8204";
+
+    /// <summary>[Const] 成员名重复（单元内或同 target 跨单元）。</summary>
+    public const string ConstMemberDuplicate = "US8205";
+
+    /// <summary>[Const] 同 target 多个单元的 kind/modifier 不一致。</summary>
+    public const string ConstTargetConflict = "US8206";
+
+    /// <summary>[Const] 值表达式不在白名单（禁 arbitrary code）。</summary>
+    public const string ConstValueExpressionInvalid = "US8207";
+
+    /// <summary>[Const] 续行无法解析为 <c>Name = Expr</c>。</summary>
+    public const string ConstLineUnparsed = "US8208";
+
     /// <summary>全量码表（声明序；序用于 README 生成与唯一性断言）。</summary>
     public static readonly IReadOnlyList<UsharpCodeSpec> All = new[]
     {
@@ -395,6 +420,14 @@ public static class UsharpDiagnosticCatalog
         E(IdentityPolicyInvalid, "KeyPolicy", UsharpSeverity.Error, "[KeyPolicy] entity/cardinality/writer/on_unresolvable 缺失", "policy, field"),
         E(IdentityBridgeInvalid, "KeyBridge", UsharpSeverity.Error, "[KeyBridge] from/to/rule 缺失或 reversible 未声明", "bridge, field"),
         E(IdentityAuthorityPending, "Entity", UsharpSeverity.Info, "[Entity] 尚无 authority=true 的 family（语义层已声明；语法族待接）", "entity"),
+        E(ConstTargetInvalid, "Const", UsharpSeverity.Error, "[Const] target 须为「命名空间.类型」（至少两段）", "target"),
+        E(ConstKindInvalid, "Const", UsharpSeverity.Error, "[Const] kind/valueType 不在受控词域", "target, field"),
+        E(ConstModifierInvalid, "Const", UsharpSeverity.Error, "[Const] modifier 与 kind 组合非法", "target, modifier"),
+        E(ConstMemberInvalid, "Const", UsharpSeverity.Error, "[Const] 成员名非法（文法或关键字）", "target, member"),
+        E(ConstMemberDuplicate, "Const", UsharpSeverity.Error, "[Const] 成员名重复（单元内/同 target）", "target, member"),
+        E(ConstTargetConflict, "Const", UsharpSeverity.Error, "[Const] 同 target 多单元 kind/modifier 不一致", "target"),
+        E(ConstValueExpressionInvalid, "Const", UsharpSeverity.Error, "[Const] 值表达式不在白名单", "target, member, expression"),
+        E(ConstLineUnparsed, "Const", UsharpSeverity.Error, "[Const] 续行无法解析为 Name = Expr", "target, line"),
     };
 
     /// <summary>全部码值（声明序）。</summary>

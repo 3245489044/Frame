@@ -52,6 +52,9 @@ public enum DslSymbolKind
     // [Entity] 实体类型 / [KeyLexicon] 受控词表 / [AnswerShape] 终答形状 / [WindowShape] 窗口形状 /
     // [KeyPolicy] 写侧策略 / [KeyBridge] 跨域映射（核心零领域语义：规则与消费由 Usharp 包承担）。
     Entity, KeyLexicon, AnswerShape, WindowShape, KeyPolicy, KeyBridge,
+    // Ushar 成员级声明语言单元（[Const]）：C# 类型成员（名 + 值 + 类型身份）的唯一声明面。
+    // 插在 Unknown 之前：Unknown 为哨兵（尾部语义），不得被新成员越过。
+    Const,
     Unknown,
 }
 

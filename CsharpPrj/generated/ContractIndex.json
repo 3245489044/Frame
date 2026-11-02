@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-02T17:38:57.8506101Z",
+  "builtAt": "2026-11-02T18:49:31.2593535Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -4023,7 +4023,7 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/NodeFrameworkHostingTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/Node/NodeFrameworkHostingTests.cs",
           "line": 208,
           "role": "Test",
           "text": "\"proc.{container}\", placement.KeyTemplate,"
@@ -5105,7 +5105,7 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/GraphRowWritePortTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/Node/GraphRowWritePortTests.cs",
           "line": 23,
           "role": "Test",
           "text": "private const string RelationNodeKey = \"relations.wf.rel1\";"
@@ -5309,7 +5309,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/AgentGraphComposition.cs",
-          "line": 140,
+          "line": 165,
           "role": "Code",
           "text": "skipped = relations.SkippedRelations.ToArray(),"
         },
@@ -8360,8 +8360,8 @@
       "byRole": {
         "Gate": 7,
         "Test": 89,
-        "Declaration": 59,
-        "Code": 20,
+        "Declaration": 60,
+        "Code": 19,
         "Doc": 221,
         "Other": 1
       },
@@ -10839,6 +10839,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/identity.ushar",
+          "line": 18,
+          "role": "Declaration",
+          "text": "[KeyLexicon] RecognizedKind: stage, endpoint, llm-call, tool, cost, workflow-plan, workflow-step, llm-iteration, llm-text, llm-reasoning, tool-call, tool-progress, tool-result, say-text, say-command, "
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/frame-kinds.json",
           "line": 15,
           "role": "Declaration",
@@ -11064,23 +11071,16 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/NodeTaxonomy.cs",
-          "line": 80,
+          "line": 42,
           "role": "Code",
-          "text": "\"tool-call\" => T((\"purpose\", Action), (\"func\", Invoke), (\"life\", Round), (\"prov\", Agent), (\"trust\", Confirmed)),"
+          "text": "\"tool-call\" => T((\"purpose\", \"action\"), (\"func\", \"invoke\"), (\"life\", \"round\"), (\"prov\", \"agent\"), (\"trust\", \"confirmed\")),"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ObservabilitySelections.cs",
-          "line": 20,
+          "line": 18,
           "role": "Code",
           "text": "/// <summary>工具类帧（<c>kind in (tool;tool-call;tool-progress;tool-result)</c>）。</summary>"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/RecognizedKinds.cs",
-          "line": 44,
-          "role": "Code",
-          "text": "public const string ToolCall = \"tool-call\";"
         },
         {
           "repo": "Projects",
@@ -11478,13 +11478,13 @@
       "kind": "Placement",
       "pattern": "process-node",
       "note": "过程域位置 id",
-      "total": 40,
+      "total": 39,
       "truncated": false,
       "byRole": {
         "Gate": 0,
         "Test": 9,
         "Declaration": 2,
-        "Code": 6,
+        "Code": 5,
         "Doc": 22,
         "Other": 1
       },
@@ -11659,7 +11659,7 @@
         },
         {
           "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/NodeFrameworkHostingTests.cs",
+          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/Node/NodeFrameworkHostingTests.cs",
           "line": 206,
           "role": "Test",
           "text": "Assert.IsTrue(process.Placements.TryGet(\"process-node\", out var placement));"
@@ -11737,16 +11737,9 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 66,
+          "line": 56,
           "role": "Code",
-          "text": "/// <summary>位置键模板（声明面 <c>process.json.placements[process-node].key</c> 的编译视图）。</summary>"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 84,
-          "role": "Code",
-          "text": "public const string PlacementId = \"process-node\";"
+          "text": "/// <summary>位置键模板（声明面 <c>process.ushar</c> 的 <c>placements[id=process-node].key</c> 编译视图）。</summary>"
         },
         {
           "repo": "Projects",
@@ -11774,12 +11767,12 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1655.0,
+    "hitCount": 1654.0,
     "byRole": {
       "Gate": 42,
       "Test": 202,
-      "Declaration": 101,
-      "Code": 353,
+      "Declaration": 102,
+      "Code": 351,
       "Doc": 868,
       "Other": 89
     },
@@ -11794,7 +11787,7 @@
       },
       {
         "repo": "Projects",
-        "lines": 290
+        "lines": 287
       },
       {
         "repo": "Main",

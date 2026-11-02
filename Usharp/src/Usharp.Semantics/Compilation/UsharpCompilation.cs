@@ -102,6 +102,9 @@ public sealed class UsharpCompilation : IUsharpFacetReader
     /// <summary><c>[Rule]</c> 规则声明（规则面：条件 → 动作；声明序）。</summary>
     public IReadOnlyList<UsharpRuleDecl> Rules => Facet<IReadOnlyList<UsharpRuleDecl>>();
 
+    /// <summary><c>[Const]</c> 成员级声明（C# 类型成员：名 + 值 + 类型身份；声明序）。</summary>
+    public IReadOnlyList<UsharpConstDecl> Consts => Facet<IReadOnlyList<UsharpConstDecl>>();
+
     /// <summary>观测声明注册中心（<c>[Obs]</c>：作用域 / 实体 / 事件；第五语言单元）。</summary>
     public ObsRegistry Obs => Facet<ObsRegistry>();
 

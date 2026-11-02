@@ -20,7 +20,9 @@ public sealed class TaskPoolHost<TItem, TResult> : IAsyncDisposable
         TaskPoolOptions? options = null,
         ITaskPoolItemInitializer<TItem>? initializer = null,
         ITaskOutcomePolicy<TResult>? outcomePolicy = null,
-        ITaskGroupDependencyProbe? dependencyProbe = null)
+        ITaskGroupDependencyProbe? dependencyProbe = null,
+        IGroupAuditSource? groupAudit = null,
+        IGroupStore? groupStore = null)
     {
         _pool = new TaskPool<TItem, TResult>(
             persistence,
@@ -41,7 +43,9 @@ public sealed class TaskPoolHost<TItem, TResult> : IAsyncDisposable
             options,
             initializer,
             outcomePolicy,
-            dependencyProbe);
+            dependencyProbe,
+            groupAudit,
+            groupStore);
     }
 
     /// <summary>在途等待者数量（诊断）。</summary>

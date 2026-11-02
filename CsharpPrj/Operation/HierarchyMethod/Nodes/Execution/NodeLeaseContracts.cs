@@ -31,6 +31,7 @@ public interface INodeLeaseRegistry
 {
     Task<NodeLeaseOutcome> AcquireOrWaitAsync(NodeLeaseKey key, string taskKey, string? groupKey, CancellationToken ct);
 
-    void Publish(NodeLeaseKey key, string taskKey, NodeLeaseState state, string? diagnostic,
+    /// <summary>发布终态；返回 false = 非 owner/未知键（调用方须可见化，禁静默当作已发布）。</summary>
+    bool Publish(NodeLeaseKey key, string taskKey, NodeLeaseState state, string? diagnostic,
         IReadOnlyDictionary<string, object?>? ports = null);
 }

@@ -23,7 +23,7 @@ namespace Share.TaskStatusPool.TaskPool
     /// 且与①②③职责重叠（机制冗余），故已废除（见 options 说明）。</para>
     /// 与 Agent 无关（通用基础框架内自包含状态原语，不依赖 Modules.StateMachine / Share.StateManagement）。
     /// </summary>
-    public sealed class TaskPool<TItem, TResult> : ITaskPool<TItem>, ITaskGroupPool<TItem>
+    public sealed class TaskPool<TItem, TResult> : ITaskPool<TItem>, ITaskGroupPool<TItem>, IGroupCapacitySource
         where TItem : ITaskPoolItem
     {
         private readonly ITaskPoolPersistence<TItem> _persistence;
@@ -41,6 +41,9 @@ namespace Share.TaskStatusPool.TaskPool
         private readonly TaskGroupCompletion _groupDefaultCompletion;
         private readonly int _groupDefaultQuorum;
         private readonly bool _allowUnverifiedGroups;
+        private readonly int _groupTimeoutMs;
+        private readonly IGroupAuditSource? _groupAudit;
+        private readonly IGroupStore? _groupStore;
 
         private readonly TaskStateStore _states = new();
         private readonly ConcurrentDictionary<string, TaskPauseHandle> _pauses = new(StringComparer.Ordinal);
@@ -77,13 +80,17 @@ namespace Share.TaskStatusPool.TaskPool
             TaskPoolOptions? options = null,
             ITaskPoolItemInitializer<TItem>? initializer = null,
             ITaskOutcomePolicy<TResult>? outcomePolicy = null,
-            ITaskGroupDependencyProbe? dependencyProbe = null)
+            ITaskGroupDependencyProbe? dependencyProbe = null,
+            IGroupAuditSource? groupAudit = null,
+            IGroupStore? groupStore = null)
         {
             _persistence = PortGuard.Required(persistence, nameof(persistence));
             _handler = PortGuard.Required(handler, nameof(handler));
             _initializer = initializer;
             _outcomePolicy = outcomePolicy;
             _dependencyProbe = dependencyProbe;
+            _groupAudit = groupAudit;
+            _groupStore = groupStore;
             options ??= new TaskPoolOptions();
             _maxConcurrency = Math.Clamp(options.MaxConcurrency, 1, 32);
             _batchSize = Math.Max(1, options.BatchSize);
@@ -91,16 +98,21 @@ namespace Share.TaskStatusPool.TaskPool
             _drainTimeout = TimeSpan.FromMilliseconds(Math.Max(0, options.DrainTimeoutMs));
             _idleReconcile = TimeSpan.FromMilliseconds(Math.Max(0, options.IdleReconcileIntervalMs));
             _capacityWaitMs = Math.Max(0, options.CapacityWaitMs);
-            _groupMaxMembers = Math.Clamp(options.GroupMaxMembers, 1, 32);
-            _groupDefaultCompletion = Enum.TryParse<TaskGroupCompletion>(
-                (options.GroupCompletionDefault ?? string.Empty).Replace("_", string.Empty), ignoreCase: true, out var completion)
-                ? completion
-                : TaskGroupCompletion.AllOf;
-            _groupDefaultQuorum = Math.Max(0, options.GroupQuorumDefault);
-            _allowUnverifiedGroups = options.AllowUnverifiedGroups;
+            var groupPolicy = options.Group ?? new GroupPolicy();
+            _groupMaxMembers = Math.Clamp(groupPolicy.MaxMembers, 1, 32);
+            _groupDefaultCompletion = groupPolicy.DefaultCompletion;
+            _groupDefaultQuorum = Math.Max(0, groupPolicy.DefaultQuorum);
+            _allowUnverifiedGroups = groupPolicy.AllowUnverifiedGroups;
+            _groupTimeoutMs = Math.Max(0, groupPolicy.GroupTimeoutMs);
             _gate = new SemaphoreSlim(_maxConcurrency, _maxConcurrency);
             _signal = Channel.CreateUnbounded<bool>(new UnboundedChannelOptions { SingleReader = true });
         }
+
+        /// <inheritdoc />
+        public int MaxConcurrency => _maxConcurrency;
+
+        /// <inheritdoc />
+        public int AvailableSlots => _gate.CurrentCount;
 
         // ---- 生命周期 ----
 
@@ -709,8 +721,18 @@ namespace Share.TaskStatusPool.TaskPool
 
             if (_groups.TryGetValue(group.GroupKey, out var existing))
             {
-                var code = Volatile.Read(ref existing.Settled) != 0 ? "GROUP_ALREADY_SETTLED" : "GROUP_ALREADY_EXISTS";
-                return new GroupSubmitReceipt(true, group.GroupKey, existing.MemberKeys.Count, code);
+                // ERR-05：已存在组不冒充「新工作已受理」——显式 Accepted=false + 受控码（调用方可据此复用原组结果）。
+                var code = Volatile.Read(ref existing.Settled) != 0 ? GroupErrorCode.AlreadySettled : GroupErrorCode.AlreadyExists;
+                return new GroupSubmitReceipt(false, group.GroupKey, existing.MemberKeys.Count, code);
+            }
+
+            // ERR-10：组员唯一归属——同一任务不得同时属于两个组（组结算/取消会互相干扰）。
+            foreach (var key in group.MemberKeys)
+            {
+                if (_taskGroup.TryGetValue(key, out var ownerGroup)
+                    && !string.Equals(ownerGroup, group.GroupKey, StringComparison.Ordinal))
+                    return GroupSubmitReceipt.Rejected(group.GroupKey,
+                        $"{GroupErrorCode.MemberAlreadyEnrolled}:{key}@{ownerGroup}");
             }
 
             if (_dependencyProbe is not null)
@@ -726,17 +748,17 @@ namespace Share.TaskStatusPool.TaskPool
                 }
                 catch
                 {
-                    // 读取失败 ⇒ fail-closed（禁止「读不到就放行」）。
-                    hasDependency = true;
+                    // ERR-11：读失败 ≠ 有依赖——显式受控码，不把存储故障伪装成依赖判定。
+                    return GroupSubmitReceipt.Rejected(group.GroupKey, GroupErrorCode.ProbeReadFailed);
                 }
 
                 if (hasDependency)
-                    return GroupSubmitReceipt.Rejected(group.GroupKey, "GROUP_HAS_DEPENDENCY");
+                    return GroupSubmitReceipt.Rejected(group.GroupKey, GroupErrorCode.HasDependency);
             }
             else if (!_allowUnverifiedGroups)
             {
                 // 探针缺失 ⇒ 默认拒收（C3 无法验证即不得成组；显式 AllowUnverifiedGroups 才放行）。
-                return GroupSubmitReceipt.Rejected(group.GroupKey, "GROUP_DEPENDENCY_PROBE_MISSING");
+                return GroupSubmitReceipt.Rejected(group.GroupKey, GroupErrorCode.ProbeMissing);
             }
 
             var byKey = items.GroupBy(static i => i.TaskKey, StringComparer.Ordinal)
@@ -755,6 +777,9 @@ namespace Share.TaskStatusPool.TaskPool
                 return GroupSubmitReceipt.Rejected(group.GroupKey, "GROUP_RACE_DUPLICATE");
 
             foreach (var key in state.MemberKeys) _taskGroup[key] = group.GroupKey;
+
+            // P0-3：组级看门狗（声明 GroupTimeoutMs>0 才启用；0 = 不做）。
+            ArmGroupWatchdog(state);
 
             var enqueued = new List<string>(state.MemberKeys.Count);
             try
@@ -781,7 +806,13 @@ namespace Share.TaskStatusPool.TaskPool
         public async Task<TaskGroupResult> WaitGroupAsync(string groupKey, CancellationToken ct = default)
         {
             if (!_groups.TryGetValue(groupKey, out var group))
-                throw new KeyNotFoundException($"GROUP_NOT_FOUND: {groupKey}");
+            {
+                // P0-3：内存无组（重启/别实例）⇒ 读组生命周期存储；两者皆无才判不存在。
+                if (_groupStore is not null
+                    && await _groupStore.TryGetAsync(groupKey, ct).ConfigureAwait(false) is { } restored)
+                    return restored;
+                throw new KeyNotFoundException($"{GroupErrorCode.NotFound}: {groupKey}");
+            }
             return await group.Completion.Task.WaitAsync(ct).ConfigureAwait(false);
         }
 
@@ -791,10 +822,94 @@ namespace Share.TaskStatusPool.TaskPool
             var count = 0;
             foreach (var key in group.MemberKeys)
             {
+                // ERR-40：只统计真实状态迁移（终态成员不重复计数，避免返还虚高取消数）。
+                var state = _states.Get(key)?.CurrentState ?? TaskExecutionStatus.NotStarted;
+                if (state is TaskExecutionStatus.Completed or TaskExecutionStatus.Faulted or TaskExecutionStatus.Cancelled)
+                    continue;
                 await CancelAsync(key, ct).ConfigureAwait(false);
                 count++;
             }
             return count;
+        }
+
+        /// <summary>组结算单点（ERR-29）：无论由成员终态、看门狗超时还是外部取消触发，结果只写一次。</summary>
+        private void SettleGroup(GroupState group, bool forceTimeout = false)
+        {
+            if (Interlocked.Exchange(ref group.Settled, 1) != 0) return;
+
+            var timedOut = forceTimeout || Volatile.Read(ref group.TimedOut) != 0;
+            var members = new List<TaskGroupMember>(group.MemberKeys.Count);
+            foreach (var key in group.MemberKeys)
+            {
+                var memberStatus = MapStatus(_states.Get(key)?.CurrentState ?? TaskExecutionStatus.NotStarted);
+                members.Add(new TaskGroupMember(
+                    key,
+                    timedOut && memberStatus is not (TaskGroupMemberStatus.Completed
+                        or TaskGroupMemberStatus.Faulted or TaskGroupMemberStatus.Cancelled)
+                        ? TaskGroupMemberStatus.Faulted
+                        : memberStatus,
+                    Diagnostic: timedOut ? GroupErrorCode.Timeout : null));
+            }
+
+            var status = timedOut ? TaskGroupMemberStatus.Faulted : ResolveGroupStatus(group, members);
+            var result = new TaskGroupResult(
+                group.Descriptor.GroupKey,
+                EffectiveCompletion(group),
+                status,
+                members,
+                _groupAudit?.Snapshot(group.Descriptor.GroupKey) ?? new NodeReuseStat(0, 0, 0),
+                group.StartedAt,
+                DateTimeOffset.UtcNow);
+
+            foreach (var key in group.MemberKeys) _taskGroup.TryRemove(key, out _);
+            group.Completion.TrySetResult(result);
+            if (_groupStore is not null) _ = PersistGroupAsync(result);
+        }
+
+        /// <summary>组终态落库（后台）：失败必须可见（DrainFault），不阻断结算与等待者。</summary>
+        private async Task PersistGroupAsync(TaskGroupResult result)
+        {
+            try
+            {
+                await _groupStore!.SaveAsync(result, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                DrainFault?.Invoke(this, new InvalidOperationException(
+                    $"GROUP_PERSIST_FAILED: {result.GroupKey}", ex));
+            }
+        }
+
+        /// <summary>组级预算看门狗：超时显式结算 GROUP_TIMEOUT 并取消仍存活成员（不无限等待）。</summary>
+        private void ArmGroupWatchdog(GroupState group)
+        {
+            if (_groupTimeoutMs <= 0) return;
+            _ = WatchGroupTimeoutAsync(group);
+        }
+
+        private async Task WatchGroupTimeoutAsync(GroupState group)
+        {
+            try
+            {
+                await Task.Delay(_groupTimeoutMs).ConfigureAwait(false);
+                if (Volatile.Read(ref group.Settled) != 0) return;
+                if (Interlocked.Exchange(ref group.TimedOut, 1) != 0) return;
+
+                foreach (var key in group.MemberKeys)
+                    await CancelAsync(key, CancellationToken.None).ConfigureAwait(false);
+
+                // 有界等待成员收敛：预算内未收敛即按当前状态强制结算（成员仍可被外部取消）。
+                var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+                while (Volatile.Read(ref group.Settled) == 0 && DateTimeOffset.UtcNow < deadline)
+                    await Task.Delay(50).ConfigureAwait(false);
+                if (Volatile.Read(ref group.Settled) == 0) SettleGroup(group, forceTimeout: true);
+            }
+            catch (Exception ex)
+            {
+                // 看门狗自身故障可见化（不静默吞掉）。
+                DrainFault?.Invoke(this, new InvalidOperationException(
+                    $"{GroupErrorCode.Timeout}_WATCHDOG_FAULT: {group.Descriptor.GroupKey}", ex));
+            }
         }
 
         private void UpdateGroupMembership(string taskKey)
@@ -814,7 +929,7 @@ namespace Share.TaskStatusPool.TaskPool
                 or TaskGroupMemberStatus.Faulted or TaskGroupMemberStatus.Cancelled);
             if (!allTerminal)
             {
-                if (group.Descriptor.Completion == TaskGroupCompletion.FailFast
+                if (group.Descriptor.Completion is TaskGroupCompletion.FailFast
                     && members.Any(static m => m.Status == TaskGroupMemberStatus.Faulted)
                     && Interlocked.Exchange(ref group.FailFastRequested, 1) == 0)
                 {
@@ -826,26 +941,12 @@ namespace Share.TaskStatusPool.TaskPool
                 return;
             }
 
-            if (Interlocked.Exchange(ref group.Settled, 1) != 0) return;
-
-            var status = ResolveGroupStatus(group, members);
-            var result = new TaskGroupResult(
-                group.Descriptor.GroupKey,
-                EffectiveCompletion(group),
-                status,
-                members,
-                new NodeReuseStat(0, 0, 0),
-                group.StartedAt,
-                DateTimeOffset.UtcNow);
-
-            foreach (var key in group.MemberKeys) _taskGroup.TryRemove(key, out _);
-            group.Completion.TrySetResult(result);
+            SettleGroup(group);
         }
 
         private TaskGroupCompletion EffectiveCompletion(GroupState group)
-            => group.Descriptor.Completion == TaskGroupCompletion.AllOf
-                ? _groupDefaultCompletion
-                : group.Descriptor.Completion;
+            // ERR-06：null = 未声明才用缺省；显式声明（含 AllOf）不被缺省覆盖。
+            => group.Descriptor.Completion ?? _groupDefaultCompletion;
 
         private TaskGroupMemberStatus ResolveGroupStatus(GroupState group, IReadOnlyList<TaskGroupMember> members)
         {
@@ -891,6 +992,8 @@ namespace Share.TaskStatusPool.TaskPool
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             public int Settled;
             public int FailFastRequested;
+            /// <summary>看门狗已判超时（结算按 GROUP_TIMEOUT 收敛，成员状态不伪造 Completed）。</summary>
+            public int TimedOut;
         }
 
         private void Emit(string taskKey, TaskExecutionStatus from, TaskExecutionStatus to, string? reason)

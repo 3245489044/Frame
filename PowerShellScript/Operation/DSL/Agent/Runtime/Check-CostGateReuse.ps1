@@ -25,11 +25,13 @@ $agentRoot = Join-Path $repoRoot 'Projects\Plug\Agent\src'
 $files = @(Get-ChildItem -LiteralPath $agentRoot -Recurse -File -Filter *.cs |
     Where-Object { $_.FullName -notmatch '\\\\(obj|bin)\\\\' })
 
-# D1：pricing.json 解析只允许 CostConfigLoader（无第二份价格表读取/解析路径）。
+# D1：pricing.json 解析只允许 CostConfigLoader（路径常量/引用不算解析）。
 foreach ($f in $files) {
+    if ($f.Name -eq 'CostConfigLoader.cs') { continue }
     $text = Get-Content -LiteralPath $f.FullName -Raw
-    if ($text -match 'pricing\.json' -and $f.Name -ne 'CostConfigLoader.cs') {
-        Add-Violation 'D1' "第二份价格表读取点：$($f.FullName)"
+    if ($text -notmatch 'pricing\.json') { continue }
+    if ($text -match 'JsonDocument\.Parse|File\.ReadAll(Text|Lines)|LoadPriceQuotes\s*\(') {
+        Add-Violation 'D1' "第二份价格表解析点：$($f.FullName)"
     }
 }
 
@@ -60,6 +62,20 @@ if ($recorderText -notmatch 'ICostStore' -or $recorderText -notmatch 'ICostQuery
     Add-Violation 'D5' '并发成本收口未复用 ICostStore/ICostQuery（疑似新建账本）'
 }
 
+# D7：组结算（含 detach）统一写同一账本——detach 必须有后台结算路径（组行 + 成本 span + 校准）。
+$portFile = Join-Path $agentRoot 'Agent.Launcher\Composition\Ports\TaskPoolConcurrencyPlanPort.cs'
+$portText = if (Test-Path -LiteralPath $portFile) { Get-Content -LiteralPath $portFile -Raw } else { '' }
+$adapterFile = Join-Path $agentRoot 'Agent.Core\Engine\TaskPool\AgentTaskPool.cs'
+$adapterText = if (Test-Path -LiteralPath $adapterFile) { Get-Content -LiteralPath $adapterFile -Raw } else { '' }
+if ($portText -notmatch 'SettleDetachedAsync' -or $adapterText -notmatch '_costRecorder') {
+    Add-Violation 'D7' 'detach 未走后台结算/成本账（SettleDetachedAsync + _costRecorder 必须同时存在）'
+}
+
+# D8：校准桶按真实工作流（禁写死 agent-taskpool 单桶）。
+if ($recorderText -match '"agent-taskpool"' -or $recorderText -notmatch 'WorkflowOf\s*\(') {
+    Add-Violation 'D8' '校准桶写死单桶（应经 WorkflowOf 按组键前缀分桶）'
+}
+
 # D6：负对照（判据必须能判红）。
 if ($NegativeControl) {
     $negative = @'
@@ -76,7 +92,7 @@ if (groupTokens > singleTokens) { deny(); }
 }
 
 if ($violations.Count -eq 0) {
-    Write-Host '[OK] CostGateReuse：D1–D6 通过。' -ForegroundColor Green
+    Write-Host '[OK] CostGateReuse：D1–D8 通过。' -ForegroundColor Green
     exit 0
 }
 

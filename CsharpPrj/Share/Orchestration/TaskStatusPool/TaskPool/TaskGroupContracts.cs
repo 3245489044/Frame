@@ -24,11 +24,12 @@ public enum TaskGroupMemberStatus
     Cancelled = 5,
 }
 
-/// <summary>组声明：唯一并发单元（C1）。成员数有界（C2），组内无依赖（C3），不可嵌套（C12）。</summary>
+/// <summary>组声明：唯一并发单元（C1）。成员数有界（C2），组内无依赖（C3），不可嵌套（C12）。
+/// <para><paramref name="Completion"/> 为 null = 未声明（用 GroupPolicy 缺省）；显式声明（含 AllOf）一律不被缺省覆盖（ERR-06）。</para>
 public sealed record TaskGroupDescriptor(
     string GroupKey,
     IReadOnlyList<string> MemberKeys,
-    TaskGroupCompletion Completion = TaskGroupCompletion.AllOf,
+    TaskGroupCompletion? Completion = null,
     int Quorum = 0,
     string? HistoryId = null,
     string? CorrelationId = null);

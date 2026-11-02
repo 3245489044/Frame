@@ -1,3 +1,5 @@
+using System;
+
 namespace Share.TaskStatusPool.TaskPool;
 
 /// <summary>任务池运行配置（L3，运行时可变）。</summary>
@@ -20,21 +22,62 @@ public sealed class TaskPoolOptions
     /// 容量门先于取件（C4）：不得先持久化 Running 再排队等容量。</summary>
     public int CapacityWaitMs { get; set; } = 5_000;
 
-    /// <summary>并发组成员上限（C2）。缺省 8，硬上界 32；提交期校验，超限拒收不截断。</summary>
-    public int GroupMaxMembers { get; set; } = 8;
+    /// <summary>组策略单源（成员上限 / 完成判定 / 等待语义 / 组超时 / 探针缺失策略）。
+    /// 标量属性为声明面兼容转发，真实值只存于本对象（SingleImplementation）。</summary>
+    public GroupPolicy Group { get; set; } = new();
 
-    /// <summary>组完成判定缺省策略（declarative：all_of | quorum | fail_fast）。</summary>
-    public string GroupCompletionDefault { get; set; } = "all_of";
+    /// <summary>并发组成员上限（C2）。转发 <see cref="GroupPolicy.MaxMembers"/>。</summary>
+    public int GroupMaxMembers
+    {
+        get => Group.MaxMembers;
+        set => Group.MaxMembers = value;
+    }
 
-    /// <summary>quorum 策略缺省需成功数；0 = 由协调器按成员数取简单多数。</summary>
-    public int GroupQuorumDefault { get; set; }
+    /// <summary>组完成判定缺省策略（declarative：all_of | quorum | fail_fast）。转发 <see cref="GroupPolicy.DefaultCompletion"/>。</summary>
+    public string GroupCompletionDefault
+    {
+        get => Group.DefaultCompletion switch
+        {
+            TaskGroupCompletion.Quorum => "quorum",
+            TaskGroupCompletion.FailFast => "fail_fast",
+            _ => "all_of",
+        };
+        set => Group.DefaultCompletion = Enum.TryParse<TaskGroupCompletion>(
+            (value ?? string.Empty).Replace("_", string.Empty), ignoreCase: true, out var completion)
+            ? completion
+            : TaskGroupCompletion.AllOf;
+    }
 
-    /// <summary>组内依赖探针缺失时是否允许成组。默认 false（fail-closed）：
-    /// 未装配探针 ⇒ 拒收 GROUP_DEPENDENCY_PROBE_MISSING；显式 true 才放行（迁移期逃生口）。</summary>
-    public bool AllowUnverifiedGroups { get; set; }
+    /// <summary>quorum 策略缺省需成功数；0 = 由协调器按成员数取简单多数。转发 <see cref="GroupPolicy.DefaultQuorum"/>。</summary>
+    public int GroupQuorumDefault
+    {
+        get => Group.DefaultQuorum;
+        set => Group.DefaultQuorum = value;
+    }
 
-    /// <summary>history 组结果交付方式（declarative：await | detach）。await = 等待组结算返回全集；detach = 只回受理回执。</summary>
-    public string HistoryGroupWait { get; set; } = "await";
+    /// <summary>组内依赖探针缺失时是否允许成组。默认 false（fail-closed）。
+    /// 转发 <see cref="GroupPolicy.AllowUnverifiedGroups"/>。</summary>
+    public bool AllowUnverifiedGroups
+    {
+        get => Group.AllowUnverifiedGroups;
+        set => Group.AllowUnverifiedGroups = value;
+    }
+
+    /// <summary>组级预算（毫秒）：0 = 未声明；&gt;0 = 超时结算 GROUP_TIMEOUT 并取消成员。转发 <see cref="GroupPolicy.GroupTimeoutMs"/>。</summary>
+    public int GroupTimeoutMs
+    {
+        get => Group.GroupTimeoutMs;
+        set => Group.GroupTimeoutMs = value;
+    }
+
+    /// <summary>等待语义（await | detach 声明面）。转发 <see cref="GroupPolicy.WaitMode"/>。</summary>
+    public string GroupWaitMode
+    {
+        get => Group.WaitMode == Share.TaskStatusPool.TaskPool.GroupWaitMode.Detach ? "detach" : "await";
+        set => Group.WaitMode = string.Equals(value, "detach", StringComparison.OrdinalIgnoreCase)
+            ? Share.TaskStatusPool.TaskPool.GroupWaitMode.Detach
+            : Share.TaskStatusPool.TaskPool.GroupWaitMode.Await;
+    }
 
     /// <summary>写门有界等待预算（毫秒）。0 = 沿用 WriteCoordinator 既有构造预算。</summary>
     public int WriteGateBudgetMs { get; set; }

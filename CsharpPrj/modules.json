@@ -144,6 +144,7 @@
     "TreeTraceFramework": "Share\\Foundations\\TreeTraceFramework\\TreeTraceFramework.csproj",
     "AiScheduling": "Share\\Frameworks\\AiScheduling\\AiScheduling.csproj",
     "Share.Signal": "Share\\Frameworks\\Signal\\Share.Signal.csproj",
+    "Share.NodeIo": "Share\\Frameworks\\NodeIo\\Share.NodeIo.csproj",
     "Share.ObjectiveBoundary": "Share\\Frameworks\\ObjectiveBoundary\\Share.ObjectiveBoundary.csproj",
     "Share.AgentLoop": "Share\\Frameworks\\AgentLoop\\Share.AgentLoop.csproj",
 

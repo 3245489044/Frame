@@ -724,6 +724,14 @@
         Note   = '节点框架纯净性 A–H 段 + S 段（S-1：Form=Stream ⇒ 身份模板单键）：语言类型不漏进位置层 / 无进程静态可变配置 / 无硬编码位置反解 / 位置层不引上层契约 / 运行态面不得声明为载体（FW-5 Error）/ 声明运行态面须有 run 身份承接点（告警）/ 实例分区零领域词与零实现依赖 / Stream 声明面单键身份（与 NodeSpecValidator spec.stream-identity-multi-row 对偶）；-ShowDetail 显示详情'
     }
 
+    NodeIo = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '节点文档内核（Share.NodeIo）：语言/实现隔离（零 Usharp/INodeStore/Sqlite/上层 using）/ 零领域 switch / 位置反解单源（仅 NodeScopeResolver）/ 载体原语收口（仅 NodeDocumentPort* 与 NodeStreamSession）/ 负对照必红'
+    }
+
     ToolFaceDeclaration = @{
         Domain = 'Usharp'
         Args   = @{ Check = $true }

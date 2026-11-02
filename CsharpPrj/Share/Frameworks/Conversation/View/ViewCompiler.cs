@@ -7,14 +7,15 @@ using System.Text.Json;
 
 namespace Share.Conversation.View;
 
-/// <summary>编译输入（6 份声明的**文本**；由调用方读盘后传入，编译器自身无 IO）。</summary>
+/// <summary>编译输入（7 份声明的**文本**；由调用方读盘后传入，编译器自身无 IO）。</summary>
 public sealed record ViewSources(
     string FrameKindsJson,
     string PresentationJson,
     string ReadPathsJson,
     string AnswerFactsJson,
     string UiRegionsJson,
-    string GatherViewsJson);
+    string GatherViewsJson,
+    string? FoldJson = null);
 
 /// <summary>编译产物（三张只读表 + 总指纹）。</summary>
 public sealed record ViewCompiled(
@@ -24,7 +25,7 @@ public sealed record ViewCompiled(
     string Fingerprint);
 
 /// <summary>
-/// 声明编译器（纯函数）：6 份声明文本 → 3 张只读表。
+/// 声明编译器（纯函数）：7 份声明文本 → 3 张只读表。
 /// <para>纪律：只做合并与校验，不做业务判断；跨表引用不可解析 ⇒ <c>errors</c> 非空且**不产出半套表**（fail-closed）。</para>
 /// </summary>
 public static class ViewCompiler
@@ -32,9 +33,10 @@ public static class ViewCompiler
     /// <summary>编译产物 schema 版本（并入指纹，改格式即改指纹）。</summary>
     public const string Schema = "view-compiled-v1";
 
-    private static readonly string[] FoldWords = { "none", "round", "lead", "attach", "group" };
+    /// <summary>空声明 FoldJson 时的兼容词表（新调用方须传 <c>ui/fold.json</c>；词表单源 = 该声明）。</summary>
+    private static readonly string[] DefaultFoldWords = { "none", "round", "lead", "attach", "group" };
 
-    /// <summary>编译 6 份声明文本。</summary>
+    /// <summary>编译 7 份声明文本。</summary>
     /// <param name="sources">声明文本。</param>
     /// <param name="errors">诊断（空 = 可用；非空 ⇒ 返回 null）。</param>
     public static ViewCompiled? Compile(ViewSources sources, out IReadOnlyList<string> errors)
@@ -48,7 +50,8 @@ public static class ViewCompiler
         var sourcesList = ParseReadSources(sources.ReadPathsJson, list);
         var planBindings = ParsePlanBindings(sources.ReadPathsJson, list);
         var answer = ParseAnswerRule(sources.AnswerFactsJson, terminalPresentation, list);
-        var views = ParseViews(sources.UiRegionsJson, sources.GatherViewsJson, list);
+        var foldWords = ParseFoldWords(sources.FoldJson, list);
+        var views = ParseViews(sources.UiRegionsJson, sources.GatherViewsJson, foldWords, list);
 
         ValidateCross(frames, presentations, sourcesList, views, list);
 
@@ -100,9 +103,11 @@ public static class ViewCompiler
 
             var anchor = ParseAnchor(ReadString(entry, "anchor"), kind!, errors);
             var fold = ReadString(entry, "fold") ?? "none";
-            if (!FoldWords.Contains(fold, StringComparer.Ordinal))
+            // 帧级 fold 档（none/attach/round）与视图 content.fold 模式（round-closed…）是两个轴：
+            // 本处用帧档词表；视图模式词表来自 ui/fold.json（见 ParseFoldWords）。
+            if (!DefaultFoldWords.Contains(fold, StringComparer.Ordinal))
             {
-                errors.Add($"[F8] frame-kinds 行 {kind} 的 fold '{fold}' 不在受控词（{string.Join('/', FoldWords)}）");
+                errors.Add($"[F8] frame-kinds 行 {kind} 的 fold '{fold}' 不在受控词（{string.Join('/', DefaultFoldWords)}）");
             }
 
             rows[kind!] = new FrameRow(
@@ -237,9 +242,37 @@ public static class ViewCompiler
             terminalPresentation);
     }
 
+    // ---------- ui/fold.json（折叠受控词单源） ----------
+
+    /// <summary>折叠词表：来自声明 <c>ui/fold.json</c> 的 <c>modes</c> 键；缺省 ⇒ 兼容词表。
+    /// 词表**不在编译器硬编码第二份**（否则声明新增词即编译失败——本次 history/round-closed 即此故障）。</summary>
+    private static IReadOnlyList<string> ParseFoldWords(string? json, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return DefaultFoldWords;
+        if (!TryParse(json, "fold", errors, out var root)) return DefaultFoldWords;
+        if (!root.TryGetProperty("modes", out var modes) || modes.ValueKind != JsonValueKind.Object)
+        {
+            errors.Add("[V2] fold.modes 缺失或非对象");
+            return DefaultFoldWords;
+        }
+
+        var words = modes.EnumerateObject()
+            .Select(static p => p.Name)
+            .Where(static name => !name.StartsWith("$", StringComparison.Ordinal))
+            .ToArray();
+        if (words.Length == 0)
+        {
+            errors.Add("[V2] fold.modes 为空");
+            return DefaultFoldWords;
+        }
+
+        return words;
+    }
+
     // ---------- ui-regions.json + gather/conversation.json ----------
 
-    private static ViewPlanTable ParseViews(string uiJson, string gatherJson, List<string> errors)
+    private static ViewPlanTable ParseViews(
+        string uiJson, string gatherJson, IReadOnlyList<string> foldWords, List<string> errors)
     {
         var result = new Dictionary<string, ViewPlanRow>(StringComparer.Ordinal);
         if (!TryParse(uiJson, "ui-regions", errors, out var root)) return ViewPlanTable.Empty;
@@ -283,9 +316,9 @@ public static class ViewCompiler
                 errors.Add($"[V2] 视图 {view} 缺 content.domain");
             }
 
-            if (!FoldWords.Contains(contentFold, StringComparer.Ordinal))
+            if (!foldWords.Contains(contentFold, StringComparer.Ordinal))
             {
-                errors.Add($"[V2] 视图 {view} 的 content.fold '{contentFold}' 不在受控词（{string.Join('/', FoldWords)}）");
+                errors.Add($"[V2] 视图 {view} 的 content.fold '{contentFold}' 不在受控词（{string.Join('/', foldWords)}）");
             }
 
             var gatherView = ReadString(entry, "gatherView") ?? view;

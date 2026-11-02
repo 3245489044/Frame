@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>节点文档读写内核（Share.NodeIo）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用节点 IO 内核：读/写共用同一 loc 反解 → 位置键 → 载体管线段，差异仅在最后一步（carrier.Upsert vs carrier.Read/Enumerate）。载荷契约声明化（写侧校验 + 读侧同源解析）、JSON Patch 的锁内 RMW、Stream 会话（Begin/Append/Commit）。零 Usharp、零 INodeStore、零领域分支。</ModuleRule_Description>
+    <ModuleRule_Keywords>节点;文档;读写内核;loc;位置反解;载荷契约;Patch;Stream;通用框架</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Share.NodeIo</RootNamespace>
+    <AssemblyName>Share.NodeIo</AssemblyName>
+    <Description>节点文档读写内核（loc 控制反转 + 读写同源），零 Usharp</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Node)" />
+  </ItemGroup>
+
+</Project>

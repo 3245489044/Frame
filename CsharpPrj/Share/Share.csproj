@@ -46,6 +46,8 @@
     <ProjectReference Include="$(Proj_AiScheduling)" />
     <!-- ★ 通用引擎提取（2026-10-22）：信号账本 / 目标边界 / 工具多轮循环 -->
     <ProjectReference Include="$(Proj_Share_Signal)" />
+    <!-- ★ 节点文档读写内核（Share.NodeIo）：loc 控制反转 + 读写同源 + 载荷契约（零 Usharp） -->
+    <ProjectReference Include="$(Proj_Share_NodeIo)" />
     <ProjectReference Include="$(Proj_Share_ObjectiveBoundary)" />
     <ProjectReference Include="$(Proj_Share_AgentLoop)" />
 

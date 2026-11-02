@@ -60,7 +60,11 @@ public sealed record PlacementSpec(
     string SelectionId,
     string WriterId,
     PlacementState State = PlacementState.Active,
-    IReadOnlyList<string>? LocalCoordinates = null)
+    IReadOnlyList<string>? LocalCoordinates = null,
+    string? RecordType = null,
+    string? ThreadCoordinate = null,
+    string? PayloadSchemaId = null,
+    string? ProjectionId = null)
 {
     /// <summary>
     /// 本位置**自有坐标**名集（键模板中不属身份占位符的字段，如轮域 <c>task-node</c> 的 <c>storage</c>/<c>node</c>）。

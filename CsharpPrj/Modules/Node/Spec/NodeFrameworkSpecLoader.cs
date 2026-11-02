@@ -387,7 +387,11 @@ public static class NodeFrameworkSpecLoader
                 ReadString(declaration, "selection") ?? ExpressionSelectionPredicate.AllSelectionId,
                 writerId,
                 ParseEnum(declaration, "state", PlacementState.Active),
-                localCoordinates));
+                localCoordinates,
+                ReadString(declaration, "record-type") ?? ReadString(declaration, "recordType"),
+                ReadString(declaration, "thread-coordinate") ?? ReadString(declaration, "threadCoordinate"),
+                ReadString(declaration, "payload-schema") ?? ReadString(declaration, "payloadSchema"),
+                ReadString(declaration, "projection") ?? ReadString(declaration, "projectionId")));
         }
 
         return registry;

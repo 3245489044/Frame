@@ -68,6 +68,28 @@ $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine((Format-Array $ports))
 [void]$sb.AppendLine('        };')
 [void]$sb.AppendLine('    }')
+[void]$sb.AppendLine('')
+
+# ---- [Space] 词表段（G4）：manifest.vocabulary → 字典视图 ----
+# 键 = 声明面 space 名（逐字，零命名映射：禁 snake→Pascal 猜测）；值 = 声明键序。
+$vocabulary = @($m.vocabulary)
+[void]$sb.AppendLine('    /// <summary>[Space] 词表视图（键 = 声明面 space 名，逐字；值 = 声明键序）。</summary>')
+[void]$sb.AppendLine('    public static class GeneratedDeclaredVocabulary')
+[void]$sb.AppendLine('    {')
+[void]$sb.AppendLine('        /// <summary>全部词表空间（Ordinal 字典；未声明空间不在表内）。</summary>')
+[void]$sb.AppendLine('        public static readonly System.Collections.Generic.IReadOnlyDictionary<string, System.Collections.Generic.IReadOnlyList<string>> Spaces =')
+[void]$sb.AppendLine('            new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IReadOnlyList<string>>(System.StringComparer.Ordinal)')
+[void]$sb.AppendLine('            {')
+foreach ($space in $vocabulary) {
+    $keys = @($space.keys | ForEach-Object { '"' + ($_ -replace '\\', '\\' -replace '"', '\"') + '"' }) -join ', '
+    [void]$sb.AppendLine(('                ["{0}"] = [{1}],' -f $space.space, $keys))
+}
+[void]$sb.AppendLine('            };')
+[void]$sb.AppendLine('')
+[void]$sb.AppendLine('        /// <summary>取某词表的键集（未声明 ⇒ 空集；调用方自行判「未声明 ≠ 空词表」）。</summary>')
+[void]$sb.AppendLine('        public static System.Collections.Generic.IReadOnlyList<string> Get(string space)')
+[void]$sb.AppendLine('            => space is not null && Spaces.TryGetValue(space, out var keys) ? keys : System.Array.Empty<string>();')
+[void]$sb.AppendLine('    }')
 [void]$sb.AppendLine('}')
 
 $dir = Split-Path $OutFile -Parent

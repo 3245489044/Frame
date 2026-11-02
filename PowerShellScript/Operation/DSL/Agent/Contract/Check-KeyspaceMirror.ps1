@@ -21,7 +21,9 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = $probe
 }
 
-$repoPath = Join-Path $Root 'Projects\Plug\Agent\Config\keyspaces\agent.keyspace.json'
+# 仓库侧真源 = 键空间声明产物（agent.keyspace.generated.json；手写 agent.keyspace.json 已退役，
+# 恒红缺件会掩盖真实漂移 ⇒ 载体指向实际产物）。
+$repoPath = Join-Path $Root 'Projects\Plug\Agent\Config\keyspaces\agent.keyspace.generated.json'
 $dataPath = Join-Path $Root 'Data\Agent\Config\keyspaces\agent.keyspace.json'
 
 if (-not (Test-Path -LiteralPath $repoPath)) {

@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-10-30T10:32:29.7929060Z",
+  "builtAt": "2026-11-02T17:38:57.8506101Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -57,14 +57,14 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 77,
+          "line": 90,
           "role": "Code",
           "text": "/// <summary>checkpoint 节点键前缀（checkpoint.{threadId}.{ns}.{checkpointId}）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 89,
+          "line": 102,
           "role": "Code",
           "text": "/// <summary>checkpoint 节点键（<c>checkpoint.{threadId}.{ns}.{checkpointId}</c>）。</summary>"
         },
@@ -250,7 +250,7 @@
       "kind": "KeyFamily",
       "pattern": "#R",
       "note": "事实 id 前缀",
-      "total": 129,
+      "total": 130,
       "truncated": false,
       "byRole": {
         "Gate": 8,
@@ -258,7 +258,7 @@
         "Declaration": 0,
         "Code": 22,
         "Doc": 53,
-        "Other": 3
+        "Other": 4
       },
       "hits": [
         {
@@ -285,7 +285,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/Runtime/NodeRoundContext.cs",
-          "line": 43,
+          "line": 46,
           "role": "Code",
           "text": "/// <summary>本轮轮序号（1-based；= 轮级关联键 <c>会话键#R&lt;n&gt;</c> 的 n，标识单源见 Agent 侧 <c>FactIds.Round</c>／<c>AgentInstance.RoundKey</c>；旧形态 <c>runId+\"R\"+n</c> 已废除）。"
         },
@@ -453,7 +453,7 @@
         {
           "repo": "Frame",
           "file": "PowerShellScript/doc/Agent门禁模块化分类与通用框架抽取.md",
-          "line": 425,
+          "line": 434,
           "role": "Doc",
           "text": "5. **环境限制**：本机仅 Windows PowerShell 5.1（无 `pwsh`）。10 件 `#Requires -Version 7.0` 的门禁、以及 `Check-GateFileIndex` / `Check-GateBaselines` 中依赖 `.NET Core` API 的判据无法本地执行；上述验证均限于 5.1 可运行面。"
         },
@@ -466,7 +466,7 @@
         },
         {
           "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Check-ReadModelOnly.ps1",
+          "file": "PowerShellScript/Operation/DSL/Agent/Presentation/Check-ReadModelOnly.ps1",
           "line": 1,
           "role": "Gate",
           "text": "#Requires -Version 7.0"
@@ -512,6 +512,13 @@
           "line": 131,
           "role": "Gate",
           "text": "[pscustomobject]@{ Id = 'A3i'; Title = '轮次键字面量·#R（D3；唯一生成器 FactIds.Round）'; Pattern = '\"#R\"'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-1'; Kind = 'search' }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Env/Resolve-Pwsh.ps1",
+          "line": 1,
+          "role": "Other",
+          "text": "#Requires -Version 5.1"
         },
         {
           "repo": "Frame",
@@ -1199,14 +1206,14 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 80,
+          "line": 93,
           "role": "Code",
           "text": "/// <summary>KeyMapping 节点键前缀（keymapping.{category}.{nodeLevelKey}）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 93,
+          "line": 106,
           "role": "Code",
           "text": "/// <summary>KeyMapping 节点键（<c>keymapping.{category}.{nodeLevelKey}</c>）。</summary>"
         },
@@ -1466,11 +1473,11 @@
       "truncated": true,
       "byRole": {
         "Gate": 5,
-        "Test": 65,
+        "Test": 44,
         "Declaration": 1,
         "Code": 18,
-        "Doc": 247,
-        "Other": 64
+        "Doc": 257,
+        "Other": 75
       },
       "hits": [
         {
@@ -1553,7 +1560,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/Runtime/NodeRoundRuntime.cs",
-          "line": 44,
+          "line": 45,
           "role": "Code",
           "text": "// （P4-2 机制②：过程域 proc.* 节点并入 nodes.* 整包）。签名只用框架类型 ⇒ 框架零 Agent 依赖。"
         },
@@ -1637,14 +1644,14 @@
         {
           "repo": "Frame",
           "file": "PowerShellScript/doc/Agent门禁模块化分类与通用框架抽取.md",
-          "line": 148,
+          "line": 150,
           "role": "Doc",
           "text": "| `AgentProcessSurface` | SingleSource | `proc.` 键族字面量单源（`ProcessKeys.cs`） |"
         },
         {
           "repo": "Frame",
           "file": "PowerShellScript/doc/Agent门禁模块化分类与通用框架抽取.md",
-          "line": 263,
+          "line": 265,
           "role": "Doc",
           "text": "| 源文件枚举、注释/产物排除、行号定位 | 领域词表与正则（如 `proc.`、信封字段、`NonScalar`） |"
         },
@@ -2063,7 +2070,7 @@
         },
         {
           "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentProcessSurface.ps1",
+          "file": "PowerShellScript/Operation/DSL/Agent/Contract/Check-AgentProcessSurface.ps1",
           "line": 4,
           "role": "Gate",
           "text": "#   [P1] 过程键族字面量 \"proc.\" 只允许出现在 Agent.Contract\\NodeDomain\\ProcessKeys.cs（键文法单源）；"
@@ -2095,6 +2102,83 @@
           "line": 178,
           "role": "Other",
           "text": "$running[$proc.Id] = [PSCustomObject]@{ Name = $name; Proc = $proc; Out = $outFile; Err = $errFile; Sw = $sw; Spec = $spec }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 101,
+          "role": "Other",
+          "text": "try { $path = $proc.Path } catch { $path = $null }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 106,
+          "role": "Other",
+          "text": "Write-Step (\"[WARN] 跳过仓外同名进程 PID={0} path={1}（确需结束：-AnyPath）\" -f $proc.Id, $path) 'Yellow'"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 117,
+          "role": "Other",
+          "text": "try { $alive = -not $proc.HasExited } catch { $alive = $false }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 118,
+          "role": "Other",
+          "text": "Write-Step (\"[INFO] 结束 PID={0} path={1} started={2}\" -f $proc.Id, $c.Path, $proc.StartTime) 'Cyan'"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 123,
+          "role": "Other",
+          "text": "try { $graceful = $proc.CloseMainWindow() } catch { $graceful = $false }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 127,
+          "role": "Other",
+          "text": "try { if ($proc.HasExited) { break } } catch { break }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 133,
+          "role": "Other",
+          "text": "try { $stillAlive = -not $proc.HasExited } catch { $stillAlive = $false }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 136,
+          "role": "Other",
+          "text": "& taskkill.exe /PID $proc.Id /T /F 2>$null | Out-Null"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 139,
+          "role": "Other",
+          "text": "try { if ($proc.HasExited) { break } } catch { break }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 142,
+          "role": "Other",
+          "text": "Write-Step (\"[INFO] 已强杀进程树 PID={0}\" -f $proc.Id) 'Yellow'"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Build/Stop-LauncherLocks.ps1",
+          "line": 144,
+          "role": "Other",
+          "text": "Write-Step (\"[INFO] 已优雅关闭 PID={0}\" -f $proc.Id) 'Green'"
         },
         {
           "repo": "Frame",
@@ -2882,6 +2966,41 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-UI渲染链-通用渲染框架-施工单.md",
+          "line": 61,
+          "role": "Doc",
+          "text": "| `Projects\\Plug\\Agent\\src\\Agent.Contract\\NodeDomain\\ProcessFrameIdentity.cs` | 新增**唯一身份** `(Container, Round, Kind, Ordinal)`：`TryFromKey` 从 `proc.*` 位置键解析；身份是去重与锚点键的唯一口径，`DisplayKey` 不再作身份。 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-UI渲染链-通用渲染框架-施工单.md",
+          "line": 62,
+          "role": "Doc",
+          "text": "| `Projects\\Plug\\Agent\\src\\Agent.Modules\\Framework\\Context\\ObservabilityMessageSource.cs` | 帧 Binding 改为 `ProcessKeys.PositionKey(...)`（过程身份）；观测 `seq`（容器级到达序）按轮折算为**轮内秩**，与 `proc.*` 的轮内 ordinal 同构；被塑形"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-UI渲染链-通用渲染框架-施工单.md",
+          "line": 63,
+          "role": "Doc",
+          "text": "| `Projects\\Plug\\Agent\\src\\Agent.Ui\\Ui\\Views\\Projection\\ObservabilityMessageMerge.cs` | 去重改**身份级**：仅剔除与帧同身份的 canonical 条目；未被帧覆盖的 canonical 条目保留（修「帧非空 ⇒ 整批丢 `proc.*`」的跨轮/跨类别丢帧缺陷）。 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-UI渲染链-重复冗余错误逻辑审查.md",
+          "line": 83,
+          "role": "Doc",
+          "text": "- 事实：同一过程事实存在 `proc.*` 与 `obs.*` 两套身份键；`Merge` 需按 `proc.` 前缀剔除 canonical 条目做双写期去重。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-UI渲染链-重复冗余错误逻辑审查.md",
+          "line": 85,
+          "role": "Doc",
+          "text": "- 【建议】按 `Docs\\analysis\\2026\\10\\10.30\\2026-10-30-终答与窗口-通用身份架构-usharp声明式设计.md` 完成 `proc.*` 读面退役，只留一套键。"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.4/2026-10-04-运行日志分析-函数调用链-工具调用上屏测试.md",
           "line": 89,
           "role": "Doc",
@@ -3313,6 +3432,41 @@
           "line": 116,
           "role": "Declaration",
           "text": "\"title\": \"退役多行写路径（旧 proc.* 逐帧写 + ProcessKeys 归并）\","
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.1/2026-11-01-观测帧呈现身份与终答事实-通用框架方案.md",
+          "line": 54,
+          "role": "Doc",
+          "text": "│      ├─ run.Append(...)            → proc.{task}"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.1/2026-11-01-观测帧呈现身份与终答事实-通用框架方案.md",
+          "line": 190,
+          "role": "Doc",
+          "text": "process(proc.{container})"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.2/2026-11-02-文本节点气泡渲染-调用链重复冗余错误与渲染修复方案.md",
+          "line": 19,
+          "role": "Doc",
+          "text": "| C6 | 库内现存 `smsg.*` 行**无 `threadId`**，而读侧按 `ThreadId` 精确收窄（`proc.*` 行有该字段） | 【事实】 | 待修（ERR-6） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.2/2026-11-02-文本节点气泡渲染-调用链重复冗余错误与渲染修复方案.md",
+          "line": 274,
+          "role": "Doc",
+          "text": "| `proc.5136aa6044b7d474` | `nodeType=\"event\"`、`threadId=\"5136aa6044b7d474\"` | 有 `threadId` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.2/2026-11-02-文本节点气泡渲染-调用链重复冗余错误与渲染修复方案.md",
+          "line": 275,
+          "role": "Doc",
+          "text": "| `proc.22d6c50941081589` | 同上 | 有 `threadId` |"
         },
         {
           "repo": "Main",
@@ -3828,16 +3982,44 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
-          "line": 89,
+          "line": 90,
           "role": "Test",
           "text": "AnchorKey.Node(\"proc.task.r1.stage.1\"), MessageOrigin.LlmHistory, FeedTarget.History, \"h\"),"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
-          "line": 102,
+          "line": 115,
           "role": "Test",
-          "text": "\"观测帧非空 ⇒ canonical 的 proc.* 条目被剔除（双写期去重）\");"
+          "text": "AnchorKey.Node(\"proc.task.r1.stage.1\"), MessageOrigin.LlmHistory, FeedTarget.History, \"h\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
+          "line": 120,
+          "role": "Test",
+          "text": "AnchorKey.Node(\"proc.task.r1.tool-call.2\"), MessageOrigin.LlmHistory, FeedTarget.History, \"h\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
+          "line": 140,
+          "role": "Test",
+          "text": "AnchorKey.Node(\"proc.task.r1.stage.1\"), MessageOrigin.LlmHistory, FeedTarget.History, \"h\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
+          "line": 145,
+          "role": "Test",
+          "text": "AnchorKey.Node(\"proc.task.r2.stage.1\"), MessageOrigin.LlmHistory, FeedTarget.History, \"h\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
+          "line": 165,
+          "role": "Test",
+          "text": "AnchorKey.Node(\"proc.task.r1.stage.1\"), MessageOrigin.LlmHistory, FeedTarget.History, \"h\"),"
         },
         {
           "repo": "Main",
@@ -3849,14 +4031,14 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ContextProjectSyncStackDedupTests.cs",
-          "line": 15,
+          "line": 19,
           "role": "Test",
           "text": "/// context_project「工具单源去重」（P4-2 机制②）：整包含任一过程键条目（proc.*）⇒ 只吐过程条目（真实 Round +"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ContextProjectSyncStackDedupTests.cs",
-          "line": 57,
+          "line": 61,
           "role": "Test",
           "text": "Assert.IsTrue(ProcessKeys.IsProcessKey(msg.Node), $\"第 {i} 条须为过程条目（proc.*），实为 '{msg.Node}'\");"
         },
@@ -4097,181 +4279,6 @@
           "line": 121,
           "role": "Test",
           "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r1.tool-call\", out _, out _, out _, out _), \"序数段缺失\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 122,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.notakind.1\", out _, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 124,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.tool-call.x\", out _, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 126,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc..r1.tool-call.1\", out _, out _, out _, out _), \"容器为空\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 144,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 145,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.step3\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 147,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"a.b\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.a.b.r1.generic.1\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 150,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"noroundstep\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.noroundstep\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 20,
-          "role": "Test",
-          "text": "/// <item>位置键模板**只用身份可反解的值**（container/round/kind/ordinal），且键族 <c>proc.*</c> 与其它域分离；</item>"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 54,
-          "role": "Test",
-          "text": "\"proc.{container}\","
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 56,
-          "role": "Test",
-          "text": "\"过程键族须为 proc.* 且单键（Stream：每任务恰一行；与对话/段/消息键族分离）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 162,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 163,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.step3\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/AgentNodeProcessSpecDeclarationTests.cs",
-          "line": 166,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"noroundstep\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.noroundstep\"),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
-          "line": 24,
-          "role": "Test",
-          "text": "/// <item>写请求只给**身份键**：位置键由声明渲染（<c>proc.{c}.r{r}.step{s}</c>），反解不符 ⇒ Rejected + 可见化；</item>"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
-          "line": 88,
-          "role": "Test",
-          "text": "Assert.AreEqual($\"proc.{taskKey}\", store.Nodes.Values.ToList()[0].NodeKey, \"位置键由身份模板渲染（单键 Stream；非调用方给）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
-          "line": 138,
-          "role": "Test",
-          "text": "Assert.AreEqual($\"proc.{taskKey}\", live[0].Key, \"overlay 取**位置键**（单键 Stream；与 Snapshot 同桶）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
-          "line": 242,
-          "role": "Test",
-          "text": "/// <summary>池任务 run 边界：Begin → 过程帧 → Commit 后，<c>proc.&lt;taskKey&gt;</c> 单行存在且含工具帧。</summary>"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
-          "line": 252,
-          "role": "Test",
-          "text": "var row = store.Nodes.Values.SingleOrDefault(n => n.NodeKey == $\"proc.{taskKey}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/NodeDomainPortTests.cs",
-          "line": 253,
-          "role": "Test",
-          "text": "Assert.IsNotNull(row, \"池任务结算后存在 proc.<taskKey> 单行（工具过程事件不再丢失）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/StreamRuntimeRegistryTests.cs",
-          "line": 17,
-          "role": "Test",
-          "text": "/// <item>过程域 Stream 容器可取到（为 P1 声明切换就绪），位置键 = <c>proc.{container}</c>；</item>"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/StreamRuntimeRegistryTests.cs",
-          "line": 35,
-          "role": "Test",
-          "text": "Assert.AreEqual(ProcessKeys.StreamPositionKey(task), aggregate.PositionKey, \"过程流位置键 = proc.{container}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeSpec/StreamRuntimeRegistryTests.cs",
-          "line": 81,
-          "role": "Test",
-          "text": "Assert.AreEqual(ProcessKeys.StreamPositionKey(task), procAggregate!.PositionKey, \"过程位置键 = proc.{task}\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Signal/ProcessNodeSinkTests.cs",
-          "line": 46,
-          "role": "Test",
-          "text": "Assert.AreEqual(ProcessKeys.StreamPositionKey(taskKey), aggregate.PositionKey, \"位置键 = proc.{container}（单键 Stream）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Persistence.Tests/RelationContainerResolutionTests.cs",
-          "line": 23,
-          "role": "Test",
-          "text": "private const string TargetKey = \"proc.task-1.r1.tool.1\";"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Session.Tests/StandardContextBuilderTests.cs",
-          "line": 314,
-          "role": "Test",
-          "text": "// 对话(2) + 节点产出(1) = 3；无任何 proc.* 过程帧。"
         }
       ]
     },
@@ -4280,14 +4287,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 172,
+      "total": 176,
       "truncated": false,
       "byRole": {
-        "Gate": 7,
+        "Gate": 9,
         "Test": 5,
         "Declaration": 9,
-        "Code": 86,
-        "Doc": 64,
+        "Code": 87,
+        "Doc": 65,
         "Other": 1
       },
       "hits": [
@@ -4329,14 +4336,14 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 83,
+          "line": 96,
           "role": "Code",
           "text": "/// <summary>声明关系节点键前缀（relations.{workflowId}.{relationId}）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 97,
+          "line": 110,
           "role": "Code",
           "text": "/// <summary>声明关系节点键（<c>relations.{workflowId}.{relationId}</c>）。</summary>"
         },
@@ -4671,6 +4678,20 @@
         },
         {
           "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Data/Check-RelationGraphParity.ps1",
+          "line": 62,
+          "role": "Gate",
+          "text": "foreach ($name in $relations.Keys) {"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Data/Check-RelationGraphParity.ps1",
+          "line": 84,
+          "role": "Gate",
+          "text": "if (-not $relations.Contains($operation)) {"
+        },
+        {
+          "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Node/Check-RelationPlan.ps1",
           "line": 97,
           "role": "Gate",
@@ -4829,6 +4850,13 @@
           "line": 214,
           "role": "Doc",
           "text": "family graph.declaration | template=relations.{workflowId}.{relationId} | prefix=relations. | relation=Member | cardinality=Many"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.31/DataCenter-工作流数据产品图框架-设计与实施.md",
+          "line": 59,
+          "role": "Doc",
+          "text": "| **关系声明** | LiteDB `ur_relations`（`_id = relations.{workflowId}.{relationId}`） | `ReferenceGraphCoordinator` 头注：「关系声明写/读一律经 ur_relations，SQL 不再持有声明」 |"
         },
         {
           "repo": "Main",
@@ -5085,7 +5113,7 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/History/HistoryWriteGateParityTests.cs",
-          "line": 236,
+          "line": 235,
           "role": "Test",
           "text": "Assert.AreEqual(0, relations.SessionLinks.Count, \"类别缺失 ⇒ 不建悬空边\");"
         },
@@ -5280,6 +5308,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/AgentGraphComposition.cs",
+          "line": 140,
+          "role": "Code",
+          "text": "skipped = relations.SkippedRelations.ToArray(),"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Response/Collaboration/Kernel/CollaborationObserver.cs",
           "line": 22,
           "role": "Code",
@@ -5337,28 +5372,28 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 142,
+          "line": 163,
           "role": "Code",
           "text": "var members = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 145,
+          "line": 166,
           "role": "Code",
           "text": "await relations.DetachTaskAsync(hid, key, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 271,
+          "line": 292,
           "role": "Code",
           "text": ": await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 321,
+          "line": 342,
           "role": "Code",
           "text": "var taskKeys = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
@@ -5505,11 +5540,11 @@
       "total": 400,
       "truncated": true,
       "byRole": {
-        "Gate": 7,
+        "Gate": 8,
         "Test": 0,
         "Declaration": 11,
         "Code": 168,
-        "Doc": 211,
+        "Doc": 210,
         "Other": 3
       },
       "hits": [
@@ -5985,7 +6020,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 348,
+          "line": 359,
           "role": "Code",
           "text": "// 外来族（history./session./history:/session:）不得落入节点身份兜底；node:/task: 等含类型前缀的裸键同样拒绝。"
         },
@@ -7006,6 +7041,13 @@
         },
         {
           "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Runtime/Check-ReadFactCoverage.ps1",
+          "line": 54,
+          "role": "Gate",
+          "text": "if ($session.Count -eq 0) {"
+        },
+        {
+          "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Data/Check-EndpointKeyConsistency.ps1",
           "line": 266,
           "role": "Gate",
@@ -7489,6 +7531,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.31/节点-任务-历史的数据工作流重构-分析与方案.md",
+          "line": 88,
+          "role": "Doc",
+          "text": "| `session.overview` | history | derived / derived | `node_key` | `node_count` | `mounts.ushar` 的 `message_to_session.projection=SessionNodes` |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.6/2026-10-06-会话域单节点化-模块化重构方案.md",
           "line": 52,
           "role": "Doc",
@@ -7619,6 +7668,20 @@
           "line": 121,
           "role": "Doc",
           "text": "| key=session.{container}.r{round}.{kind}.{ordinal}"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.2/2026-11-02-节点文档内核-后续施工单.md",
+          "line": 261,
+          "role": "Doc",
+          "text": "session.Append(\"user-message\", new Dictionary<string, object?> { [\"role\"] = \"User\", [\"text\"] = text });"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.2/2026-11-02-节点文档内核-后续施工单.md",
+          "line": 262,
+          "role": "Doc",
+          "text": "await session.CommitAsync();"
         },
         {
           "repo": "Main",
@@ -8284,34 +8347,6 @@
           "line": 171,
           "role": "Doc",
           "text": "| **P1** | ERR-2 | 批 **A2-fix** | ✅ **已修复（2026-09-27，路线① 声明驱动）**：`conversation.json` 补 `archive-raw-legacy`（`key=cline.session.{container}.round.{round}`、`state:\"legacy\"`、`writer-archive-legacy`）；`pla"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
-          "line": 184,
-          "role": "Doc",
-          "text": "- **ERR-2 已闭合**（见上表 P1 行）；**ERR-1 补回归**：既有 `ClineArchiveRoundPolicyTests` 的 L-C/L-B 线格式断言已随批更新为统一键形（`cline.session.work.round.7.stage.1` / `session.work.r7.tool.1`）。"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 34,
-          "role": "Doc",
-          "text": "| `archive-raw` | `cline.session.{container}.round.{round}` | `cline.session.{container}.round.{round}.{kind}.{ordinal}` | ✅（本域**唯一**写目标） | **F1 必改**：不带 `{kind}.{ordinal}` ⇒ 多身份塌成同一位置键 |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 35,
-          "role": "Doc",
-          "text": "| `session-view` | `session.{container}.r{round}` | `session.{container}.r{round}.{kind}.{ordinal}` | ❌ | W4 转为内容面写目标（当前写侧仅经 `message` 域） |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 49,
-          "role": "Doc",
-          "text": "| `session-message` | `session.{container}.r{round}.msg.{seq}` | `session.{container}.r{round}.{kind}.{ordinal}` | ✅ | 该位置 **W4 退役**（D2）⇒ 本批键变更只为兼容期 |"
         }
       ]
     },
@@ -8320,49 +8355,49 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 377,
+      "total": 397,
       "truncated": false,
       "byRole": {
-        "Gate": 6,
-        "Test": 80,
-        "Declaration": 57,
-        "Code": 19,
-        "Doc": 214,
+        "Gate": 7,
+        "Test": 89,
+        "Declaration": 59,
+        "Code": 20,
+        "Doc": 221,
         "Other": 1
       },
       "hits": [
         {
           "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentDefaultDispatch.ps1",
-          "line": 23,
+          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentDefaultDispatch.ps1",
+          "line": 26,
           "role": "Gate",
           "text": "@{ Tag = 'tool-call'; Kind = 'tool-invoke' },"
         },
         {
           "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentDefaultDispatch.ps1",
-          "line": 76,
+          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentDefaultDispatch.ps1",
+          "line": 79,
           "role": "Gate",
           "text": "if ($text -match 'subagent-(tool-call|workflow|base|ps|usharp)') {"
         },
         {
           "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentSpec.ps1",
-          "line": 203,
+          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentSpec.ps1",
+          "line": 210,
           "role": "Gate",
           "text": "kinds = @('unrecognized', 'tool-call')"
         },
         {
           "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentSpec.ps1",
-          "line": 204,
+          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentSpec.ps1",
+          "line": 211,
           "role": "Gate",
           "text": "recognizers = @([pscustomobject]@{ match = [pscustomobject]@{ step = 1 }; kind = 'tool-call' })"
         },
         {
           "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Check-AgentSpec.ps1",
-          "line": 207,
+          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentSpec.ps1",
+          "line": 214,
           "role": "Gate",
           "text": "$probeStepIssues = @(Get-AgentSpecIssues -AgentName 'probe' -Spec $probeStepKey -HasRoundShape $true -CanonText \"unrecognized → X`ntool-call → Y\")"
         },
@@ -9460,6 +9495,20 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.30/2026-10-30-UI渲染链-重复冗余错误逻辑审查.md",
+          "line": 174,
+          "role": "Doc",
+          "text": "- 事实：非文本帧优先挂到**其后**最近的 `assistant`。序列 `text1 → tool-call → tool-result → text2` 时，工具会挂到 `text2` 下。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/10/10.31/2026-11-01-框架呈现与折叠-重复冗余错误逻辑-重构方案.md",
+          "line": 52,
+          "role": "Doc",
+          "text": "├─ obs.5136aa...：llm-text / cost / stage / tool-call …（Role=Tool, Channel=Process, 无 terminal/presentation）"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/10/10.4/2026-10-04-运行日志分析-函数调用链-工具调用上屏测试.md",
           "line": 115,
           "role": "Doc",
@@ -9618,6 +9667,34 @@
           "line": 182,
           "role": "Doc",
           "text": "| llm-text / llm-reasoning / tool-call / tool-result | true | — | 主轨直显 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.1/2026-11-01-观测帧呈现身份与终答事实-通用框架方案.md",
+          "line": 50,
+          "role": "Doc",
+          "text": "Cline daemon 事件（llm-text / tool-call / tool-result / done…）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.1/2026-11-01-会话读面单路径重构方案.md",
+          "line": 15,
+          "role": "Doc",
+          "text": "**现象**【事实】：一轮读 README 的任务结束后，过程面可见 `llm-text` / `tool-call` / `tool-result` / `done`，`llm-text` 帧上已带 `terminal=true`，但对话区**没有任何气泡**。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.1/2026-11-01-声明核心读面-控制反转重构方案.md",
+          "line": 44,
+          "role": "Doc",
+          "text": "【事实】用户观察到的现象：一次“读 README”的任务结束后，过程面能看到 `llm-text` / `tool-call` / `tool-result` / `done`，但对话区没有任何气泡。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.1/2026-11-01-声明式通用帧框架-帧与身份语义方案.md",
+          "line": 149,
+          "role": "Doc",
+          "text": "\"tool-call\":         { \"class\":\"tool\",     \"presentation\":\"process\",           \"ordinal\":\"per-kind\", \"answer\":\"never\",                   \"anchor\":\"never\",     \"archive\":true,  \"views\":[\"task\"],       "
         },
         {
           "repo": "Main",
@@ -9818,30 +9895,58 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityAttachClassificationTests.cs",
-          "line": 20,
+          "line": 22,
           "role": "Test",
           "text": "\"tools\": [\"tool\", \"tool-call\", \"tool-progress\", \"tool-result\"],"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityAttachClassificationTests.cs",
-          "line": 29,
+          "line": 31,
           "role": "Test",
-          "text": "\"tool-call\": { \"family\": \"tools\", \"titleKey\": \"tool\", \"summary\": [\"tool\", \"input\"], \"badge\": \"调用\" },"
+          "text": "\"tool-call\": { \"family\": \"tools\", \"titleKey\": \"tool\", \"summary\": [\"tool\", \"input\"], \"badge\": \"调用\", \"role\": \"call\", \"presentation\": \"process\" },"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityAttachClassificationTests.cs",
-          "line": 49,
+          "line": 47,
           "role": "Test",
-          "text": "Assert.AreEqual(\"tools\", classification.Kinds[\"tool-call\"].GroupKey);"
+          "text": "Assert.AreEqual(FrameRoleIds.Call, policy.RoleOf(\"tool-call\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityAttachClassificationTests.cs",
+          "line": 57,
+          "role": "Test",
+          "text": "\"tool-call/stage/endpoint 各声明一个呈现词\");"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
-          "line": 72,
+          "line": 73,
           "role": "Test",
           "text": "Msg(ConversationRole.Tool, \"tool-call\", 1, \"只有过程项\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
+          "line": 117,
+          "role": "Test",
+          "text": "var call = Msg(ConversationRole.Tool, \"tool-call\", 1, \"调用\") with"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
+          "line": 120,
+          "role": "Test",
+          "text": "AnchorKey.Node(\"proc.task.r1.tool-call.2\"), MessageOrigin.LlmHistory, FeedTarget.History, \"h\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/ObservabilityMessageMergeTests.cs",
+          "line": 169,
+          "role": "Test",
+          "text": "Bound(ProcessKeys.PositionKey(\"task\", 1, \"tool-call\", 1), 1, \"obs-call\", At),"
         },
         {
           "repo": "Main",
@@ -9916,6 +10021,13 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
+          "line": 59,
+          "role": "Test",
+          "text": "ProcessKeys.PositionKey(TaskKey, 1, \"tool-call\", 1),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
           "line": 145,
           "role": "Test",
           "text": "\"tools\": [\"tool-call\", \"tool-result\"],"
@@ -9940,6 +10052,13 @@
           "line": 173,
           "role": "Test",
           "text": "StringAssert.Contains(messages[0].Text, \"read_files\", \"tool-call 文本按声明 summary（tool,input）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
+          "line": 180,
+          "role": "Test",
+          "text": "ProcessKeys.PositionKey(TaskKey, 1, \"tool-call\", 1),"
         },
         {
           "repo": "Main",
@@ -9989,6 +10108,20 @@
           "line": 66,
           "role": "Test",
           "text": "\"tools 族须与 process.json.selections.tools 谓词一致（kind in (tool;tool-call;tool-progress;tool-result)）\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Gather/TextNodesAllTasksGatherTests.cs",
+          "line": 23,
+          "role": "Test",
+          "text": "/// 判据（G2）：两个任务的文本帧都入面板、非文本帧（tool-call）被 selection 滤除、组键 = 任务。"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Gather/TextNodesAllTasksGatherTests.cs",
+          "line": 84,
+          "role": "Test",
+          "text": "Frame(2, \"tool-call\", \"read_files\"))),"
         },
         {
           "repo": "Main",
@@ -10286,6 +10419,13 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Node.Tests/Stream/AggregateRunFactMarkTests.cs",
+          "line": 77,
+          "role": "Test",
+          "text": "run.Append(\"tool-call\", new Dictionary<string, object?> { [\"tool\"] = \"read\" });"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Modules.Tests/Parsing.Keys.Tests/Parity/DeclarationBindingTests.cs",
           "line": 117,
           "role": "Test",
@@ -10322,16 +10462,16 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/HtmlStreamRendererTests.cs",
-          "line": 64,
+          "line": 318,
           "role": "Test",
-          "text": "[\"tool-call\"] = new(\"tool-call\", \"tools\", \"调用\"),"
+          "text": "[\"tool-call\"] = new(\"tool-call\", FrameRoleIds.Call, null),"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/HtmlStreamRendererTests.cs",
-          "line": 365,
+          "line": 325,
           "role": "Test",
-          "text": "new ConversationRenderItem(ConversationRole.Tool, \"tool-call\", null, \"read_files · {}\", 1)));"
+          "text": "new ConversationRenderItem(ConversationRole.Tool, \"tool-call\", null, \"read_files\", 1),"
         },
         {
           "repo": "Main",
@@ -10699,66 +10839,59 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/frame-kinds.json",
+          "line": 15,
+          "role": "Declaration",
+          "text": "{ \"kind\": \"tool-call\",         \"class\": \"tool\",       \"presentation\": \"process\",           \"ordinal\": \"arrival\", \"anchor\": \"never\",     \"archive\": true,  \"views\": [\"task\"], \"fold\": \"attach\", \"subject\""
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 10,
+          "line": 12,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 26,
+          "line": 31,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 38,
+          "line": 55,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 47,
+          "line": 66,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 59,
+          "line": 78,
           "role": "Declaration",
-          "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
+          "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc | role=call"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 76,
+          "line": 97,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 88,
+          "line": 109,
           "role": "Declaration",
-          "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 108,
-          "role": "Declaration",
-          "text": "family tools = tool, tool-call, tool-progress, tool-result"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 120,
-          "role": "Declaration",
-          "text": "family tools = tool, tool-call, tool-progress, tool-result"
+          "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc | role=call"
         },
         {
           "repo": "Projects",
@@ -10770,16 +10903,37 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 163,
+          "line": 146,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/node-gather.ushar",
-          "line": 174,
+          "line": 161,
+          "role": "Declaration",
+          "text": "family tools = tool, tool-call, tool-progress, tool-result"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "line": 207,
+          "role": "Declaration",
+          "text": "family tools = tool, tool-call, tool-progress, tool-result"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "line": 218,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "line": 319,
+          "role": "Declaration",
+          "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
@@ -10798,14 +10952,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/task-node.ushar",
-          "line": 25,
+          "line": 36,
           "role": "Declaration",
           "text": "role.tool-call = 6"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/task-node.ushar",
-          "line": 32,
+          "line": 61,
           "role": "Declaration",
           "text": "owns-tool = \"role.tool-call\""
         },
@@ -10860,10 +11014,24 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/doc/NodeTaxonomy.md",
+          "line": 27,
+          "role": "Doc",
+          "text": "| 工具调用 | `tool-call` | action | invoke | round | agent | confirmed |"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/PowerShellScript/Check-AgenticWorkflow.ps1",
           "line": 37,
           "role": "Gate",
           "text": "@{ Tag = 'tool-call'; Executor = 'subagent-tool-call' },"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/PowerShellScript/Check-NodeTaxonomy.ps1",
+          "line": 37,
+          "role": "Gate",
+          "text": "role       = @('subagent-face','workflow-root','workflow-step','workflow-observation','result-summary','tool-call','tool-result','prompt-context')"
         },
         {
           "repo": "Projects",
@@ -10895,6 +11063,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/NodeTaxonomy.cs",
+          "line": 80,
+          "role": "Code",
+          "text": "\"tool-call\" => T((\"purpose\", Action), (\"func\", Invoke), (\"life\", Round), (\"prov\", Agent), (\"trust\", Confirmed)),"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ObservabilitySelections.cs",
           "line": 20,
           "role": "Code",
@@ -10909,8 +11084,8 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/DataStoreHosting.cs",
-          "line": 233,
+          "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/DataStoreHosting.cs",
+          "line": 220,
           "role": "Code",
           "text": "[\"subagent-tool-call\"] = Agent.Modules.SubAgent.SingleStep.SingleStepSubAgentTaskExecutor.ExecutorId,"
         },
@@ -10977,13 +11152,13 @@
       "kind": "LocValue",
       "pattern": "agent_round",
       "note": "loc 受控词（单值态/下划线形）",
-      "total": 41,
+      "total": 44,
       "truncated": false,
       "byRole": {
         "Gate": 3,
         "Test": 1,
-        "Declaration": 17,
-        "Code": 1,
+        "Declaration": 18,
+        "Code": 3,
         "Doc": 18,
         "Other": 1
       },
@@ -11173,107 +11348,128 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
-          "line": 52,
+          "line": 53,
           "role": "Declaration",
           "text": "archive_node = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
-          "line": 53,
+          "line": 54,
           "role": "Declaration",
           "text": "archive_raw = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
-          "line": 54,
+          "line": 55,
           "role": "Declaration",
           "text": "archive_raw_legacy = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
-          "line": 55,
+          "line": 56,
           "role": "Declaration",
           "text": "legacy_history = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
-          "line": 56,
+          "line": 57,
           "role": "Declaration",
           "text": "observability_node = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
-          "line": 57,
+          "line": 58,
           "role": "Declaration",
           "text": "process_node = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
-          "line": 58,
-          "role": "Declaration",
-          "text": "resource_node = agent_round"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
           "line": 59,
           "role": "Declaration",
-          "text": "segment_context = agent_round"
+          "text": "raw_node = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
           "line": 60,
           "role": "Declaration",
-          "text": "segment_node = agent_round"
+          "text": "resource_node = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
           "line": 61,
           "role": "Declaration",
-          "text": "segment_stream_node = agent_round"
+          "text": "segment_context = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
           "line": 62,
           "role": "Declaration",
-          "text": "session_message = agent_round"
+          "text": "segment_node = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
           "line": 63,
           "role": "Declaration",
-          "text": "session_message_node = agent_round"
+          "text": "segment_stream_node = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
           "line": 64,
           "role": "Declaration",
-          "text": "session_view = agent_round"
+          "text": "session_message = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
           "line": 65,
           "role": "Declaration",
-          "text": "session_view_node = agent_round"
+          "text": "session_message_node = agent_round"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/placement.ushar",
           "line": 66,
           "role": "Declaration",
+          "text": "session_view = agent_round"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "line": 67,
+          "role": "Declaration",
+          "text": "session_view_node = agent_round"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "line": 68,
+          "role": "Declaration",
           "text": "task_node = agent_round"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Contract/WorkflowFunction/GeneratedDeclaredContracts.g.cs",
+          "line": 446,
+          "role": "Code",
+          "text": "[\"Loc\"] = [\"agent_round\"],"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Contract/WorkflowFunction/GeneratedDeclaredContracts.g.cs",
+          "line": 447,
+          "role": "Code",
+          "text": "[\"LocPlacement\"] = [\"agent_round\", \"archive_node\", \"archive_raw\", \"archive_raw_legacy\", \"legacy_history\", \"observability_node\", \"process_node\", \"raw_node\", \"resource_node\", \"segment_context\", \"segment"
         }
       ]
     },
@@ -11282,14 +11478,14 @@
       "kind": "Placement",
       "pattern": "process-node",
       "note": "过程域位置 id",
-      "total": 39,
+      "total": 40,
       "truncated": false,
       "byRole": {
         "Gate": 0,
         "Test": 9,
         "Declaration": 2,
         "Code": 6,
-        "Doc": 21,
+        "Doc": 22,
         "Other": 1
       },
       "hits": [
@@ -11355,6 +11551,13 @@
           "line": 115,
           "role": "Doc",
           "text": "| P2.1 | `Gather\\NodeGatherCatalog.cs` | `Process` 行 `AdapterFactory` → `StreamFrameReadAdapter`（域参数：`proc.` + `process-node` + `node-gather-process.json`） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.2/2026-11-02-节点文档内核-后续施工单.md",
+          "line": 98,
+          "role": "Doc",
+          "text": "| process | `process-node` | `event` | `container` | `stream-default` | `stream-frames` |"
         },
         {
           "repo": "Main",
@@ -11529,19 +11732,19 @@
           "file": "Plug/Agent/Config/nodes/process.ushar",
           "line": 10,
           "role": "Declaration",
-          "text": "id=process-node | level=node | carrier=sql-nodes-process | key=proc.{container} | form=stream | retention=presentational | selection=all | writer=writer-process"
+          "text": "id=process-node | level=node | carrier=sql-nodes-process | key=proc.{container} | form=stream | retention=presentational | selection=all | writer=writer-process | record-type=event | thread-coordinate"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 65,
+          "line": 66,
           "role": "Code",
           "text": "/// <summary>位置键模板（声明面 <c>process.json.placements[process-node].key</c> 的编译视图）。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ProcessKeys.cs",
-          "line": 83,
+          "line": 84,
           "role": "Code",
           "text": "public const string PlacementId = \"process-node\";"
         },
@@ -11562,7 +11765,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Framework/NodeSpec/NodeDomainCatalog.cs",
-          "line": 169,
+          "line": 175,
           "role": "Code",
           "text": "new[] { new NodeWriteTarget(\"process-node\", HistoryMaterializeService.ProcessWriter) },"
         }
@@ -11571,14 +11774,14 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1626.0,
+    "hitCount": 1655.0,
     "byRole": {
-      "Gate": 38,
-      "Test": 214,
-      "Declaration": 98,
-      "Code": 349,
-      "Doc": 850,
-      "Other": 77
+      "Gate": 42,
+      "Test": 202,
+      "Declaration": 101,
+      "Code": 353,
+      "Doc": 868,
+      "Other": 89
     },
     "truncatedFacts": [
       "key.proc",
@@ -11587,15 +11790,15 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 466
+        "lines": 481
       },
       {
         "repo": "Projects",
-        "lines": 278
+        "lines": 290
       },
       {
         "repo": "Main",
-        "lines": 1303
+        "lines": 1340
       }
     ]
   }

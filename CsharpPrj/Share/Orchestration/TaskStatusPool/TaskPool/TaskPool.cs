@@ -23,18 +23,24 @@ namespace Share.TaskStatusPool.TaskPool
     /// 且与①②③职责重叠（机制冗余），故已废除（见 options 说明）。</para>
     /// 与 Agent 无关（通用基础框架内自包含状态原语，不依赖 Modules.StateMachine / Share.StateManagement）。
     /// </summary>
-    public sealed class TaskPool<TItem, TResult> : ITaskPool<TItem>
+    public sealed class TaskPool<TItem, TResult> : ITaskPool<TItem>, ITaskGroupPool<TItem>
         where TItem : ITaskPoolItem
     {
         private readonly ITaskPoolPersistence<TItem> _persistence;
         private readonly TaskPoolHandler<TItem, TResult> _handler;
         private readonly ITaskPoolItemInitializer<TItem>? _initializer;
         private readonly ITaskOutcomePolicy<TResult>? _outcomePolicy;
+        private readonly ITaskGroupDependencyProbe? _dependencyProbe;
         private readonly int _maxConcurrency;
         private readonly int _batchSize;
         private readonly int _heartbeatIntervalMs;
         private readonly TimeSpan _drainTimeout;
         private readonly TimeSpan _idleReconcile;
+        private readonly int _capacityWaitMs;
+        private readonly int _groupMaxMembers;
+        private readonly TaskGroupCompletion _groupDefaultCompletion;
+        private readonly int _groupDefaultQuorum;
+        private readonly bool _allowUnverifiedGroups;
 
         private readonly TaskStateStore _states = new();
         private readonly ConcurrentDictionary<string, TaskPauseHandle> _pauses = new(StringComparer.Ordinal);
@@ -44,6 +50,9 @@ namespace Share.TaskStatusPool.TaskPool
         private readonly TaskPauseManager _pauseManager = new();
         private readonly SemaphoreSlim _gate;
         private readonly Channel<bool> _signal;
+        private readonly ConcurrentDictionary<string, GroupState> _groups = new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, string> _taskGroup = new(StringComparer.Ordinal);
+        private int _slotSeq;
 
         private readonly object _lock = new();
         private CancellationTokenSource? _loopCts;
@@ -67,18 +76,28 @@ namespace Share.TaskStatusPool.TaskPool
             TaskPoolHandler<TItem, TResult> handler,
             TaskPoolOptions? options = null,
             ITaskPoolItemInitializer<TItem>? initializer = null,
-            ITaskOutcomePolicy<TResult>? outcomePolicy = null)
+            ITaskOutcomePolicy<TResult>? outcomePolicy = null,
+            ITaskGroupDependencyProbe? dependencyProbe = null)
         {
             _persistence = PortGuard.Required(persistence, nameof(persistence));
             _handler = PortGuard.Required(handler, nameof(handler));
             _initializer = initializer;
             _outcomePolicy = outcomePolicy;
+            _dependencyProbe = dependencyProbe;
             options ??= new TaskPoolOptions();
-            _maxConcurrency = Math.Max(1, options.MaxConcurrency);
+            _maxConcurrency = Math.Clamp(options.MaxConcurrency, 1, 32);
             _batchSize = Math.Max(1, options.BatchSize);
             _heartbeatIntervalMs = Math.Max(0, options.HeartbeatIntervalMs);
             _drainTimeout = TimeSpan.FromMilliseconds(Math.Max(0, options.DrainTimeoutMs));
             _idleReconcile = TimeSpan.FromMilliseconds(Math.Max(0, options.IdleReconcileIntervalMs));
+            _capacityWaitMs = Math.Max(0, options.CapacityWaitMs);
+            _groupMaxMembers = Math.Clamp(options.GroupMaxMembers, 1, 32);
+            _groupDefaultCompletion = Enum.TryParse<TaskGroupCompletion>(
+                (options.GroupCompletionDefault ?? string.Empty).Replace("_", string.Empty), ignoreCase: true, out var completion)
+                ? completion
+                : TaskGroupCompletion.AllOf;
+            _groupDefaultQuorum = Math.Max(0, options.GroupQuorumDefault);
+            _allowUnverifiedGroups = options.AllowUnverifiedGroups;
             _gate = new SemaphoreSlim(_maxConcurrency, _maxConcurrency);
             _signal = Channel.CreateUnbounded<bool>(new UnboundedChannelOptions { SingleReader = true });
         }
@@ -110,7 +129,21 @@ namespace Share.TaskStatusPool.TaskPool
             if (cts is not null)
             {
                 cts.Cancel();
-                try { if (_consumer is not null) await _consumer.ConfigureAwait(false); } catch { }
+                try
+                {
+                    if (_consumer is not null)
+                    {
+                        var budget = _capacityWaitMs > 0 ? _capacityWaitMs : 5_000;
+                        await _consumer.WaitAsync(TimeSpan.FromMilliseconds(budget)).ConfigureAwait(false);
+                    }
+                }
+                catch (TimeoutException ex)
+                {
+                    // 有界停机：未在预算内退出可见化（不静默丢弃）。
+                    DrainFault?.Invoke(this, new TimeoutException(
+                        $"TaskPool.StopAsync 有界等待超时（{_capacityWaitMs}ms）：仍有 worker 未退出。", ex));
+                }
+                catch { }
                 cts.Dispose();
             }
         }
@@ -339,36 +372,32 @@ namespace Share.TaskStatusPool.TaskPool
 
         private async Task ConsumeLoopAsync(CancellationToken ct)
         {
+            // supervisor：唯一信号读者；worker 只从持久化取件，不读通道（保持 SingleReader 语义）。
+            var workers = new List<Task>();
             try
             {
                 while (await WaitSignalAsync(ct).ConfigureAwait(false))
                 {
                     while (_signal.Reader.TryRead(out _)) { }
-                    var sw = Stopwatch.StartNew();
-                    try
+
+                    workers.RemoveAll(static t => t.IsCompleted);
+                    while (!ct.IsCancellationRequested && workers.Count < _maxConcurrency)
                     {
-                        var (pending, started, skipped, skippedRows) = await DrainOnceAsync(ct).ConfigureAwait(false);
-                        sw.Stop();
-                        ConsumptionObserved?.Invoke(this, new TaskPoolConsumptionEventArgs(
-                            TaskPoolConsumptionPhase.DrainEnd, sw.ElapsedMilliseconds, pending, started, skipped: skipped,
-                            skippedRows: skippedRows));
-                    }
-                    catch (OperationCanceledException) { throw; }
-                    catch (Exception ex)
-                    {
-                        // 单次 drain 失败（异常/超时）只记一次并续跑（自愈），
-                        // 避免任何单点异常/卡死杀死整条消费循环 → 后续新入队任务永远不被消费（hang）。
-                        sw.Stop();
-                        ConsumptionObserved?.Invoke(this, new TaskPoolConsumptionEventArgs(
-                            TaskPoolConsumptionPhase.DrainFault, sw.ElapsedMilliseconds, 0, null,
-                            $"{ex.GetType().Name}: {ex.Message}"));
-                        DrainFault?.Invoke(this, ex);
-                        TriggerNext();
+                        var slot = (int)((uint)Interlocked.Increment(ref _slotSeq) % (uint)_maxConcurrency);
+                        workers.Add(Task.Run(() => RunWorkerAsync(slot, ct), CancellationToken.None));
                     }
                 }
             }
             catch (OperationCanceledException) { }
-            catch { }
+            catch (Exception ex)
+            {
+                DrainFault?.Invoke(this, ex);
+            }
+            finally
+            {
+                // 优雅停机：有界等待由 StopAsync 施加；此处确保 worker 全部收尾。
+                try { await Task.WhenAll(workers).ConfigureAwait(false); } catch { }
+            }
         }
 
         /// <summary>等待唤醒：单一唤醒通道（事件信号 + 空闲兜底 tick 同源写入），返回 false = 通道已完成（应退出循环）。
@@ -376,116 +405,182 @@ namespace Share.TaskStatusPool.TaskPool
         private async Task<bool> WaitSignalAsync(CancellationToken ct)
             => await _signal.Reader.WaitToReadAsync(ct).ConfigureAwait(false);
 
-        private async Task<(int Pending, string? Started, int Skipped,
-            List<(string TaskKey, TaskExecutionStatus MemoryState)> SkippedRows)> DrainOnceAsync(CancellationToken ct)
+        private async Task RunWorkerAsync(int slot, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-
-            // 队列级全局暂停（TCS 反应式，零轮询）：暂停"派发新任务"（在途自然跑完）。
-            await DrainAsync(t => _pauseManager.WaitForResumeAsync(t), ct).ConfigureAwait(false);
-            var pending = await DrainAsync(t => _persistence.ListAsync(TaskExecutionStatus.NotStarted, _batchSize, t), ct).ConfigureAwait(false);
-            // 激活门：激活标志（Active）与写入解耦 —— 仅采用「NotStarted 且 Active=true」的任务；Active=false（休眠）仅持久化不被消费。
-            // 未实现 IActivatableTaskPoolItem 的条目恒视为 Active=true（无门控，向后兼容）。
-            var usable = pending.Where(IsActive).ToList();
-            if (usable.Count == 0) return (0, null, 0, new());
-
-            // 候选遍历（而非只看排序第一件）+ 陈旧行对齐：
-            // 「持久化行可消费（NotStarted ∧ Active）但内存态已非 NotStarted」= 状态分叉（毒化/陈旧行）。
-            // 旧实现对此走 `TriggerNext(); return;`——立即再唤醒→再选中同一行→**忙等自旋**，
-            // 且每次只试一件 ⇒ 毒化行**队首阻塞**真实任务（表现为随机长时间滞留 NotStarted）。
-            // 现改为：跳过该行并把其持久化状态**对齐到内存真态**（一次性消除毒化源），继续尝试其余候选。
-            TItem? item = default;
+            var sw = Stopwatch.StartNew();
             var skipped = 0;
-            // 陈旧/毒化行明细（键 + 内存真态）：随 drain 上报，供宿主逐键留痕「分叉已对齐」。
             var skippedRows = new List<(string TaskKey, TaskExecutionStatus MemoryState)>();
-            foreach (var candidate in usable.OrderByDescending(p => p.Priority))
-            {
-                var candidateState = _states.GetOrCreate(candidate.TaskKey);
-                if (candidateState.CurrentState != TaskExecutionStatus.NotStarted)
-                {
-                    skipped++;
-                    skippedRows.Add((candidate.TaskKey, candidateState.CurrentState));
-                    await ReconcileStaleRowAsync(candidate.TaskKey, candidateState.CurrentState, ct).ConfigureAwait(false);
-                    continue;
-                }
-                if (!candidateState.TryStart())
-                {
-                    skipped++;
-                    continue;
-                }
-                item = candidate;
-                break;
-            }
-            if (item is null) return (usable.Count, null, skipped, skippedRows); // 全部候选不可启动：不再自旋（交由下一信号/兜底重试）
+            TItem? item = default;
+            var pendingCount = 0;
+            var acquired = false;
 
-            var key = item.TaskKey;
-            _kinds[key] = item.Kind;
-            _activeFlags[key] = item is IActivatableTaskPoolItem activatable ? activatable.Active : true;
-
-            await DrainAsync(t => _persistence.UpdateStatusAsync(key, TaskExecutionStatus.NotStarted, TaskExecutionStatus.Running, t), ct).ConfigureAwait(false);
-            lock (_lock) _inFlight.Add(key);
-            Emit(key, TaskExecutionStatus.NotStarted, TaskExecutionStatus.Running, "started");
-
-            await _gate.WaitAsync(ct).ConfigureAwait(false);
-            // 在途心跳：长期执行（如长 LLM 调用）周期刷新 UpdatedAt，使 stuck Running 可被观测；随处理体结束/取消同源释放。
-            using var hbCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            var heartbeat = HeartbeatLoopAsync(key, hbCts.Token);
             try
             {
-                var result = await _handler(item, key, ct).ConfigureAwait(false);
-                var st = _states.Get(key);
-                var target = (_outcomePolicy ?? AlwaysCompletePolicy<TResult>.Instance).ToStatus(result);
-                if (target == TaskExecutionStatus.Completed
-                    && st is { CurrentState: TaskExecutionStatus.Running }
-                    && st.TryComplete())
+                // 队列级全局暂停（TCS 反应式）：暂停只挡派发，在途自然跑完。
+                await DrainAsync(t => _pauseManager.WaitForResumeAsync(t), ct).ConfigureAwait(false);
+
+                // C4：容量门先于取件/置 Running——不得出现「持久化 Running 但 handler 未进入」的假状态。
+                acquired = await AcquireCapacityAsync(ct).ConfigureAwait(false);
+                if (!acquired)
                 {
-                    await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Completed, ct).ConfigureAwait(false);
-                    Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Completed, "completed");
+                    sw.Stop();
+                    ConsumptionObserved?.Invoke(this, new TaskPoolConsumptionEventArgs(
+                        TaskPoolConsumptionPhase.DrainFault, sw.ElapsedMilliseconds, 0, null,
+                        $"capacity-wait-timeout({_capacityWaitMs}ms)", slot: slot));
+                    return;
                 }
-                else if (target == TaskExecutionStatus.Faulted
-                    && st is not null && st.TryFault())
+
+                var pending = await DrainAsync(t => _persistence.ListAsync(TaskExecutionStatus.NotStarted, _batchSize, t), ct).ConfigureAwait(false);
+                pendingCount = pending.Count;
+                var usable = pending.Where(IsActive).ToList();
+                if (usable.Count > 0)
                 {
-                    await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, ct).ConfigureAwait(false);
-                    Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, "faulted_by_outcome");
+                    foreach (var candidate in usable.OrderByDescending(p => p.Priority))
+                    {
+                        var candidateState = _states.GetOrCreate(candidate.TaskKey);
+                        if (candidateState.CurrentState != TaskExecutionStatus.NotStarted)
+                        {
+                            skipped++;
+                            skippedRows.Add((candidate.TaskKey, candidateState.CurrentState));
+                            await ReconcileStaleRowAsync(candidate.TaskKey, candidateState.CurrentState, ct).ConfigureAwait(false);
+                            continue;
+                        }
+                        if (!candidateState.TryStart())
+                        {
+                            skipped++;
+                            continue;
+                        }
+                        item = candidate;
+                        break;
+                    }
                 }
-                else if (target is not (TaskExecutionStatus.Completed or TaskExecutionStatus.Faulted))
+
+                if (item is null)
                 {
-                    throw new ArgumentOutOfRangeException("outcomePolicy", target,
-                        "任务终态策略只允许 Completed / Faulted。");
+                    sw.Stop();
+                    ConsumptionObserved?.Invoke(this, new TaskPoolConsumptionEventArgs(
+                        TaskPoolConsumptionPhase.DrainEnd, sw.ElapsedMilliseconds, pendingCount, null,
+                        skipped: skipped, skippedRows: skippedRows, slot: slot));
+                    return;
                 }
+
+                var key = item.TaskKey;
+                _kinds[key] = item.Kind;
+                _activeFlags[key] = item is IActivatableTaskPoolItem activatable ? activatable.Active : true;
+
+                await DrainAsync(t => _persistence.UpdateStatusAsync(key, TaskExecutionStatus.NotStarted, TaskExecutionStatus.Running, t), ct).ConfigureAwait(false);
+                lock (_lock) _inFlight.Add(key);
+                Emit(key, TaskExecutionStatus.NotStarted, TaskExecutionStatus.Running, "started");
+
+                using var hbCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                var heartbeat = HeartbeatLoopAsync(key, hbCts.Token);
+                var groupKey = _taskGroup.TryGetValue(key, out var g) ? g : null;
+                var previousGroup = TaskGroupScope.CurrentGroupKey;
+                if (groupKey is not null) TaskGroupScope.CurrentGroupKey = groupKey;
+                try
+                {
+                    var result = await _handler(item, key, ct).ConfigureAwait(false);
+                    var st = _states.Get(key);
+                    var target = (_outcomePolicy ?? AlwaysCompletePolicy<TResult>.Instance).ToStatus(result);
+                    if (target == TaskExecutionStatus.Completed
+                        && st is { CurrentState: TaskExecutionStatus.Running }
+                        && st.TryComplete())
+                    {
+                        await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Completed, ct).ConfigureAwait(false);
+                        Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Completed, "completed");
+                    }
+                    else if (target == TaskExecutionStatus.Faulted
+                        && st is not null && st.TryFault())
+                    {
+                        await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, ct).ConfigureAwait(false);
+                        Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, "faulted_by_outcome");
+                    }
+                    else if (target is not (TaskExecutionStatus.Completed or TaskExecutionStatus.Faulted))
+                    {
+                        throw new ArgumentOutOfRangeException("outcomePolicy", target,
+                            "任务终态策略只允许 Completed / Faulted。");
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    var st = _states.Get(key);
+                    if (st is not null && st.TryCancel())
+                    {
+                        await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled, ct).ConfigureAwait(false);
+                        Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled, "cancelled");
+                    }
+                }
+                catch (Exception)
+                {
+                    // 失败即终态（AX-ZR）：不进 Retry/NotStarted，不自动重派。
+                    var st = _states.Get(key);
+                    if (st is not null && st.TryFault())
+                    {
+                        await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, ct).ConfigureAwait(false);
+                        Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, "faulted");
+                    }
+                }
+                finally
+                {
+                    TaskGroupScope.CurrentGroupKey = previousGroup;
+                    hbCts.Cancel();
+                    // 心跳纯观测：不得在消费关键路径 await；只观测异常。
+                    _ = heartbeat.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+                }
+
+                sw.Stop();
+                ConsumptionObserved?.Invoke(this, new TaskPoolConsumptionEventArgs(
+                    TaskPoolConsumptionPhase.DrainEnd, sw.ElapsedMilliseconds, pendingCount, key,
+                    skipped: skipped, skippedRows: skippedRows, slot: slot, executionId: key));
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                var st = _states.Get(key);
-                if (st is not null && st.TryCancel())
-                {
-                    await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled, ct).ConfigureAwait(false);
-                    Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled, "cancelled");
-                }
+                // 停机取消：不记为故障。
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // 失败即终态（AX-ZR）：不进 Retry/NotStarted，不自动重派（重试只能由外部 RetryPlan 提案）。
-                var st = _states.Get(key);
-                if (st is not null && st.TryFault())
-                {
-                    await TerminalizeAsync(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, ct).ConfigureAwait(false);
-                    Emit(key, TaskExecutionStatus.Running, TaskExecutionStatus.Faulted, "faulted");
-                }
+                sw.Stop();
+                ConsumptionObserved?.Invoke(this, new TaskPoolConsumptionEventArgs(
+                    TaskPoolConsumptionPhase.DrainFault, sw.ElapsedMilliseconds, pendingCount, item?.TaskKey,
+                    $"{ex.GetType().Name}: {ex.Message}", slot: slot));
+                DrainFault?.Invoke(this, ex);
             }
             finally
             {
-                hbCts.Cancel();
-                // 心跳纯观测（周期刷新 UpdatedAt）：**不得**在消费关键路径上 await——其持久化写入若阻塞，
-                // 会顺带冻结整条消费链（已就绪的下一个任务也只能排队等待）。此处仅取消并观测异常，不阻塞后续 TriggerNext。
-                _ = heartbeat.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
-                _gate.Release();
-                lock (_lock) _inFlight.Remove(key);
+                if (item is not null)
+                {
+                    lock (_lock) _inFlight.Remove(item.TaskKey);
+                    TriggerNext();
+                }
+                if (acquired)
+                {
+                    try { _gate.Release(); }
+                    catch (ObjectDisposedException) { /* 停机超时后池已释放：worker 收尾不再抛 */ }
+                }
+            }
+        }
+
+        /// <summary>容量门（有界等待）：超时可见化并返回 false（不无限等，也不先置 Running）。</summary>
+        private async Task<bool> AcquireCapacityAsync(CancellationToken ct)
+        {
+            if (_capacityWaitMs <= 0)
+            {
+                await _gate.WaitAsync(ct).ConfigureAwait(false);
+                return true;
             }
 
-            // 状态变更（完成/失败/取消/重试）触发取下一个：事件驱动链（入队→完成→取下一个），无内层自转、无定时。
-            TriggerNext();
-            return (usable.Count, key, skipped, skippedRows);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(_capacityWaitMs);
+            try
+            {
+                await _gate.WaitAsync(cts.Token).ConfigureAwait(false);
+                return true;
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                return false;
+            }
         }
 
         /// <summary>陈旧/毒化行对齐：持久化行仍处可消费态（NotStarted ∧ Active）但内存态已非 NotStarted 时，
@@ -593,10 +688,219 @@ namespace Share.TaskStatusPool.TaskPool
             catch (OperationCanceledException) { }
         }
 
+        public async Task<GroupSubmitReceipt> SubmitGroupAsync(
+            TaskGroupDescriptor group, IReadOnlyList<TItem> items, CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(group);
+            ArgumentNullException.ThrowIfNull(items);
+
+            if (string.IsNullOrWhiteSpace(group.GroupKey))
+                return GroupSubmitReceipt.Rejected(group.GroupKey ?? string.Empty, "GROUP_KEY_EMPTY");
+            if (group.MemberKeys is null || group.MemberKeys.Count == 0)
+                return GroupSubmitReceipt.Rejected(group.GroupKey, "GROUP_EMPTY");
+            if (group.MemberKeys.Count > _groupMaxMembers)
+                return GroupSubmitReceipt.Rejected(group.GroupKey, $"GROUP_TOO_MANY_MEMBERS({group.MemberKeys.Count}>{_groupMaxMembers})");
+            if (items.Count != group.MemberKeys.Count)
+                return GroupSubmitReceipt.Rejected(group.GroupKey, $"GROUP_MEMBER_COUNT_MISMATCH({items.Count}!={group.MemberKeys.Count})");
+            if (group.MemberKeys.Distinct(StringComparer.Ordinal).Count() != group.MemberKeys.Count)
+                return GroupSubmitReceipt.Rejected(group.GroupKey, "GROUP_DUPLICATE_MEMBER");
+            if (TaskGroupScope.CurrentGroupKey is not null)
+                return GroupSubmitReceipt.Rejected(group.GroupKey, "GROUP_NESTED");
+
+            if (_groups.TryGetValue(group.GroupKey, out var existing))
+            {
+                var code = Volatile.Read(ref existing.Settled) != 0 ? "GROUP_ALREADY_SETTLED" : "GROUP_ALREADY_EXISTS";
+                return new GroupSubmitReceipt(true, group.GroupKey, existing.MemberKeys.Count, code);
+            }
+
+            if (_dependencyProbe is not null)
+            {
+                bool hasDependency;
+                try
+                {
+                    hasDependency = await _dependencyProbe.HasIntraGroupDependencyAsync(group.MemberKeys, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // 读取失败 ⇒ fail-closed（禁止「读不到就放行」）。
+                    hasDependency = true;
+                }
+
+                if (hasDependency)
+                    return GroupSubmitReceipt.Rejected(group.GroupKey, "GROUP_HAS_DEPENDENCY");
+            }
+            else if (!_allowUnverifiedGroups)
+            {
+                // 探针缺失 ⇒ 默认拒收（C3 无法验证即不得成组；显式 AllowUnverifiedGroups 才放行）。
+                return GroupSubmitReceipt.Rejected(group.GroupKey, "GROUP_DEPENDENCY_PROBE_MISSING");
+            }
+
+            var byKey = items.GroupBy(static i => i.TaskKey, StringComparer.Ordinal)
+                             .ToDictionary(static g => g.Key, static g => g.First(), StringComparer.Ordinal);
+            foreach (var key in group.MemberKeys)
+                if (!byKey.ContainsKey(key))
+                    return GroupSubmitReceipt.Rejected(group.GroupKey, $"GROUP_MEMBER_NOT_FOUND:{key}");
+
+            var state = new GroupState
+            {
+                Descriptor = group,
+                MemberKeys = group.MemberKeys.ToArray(),
+                StartedAt = DateTimeOffset.UtcNow,
+            };
+            if (!_groups.TryAdd(group.GroupKey, state))
+                return GroupSubmitReceipt.Rejected(group.GroupKey, "GROUP_RACE_DUPLICATE");
+
+            foreach (var key in state.MemberKeys) _taskGroup[key] = group.GroupKey;
+
+            var enqueued = new List<string>(state.MemberKeys.Count);
+            try
+            {
+                foreach (var key in state.MemberKeys)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await EnqueueAsync(byKey[key], ct).ConfigureAwait(false);
+                    enqueued.Add(key);
+                }
+            }
+            catch (Exception ex)
+            {
+                foreach (var key in enqueued)
+                    await CancelAsync(key, CancellationToken.None).ConfigureAwait(false);
+                foreach (var key in state.MemberKeys) _taskGroup.TryRemove(key, out _);
+                _groups.TryRemove(group.GroupKey, out _);
+                return GroupSubmitReceipt.Rejected(group.GroupKey, $"GROUP_ENQUEUE_FAILED:{ex.GetType().Name}");
+            }
+
+            return new GroupSubmitReceipt(true, group.GroupKey, state.MemberKeys.Count, null);
+        }
+
+        public async Task<TaskGroupResult> WaitGroupAsync(string groupKey, CancellationToken ct = default)
+        {
+            if (!_groups.TryGetValue(groupKey, out var group))
+                throw new KeyNotFoundException($"GROUP_NOT_FOUND: {groupKey}");
+            return await group.Completion.Task.WaitAsync(ct).ConfigureAwait(false);
+        }
+
+        public async Task<int> CancelGroupAsync(string groupKey, CancellationToken ct = default)
+        {
+            if (!_groups.TryGetValue(groupKey, out var group)) return 0;
+            var count = 0;
+            foreach (var key in group.MemberKeys)
+            {
+                await CancelAsync(key, ct).ConfigureAwait(false);
+                count++;
+            }
+            return count;
+        }
+
+        private void UpdateGroupMembership(string taskKey)
+        {
+            if (!_taskGroup.TryGetValue(taskKey, out var groupKey)) return;
+            if (!_groups.TryGetValue(groupKey, out var group)) return;
+            if (Volatile.Read(ref group.Settled) != 0) return;
+
+            var members = new List<TaskGroupMember>(group.MemberKeys.Count);
+            foreach (var key in group.MemberKeys)
+            {
+                var memberStatus = MapStatus(_states.Get(key)?.CurrentState ?? TaskExecutionStatus.NotStarted);
+                members.Add(new TaskGroupMember(key, memberStatus));
+            }
+
+            var allTerminal = members.All(static m => m.Status is TaskGroupMemberStatus.Completed
+                or TaskGroupMemberStatus.Faulted or TaskGroupMemberStatus.Cancelled);
+            if (!allTerminal)
+            {
+                if (group.Descriptor.Completion == TaskGroupCompletion.FailFast
+                    && members.Any(static m => m.Status == TaskGroupMemberStatus.Faulted)
+                    && Interlocked.Exchange(ref group.FailFastRequested, 1) == 0)
+                {
+                    var pending = members.Where(static m => m.Status is TaskGroupMemberStatus.NotStarted
+                            or TaskGroupMemberStatus.Running or TaskGroupMemberStatus.Paused)
+                        .Select(static m => m.TaskKey).ToArray();
+                    _ = Task.WhenAll(pending.Select(k => CancelAsync(k)));
+                }
+                return;
+            }
+
+            if (Interlocked.Exchange(ref group.Settled, 1) != 0) return;
+
+            var status = ResolveGroupStatus(group, members);
+            var result = new TaskGroupResult(
+                group.Descriptor.GroupKey,
+                EffectiveCompletion(group),
+                status,
+                members,
+                new NodeReuseStat(0, 0, 0),
+                group.StartedAt,
+                DateTimeOffset.UtcNow);
+
+            foreach (var key in group.MemberKeys) _taskGroup.TryRemove(key, out _);
+            group.Completion.TrySetResult(result);
+        }
+
+        private TaskGroupCompletion EffectiveCompletion(GroupState group)
+            => group.Descriptor.Completion == TaskGroupCompletion.AllOf
+                ? _groupDefaultCompletion
+                : group.Descriptor.Completion;
+
+        private TaskGroupMemberStatus ResolveGroupStatus(GroupState group, IReadOnlyList<TaskGroupMember> members)
+        {
+            var completed = members.Count(static m => m.Status == TaskGroupMemberStatus.Completed);
+            var faulted = members.Any(static m => m.Status == TaskGroupMemberStatus.Faulted);
+            var cancelled = members.Any(static m => m.Status == TaskGroupMemberStatus.Cancelled);
+
+            var completion = EffectiveCompletion(group);
+
+            switch (completion)
+            {
+                case TaskGroupCompletion.Quorum:
+                    var quorum = group.Descriptor.Quorum > 0 ? group.Descriptor.Quorum
+                        : _groupDefaultQuorum > 0 ? _groupDefaultQuorum
+                        : (members.Count / 2) + 1;
+                    return completed >= quorum ? TaskGroupMemberStatus.Completed : TaskGroupMemberStatus.Faulted;
+                case TaskGroupCompletion.FailFast:
+                case TaskGroupCompletion.AllOf:
+                default:
+                    if (faulted) return TaskGroupMemberStatus.Faulted;
+                    if (cancelled) return TaskGroupMemberStatus.Cancelled;
+                    return completed == members.Count ? TaskGroupMemberStatus.Completed : TaskGroupMemberStatus.Faulted;
+            }
+        }
+
+        private static TaskGroupMemberStatus MapStatus(TaskExecutionStatus status) => status switch
+        {
+            TaskExecutionStatus.NotStarted => TaskGroupMemberStatus.NotStarted,
+            TaskExecutionStatus.Running => TaskGroupMemberStatus.Running,
+            TaskExecutionStatus.Paused => TaskGroupMemberStatus.Paused,
+            TaskExecutionStatus.Completed => TaskGroupMemberStatus.Completed,
+            TaskExecutionStatus.Faulted => TaskGroupMemberStatus.Faulted,
+            TaskExecutionStatus.Cancelled => TaskGroupMemberStatus.Cancelled,
+            _ => TaskGroupMemberStatus.NotStarted,
+        };
+
+        private sealed class GroupState
+        {
+            public required TaskGroupDescriptor Descriptor { get; init; }
+            public required IReadOnlyList<string> MemberKeys { get; init; }
+            public required DateTimeOffset StartedAt { get; init; }
+            public TaskCompletionSource<TaskGroupResult> Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            public int Settled;
+            public int FailFastRequested;
+        }
+
         private void Emit(string taskKey, TaskExecutionStatus from, TaskExecutionStatus to, string? reason)
-            => TaskStateChanged?.Invoke(this, new TaskPoolStateChangedEventArgs(
+        {
+            TaskStateChanged?.Invoke(this, new TaskPoolStateChangedEventArgs(
                 taskKey, from, to, reason,
                 kind: _kinds.TryGetValue(taskKey, out var kind) ? kind : TaskPoolItemKind.Executable,
                 active: !_activeFlags.TryGetValue(taskKey, out var active) || active));
+            UpdateGroupMembership(taskKey);
+        }
     }
 }
+

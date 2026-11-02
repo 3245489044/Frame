@@ -2149,4 +2149,27 @@
         Note   = '聚拢声明约束 G1–G4：Modules\Gather 公开类型 ⊆ 白名单（新增公开面须登记）/ IGatherModule 实现只允许 *GatherModule*.cs / new GatherHub 只允许 Modules\Gather 与 UiViewProjection.cs / 负对照（未登记公开类型、非法实现点必红）'
     }
 
+
+    # ===== 任务池并发语义 / 成本门禁复用（S4）=====
+    TaskConcurrencySemantics = @{
+        Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Closure'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'C1 组 API 定义唯一 / C2 无跨组聚合 / C3 嵌套组校验 / C4 容量门先于 Running / C5 L0 三端口唯一 / C6 领域零内联并发 / C7 负对照'
+    }
+
+    CostGateReuse = @{
+        Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Closure'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'D1 pricing.json 解析仅 CostConfigLoader / D2 成本比较唯一 / D3 消费 IPriceTable / D4 声明策略单源 / D5 复用 ICostStore·ICostQuery / D6 负对照'
+    }
+
+
 }

@@ -16,7 +16,30 @@ public sealed class TaskPoolOptions
     /// 显式配置（如对齐 9.1 语义设为 ≥5000）后，读侧卡死会在该时长后抛 TimeoutException 而非无限等待，由消费循环自愈续跑。</summary>
     public int DrainTimeoutMs { get; set; }
 
-    /// <summary>消费循环低频终局兜底校验间隔（毫秒）。默认 0 = 关闭（纯事件驱动，向后兼容）。
+    /// <summary>worker 取得容量门的有界等待预算（毫秒）。默认 5000；0 = 无界等待（向后兼容）。
+    /// 容量门先于取件（C4）：不得先持久化 Running 再排队等容量。</summary>
+    public int CapacityWaitMs { get; set; } = 5_000;
+
+    /// <summary>并发组成员上限（C2）。缺省 8，硬上界 32；提交期校验，超限拒收不截断。</summary>
+    public int GroupMaxMembers { get; set; } = 8;
+
+    /// <summary>组完成判定缺省策略（declarative：all_of | quorum | fail_fast）。</summary>
+    public string GroupCompletionDefault { get; set; } = "all_of";
+
+    /// <summary>quorum 策略缺省需成功数；0 = 由协调器按成员数取简单多数。</summary>
+    public int GroupQuorumDefault { get; set; }
+
+    /// <summary>组内依赖探针缺失时是否允许成组。默认 false（fail-closed）：
+    /// 未装配探针 ⇒ 拒收 GROUP_DEPENDENCY_PROBE_MISSING；显式 true 才放行（迁移期逃生口）。</summary>
+    public bool AllowUnverifiedGroups { get; set; }
+
+    /// <summary>history 组结果交付方式（declarative：await | detach）。await = 等待组结算返回全集；detach = 只回受理回执。</summary>
+    public string HistoryGroupWait { get; set; } = "await";
+
+    /// <summary>写门有界等待预算（毫秒）。0 = 沿用 WriteCoordinator 既有构造预算。</summary>
+    public int WriteGateBudgetMs { get; set; }
+
+    /// <summary>消费循环低频终局兜底校验间隔（毫秒）。默认 0 = 关闭（纯事件驱动，向后兼容）。</summary>
     /// **唯一节流点**：事件驱动空闲等待的每个超周期唤醒一次补跑 drain；若存在「未被消费的 NotStarted 且 Active」条目
     /// （信号在某次该发而未发的路径丢失 → 睡死），即被纠偏消费；系统确无待办时该次 drain 立即空返回（ListAsync 空 → 无额外 DB 压力）。
     /// 与「写即醒拾」配合：前者从源头保证信号必发，本项兜底因 legacy 直写等历史残留行产生的睡死。建议仅在有"NotStarted 可能滞留"的池上启用。</summary>

@@ -541,6 +541,14 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             // 注入事务工厂（AgentOrchestrator 注入 BeginTransactionAsync，返回非空 ITransaction）时包事务；未注入 → 逐条直写。
             await PersistNodeOutputsAndKeyMappingsAsync(node, props, ct).ConfigureAwait(false);
 
+            // 入参内容摘要（单飞复用键）：与端口写同载荷、同写门；旧行可空（不改 schema/不新增列）。
+            if (props.Any(static kv => kv.Value is not null) && _store is INodeOutputMetadataWriter metadataWriter)
+            {
+                var digest = NodeInputDigest.Compute(_workflowId, node.NodeKey, input.Parameters);
+                if (!string.IsNullOrWhiteSpace(digest))
+                    await metadataWriter.WriteInputDigestAsync(_workflowId, node.NodeKey, digest, ct).ConfigureAwait(false);
+            }
+
             // 引用层自动落地（跨介质，无单库原子性）：业务节点写透镜像（wf.node）+ 边推导统一写入，最终一致 + 对账兜底。
             if (_nodes != null || _grounding != null)
                 await PersistNodeReferencesAsync(node, input, taskKey, ct).ConfigureAwait(false);

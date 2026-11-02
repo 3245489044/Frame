@@ -40,6 +40,9 @@ public sealed class NodeRoundContext
     /// <summary>本轮会话作用域（taskKey，供 task→node 归属边与读侧 task 过滤）。由编排器注入。</summary>
     public string? SessionId { get; set; }
 
+    /// <summary>本轮所属并发组（L2）；null = 未成组。节点租约用于审计/组内可见化。</summary>
+    public string? GroupKey { get; set; }
+
     /// <summary>本轮轮序号（1-based；= 轮级关联键 <c>会话键#R&lt;n&gt;</c> 的 n，标识单源见 Agent 侧 <c>FactIds.Round</c>／<c>AgentInstance.RoundKey</c>；旧形态 <c>runId+"R"+n</c> 已废除）。
     /// 本层只当不透明整数承载，不感知类型；0 = 未注入（直跑/非 Agent 路径，埋点方据此跳过观测）。</summary>
     public int RoundNo { get; set; }
@@ -72,6 +75,30 @@ public sealed class NodeRoundContext
 
     /// <summary>强类型失败步骤（与 <see cref="Failure"/> 同源；无强类型失败为 null）。</summary>
     public string? FailedStep { get; set; }
+
+    // ---- 节点租约暂存（步骤执行者登记；onAfterStep 持久化成功后发布 Completed）----
+    private readonly Dictionary<string, (NodeLeaseKey Key, string TaskKey, IReadOnlyDictionary<string, object?> Ports)> _stepLeases =
+        new(StringComparer.Ordinal);
+
+    /// <summary>登记某步骤的租约发布信息（执行者调用；持久化成功后由 onAfterStep 发布）。</summary>
+    public void RecordLease(string stepName, NodeLeaseKey key, string taskKey, IReadOnlyDictionary<string, object?> ports)
+        => _stepLeases[stepName] = (key, taskKey, ports);
+
+    /// <summary>取某步骤的租约发布信息；未登记返回 false。</summary>
+    public bool TryGetLease(string stepName, out NodeLeaseKey key, out string taskKey, out IReadOnlyDictionary<string, object?> ports)
+    {
+        if (_stepLeases.TryGetValue(stepName, out var lease))
+        {
+            key = lease.Key;
+            taskKey = lease.TaskKey;
+            ports = lease.Ports;
+            return true;
+        }
+        key = default;
+        taskKey = string.Empty;
+        ports = new Dictionary<string, object?>();
+        return false;
+    }
 
     // ---- 步骤产物暂存（供 onAfterStep 横切持久化读取；步骤体只做函数执行 + 内存写，落库横切后置） ----
     // 键 = 稳定节点 ID（RoundStep.EffectiveNodeId / NodeDefinition.NodeKey），M1 收敛：同名函数多次出现不再覆盖。

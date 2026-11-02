@@ -24,7 +24,8 @@ public sealed class TaskPoolConsumptionEventArgs : EventArgs
     public TaskPoolConsumptionEventArgs(
         TaskPoolConsumptionPhase phase, long elapsedMs = 0, int pending = 0,
         string? taskKey = null, string? reason = null, int skipped = 0,
-        IReadOnlyList<(string TaskKey, TaskExecutionStatus MemoryState)>? skippedRows = null)
+        IReadOnlyList<(string TaskKey, TaskExecutionStatus MemoryState)>? skippedRows = null,
+        int slot = 0, string? executionId = null)
     {
         Phase = phase;
         ElapsedMs = elapsedMs;
@@ -33,7 +34,15 @@ public sealed class TaskPoolConsumptionEventArgs : EventArgs
         Reason = reason;
         Skipped = skipped;
         SkippedRows = skippedRows;
+        Slot = slot;
+        ExecutionId = executionId;
     }
+
+    /// <summary>worker 槽位（多 worker 下事件序 ≠ 执行序；消费方禁依赖全局序）。</summary>
+    public int Slot { get; }
+
+    /// <summary>执行标识（与 TaskKey 区分：同键重跑不覆盖观测）。</summary>
+    public string? ExecutionId { get; }
 
     /// <summary>阶段。</summary>
     public TaskPoolConsumptionPhase Phase { get; }

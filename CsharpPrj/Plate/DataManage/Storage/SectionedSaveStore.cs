@@ -88,6 +88,7 @@ public sealed class SectionedSaveStore
 
         var records = new List<SectionRecord>();
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var keyBytes = new byte[sizeof(long)];
 
         foreach (var record in sections)
         {
@@ -95,7 +96,6 @@ public sealed class SectionedSaveStore
                 throw new SectionStoreException(path, $"段 {record.Key} 载荷为 null");
 
             records.Add(record);
-            Span<byte> keyBytes = stackalloc byte[sizeof(long)];
             BitConverter.TryWriteBytes(keyBytes, record.Key);
             hash.AppendData(keyBytes);
             hash.AppendData(BitConverter.GetBytes(record.Payload.Length));
@@ -222,6 +222,7 @@ public sealed class SectionedSaveStore
 
             var sections = new Dictionary<long, byte[]>(sectionCount);
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var keyBytes = new byte[sizeof(long)];
             for (int i = 0; i < sectionCount; i++)
             {
                 if (stream.Position + sizeof(long) + sizeof(int) > bytes.Length)
@@ -237,7 +238,6 @@ public sealed class SectionedSaveStore
                 byte[] payload = reader.ReadBytes(length);
                 sections[key] = payload;
 
-                Span<byte> keyBytes = stackalloc byte[sizeof(long)];
                 BitConverter.TryWriteBytes(keyBytes, key);
                 hash.AppendData(keyBytes);
                 hash.AppendData(BitConverter.GetBytes(length));

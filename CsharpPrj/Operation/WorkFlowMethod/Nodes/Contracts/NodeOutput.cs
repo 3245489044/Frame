@@ -54,6 +54,9 @@ namespace Operation.WorkFlowMethod.Nodes.Contracts
         /// <summary>输出摘要（正文截断摘要，供信号传播免读正文；可空 = 未生成）。</summary>
         public string? OutputDigest { get; init; }
 
+        /// <summary>入参内容摘要（内容寻址单飞键；可空 = 未计算/旧行）。</summary>
+        public string? InputDigest { get; init; }
+
         /// <summary>显式焦点标记（恒最前）。</summary>
         public bool Sticky { get; init; }
 

@@ -8,6 +8,7 @@ using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Operation.DataStoreDriven.ReferenceSchema;
 using Operation.HierarchyMethod.Abstractions;
+using Operation.HierarchyMethod.Center;
 using Share.Foundations.Diagnostics;
 using Operation.Container;
 using Operation.HierarchyMethod.Nodes;
@@ -44,7 +45,13 @@ public sealed record NodePersistenceAssembly(
     // （P4-2 机制②：过程域 proc.* 节点并入 nodes.* 整包）。签名只用框架类型 ⇒ 框架零 Agent 依赖。
     Func<string, CancellationToken, Task<IReadOnlyList<CollectedNodePort>>>? AdditionalCollectSource = null,
     // 函数结果三态解码端口（可空）：Agent 侧实现错误信封识别；未命中回退既有反射提取（零回归）。
-    IFunctionOutcomeDecoder? OutcomeDecoder = null);
+    IFunctionOutcomeDecoder? OutcomeDecoder = null,
+    // 节点单飞（L3）：true 时 RoundStepInvoker 以 (wf,node,inputDigest) 建租约；默认 false（零回归）。
+    bool EnableNodeLease = false,
+    // 租约 TTL（防 owner 崩溃导致等待者永久挂起；过期转 Faulted(expired)）。
+    TimeSpan NodeLeaseTtl = default,
+    // 写门有界等待预算（C10；0 = 沿用 WriteCoordinator 既有构造预算）。
+    TimeSpan WriteGateBudget = default);
 
 /// <summary>
 /// 节点运行时产物 —— 节点持久化/引用域的唯一组合点（单一装配入口组装，Y2 单例意图）。
@@ -84,6 +91,7 @@ public sealed class NodeRoundRuntime
         var outputs = assembly.NodeStore != null ? new NodeOutputStore(assembly.NodeStore, wf) : null;
         var execution = new NodeStepExecutionService(
             outputs, wf, assembly.NodeStore, assembly.KeyMappings, assembly.BeginTransaction, assembly.Grounding,
+            writeCoordinator: assembly.WriteGateBudget > TimeSpan.Zero ? new WriteCoordinator(assembly.WriteGateBudget) : null,
             unifiedStateWrite: assembly.EnableUnifiedStateWrite,
             diagnostics: sink,
             posture: assembly.Posture,

@@ -63,19 +63,23 @@ public readonly struct Matrix4x4 : IEquatable<Matrix4x4>
             0, 0, 0, 1);
     }
 
+    /// <summary>
+    /// 行主序（v' = v * M）透视投影，与 <see cref="LookAt"/> 的“前方 z 为负”约定配套：
+    /// <c>Clip.w = -z_view</c>，近平面映射到 NDC z=0、远平面映射到 1。
+    /// </summary>
     public static Matrix4x4 Perspective(float fieldOfView, float aspectRatio, float nearClip, float farClip)
     {
         var yScale = 1.0f / (float)System.Math.Tan(fieldOfView / 2.0f);
         var xScale = yScale / aspectRatio;
         var zRange = farClip - nearClip;
-        var zScale = -(farClip + nearClip) / zRange;
-        var wzScale = -2.0f * farClip * nearClip / zRange;
+        var zScale = -farClip / zRange;
+        var wzScale = -nearClip * farClip / zRange;
 
         return new Matrix4x4(
             xScale, 0, 0, 0,
             0, yScale, 0, 0,
-            0, 0, zScale, wzScale,
-            0, 0, -1, 0);
+            0, 0, zScale, -1,
+            0, 0, wzScale, 0);
     }
 
     public static Matrix4x4 Orthographic(float width, float height, float nearClip, float farClip)

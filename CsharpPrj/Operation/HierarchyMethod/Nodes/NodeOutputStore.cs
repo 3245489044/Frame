@@ -15,7 +15,7 @@ namespace Operation.HierarchyMethod.Nodes {
     /// 类型保真往返；数据载荷持久化、重启可恢复。检索按 ThreadId 过滤 + afterId 分页。
     /// 从 Agent.Core 下沉（SingleImplementation / TH-12）：实现 <see cref="INodeOutputStore"/> 端口，框架 LLM-free、零 Agent 依赖。
     /// </summary>
-    public sealed class NodeOutputStore : INodeOutputStore
+    public sealed class NodeOutputStore : INodeOutputStore, INodeOutputMetadataWriter
     {
         private readonly INodeStore _nodes;
         private readonly string _defaultWorkflowId;
@@ -48,6 +48,15 @@ namespace Operation.HierarchyMethod.Nodes {
             var (existing, payload, doc) = await LoadForWriteAsync(nodeKey, ct).ConfigureAwait(false);
             doc.Ports[port] = NodeOutputCodec.EncodeValue(value);
             doc.Visibility = visibility.ToString();
+            await PutBusinessAsync(workflowId, nodeKey, existing, payload, ct).ConfigureAwait(false);
+        }
+
+        public async Task WriteInputDigestAsync(string workflowId, string nodeKey, string inputDigest, CancellationToken ct = default)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
+            if (string.IsNullOrWhiteSpace(inputDigest)) return;
+            var (existing, payload, doc) = await LoadForWriteAsync(nodeKey, ct).ConfigureAwait(false);
+            doc.InputDigest = inputDigest;
             await PutBusinessAsync(workflowId, nodeKey, existing, payload, ct).ConfigureAwait(false);
         }
 
@@ -265,6 +274,7 @@ namespace Operation.HierarchyMethod.Nodes {
                 Freshness = doc.Freshness,
                 ValueScore = doc.ValueScore,
                 OutputDigest = doc.OutputDigest,
+                InputDigest = doc.InputDigest,
                 Sticky = doc.Sticky,
                 Priority = doc.Priority,
             };

@@ -19,7 +19,8 @@ public sealed class TaskPoolHost<TItem, TResult> : IAsyncDisposable
         Func<TItem, string, CancellationToken, Task<TResult>> handler,
         TaskPoolOptions? options = null,
         ITaskPoolItemInitializer<TItem>? initializer = null,
-        ITaskOutcomePolicy<TResult>? outcomePolicy = null)
+        ITaskOutcomePolicy<TResult>? outcomePolicy = null,
+        ITaskGroupDependencyProbe? dependencyProbe = null)
     {
         _pool = new TaskPool<TItem, TResult>(
             persistence,
@@ -39,7 +40,8 @@ public sealed class TaskPoolHost<TItem, TResult> : IAsyncDisposable
             },
             options,
             initializer,
-            outcomePolicy);
+            outcomePolicy,
+            dependencyProbe);
     }
 
     /// <summary>在途等待者数量（诊断）。</summary>
@@ -95,6 +97,19 @@ public sealed class TaskPoolHost<TItem, TResult> : IAsyncDisposable
         => _pool.GetStatusAsync(taskKey, ct);
 
     public Task<int> ProcessPendingAsync(CancellationToken ct = default) => _pool.ProcessPendingAsync(ct);
+
+    /// <summary>提交并发组（C1/C2/C3/C12 由池内唯一实现校验；拒收返回结构码）。</summary>
+    public Task<GroupSubmitReceipt> SubmitGroupAsync(
+        TaskGroupDescriptor group, IReadOnlyList<TItem> items, CancellationToken ct = default)
+        => _pool.SubmitGroupAsync(group, items, ct);
+
+    /// <summary>等待组结算：返回全集结果（C9）。</summary>
+    public Task<TaskGroupResult> WaitGroupAsync(string groupKey, CancellationToken ct = default)
+        => _pool.WaitGroupAsync(groupKey, ct);
+
+    /// <summary>组级取消（C7）：全成员取消。</summary>
+    public Task<int> CancelGroupAsync(string groupKey, CancellationToken ct = default)
+        => _pool.CancelGroupAsync(groupKey, ct);
 
     public ValueTask DisposeAsync() => _pool.DisposeAsync();
 }

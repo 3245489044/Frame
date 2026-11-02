@@ -55,20 +55,31 @@ $violations = New-Object System.Collections.Generic.List[string]
 function Add-Violation([string]$Id, [string]$Msg) { $script:violations.Add("$Id $Msg") }
 function Read-Text([string]$Path) { if (Test-Path -LiteralPath $Path) { return (Get-Content -LiteralPath $Path -Raw) } return '' }
 
-# H1 空态预装配
-$view = Join-Path $agentRoot 'src\Agent.Launcher\Modules\Libraries\ConversationViewService.cs'
-$vt = Read-Text $view
-if ($vt -notmatch 'BuildBasePromptSnapshot\(profileKey') {
-    Add-Violation 'H1' 'ConversationViewService 空态未渲染预装配面（缺 BuildBasePromptSnapshot(profileKey)）'
+# H1 预装配面（R1 拆分后：提示词解析单一入口 = PromptSurfaceResolver；History 走 L0 段）
+$viewFiles = @(
+    (Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.cs'),
+    (Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Board.cs'),
+    (Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Nodes.cs'),
+    (Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.View.cs'),
+    (Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Projection\PromptSurfaceResolver.cs')
+)
+$vt = (@($viewFiles | ForEach-Object { Read-Text $_ }) -join "`n")
+if ($vt -notmatch 'PromptSurfaceResolver') {
+    Add-Violation 'H1' '缺提示词面解析单一入口（PromptSurfaceResolver）'
+}
+if ($vt -notmatch 'ResolvePromptTaskKey') {
+    Add-Violation 'H1' 'History 提示词未按选中任务键解析（缺 ResolvePromptTaskKey）'
 }
 
 # H2 档案分档 + 声明面
 $profiles = Join-Path $agentRoot 'src\Agent.Axioms\Prompts\PromptProfiles.cs'
+$profileCatalog = Join-Path $agentRoot 'src\Agent.Axioms\Prompts\PromptProfileCatalog.cs'
 $profileCfg = Join-Path $agentRoot 'Config\prompt-profiles.ushar'
 $l0History = Join-Path $agentRoot 'skills\l0\storage\l0-history\SKILL.md'
 if (-not (Test-Path -LiteralPath $profiles)) { Add-Violation 'H2' '缺 PromptProfiles.cs' }
+if (-not (Test-Path -LiteralPath $profileCatalog)) { Add-Violation 'H2' '缺 PromptProfileCatalog.cs' }
 if (-not (Test-Path -LiteralPath $profileCfg)) { Add-Violation 'H2' '缺 Config/prompt-profiles.ushar 声明面' }
-if ($vt -notmatch 'PromptProfiles\.History') { Add-Violation 'H2' 'ConversationViewService 未按 History 档案分档' }
+if ((Read-Text $profileCatalog) -notmatch 'PromptProfiles\.History') { Add-Violation 'H2' 'PromptProfileCatalog 未按 History 档案分档' }
 if (-not (Test-Path -LiteralPath $l0History)) { Add-Violation 'H2' '缺 l0-history DSL 承载技能' }
 # H2+ 框架常驻基础段声明化（单源）：base=on 声明面在册，且代码侧不硬编码 band 字面量。
 $profileCfgText = Read-Text $profileCfg
@@ -76,8 +87,9 @@ if ($profileCfgText -notmatch '(?m)^\s*\[Profile\]\s*base\s*:') { Add-Violation 
 $profilesText = Read-Text $profiles
 if ($profilesText -notmatch 'FrameworkBaseBands\s*=>\s*PromptProfileCatalog\.BaseBands') { Add-Violation 'H2' 'FrameworkBaseBands 未读声明面（应 = PromptProfileCatalog.BaseBands）' }
 
-# H3 模式注入
-if ($vt -notmatch 'HistoryDefaultMode') { Add-Violation 'H3' 'History 视图快照未注入 mode（缺 HistoryDefaultMode）' }
+# H3 L0 面单一来源（History 只读 L0 段；禁对话轮次进入 Prompt 面）
+if ($vt -notmatch 'L0Segments') { Add-Violation 'H3' 'History 未经 L0Segments 过滤（禁对话轮次进入 Prompt 面）' }
+if ($vt -notmatch 'text_prompt_history_no_task') { Add-Violation 'H3' 'History 提示词空态未走专用归因键' }
 
 # H4 视口单一入口（History 侧 task 枚举唯一 = TaskRuntimeReportProvider）
 $provider = Join-Path $agentRoot 'src\Agent.Session\Projection\TaskRuntimeReportProvider.cs'
@@ -184,7 +196,7 @@ elseif ((Read-Text $uiProj) -match '\.Binding\b|ConversationMessage') { Add-Viol
 $srcPath = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimeSource.cs'
 if (-not (Test-Path -LiteralPath $srcPath)) { Add-Violation 'H16' '缺 HistoryTaskRuntimeSource.cs（唯一供数口）' }
 if ($steps -notmatch 'IHistoryTaskRuntimeSource') { Add-Violation 'H16' '组合根未引用 IHistoryTaskRuntimeSource（LLM 轨应经供数口）' }
-$vt2 = Read-Text $view
+$vt2 = $vt
 if ($vt2 -notmatch 'IHistoryTaskRuntimeSource') { Add-Violation 'H16' 'UI 侧未引用 IHistoryTaskRuntimeSource（应经供数口）' }
 if ($vt2 -match 'new TaskRuntimeReportProvider\(') { Add-Violation 'H16' 'UI 侧仍自建 TaskRuntimeReportProvider（应经唯一供数口）' }
 
@@ -196,7 +208,7 @@ $uiCfg = Read-Text (Join-Path $repoRoot 'Projects\Information\DrivenConfig\JsonC
 if ($uiCfg -notmatch 'taskRuntimeEmpty') { Add-Violation 'H17' 'AgentRuntimeUI.json 缺 taskRuntimeEmpty 模板（UI 空态占位）' }
 
 # H18 任务池状态单源（TaskExecutionStatus）：状态只经 GetStatusAsync 读取，禁自拼状态字面量
-$hostSrc = Read-Text (Join-Path $agentRoot 'src\Agent.Launcher\Modules\HostHistoryTaskRuntimeSource.cs')
+$hostSrc = Read-Text (Join-Path $agentRoot 'src\Agent.Ui\Core\Host\HostHistoryTaskRuntimeSource.cs')
 if ($hostSrc -notmatch 'GetStatusAsync') { Add-Violation 'H18' '宿主供数适配器未经 GetStatusAsync 读任务池状态（单源）' }
 if ((Read-Text $srcPath) -notmatch 'poolStatus') { Add-Violation 'H18' '供数口缺 poolStatus 注入（任务池状态应经委托单源）' }
 

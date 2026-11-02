@@ -10,4 +10,9 @@
     <PackageReference Include="MathNet.Numerics" Version="$(MathNetNumericsVersion)" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 通用 3D 数学（Culling/Noise/Spatial）复用 TConfig.GameMath 基元（Vec3/Aabb） -->
+    <ProjectReference Include="$(Proj_TConfig)" />
+  </ItemGroup>
+
 </Project>

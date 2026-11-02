@@ -1,0 +1,167 @@
+using TConfig.GameMath;
+
+namespace MathematicalAlgorithms.Spatial;
+
+/// <summary>
+/// 分块网格坐标/寻址唯一实现：世界坐标 → 分块 → 局部坐标的换算、分块键、Floor 语义。
+/// <para>自 Engine VoxelMath 提取，去 <c>Matrix</c> 前缀；<b>键打包位宽（21 位/轴，offset 1&lt;&lt;20）、
+/// Floor 语义、chunkSize 2 的幂校验逐字节保持原实现</b>（GPU 编辑上传与脏块比较依赖该协议）。</para>
+/// </summary>
+public static class ChunkSpace
+{
+    /// <summary>未指定时的默认分块边长（须为 2 的幂，与编辑存储的分块划分一致）。</summary>
+    public const int DefaultChunkSize = 32;
+
+    /// <summary>浮点世界坐标 → 体素索引（向负无穷取整，负坐标不向零截断）。</summary>
+    public static int ToVoxel(float world) => (int)MathF.Floor(world);
+
+    public static int ToVoxelX(in Vec3 p) => ToVoxel(p.X);
+    public static int ToVoxelY(in Vec3 p) => ToVoxel(p.Y);
+    public static int ToVoxelZ(in Vec3 p) => ToVoxel(p.Z);
+
+    /// <summary>分块边长的位移位数；非 2 的幂 ⇒ 抛（不静默近似）。</summary>
+    public static int ShiftOf(int chunkSize)
+    {
+        if (chunkSize <= 0 || (chunkSize & (chunkSize - 1)) != 0)
+            throw new ArgumentException($"chunkSize 必须是 2 的幂，实际 {chunkSize}", nameof(chunkSize));
+        return System.Numerics.BitOperations.Log2((uint)chunkSize);
+    }
+
+    /// <summary>体素所在分块索引（算术右移 = 向下取整除法，负坐标同样正确）。</summary>
+    public static int ChunkIndex(int voxel, int chunkSize) => voxel >> ShiftOf(chunkSize);
+
+    /// <summary>体素在分块内的局部索引 [0, chunkSize)。</summary>
+    public static int LocalIndex(int voxel, int chunkSize) => voxel & (chunkSize - 1);
+
+    /// <summary>分块起始体素坐标。</summary>
+    public static int ChunkOrigin(int chunkIndex, int chunkSize) => chunkIndex * chunkSize;
+
+    /// <summary>分块三维键（21 位/轴打包，负索引经偏移后落位）。</summary>
+    public static long ChunkKey(int chunkX, int chunkY, int chunkZ)
+    {
+        const int Offset = 1 << 20;
+        const long Mask = 0x1FFFFF;
+        long ax = (long)(chunkX + Offset) & Mask;
+        long ay = (long)(chunkY + Offset) & Mask;
+        long az = (long)(chunkZ + Offset) & Mask;
+        return ax | (ay << 21) | (az << 42);
+    }
+
+    /// <summary>键 → 分块索引（与 <see cref="ChunkKey"/> 逐位对应）。</summary>
+    public static ChunkCoord ChunkOfKey(long key) => new(
+        (int)((key & 0x1FFFFF) - (1 << 20)),
+        (int)(((key >> 21) & 0x1FFFFF) - (1 << 20)),
+        (int)(((key >> 42) & 0x1FFFFF) - (1 << 20)));
+}
+
+/// <summary>分块坐标（世界按 chunkSize 划分后的整数网格）。</summary>
+public readonly struct ChunkCoord : IEquatable<ChunkCoord>
+{
+    public readonly int X, Y, Z;
+
+    public ChunkCoord(int x, int y, int z) => (X, Y, Z) = (x, y, z);
+
+    public long Key => ChunkSpace.ChunkKey(X, Y, Z);
+
+    /// <summary>体素所属分块。</summary>
+    public static ChunkCoord Of(int voxelX, int voxelY, int voxelZ, int chunkSize) => new(
+        ChunkSpace.ChunkIndex(voxelX, chunkSize),
+        ChunkSpace.ChunkIndex(voxelY, chunkSize),
+        ChunkSpace.ChunkIndex(voxelZ, chunkSize));
+
+    public static ChunkCoord Of(in Vec3 world, int chunkSize) => Of(
+        ChunkSpace.ToVoxelX(world), ChunkSpace.ToVoxelY(world), ChunkSpace.ToVoxelZ(world), chunkSize);
+
+    /// <summary>分块覆盖的世界包围盒（含端点）。</summary>
+    public Aabb Bounds(int chunkSize)
+    {
+        var ox = ChunkSpace.ChunkOrigin(X, chunkSize);
+        var oy = ChunkSpace.ChunkOrigin(Y, chunkSize);
+        var oz = ChunkSpace.ChunkOrigin(Z, chunkSize);
+        return new Aabb(ox, oy, oz, ox + chunkSize - 1, oy + chunkSize - 1, oz + chunkSize - 1);
+    }
+
+    public bool Equals(ChunkCoord other) => X == other.X && Y == other.Y && Z == other.Z;
+    public override bool Equals(object? obj) => obj is ChunkCoord c && Equals(c);
+    public override int GetHashCode() => HashCode.Combine(X, Y, Z);
+    public static bool operator ==(ChunkCoord a, ChunkCoord b) => a.Equals(b);
+    public static bool operator !=(ChunkCoord a, ChunkCoord b) => !a.Equals(b);
+    public override string ToString() => $"chunk({X},{Y},{Z})";
+}
+
+/// <summary>轴对齐整数区域（含端点）——脏区、编辑范围、切片范围共用一种区域表示。</summary>
+public readonly struct ChunkRegion
+{
+    public readonly int MinX, MinY, MinZ, MaxX, MaxY, MaxZ;
+
+    public ChunkRegion(int minX, int minY, int minZ, int maxX, int maxY, int maxZ)
+    {
+        MinX = System.Math.Min(minX, maxX); MinY = System.Math.Min(minY, maxY); MinZ = System.Math.Min(minZ, maxZ);
+        MaxX = System.Math.Max(minX, maxX); MaxY = System.Math.Max(minY, maxY); MaxZ = System.Math.Max(minZ, maxZ);
+    }
+
+    public int Width => MaxX - MinX + 1;
+    public int Height => MaxY - MinY + 1;
+    public int Depth => MaxZ - MinZ + 1;
+    public long VoxelCount => (long)Width * Height * Depth;
+
+    public static ChunkRegion FromBounds(in Aabb aabb) =>
+        new(aabb.MinX, aabb.MinY, aabb.MinZ, aabb.MaxX, aabb.MaxY, aabb.MaxZ);
+
+    /// <summary>以某体素为中心、各轴半径 radius 的立方区域。</summary>
+    public static ChunkRegion Cube(int x, int y, int z, int radius) =>
+        new(x - radius, y - radius, z - radius, x + radius, y + radius, z + radius);
+
+    /// <summary>世界球（按体素 AABB 保守包围）。</summary>
+    public static ChunkRegion Sphere(in Vec3 center, float radius)
+    {
+        int r = System.Math.Max(1, (int)MathF.Ceiling(radius));
+        return Cube(ChunkSpace.ToVoxelX(center), ChunkSpace.ToVoxelY(center), ChunkSpace.ToVoxelZ(center), r);
+    }
+
+    public bool Contains(int x, int y, int z) =>
+        x >= MinX && x <= MaxX && y >= MinY && y <= MaxY && z >= MinZ && z <= MaxZ;
+
+    public bool Intersects(in ChunkRegion other) =>
+        MinX <= other.MaxX && MaxX >= other.MinX &&
+        MinY <= other.MaxY && MaxY >= other.MinY &&
+        MinZ <= other.MaxZ && MaxZ >= other.MinZ;
+
+    public Aabb ToAabb() => new(MinX, MinY, MinZ, MaxX, MaxY, MaxZ);
+
+    /// <summary>区域覆盖的全部分块（按 chunkSize 网格）。</summary>
+    public IEnumerable<ChunkCoord> Chunks(int chunkSize)
+    {
+        int cx0 = ChunkSpace.ChunkIndex(MinX, chunkSize), cx1 = ChunkSpace.ChunkIndex(MaxX, chunkSize);
+        int cy0 = ChunkSpace.ChunkIndex(MinY, chunkSize), cy1 = ChunkSpace.ChunkIndex(MaxY, chunkSize);
+        int cz0 = ChunkSpace.ChunkIndex(MinZ, chunkSize), cz1 = ChunkSpace.ChunkIndex(MaxZ, chunkSize);
+
+        for (int cx = cx0; cx <= cx1; cx++)
+        for (int cy = cy0; cy <= cy1; cy++)
+        for (int cz = cz0; cz <= cz1; cz++)
+            yield return new ChunkCoord(cx, cy, cz);
+    }
+}
+
+/// <summary>流式/可见性查询参数（内核统一口径，渲染与 ECS 共用一个范围）。</summary>
+public readonly record struct ChunkStreamOptions(
+    int HorizontalChunks,
+    int VerticalChunks,
+    int MaxVisibleChunks,
+    float MaxDistance)
+{
+    public static ChunkStreamOptions Default => new(
+        HorizontalChunks: 4,
+        VerticalChunks: 1,
+        MaxVisibleChunks: 48,
+        MaxDistance: 256f);
+}
+
+/// <summary>一帧的分块可见性快照：视锥剔除后的可见分块（近→远）+ 保守渲染域包围盒。</summary>
+public readonly record struct ChunkStreamSnapshot(
+    IReadOnlyList<ChunkCoord> VisibleChunks,
+    Aabb Bounds,
+    int CandidateChunks);
+
+/// <summary>脏分块（编辑改动的更新调度单元，版本号用于消费侧判断是否需要重建）。</summary>
+public readonly record struct DirtyChunk(ChunkCoord Coord, long Version);

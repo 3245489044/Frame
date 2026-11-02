@@ -8,11 +8,14 @@ using System.Threading.Tasks;
 
 namespace UiBackend.Abstractions;
 
-/// <summary>读取形态（全量 / 某类元素优先）。</summary>
+/// <summary>读取形态（全量 / 某类元素优先 / 窗口上下文）。</summary>
 public enum UiReadShape
 {
     Full = 0,
     ToolFirst = 1,
+
+    /// <summary>窗口上下文：可见上下文（过滤内部过程帧），非全量帧。</summary>
+    WindowContext = 2,
 }
 
 /// <summary>读取结果代数（空 ≠ 失败 ≠ 未装配；禁字符串哨兵）。</summary>
@@ -89,6 +92,11 @@ public static class UiReadGateway
         {
             var filtered = items.Where(preferred).ToList();
             if (filtered.Count > 0) items = filtered;
+        }
+        else if (spec.Shape == UiReadShape.WindowContext && preferred is not null)
+        {
+            // 窗口上下文 = 可见谓词直接生效（不保留「全空则退全量」分支：空即空，由调用方给原因码）。
+            items = items.Where(preferred).ToList();
         }
 
         if (spec.TakeLast > 0)

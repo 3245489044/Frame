@@ -89,7 +89,7 @@ if ($profilesText -notmatch 'FrameworkBaseBands\s*=>\s*PromptProfileCatalog\.Bas
 
 # H3 L0 面单一来源（History 只读 L0 段；禁对话轮次进入 Prompt 面）
 if ($vt -notmatch 'L0Segments') { Add-Violation 'H3' 'History 未经 L0Segments 过滤（禁对话轮次进入 Prompt 面）' }
-if ($vt -notmatch 'text_prompt_history_no_task') { Add-Violation 'H3' 'History 提示词空态未走专用归因键' }
+if ($vt -notmatch 'text_prompt_history_no_task' -and $vt -notmatch 'PromptNoTask') { Add-Violation 'H3' 'History 提示词空态未走专用归因键' }
 
 # H4 视口单一入口（History 侧 task 枚举唯一 = TaskRuntimeReportProvider）
 $provider = Join-Path $agentRoot 'src\Agent.Session\Projection\TaskRuntimeReportProvider.cs'
@@ -401,8 +401,53 @@ if ($jsonText -notmatch 'task_state_' -or $jsonText -notmatch 'task_member_') {
     Add-Violation 'H25' 'agent.keyspace.json 未登记派生任务前缀（task_member_ / task_state_）'
 }
 
+# H26–H30 History 读取链彻底重构（单读面 / 单原因码 / 单开关 / 单取形 / 浮层作用域）
+$boardFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Board.cs'
+$boardText = Read-Text $boardFile
+if ($boardText -match 'GetHistoryAsync' -or $boardText -match 'IHistoryTaskRuntimeSource') {
+    Add-Violation 'H26' 'History 板仍直读领域（Board.cs 命中 GetHistoryAsync/IHistoryTaskRuntimeSource；应只消费 history.board 读模型）'
+}
+if ($boardText -notmatch 'HistoryBoardReadModelProjector') {
+    Add-Violation 'H26' 'History 板缺读模型回退装配单点（HistoryBoardReadModelProjector）'
+}
+
+$boardModelFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Projection\HistoryBoardModel.cs'
+$boardModelText = Read-Text $boardModelFile
+foreach ($reasonField in @('CardsEmptyReason', 'FeedEmptyReason', 'ActorsEmptyReason')) {
+    if ($boardModelText -notmatch [regex]::Escape($reasonField)) {
+        Add-Violation 'H27' "HistoryBoardModel 缺原因码字段 $reasonField（空态须带空因）"
+    }
+}
+$rendererFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Rendering\ConversationPageRenderer.cs'
+$rendererText = Read-Text $rendererFile
+if ($rendererText -notmatch 'UiReasonCatalog') {
+    Add-Violation 'H27' '渲染层未消费 UiReasonCatalog（文案映射单点缺失）'
+}
+
+$promptResolverFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Projection\PromptSurfaceResolver.cs'
+$promptResolverText = Read-Text $promptResolverFile
+if ($promptResolverText -notmatch 'Origin') {
+    Add-Violation 'H28' 'PromptSurface 缺 Origin 来源标记'
+}
+if ($rendererText -notmatch 'text_prompt_origin') {
+    Add-Violation 'H28' '渲染层未渲染提示词来源（text_prompt_origin 无消费）'
+}
+
+$overlayFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Overlay.cs'
+$overlayText = Read-Text $overlayFile
+if ($overlayText -notmatch '_overlayByKey' -or $overlayText -notmatch 'OverlayFor\(') {
+    Add-Violation 'H29' '浮层未按视图键作用域化（缺 _overlayByKey/OverlayFor）'
+}
+
+if ($boardText -notmatch 'UiReadShape\.WindowContext' -and $boardText -notmatch 'WindowContextPolicy') {
+    $projectorText = Read-Text (Join-Path $agentRoot 'src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
+    if ($projectorText -notmatch 'WindowContextPolicy' -and $projectorText -notmatch 'UiReadShape\.WindowContext') {
+        Add-Violation 'H30' '窗口读取未使用 WindowContext 取形（禁 Full+Take 二次裁剪）'
+    }
+}
+
 if ($violations.Count -eq 0) {
-    Write-Host "[HistoryAssemblySurface] OK（H1–H25 全过）"
+    Write-Host "[HistoryAssemblySurface] OK（H1–H30 全过）"
     exit 0
 }
 

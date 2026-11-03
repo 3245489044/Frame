@@ -83,6 +83,16 @@ public sealed record RoundFailure(
                 ? "运行身份缺失（RunRef 为空）：作用域不可锚定，禁止以空作用域/常量顶替继续执行"
                 : detail);
 
+    /// <summary>D06：无轮载体 ⇒ 种子段整段缺失（fail-fast，禁静默空转）。</summary>
+    public static RoundFailure SeedCarrierMissing(string step)
+        => new(RoundFailureCodes.SeedCarrierMissing, step, None, None,
+            "轮载体缺失：seed/harvest 无落点，禁止以空种子继续执行");
+
+    /// <summary>D01：guard_input 空输入 ⇒ 强类型失败（不再由缺端口 exec.port-missing 代为归因）。</summary>
+    public static RoundFailure GuardEmptyInput(string step)
+        => new(KeyReasonCodes.GuardEmptyInput, step, None, None,
+            "guard_input 收到空输入：轮次不成立（需先在分发面补齐 input）");
+
     public RoundFailureException ToException() => new(this);
 }
 

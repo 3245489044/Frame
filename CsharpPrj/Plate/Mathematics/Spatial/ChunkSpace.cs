@@ -143,13 +143,25 @@ public readonly struct ChunkRegion
     }
 }
 
-/// <summary>流式/可见性查询参数（内核统一口径，渲染与 ECS 共用一个范围）。</summary>
+/// <summary>
+/// 流式/可见性查询参数（内核统一口径，渲染与 ECS 共用一个范围）。
+/// <para><b>可见口径</b>（<see cref="MaxVisibleChunks"/>）只决定"这一帧提交多少块"；
+/// <b>驻留口径</b>（<see cref="MaxResidentChunks"/>）决定"内存里保留多少块"。两者不再共用一个数。</para>
+/// </summary>
 public readonly record struct ChunkStreamOptions(
     int HorizontalChunks,
     int VerticalChunks,
     int MaxVisibleChunks,
     float MaxDistance)
 {
+    /// <summary>驻留上限；≤ 0 ⇒ 与可见上限一致（离开视野即释放，不额外放大）。</summary>
+    public int MaxResidentChunks { get; init; }
+
+    /// <summary>实际驻留上限（可见上限为 int.MaxValue 时同样无上限）。</summary>
+    public int ResidentChunks => MaxResidentChunks > 0
+        ? MaxResidentChunks
+        : (MaxVisibleChunks > 0 ? MaxVisibleChunks : int.MaxValue);
+
     /// <summary>
     /// 物理范围 → 区块个数：配置层用米/厘米描述覆盖距离，区块边长由内核 chunkSize 决定。
     /// <para>1 cm 世界下同一组「区块个数」常量会随 chunkSize 缩小覆盖 100 倍，因此流式参数必须以物理距离表达。</para>
@@ -157,13 +169,17 @@ public readonly record struct ChunkStreamOptions(
     /// </summary>
     public static ChunkStreamOptions FromPhysical(
         float horizontalCm, float verticalCm, int maxVisibleChunks, float maxDistanceCm,
-        int chunkSize, int maxHorizontalChunks = 64, int maxVerticalChunks = 32)
+        int chunkSize, int maxHorizontalChunks = 64, int maxVerticalChunks = 32,
+        int maxResidentChunks = 0)
     {
         ChunkSpace.ShiftOf(chunkSize);
 
         int horizontal = CeilChunks(horizontalCm, chunkSize, 0, maxHorizontalChunks);
         int vertical = CeilChunks(verticalCm, chunkSize, 1, maxVerticalChunks);
-        return new ChunkStreamOptions(horizontal, vertical, maxVisibleChunks, maxDistanceCm);
+        return new ChunkStreamOptions(horizontal, vertical, maxVisibleChunks, maxDistanceCm)
+        {
+            MaxResidentChunks = maxResidentChunks,
+        };
     }
 
     private static int CeilChunks(float physicalCm, int chunkSize, int min, int max)

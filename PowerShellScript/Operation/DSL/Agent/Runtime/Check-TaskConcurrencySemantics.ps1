@@ -91,8 +91,8 @@ if ($gateNews.Count -ne 1) {
     Add-Violation 'C8' "new ConcurrencyBudgetGate( 应恰 1 处（ConcurrencyComposition），实际 $($gateNews.Count)：$((@($gateNews | ForEach-Object Name)) -join ',')"
 }
 
-# C9：SplitPlan 未落节点不得拆分（受控码存在）。
-$pipelineFile = Join-Path $repoRoot 'Projects\Plug\Agent\src\Agent.Core\Engine\Concurrency\ConcurrencyDecisionPipeline.cs'
+# C9：SplitPlan 未落节点不得拆分（受控码存在；实现单源 = Modules\Concurrency）。
+$pipelineFile = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Concurrency\Decision\ConcurrencyDecisionPipeline.cs'
 $pipelineText = if (Test-Path -LiteralPath $pipelineFile) { Get-Content -LiteralPath $pipelineFile -Raw } else { '' }
 if ($pipelineText -notmatch 'CONCURRENCY_PLAN_NOT_PERSISTED') {
     Add-Violation 'C9' '缺少计划未落库拒绝（CONCURRENCY_PLAN_NOT_PERSISTED）'
@@ -105,11 +105,16 @@ if (($poolText + $groupPolicyText) -notmatch 'GROUP_MEMBER_ALREADY_ENROLLED') {
     Add-Violation 'C10' '缺少组员唯一归属校验（GROUP_MEMBER_ALREADY_ENROLLED）'
 }
 
-# C11：容量单源（池实现 IGroupCapacitySource；门禁读同一来源）。
-$gateFile = Join-Path $repoRoot 'Projects\Plug\Agent\src\Agent.Core\Engine\Concurrency\ConcurrencyBudgetGate.cs'
+# C11：容量单源（池实现 IGroupCapacitySource；通用门禁读同形 IConcurrencyCapacitySource；Agent 适配器桥接两者）。
+$gateFile = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Concurrency\Gate\ConcurrencyBudgetGate.cs'
 $gateText = if (Test-Path -LiteralPath $gateFile) { Get-Content -LiteralPath $gateFile -Raw } else { '' }
-if ($poolText -notmatch 'IGroupCapacitySource' -or $gateText -notmatch 'IGroupCapacitySource') {
-    Add-Violation 'C11' '容量非单源（池/门禁未共用 IGroupCapacitySource）'
+$capacityAdapterFile = Join-Path $repoRoot 'Projects\Plug\Agent\src\Agent.Core\Engine\Concurrency\Adapters\TaskPoolCapacityAdapter.cs'
+$capacityAdapterText = if (Test-Path -LiteralPath $capacityAdapterFile) { Get-Content -LiteralPath $capacityAdapterFile -Raw } else { '' }
+if ($poolText -notmatch 'IGroupCapacitySource' -or
+    $gateText -notmatch 'IConcurrencyCapacitySource' -or
+    $capacityAdapterText -notmatch 'IConcurrencyCapacitySource' -or
+    $capacityAdapterText -notmatch 'IGroupCapacitySource') {
+    Add-Violation 'C11' '容量非单源（池 IGroupCapacitySource / 门禁 IConcurrencyCapacitySource / 适配器桥接 缺一）'
 }
 
 # C12：组节点复用统计有写者（由租约审计汇总，非恒零占位）。

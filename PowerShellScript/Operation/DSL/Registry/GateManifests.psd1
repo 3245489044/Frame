@@ -2161,6 +2161,16 @@
         Note   = 'C1 组 API 定义唯一 / C2 无跨组聚合 / C3 嵌套组校验 / C4 容量门先于 Running / C5 L0 三端口唯一 / C6 领域零内联并发 / C7 负对照'
     }
 
+    ConcurrencyLayering = @{
+        Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'Closure'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'B5 分层守卫：L1 通用并发内核零 Frame 引用 / L4 任务编排零 Agent 引用 / Agent 侧不得复活已迁移类型 / 负对照'
+    }
+
     CostGateReuse = @{
         Domain = 'Agent'
         Family = 'Runtime'

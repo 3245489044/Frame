@@ -28,6 +28,9 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_ComponentData)" />
+    <!-- 通用并发策略内核（Modules\Concurrency，L1、BCL-only）：复杂度/拆分/成本门禁/组键/成本记账；
+         价格/容量/成本账经端口反转由宿主注入（零 Frame 依赖） -->
+    <ProjectReference Include="$(Proj_Concurrency)" />
     <!-- 契约框架（Modules\ContractFramework，BCL-only）：契约身份/注册/对账/执行/取证内核 -->
     <ProjectReference Include="$(Proj_ContractFramework)" />
     <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
@@ -63,6 +66,7 @@
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
   <ItemGroup>
     <Compile Remove="ComponentData\**\*.cs" />
+    <Compile Remove="Concurrency\**\*.cs" />
     <Compile Remove="ContractFramework\**\*.cs" />
     <Compile Remove="DeclarativeDataflow\**\*.cs" />
     <Compile Remove="DiagnosticContext\**\*.cs" />

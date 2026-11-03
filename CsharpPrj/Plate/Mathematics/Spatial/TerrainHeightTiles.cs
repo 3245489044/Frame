@@ -25,11 +25,17 @@ public sealed class TerrainHeightTiles
     private readonly int _margin;
     private readonly Dictionary<long, Entry> _tiles = new();
 
-    public TerrainHeightTiles(TerrainHeightModel model, int tileSizeCm = 0, int marginCm = 0)
+    /// <summary>
+    /// 瓦片边长与余量（cm）。<paramref name="tileSizeCm"/> ≤ 0 取模型米当量；<paramref name="marginCm"/> 传 0 表示
+    /// 「与直算同值、不留余量」，传负数取模型米当量。
+    /// <para>把 <paramref name="tileSizeCm"/> 设为 chunkSize 即「按 chunk 对齐」：一个 chunk footprint 恰好命中一个瓦片，
+    /// 查询值与逐 chunk 直算完全一致，但只算一次。</para>
+    /// </summary>
+    public TerrainHeightTiles(TerrainHeightModel model, int tileSizeCm = 0, int marginCm = -1)
     {
         _model = model ?? throw new ArgumentNullException(nameof(model));
         _tileSize = tileSizeCm > 0 ? tileSizeCm : model.UnitsPerMeter;
-        _margin = marginCm > 0 ? marginCm : model.UnitsPerMeter;
+        _margin = marginCm >= 0 ? marginCm : model.UnitsPerMeter;
     }
 
     public int TileSize => _tileSize;

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用并发策略内核</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>并发复杂度评估 / 拆分规划 / 成本门禁 / 组键派生 / 成本记账的唯一内核：零投影引用、零 Frame 依赖（BCL only）；价格 / 容量 / 成本账一律经端口反转由宿主注入。</ModuleRule_Description>
+    <ModuleRule_Keywords>并发;复杂度;拆分;成本门禁;组键;成本记账;端口</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="内核只依赖 BCL；不得 using Share.* / Operation.* / Agent.*（宿主能力一律端口反转）" />
+    <ModuleRule_Rule Include="配置只读不可变快照 ConcurrencyOptions；禁读进程静态全局" />
+    <ModuleRule_Rule Include="Unknown ≠ 0：缺价/缺用量记 Unknown，禁以 0 冒充" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Modules.Concurrency</AssemblyName>
+    <RootNamespace>Modules.Concurrency</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Description>通用并发策略内核 — 复杂度 / 拆分 / 成本门禁 / 组键 / 成本记账（BCL-only，端口反转）</Description>
+  </PropertyGroup>
+
+</Project>

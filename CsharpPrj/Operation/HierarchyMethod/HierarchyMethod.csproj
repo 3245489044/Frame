@@ -76,6 +76,16 @@
     <ProjectReference Include="$(Proj_KeySpace)" />
   </ItemGroup>
 
+  <!-- 执行归属端口（IExecutionOwnership）：任务编排驱动先用令牌（Modules.Governance，层 2 → 本层 4 向下引用） -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Governance)" />
+  </ItemGroup>
+
+  <!-- JSON 载荷取值守卫（Share.JsonPayload）：任务编排声明式入口读 JSON 槽位 -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Share_JsonPayload)" />
+  </ItemGroup>
+
   <!-- ★ 2026-10-03 E2（HierarchyMethod\Nodes → Modules.Node 通用框架提取）：
        收集式输入端口 token / 整包条目（CollectedNodePort）改委托框架唯一实现（键空间「整包」扩展）；
        本模块层 4 → Modules.Node 层 2，属向下引用（先例：WorkFlowMethod.csproj → $(Proj_Node)）。 -->

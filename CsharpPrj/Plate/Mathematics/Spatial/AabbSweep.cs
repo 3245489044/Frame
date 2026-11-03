@@ -111,7 +111,9 @@ public static class AabbSweep
             else if (axis == 1) next.Y += sign * perStep;
             else next.Z += sign * perStep;
 
-            if (Collides(next, halfExtents, solid, skin))
+            // 只检查运动方向的“前导面”：当前位置无穿插时，新碰撞只可能从最先进入的格子发生。
+            // 这把 1cm 世界下 60×180×60 的体扫描降到 60×60 量级面扫描，避免每子步几十万次 GetValue。
+            if (CollidesLeadingFace(next, halfExtents, axis, sign, solid, skin))
             {
                 blocked = true;
                 break;
@@ -121,5 +123,55 @@ public static class AabbSweep
         }
 
         return current;
+    }
+
+    private static bool CollidesLeadingFace(
+        Vec3 position, Vec3 halfExtents, int axis, float sign,
+        SolidSampler solid, float skin)
+    {
+        float minX = position.X - halfExtents.X;
+        float maxX = position.X + halfExtents.X;
+        float minY = position.Y;
+        float maxY = position.Y + halfExtents.Y * 2f;
+        float minZ = position.Z - halfExtents.Z;
+        float maxZ = position.Z + halfExtents.Z;
+
+        if (axis == 0)
+        {
+            int x = (int)MathF.Floor(sign > 0 ? maxX - skin : minX + skin);
+            int y0 = (int)MathF.Floor(minY + skin);
+            int y1 = (int)MathF.Floor(maxY - skin);
+            int z0 = (int)MathF.Floor(minZ + skin);
+            int z1 = (int)MathF.Floor(maxZ - skin);
+            for (int y = y0; y <= y1; y++)
+            for (int z = z0; z <= z1; z++)
+                if (solid(x, y, z)) return true;
+            return false;
+        }
+
+        if (axis == 1)
+        {
+            int y = (int)MathF.Floor(sign > 0 ? maxY - skin : minY + skin);
+            int x0 = (int)MathF.Floor(minX + skin);
+            int x1 = (int)MathF.Floor(maxX - skin);
+            int z0 = (int)MathF.Floor(minZ + skin);
+            int z1 = (int)MathF.Floor(maxZ - skin);
+            for (int x = x0; x <= x1; x++)
+            for (int z = z0; z <= z1; z++)
+                if (solid(x, y, z)) return true;
+            return false;
+        }
+
+        {
+            int z = (int)MathF.Floor(sign > 0 ? maxZ - skin : minZ + skin);
+            int x0 = (int)MathF.Floor(minX + skin);
+            int x1 = (int)MathF.Floor(maxX - skin);
+            int y0 = (int)MathF.Floor(minY + skin);
+            int y1 = (int)MathF.Floor(maxY - skin);
+            for (int x = x0; x <= x1; x++)
+            for (int y = y0; y <= y1; y++)
+                if (solid(x, y, z)) return true;
+            return false;
+        }
     }
 }

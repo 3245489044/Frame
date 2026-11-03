@@ -98,6 +98,7 @@ if ($Register) {
 }
 
 # ---- patch 模式：锚点 + 哈希校验 ----
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $PSScriptRoot '..\Meta\CatchOutlet.psm1') -Force -DisableNameChecking
 
 $runBackupDir = Join-Path $BackupDir (Get-Date -Format 'yyyyMMdd_HHmmss')
@@ -114,7 +115,7 @@ foreach ($g in ($selected | Group-Object file)) {
         $start = [int]$it.line - 1
         $end = [int]$it.endLine - 1
         if ($start -lt 0 -or $end -ge $lines.Count) { $skipped++; continue }
-        $body = ((@($lines[$start..$end] | ForEach-Object { ($_ -replace '//.*$', '') }) -join ' ') + ' ')
+        $body = ((@($lines[$start..$end] | ForEach-Object { (Remove-LineComment -Text $_) }) -join ' ') + ' ')
         if ((Get-CatchBodyHash -Body $body) -ne $it.bodyHash) {
             Write-Host ("    !! 漂移（哈希不符，跳过）{0}:{1}" -f $it.file, $it.line) -ForegroundColor Red
             $skipped++; continue

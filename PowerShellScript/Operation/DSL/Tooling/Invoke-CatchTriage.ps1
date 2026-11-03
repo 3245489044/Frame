@@ -44,6 +44,7 @@ if ([string]::IsNullOrWhiteSpace($OutFile)) {
     $OutFile = Join-Path $PSScriptRoot '..\Registry\catch-triage.json'
 }
 
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
 Import-Module (Join-Path $PSScriptRoot '..\Meta\CatchOutlet.psm1') -Force -DisableNameChecking
 
 # 分类内核自证（防判据空转）
@@ -122,7 +123,7 @@ if ($null -ne $rawItems) {
         $s = [int]$ri.startLine; $e = [int]$ri.endLine
         $body = ''
         if ($e -ge $s -and $s -ge 1 -and $e -le $lines.Count) {
-            $body = ((@($lines[($s - 1)..($e - 1)] | ForEach-Object { ($_ -replace '//.*$', '') }) -join ' ') + ' ')
+            $body = ((@($lines[($s - 1)..($e - 1)] | ForEach-Object { (Remove-LineComment -Text $_) }) -join ' ') + ' ')
         }
         $registered = Test-CatchRegistered -Rel $rel -Line $s
         $items.Add([pscustomobject]@{

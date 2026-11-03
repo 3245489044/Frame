@@ -18,6 +18,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+Import-Module (Join-Path $PSScriptRoot '..\..\Meta\TextOps.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
@@ -70,8 +72,8 @@ function Get-Violations {
             $violations.Add('C2 缺 [Node] cline_execute 的 inports 声明（无法复算必填闭包）')
         }
         else {
-            $inports = @($exec.Groups[1].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-            foreach ($port in @($required.Groups[1].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
+            $inports = @(ConvertFrom-CommaList -Text $exec.Groups[1].Value)
+            foreach ($port in @(ConvertFrom-CommaList -Text $required.Groups[1].Value)) {
                 if ($port -notin $inports) { $violations.Add("C2 required_prompt_ports 含未声明入参：$port") }
             }
         }

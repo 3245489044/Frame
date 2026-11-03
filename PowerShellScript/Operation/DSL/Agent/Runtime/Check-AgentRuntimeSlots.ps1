@@ -31,6 +31,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 # 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
 $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
@@ -131,7 +133,7 @@ if (Test-Path -LiteralPath $keysFile) {
         if ($line -match 'InstanceScoped\s*=\s*new\s+HashSet<string>') { $inSet = $true; continue }
         if ($inSet) {
             if ($line -match '^\s*\};') { $inSet = $false; continue }
-            $code = ($line -replace '//.*$', '').Trim()
+            $code = (Remove-LineComment -Text $line).Trim()
             if ($code -match '^([A-Za-z_][A-Za-z0-9_]*)\s*,?$') { $instanceScopedMembers.Add($matches[1]) }
         }
     }

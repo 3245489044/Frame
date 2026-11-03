@@ -20,6 +20,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 # 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
 $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
@@ -83,8 +85,7 @@ foreach ($sc in $selfChecks) {
 $files = @([IO.Directory]::EnumerateFiles($frameworkDir, '*.cs', [IO.SearchOption]::AllDirectories))
 foreach ($file in $files) {
     if ($file -match '[\\/]obj[\\/]') { continue }
-    $relative = $file.Substring($frameworkDir.Length).TrimStart('\', '/')
-    $relative = $relative -replace '\\', '/'
+    $relative = Get-RepoRelativePath -Path $file -Root $frameworkDir
 
     if (-not (Test-Ownership $relative)) {
         $violations.Add("C1 未登记归属：$relative")
@@ -113,7 +114,7 @@ foreach ($file in $files) {
     if ($file -match '[\\/]obj[\\/]') { continue }
     $text = [IO.File]::ReadAllText($file)
     if ($text -match '(?m)^\s*using\s+Agent\.Modules\.Answer\b') {
-        $relative = ($file.Substring($frameworkDir.Length).TrimStart('\', '/') -replace '\\', '/')
+        $relative = Get-RepoRelativePath -Path $file -Root $frameworkDir
         $violations.Add("C4 反向 using（Agent.Modules.Answer）：$relative")
     }
 }

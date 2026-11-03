@@ -32,6 +32,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
@@ -105,7 +107,7 @@ $declaredTables = [System.Collections.Generic.List[object]]::new()
 if (Test-Path -LiteralPath $tablesFile) {
     $cur = $null
     foreach ($raw in [System.IO.File]::ReadAllLines($tablesFile)) {
-        $line = ($raw -replace '#.*$', '').TrimEnd()
+        $line = (Remove-LineComment -Text $raw -Marker '#').TrimEnd()
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
         $trim = $line.Trim()
         if ($trim.StartsWith('[Table]')) {

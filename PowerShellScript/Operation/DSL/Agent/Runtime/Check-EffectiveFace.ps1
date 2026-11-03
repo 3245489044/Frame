@@ -43,6 +43,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 # 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
 $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
@@ -214,11 +216,8 @@ if ($declFiles.Count -gt 0) {
         $fp = Get-EffectiveFingerprint $f.FullName
         [void]$sb.Append($rel).Append('=').Append($fp).Append("`n")
     }
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        $bytes = [System.Text.Encoding]::UTF8.GetBytes($sb.ToString())
-        $declHash = ([System.BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
-    } finally { $sha.Dispose() }
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($sb.ToString())
+    $declHash = Get-Sha256Hex -Bytes $bytes
 }
 $loadFace = if ($Mode -eq 'locked') { if ($genDir) { Split-Path -Leaf $genDir } else { '(unresolved)' } } else { 'inplace' }
 Write-Host ("  [EFFECTIVE] decl_sha256={0} decl_files={1} load_face={2} mode={3}" -f `

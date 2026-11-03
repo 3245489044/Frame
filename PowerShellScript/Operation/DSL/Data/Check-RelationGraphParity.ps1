@@ -21,6 +21,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
@@ -116,7 +118,7 @@ function Get-RelationViolations([string]$relationText, [string]$mountText, [stri
             }
         }
         $via = Get-Field $line 'via'
-        foreach ($edge in ($via -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
+        foreach ($edge in @(ConvertFrom-CommaList -Text $via)) {
             if (-not $edges.Contains($edge)) {
                 $out.Add("RG5 派生 '$name' 的 via 边 '$edge' 未在 [Edge] 声明")
             }

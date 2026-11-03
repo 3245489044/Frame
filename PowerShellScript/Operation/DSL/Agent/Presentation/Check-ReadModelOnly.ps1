@@ -22,6 +22,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 # 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
 $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
@@ -39,7 +41,7 @@ function Get-Violations([string[]]$roots, [object[]]$patterns) {
         if (-not (Test-Path -LiteralPath $abs)) { $found.Add("[missing] $rel"); continue }
         $raw = Get-Content -LiteralPath $abs -Raw
         # 判据只认代码面：剥离行注释（注释里说明「不再用 pool.Active」不构成读法）。
-        $text = (($raw -split "`n") | ForEach-Object { $_ -replace '//.*$', '' }) -join "`n"
+        $text = (($raw -split "`n") | ForEach-Object { (Remove-LineComment -Text $_) }) -join "`n"
         foreach ($p in $patterns) {
             $m = [regex]::Matches($text, $p.Pattern)
             if ($m.Count -gt 0) {

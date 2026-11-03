@@ -25,6 +25,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 # 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
 $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
@@ -61,7 +63,7 @@ $allowedTypes = @([regex]::Matches($canonText, 'CanonicalNodeType\.([A-Za-z]+)')
 $edgeTypes = @([regex]::Matches($canonText, '(?m)^\s*\w+\s+→\s+([A-Z][A-Za-z]+)\s*$') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
 $keysLine = [regex]::Match($canonText, '(?m)^\s*keys\s*=\s*(.+)$')
 $allowedKeys = @()
-if ($keysLine.Success) { $allowedKeys = @($keysLine.Groups[1].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+if ($keysLine.Success) { $allowedKeys = @(ConvertFrom-CommaList -Text $keysLine.Groups[1].Value) }
 
 # R-3：unmapped 末路在位由 Check-AgentSpec A7 单点裁决（声明合格性），本脚本只判产物结构（C2–C5）。
 

@@ -35,6 +35,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
@@ -68,7 +70,7 @@ foreach ($file in (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File 
     $inPlacements = $false
     $placementsIndent = -1
     foreach ($raw in (Get-Content -LiteralPath $file.FullName)) {
-        $line = ($raw -replace '#.*$', '').TrimEnd()
+        $line = (Remove-LineComment -Text $raw -Marker '#').TrimEnd()
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
         $indent = $line.Length - $line.TrimStart().Length
         $trim = $line.Trim()
@@ -128,7 +130,7 @@ if (-not (Test-Path -LiteralPath $placementFile)) {
     $locTokens = [System.Collections.Generic.List[string]]::new()
     $matrixLefts = [System.Collections.Generic.List[string]]::new()
     foreach ($raw in (Get-Content -LiteralPath $placementFile)) {
-        $line = ($raw -replace '#.*$', '').TrimEnd()
+        $line = (Remove-LineComment -Text $raw -Marker '#').TrimEnd()
         if ($line -match '^\s*\[') {
             # 段识别须锚定节头（[Matrix] LocToPlacement 的 over=LocPlacement 含子串 LocPlacement，勿用子串判据）
             if ($line -match '\[Matrix\]\s*LocToPlacement') { $section = 'matrix' }

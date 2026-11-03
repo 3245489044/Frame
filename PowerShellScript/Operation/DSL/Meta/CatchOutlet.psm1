@@ -22,17 +22,15 @@
 
 Set-StrictMode -Version Latest
 
+Import-Module (Join-Path $PSScriptRoot 'TextOps.psm1') -DisableNameChecking
+
 $script:RxComment = [regex]'^\s*(//|/\*|\*)'
 $script:CatchEngine = $null
 
 function Get-CatchBodyHash {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][AllowEmptyString()][string]$Body)
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        $bytes = [System.Text.Encoding]::UTF8.GetBytes($Body)
-        return ([System.BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '').ToLowerInvariant()
-    } finally { $sha.Dispose() }
+    return Get-Sha256Hex -Bytes ([System.Text.Encoding]::UTF8.GetBytes($Body))
 }
 
 function Get-CatchOutletClass {
@@ -140,7 +138,7 @@ function Get-CatchBlocks {
         foreach ($b in (Get-CatchBlocksRoslyn -Text ($Lines -join "`n"))) {
             $body = ''
             if ($b.EndLine -ge $b.StartLine -and $b.StartLine -ge 1 -and $b.EndLine -le $Lines.Count) {
-                $body = ((@($Lines[($b.StartLine - 1)..($b.EndLine - 1)] | ForEach-Object { ($_ -replace '//.*$', '') }) -join ' ') + ' ')
+                $body = ((@($Lines[($b.StartLine - 1)..($b.EndLine - 1)] | ForEach-Object { (Remove-LineComment -Text $_) }) -join ' ') + ' ')
             }
             $blocks.Add([pscustomobject]@{
                 StartLine = $b.StartLine
@@ -163,7 +161,7 @@ function Get-CatchBlocks {
         $sb = New-Object System.Text.StringBuilder
         $j = $i
         while ($j -lt $Lines.Count) {
-            $code = ($Lines[$j] -replace '//.*$', '')
+            $code = Remove-LineComment -Text $Lines[$j]
             [void]$sb.Append($code).Append(' ')
             foreach ($ch in $code.ToCharArray()) {
                 if ($ch -eq '{') { $depth++; $started = $true } elseif ($ch -eq '}') { $depth-- }

@@ -25,6 +25,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
@@ -155,9 +157,7 @@ if ($null -ne $parsed) {
     }
 
     if ($sourceBytes.Count -gt 0) {
-        $sha = [System.Security.Cryptography.SHA256]::Create()
-        try { $actualHash = ([BitConverter]::ToString($sha.ComputeHash($sourceBytes.ToArray())) -replace '-', '').ToLowerInvariant() }
-        finally { $sha.Dispose() }
+        $actualHash = Get-Sha256Hex -Bytes $sourceBytes.ToArray()
 
         $declaredHash = [string]$parsed.sourceHash
         if ([string]::IsNullOrWhiteSpace($declaredHash) -or $declaredHash -ne $actualHash) {

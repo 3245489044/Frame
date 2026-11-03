@@ -26,6 +26,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
@@ -131,7 +133,7 @@ function Get-DeclaredFieldOrder {
     $map = @{}
     foreach ($m in [regex]::Matches($Text, '(?m)^\s*\[ReadModel\]\s+(\S+?)\s*:.*?\bfields=([^|\r\n]+)')) {
         $id = $m.Groups[1].Value
-        $map[$id] = @($m.Groups[2].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        $map[$id] = @(ConvertFrom-CommaList -Text $m.Groups[2].Value)
     }
     return $map
 }
@@ -218,7 +220,7 @@ function Measure-ProjectorImpls {
         foreach ($file in Get-ChildItem -LiteralPath $dir -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue) {
             if ($file.FullName -match '\\(obj|bin)\\' -or $file.FullName -like '*\_deprecated\*') { continue }
             $raw = Get-Content -LiteralPath $file.FullName -Raw
-            $text = (($raw -split "`n") | ForEach-Object { $_ -replace '//.*$', '' }) -join "`n"
+            $text = (($raw -split "`n") | ForEach-Object { (Remove-LineComment -Text $_) }) -join "`n"
             $count += [regex]::Matches($text, ':\s*IReadModelProjector\b').Count
         }
     }
@@ -302,7 +304,7 @@ foreach ($rel in $viewRoots) {
     if (-not (Test-Path -LiteralPath $dir)) { continue }
     foreach ($file in Get-ChildItem -LiteralPath $dir -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue) {
         $raw = Get-Content -LiteralPath $file.FullName -Raw
-        $texts.Add((($raw -split "`n") | ForEach-Object { $_ -replace '//.*$', '' }) -join "`n")
+        $texts.Add((($raw -split "`n") | ForEach-Object { (Remove-LineComment -Text $_) }) -join "`n")
     }
 }
 $viewCacheCount = Measure-ViewCacheSites -Texts @($texts)

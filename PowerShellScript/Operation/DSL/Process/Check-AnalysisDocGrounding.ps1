@@ -23,6 +23,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 # 定位仓库根（含 Projects\ 与 Frame\）—— 相对 $PSScriptRoot 上溯，禁硬编码绝对路径
 if (-not $RepoRoot) {
     $probe = $PSScriptRoot
@@ -70,8 +72,8 @@ foreach ($doc in $docs) {
         $tm = [regex]::Match($fmBody, '(?m)^\s*tests\s*:\s*\[(?<v>[^\]]*)\]')
         $em = [regex]::Match($fmBody, '(?m)^\s*effective\s*:\s*(?<v>true|false)')
         if ($gm.Success -or $tm.Success) {
-            $declaredGates = @($gm.Groups['v'].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-            $declaredTests = @($tm.Groups['v'].Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $declaredGates = @(ConvertFrom-CommaList -Text $gm.Groups['v'].Value)
+            $declaredTests = @(ConvertFrom-CommaList -Text $tm.Groups['v'].Value)
             $declaredEffective = $em.Success -and ($em.Groups['v'].Value -eq 'true')
             if ($null -eq $verifyPlan) {
                 $warnings.Add("[${rel}] 声明 verify 块但无冻结计划（Data\Tests\verify-plan.json 缺失 ⇒ 判据未执行）")

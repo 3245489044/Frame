@@ -15,6 +15,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
@@ -23,12 +25,6 @@ $uiFiles = @(
     'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json',
     'Projects\Information\DrivenConfig\JsonConfig\ProducePanel.json'
 )
-
-function Get-Sha256Hex([byte[]]$Bytes) {
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    try { return ([BitConverter]::ToString($sha.ComputeHash($Bytes)) -replace '-', '').ToLowerInvariant() }
-    finally { $sha.Dispose() }
-}
 
 function Get-WireKey([string]$Name) {
     if ([string]::IsNullOrWhiteSpace($Name)) { return 'unknown' }

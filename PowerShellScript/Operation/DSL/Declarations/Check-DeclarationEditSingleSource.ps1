@@ -26,6 +26,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
 }
@@ -59,7 +61,7 @@ function Test-DirectUsharpWrite {
     param([string]$Text, [string]$Name)
     if ($Name -in $writeWhitelist) { return $false }
     # 剥离行注释后再判（避免文档串 / 注释中提及 WriteAllText 造成误报）
-    $code = ($Text -split "`n" | ForEach-Object { $_ -replace '//.*$', '' }) -join "`n"
+    $code = ($Text -split "`n" | ForEach-Object { (Remove-LineComment -Text $_) }) -join "`n"
     return ($code -match 'File\.WriteAllText' -and $code -match '\.ushar')
 }
 

@@ -34,6 +34,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 # 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
 $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
@@ -94,7 +96,7 @@ else {
     foreach ($file in $files) {
         try {
             $json = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
-            $relative = $file.FullName.Substring($scriptRoot.Length).TrimStart('\', '/') -replace '\\', '/'
+            $relative = Get-RepoRelativePath -Path $file.FullName -Root $scriptRoot
             $hits = @(Get-SleepHits -Node $json -File $relative -Path '$')
             if ($hits.Count -gt 0) {
                 $counts[$relative] = $hits.Count

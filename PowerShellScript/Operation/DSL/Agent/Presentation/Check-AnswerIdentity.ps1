@@ -23,6 +23,8 @@ param([switch]$Check, [switch]$NegativeControl)
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 function Find-RepoRoot {
     $d = $PSScriptRoot
     while ($d -and $d -ne (Split-Path $d -Parent)) {
@@ -106,7 +108,7 @@ $registeredWriters = @(
     'Projects/Plug/Agent/src/Agent.Modules/Framework/History/RoundMessageSettlement.cs'  # smsg 归档同拍事实
 )
 $trueSites = @($csFiles | Select-String -Pattern 'TerminalField\s*,\s*true|TerminalField\]\s*=\s*true' -ErrorAction SilentlyContinue)
-$trueFiles = @($trueSites | ForEach-Object { $_.Path.Substring($root.Length).TrimStart('\', '/') -replace '\\', '/' } | Sort-Object -Unique)
+$trueFiles = @($trueSites | ForEach-Object { Get-RepoRelativePath -Path $_.Path -Root $root } | Sort-Object -Unique)
 foreach ($f in $trueFiles) {
     if ($registeredWriters -notcontains $f) { Add-Violation 'A3' ("未登记的 terminal=true 写入者：{0}" -f $f) }
 }
@@ -115,7 +117,7 @@ foreach ($e in $registeredWriters) {
 }
 
 $markSites = @($csFiles | Select-String -Pattern '\bMarkFact\(' -ErrorAction SilentlyContinue)
-$markFiles = @($markSites | ForEach-Object { $_.Path.Substring($root.Length).TrimStart('\', '/') -replace '\\', '/' } | Sort-Object -Unique)
+$markFiles = @($markSites | ForEach-Object { Get-RepoRelativePath -Path $_.Path -Root $root } | Sort-Object -Unique)
 if ($markFiles.Count -ne 1 -or $markFiles[0] -ne $writerRel) {
     Add-Violation 'A5' ("MarkFact 调用文件集合异常（须仅单写者）：{0}" -f ($markFiles -join ' | '))
 }

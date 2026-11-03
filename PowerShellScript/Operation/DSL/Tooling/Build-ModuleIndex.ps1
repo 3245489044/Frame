@@ -44,6 +44,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
+
 if (-not $PowerShellRoot) {
     $PowerShellRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
 }
@@ -206,7 +208,7 @@ $conflictMap = @{}            # 函数名 → 备选模块列表
 $modFuncCount = @{}           # 相对路径 → 函数数（统计）
 
 foreach ($f in $psmFiles) {
-    $rel = $f.FullName.Substring($powerShellRoot.Length).TrimStart('\', '/') -replace '\\', '/'
+    $rel = Get-RepoRelativePath -Path $f.FullName -Root $powerShellRoot
     $fns = @(Get-ExportedFunctions -Path $f.FullName)
     if ($fns.Count -eq 0) {
         $fns = @(Get-FunctionsFromDeclarations -Path $f.FullName)

@@ -27,6 +27,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+Import-Module (Join-Path $PSScriptRoot 'TextOps.psm1') -Force -DisableNameChecking
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $probe = $PSScriptRoot
     while ($probe -and $probe -ne (Split-Path $probe -Parent)) {
@@ -74,7 +76,7 @@ function Test-KeyIdentity {
 
         if ($line -match '^\[KeyLexicon\]\s+(?<name>[^:]+):\s*(?<values>.+)$') {
             $name = $Matches['name'].Trim()
-            $values = @($Matches['values'] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $values = @(ConvertFrom-CommaList -Text $Matches['values'])
             $lexicons[$name] = $values
             if ($values.Count -eq 0) { $Sink.Add("[K2] [KeyLexicon] $name 值域为空") }
             continue
@@ -202,11 +204,10 @@ $lexiconLine = $lines | Where-Object { $_ -match '^\s*\[KeyLexicon\]\s+ProcessKi
 $contentLine = $lines | Where-Object { $_ -match '^\s*\[KeyLexicon\]\s+ContentKind:' } | Select-Object -First 1
 $axisLine = $lines | Where-Object { $_ -match '^\s*axis\s+domain\.process/kind' } | Select-Object -First 1
 if ($lexiconLine -and $axisLine) {
-    $lexiconValues = @(([regex]::Match($lexiconLine, '^.*ProcessKind:\s*(?<v>.+)$').Groups['v'].Value) -split ',' |
-        ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $lexiconValues = @(ConvertFrom-CommaList -Text ([regex]::Match($lexiconLine, '^.*ProcessKind:\s*(?<v>.+)$').Groups['v'].Value))
     $pipe = $axisLine.IndexOf('|')
     $axisFields = if ($pipe -ge 0) { Get-DslFieldBag -Line $axisLine.Substring($pipe + 1) } else { @{} }
-    $allowedValues = @(($axisFields['allowed'] ?? '') -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $allowedValues = @(ConvertFrom-CommaList -Text ($axisFields['allowed'] ?? ''))
 
     $unwritable = @($lexiconValues | Where-Object { $allowedValues -notcontains $_ })
     if ($unwritable.Count -gt 0) {
@@ -214,8 +215,7 @@ if ($lexiconLine -and $axisLine) {
     }
 
     if ($contentLine) {
-        $contentValues = @(([regex]::Match($contentLine, '^.*ContentKind:\s*(?<v>.+)$').Groups['v'].Value) -split ',' |
-            ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        $contentValues = @(ConvertFrom-CommaList -Text ([regex]::Match($contentLine, '^.*ContentKind:\s*(?<v>.+)$').Groups['v'].Value))
         $leak = @($contentValues | Where-Object { $allowedValues -contains $_ })
         if ($leak.Count -gt 0) {
             Write-Output ("[K8a-info] 过程轴仍含内容词（R3 迁移债，待 recognizers/gather 同批收口）：{0}" -f ($leak -join ', '))

@@ -46,6 +46,11 @@ $rules = @(
     [pscustomobject]@{ Id = 'C6'; Title = '窗口状态由四态代数给出（不得塌成布尔/字符串）'
         Ok = { $t = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
             ($t -match 'UiReadState\.Ok') -and ($t -notmatch 'windowReason\s*=\s*"') } }
+    [pscustomobject]@{ Id = 'C7'; Title = '回退可见（模型无 Origin 伪字段 ∧ 回退留痕在册，H39）'
+        Ok = { $model = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Projection\HistoryBoardModel.cs')
+            $board = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Board.cs')
+            ($model -notmatch '\bOrigin\b') -and ($board -match 'ConversationView_board_fallback') } }
+
 )
 
 if ($NegativeControl) {

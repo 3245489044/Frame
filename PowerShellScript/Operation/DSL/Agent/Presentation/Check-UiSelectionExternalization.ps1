@@ -76,6 +76,17 @@ $rules = @(
         Id = 'C5'; Title = '当前选中态受控于选择态存储（UiSelectionStore）'
         Ok = { $t = Read-Text $viewService; ($t -match '_selection') -and ($t -match 'UiSelectionStore') }
     }
+    [pscustomobject]@{
+        Id = 'C6'; Title = '选择槽声明封存 ∧ 声明集覆盖写路径（H38）'
+        Ok = {
+            $svc = Read-Text (Join-Path $agent 'Ui\Views\Orchestration\ConversationViewService.cs')
+            $declCount = ([regex]::Matches($svc, 'new UiSelectionSlotDecl\(')).Count
+            ($svc -match '_selection\.Seal\(\)') -and ($declCount -ge 6) -and
+            ($svc -match 'MainDialogViewType\.Task\)\s*,\s*SelectionSlotTask') -and
+            ($svc -match 'MainDialogViewType\.History\)\s*,\s*SelectionSlotTask')
+        }
+    }
+
 )
 
 if ($NegativeControl) {

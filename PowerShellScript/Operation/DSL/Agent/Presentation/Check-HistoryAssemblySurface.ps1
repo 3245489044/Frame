@@ -480,8 +480,26 @@ if ($promptResolverText -notmatch 'PromptHistoryStale') {
     Add-Violation 'H36' 'PromptHistoryStale 无生产点（历史快照缺失被误报为「未装配」）'
 }
 
+# H37 未知运行态原因不得伪装业务空（默认分支只允许显式未知）
+$boardProjFile = Join-Path $agentRoot 'src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs'
+$boardProjText = Read-Text $boardProjFile
+if ($boardProjText -notmatch 'CardsUnknown') {
+    Add-Violation 'H37' '运行态原因默认分支缺显式未知码（CardsUnknown）'
+}
+if ($boardProjText -match '_ => UiReasonCodes\.CardsEmpty') {
+    Add-Violation 'H37' '运行态原因默认分支仍映射业务空（未知伪装成「无任务」）'
+}
+
+# H40 领域不得直呼 UiWindowContextPolicy（机制层必须经 WindowContextPolicy 适配）
+$policyHits = @(Get-ChildItem -LiteralPath (Join-Path $agentRoot 'src') -Recurse -Filter '*.cs' |
+    Select-String -Pattern 'UiWindowContextPolicy\.' -List |
+    Where-Object { $_.Path -notmatch 'WindowContextPolicy\.cs$' })
+if ($policyHits.Count -gt 0) {
+    Add-Violation 'H40' ("领域直呼 UiWindowContextPolicy：" + (($policyHits | ForEach-Object { $_.Path }) -join ', '))
+}
+
 if ($violations.Count -eq 0) {
-    Write-Host "[HistoryAssemblySurface] OK（H1–H36 全过）"
+    Write-Host "[HistoryAssemblySurface] OK（H1–H40 全过）"
     exit 0
 }
 

@@ -69,6 +69,19 @@ public static class UiReadGateway
     }
 
     /// <summary>
+    /// 窗口代数（**唯一入口**）：可见谓词过滤后归约为 <see cref="From"/>；
+    /// 空 ⇒ <paramref name="spec"/> 的 EmptyText（调用方不得再自行赋「窗口为空」原因）。
+    /// </summary>
+    /// <param name="visible">可见谓词（null ⇒ 不过滤）。</param>
+    public static UiReadOutcome<IReadOnlyList<T>> FromWindow<T>(
+        UiReadSpec spec, IReadOnlyList<T>? items, Func<T, bool>? visible, string? failure = null)
+    {
+        if (items is null) return Failed<T>(spec, failure);
+        var kept = visible is null ? items : items.Where(visible).ToList();
+        return From(spec, kept, failure);
+    }
+
+    /// <summary>
     /// 形态投影 + 窗口切片：<see cref="UiReadShape.ToolFirst"/> 且存在匹配元素 ⇒ 只保留匹配项；
     /// 窗口 &gt; 0 ⇒ **先并入观测帧、再裁一次**（禁二次切片）。
     /// <paramref name="preferred"/> = 形态匹配谓词（null ⇒ 不投影）；<paramref name="merge"/> = 帧合并；

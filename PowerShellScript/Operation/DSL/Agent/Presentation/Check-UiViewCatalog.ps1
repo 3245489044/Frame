@@ -155,8 +155,10 @@ function Test-UiSemanticLeak {
 }
 
 $rules = @(
-    [pscustomobject]@{ Id = 'C1'; Title = '目录声明在位（node/task/history）'
-        Ok = { $t = Read-Text $catalog; ($t -match '"node"') -and ($t -match '"task"') -and ($t -match '"history"') } }
+    [pscustomobject]@{ Id = 'C1'; Title = '目录声明在位（node/task/history；单源 = ConversationViewKeys）'
+        Ok = { $t = Read-Text $catalog
+            $keys = Read-Text (Join-Path $repo 'Frame\CsharpPrj\Share\Frameworks\Conversation\ConversationViewKeys.cs')
+            ($t -match 'ConversationViewKeys') -and ($keys -match '\bNode\b') -and ($keys -match '\bTask\b') -and ($keys -match '\bHistory\b') } }
     [pscustomobject]@{ Id = 'C2'; Title = '四个消费方均查表（ConversationViewCatalog）'
         Ok = { foreach ($f in $consumers) { if ((Read-Text $f) -notmatch 'ConversationViewCatalog') { return $false } }; return $true } }
     [pscustomobject]@{ Id = 'C3'; Title = '领域旧映射不残留（禁本地 MainDialogViewType => "type"）'

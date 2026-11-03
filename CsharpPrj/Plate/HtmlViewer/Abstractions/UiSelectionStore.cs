@@ -92,6 +92,19 @@ public sealed class UiSelectionStore
     private readonly ConcurrentDictionary<string, UiSelectionSlotDecl> _decls = new(StringComparer.Ordinal);
     private readonly object _gate = new();
     private string? _activeScope;
+    private bool _sealed;
+
+    /// <summary>声明是否已封存（封存后未声明槽写入 ⇒ 拒绝，不再静默放行）。</summary>
+    public bool IsSealed => _sealed;
+
+    /// <summary>
+    /// 封存声明（装配期调用一次）：此后 <see cref="Set"/> / <see cref="TrySet"/> 命中未声明槽即拒绝。
+    /// <para>未封存时保持迁移期兼容（不校验槽是否声明），该状态必须由组合根尽快关闭。</para>
+    /// </summary>
+    public void Seal()
+    {
+        lock (_gate) _sealed = true;
+    }
 
     /// <summary>当前活动作用域（页面级; 空 ⇒ 由调用方按视图派生）。</summary>
     public string? ActiveScope
@@ -146,14 +159,21 @@ public sealed class UiSelectionStore
             return;
         }
 
-        if (keyKind is { IsNone: false } kind
-            && _decls.TryGetValue(key, out var decl)
-            && !decl.KeyKind.IsNone
-            && !string.Equals(decl.KeyKind.Name, kind.Name, StringComparison.Ordinal))
+        if (_decls.TryGetValue(key, out var decl))
+        {
+            if (keyKind is { IsNone: false } kind
+                && !decl.KeyKind.IsNone
+                && !string.Equals(decl.KeyKind.Name, kind.Name, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"选择槽键类型不一致: scope={scope}, slot={slot}, 声明={decl.KeyKind.Name}, 写入={kind.Name}。" +
+                    "同一作用域槽不得承载两种键域（历史键与任务键须分槽）。");
+            }
+        }
+        else if (IsSealed)
         {
             throw new InvalidOperationException(
-                $"选择槽键类型不一致: scope={scope}, slot={slot}, 声明={decl.KeyKind.Name}, 写入={kind.Name}。" +
-                "同一作用域槽不得承载两种键域（历史键与任务键须分槽）。");
+                $"选择槽未声明: scope={scope}, slot={slot}（写路径绕过声明面；须先在 Declare(...) 登记）。");
         }
 
         _values[key] = value!.Trim();
@@ -198,6 +218,12 @@ public sealed class UiSelectionStore
                 reason = "ui.selection.rejected";
                 return false;
             }
+        }
+        else if (IsSealed)
+        {
+            // 声明缺口 = 结构缺陷：写路径不得绕过声明面（否则键类型/实体校验全部失效）。
+            reason = "ui.selection.slot-undeclared";
+            return false;
         }
 
         _values[key] = trimmed;

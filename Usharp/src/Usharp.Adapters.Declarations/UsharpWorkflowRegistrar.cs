@@ -32,17 +32,11 @@ public sealed class UsharpWorkflowRegistrar : IWorkflowRegistrar
         }
     }
 
-    /// <summary>从配置根装载（<c>nodes/*.ushar</c> + <c>workflows/*.ushar</c>）并编译。</summary>
+    /// <summary>从配置根装载（闭包单源 = <see cref="DeclaredBundleBuilder.LoadConfigDocuments"/>）并编译。</summary>
     public static UsharpWorkflowRegistrar FromConfigDirectory(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        var documents = UsharpSourceLoader.FromDirectories(new[]
-            {
-                Path.Combine(configRoot, "nodes"),
-                Path.Combine(configRoot, "workflows"),
-            })
-            .Select(s => (s.Path, s.Text))
-            .ToList();
+        var documents = DeclaredBundleBuilder.LoadConfigDocuments(configRoot);
         return new UsharpWorkflowRegistrar(UsharpCompilation.Compile(documents));
     }
 

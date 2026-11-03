@@ -1,6 +1,6 @@
 # Usharp —— 以矩阵为框架、引用关系为核心的逻辑语言
 
-> **层级**：语言框架（表层语言 + 编译器） | **状态**：21 前缀（`[Space]`/`[Matrix]`/`[Flow]`/`[Ref]`/`[Obs]`/`[Branch]`/`[Switch]`/`[Call]`/`[Region]`/`[When]`/`[Guard]`/`[Domain]`/`[Gather]`/`[Table]`/`[Record]`/`[Config]`/`[Rule]`/`[Const]`/`[LLMDecl]`/`[KeySpace]`/`[Command]`）+ 闸A + 引用即边 + UR 接入 + 观测接入
+> **层级**：语言框架（表层语言 + 编译器） | **状态**：32 前缀（13 核心 + 19 领域：`[Space]`/`[Matrix]`/`[Flow]`/`[Ref]`/`[Obs]`/`[Branch]`/`[Switch]`/`[Call]`/`[Region]`/`[When]`/`[Guard]`/`[Domain]`/`[Gather]` + `[Table]`/`[Record]`/`[Config]`/`[Rule]`/`[Const]`/`[LLMDecl]`/`[KeySpace]`/`[Command]`/`[ReadModel]`/`[Relation]`/`[Invariant]`/`[Derive]`/`[Mount]`/`[Segment]`/`[Entity]`/`[KeyLexicon]`/`[AnswerShape]`/`[WindowShape]`/`[KeyPolicy]`/`[KeyBridge]`）+ 闸A + 引用即边 + UR 接入 + 观测接入
 > **日期**：2026-09-22 | **基座**：`Frame\CsharpPrj`（不新造运行时）
 > **本文件 = 语言规范唯一权威**：语法/规则/诊断码在此定义，实现里不得重复语义（防抽象再生）。
 
@@ -13,7 +13,7 @@
 | 1 | Usharp **不是新运行时**，而是「唯一表层语言 + 编译器」：文本 → 编译器 → 落到 CsharpPrj 既有类型（`RoundSpec` / `ParameterMatrix` / `DecisionGraph` / `ReferenceSchema` / `ReferenceGraphEngine`） |
 | 2 | **矩阵只有一种**：空间到自身的一步映射 `x′ = M·x`。决策矩阵 / 转移矩阵 / 判据矩阵 / 治理矩阵 / 引用邻接矩阵是它的五种读法（§1.1） |
 | 3 | **引用关系为核心**：一切声明都是节点，一切引用都是边；编译器的首要产物是引用图，矩阵只是图上的属性（§1.2） |
-| 4 | **解析器零自有实现**：20 前缀注册进 `Plate.DslMethod` 的既有前缀表，直接复用 `DslParser`/`DslIndex`/`Registry` |
+| 4 | **解析器零自有实现**：32 前缀注册进 `Plate.DslMethod` 的既有前缀表，直接复用 `DslParser`/`DslIndex`/`Registry` |
 | 5 | **闸A 是存在理由**：装载期校验「引用必须落在已声明空间」；未声明即**编译报错**（对齐 `ParameterMatrix.Row` 闸A 语义，覆盖面从参数轴扩到空间键/词元） |
 | 6 | 现状静默截断类缺陷（工作流 `NextNodeConfig` 只取 `on_success`、其余分支无告警）在本语言里由 `US1005` 拦下 |
 | 7 | **观测是第五语言单元 `[Obs]`**（非第二观测机制）：观测语义唯一的书写面 = `.ushar` 声明，编译产出既有 `BoundaryContract`/`EventContract`，把运行期 `UnregisteredEventException` **前移到编译期**（`US6001`–`US6007`）；信封/契约/作用域/持久化一律复用 `Strategy.Observability` 内核（§9.5） |
@@ -55,7 +55,7 @@
 
 ## 2. 表层语法（复用行首前缀式）
 
-### 2.1 前缀表（单一真源 = `UsharpCorePrefixes`（13 核心）+ `UsharpPrefixes.DomainPrefixes`（12 领域））
+### 2.1 前缀表（单一真源 = `UsharpCorePrefixes`（13 核心）+ `UsharpPrefixes.DomainPrefixes`（19 领域））
 
 > **所有权（B1 已落地）**：核心结构前缀（`Space/Matrix/Flow/Ref/Obs/Branch/Switch/Call/Region/When/Guard/Domain/Gather`）恒在；
 > 领域前缀由领域包自持（声明面 `IUsharpGrammarPack.Prefixes`）。编译作用域 = 框架核心前缀 ∪ **已装载包**前缀；
@@ -195,7 +195,7 @@
 ## 4. 编译器分层（11 工程）
 
 ```
-Usharp.Syntax      文本 ──► DslDocument + 20 类语法声明       ← Plate.DslMethod.Parsing.DslParser（复用）
+Usharp.Syntax      文本 ──► DslDocument + 61 类语法声明视图   ← Plate.DslMethod.Parsing.DslParser（复用）
 Usharp.Semantics   ──► 声明索引 + facet 投影（Units 登记制）+ 引用图 + 闸A 诊断  ← DslIndex / UniversalReference（复用）
 Usharp.Matrix      ──► 矩阵实例（值域/判据/转移）              ← ParameterMatrix / DecisionGraph / ChainSignalResolver
 Usharp.Emit        ──► RoundSpec / ReferenceSchema / 公理类    ← RoundSpecLoader 载体 / AxiomCodeGenerator
@@ -205,7 +205,7 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 
 | 段 | 当前状态 | 说明 |
 |---|---|---|
-| `Usharp.Syntax` | ✓ 已落地 | `UsharpLanguage` + 20 类声明视图 + `UsharpParser`（薄包）+ `Parsing/UsharpLineReader`（续行词法内核） |
+| `Usharp.Syntax` | ✓ 已落地 | `UsharpLanguage` + 61 类声明视图 + `UsharpParser`（薄包）+ `Parsing/UsharpLineReader`（续行词法内核） |
 | `Usharp.Semantics` | ✓ 已落地 | `SpaceRegistry` / `UsharpValidator`（闸A 规则集）/ `UsharpGraphBuilder` / `UsharpCompilation`（facet 门面 + `Snapshot()` + `Report()`）/ `UsharpDiagnosticCatalog`（诊断码唯一真源） |
 | `Usharp.Matrix` | ✓ 已落地 | 值域 / 判据 / 转移三读法接上既有矩阵实例（治理读法暂缓） |
 | `Usharp.Emit` | ✓ 已落地 | `[Flow]` → `RoundSpec` + 链转移表；`UsharpEmitResultBase` / `UsharpEmit.Document` / `UsharpJson` 骨架 |
@@ -223,7 +223,7 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US0002` | error | Space：同一空间内坐标重复声明 |
 | `US0003` | error | Space：声明为空（缺 id） |
 | `US0004` | error | Matrix：矩阵行形态非法 |
-| `US0005` | error | Matrix：矩阵轴种类非法 |
+| `US0005` | error | Space：空间坐标值类非法（闸A 前移；矩阵装配同判据） |
 | `US0006` | error | Space：[Space] kind= 取值非法 |
 | `US0007` | error | Space：缩进块内坐标行不可解析 |
 | `US0008` | error | Command：[Command] channel= 不含 '.' |
@@ -236,6 +236,8 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US0015` | error | Flow：同名 [Flow] 重复声明 |
 | `US0016` | error | KeySpace：多个 [KeySpace] 声明（单键空间模型） |
 | `US0017` | error | Declaration：声明装载/回填/投影执行失败 |
+| `US0018` | warning | ControlFlow：控制流子流嵌套超过 MaxCallDepth（已截断，后续子流未装配） |
+| `US0019` | error | Binding：控制流绑定段不可解析（无 '=' / 空键 / 空值） |
 | `US1001` | error | Ref：引用的空间未声明 |
 | `US1002` | error | Ref：引用坐标未在空间声明 |
 | `US1003` | error | Matrix：矩阵行输出坐标未声明 |
@@ -299,6 +301,7 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US7203` | error | Table：列名重复 |
 | `US7204` | error | Record：记录声明形态非法 |
 | `US7205` | error | Record：记录引用的表未声明 |
+| `US7206` | warning | Record：[Record] table= 使用容器名而非表 id（兼容期告警，后续收紧） |
 | `US7301` | error | LLMDecl：output= 字段未在 O 区声明 |
 | `US7302` | error | LLMDecl：input= 字段未在 I 区声明 |
 | `US7303` | error | LLMDecl：LLMDecl 形态非法 |
@@ -319,23 +322,71 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US7508` | error | Command：key op= 未声明 |
 | `US7509` | error | Command：default=/fallback= 未声明 |
 | `US7510` | error | Command：[Command] 续行不可解析 |
-| `US7701` | error | ReadModel：[ReadModel] 模型 id 重复声明 |
-| `US7702` | error | ReadModel：source= 缺失（至少一个源键） |
-| `US7703` | error | ReadModel：version= 不在词表（None\|Ttl\|Event\|GraphMembership） |
-| `US7704` | error | ReadModel：version=Ttl 但 ttl= 缺失或非正 |
-| `US7705` | error | ReadModel：projector= 缺失 |
-| `US7706` | error | ReadModel：[ReadModel] 续行不可解析 |
-| `US7707` | error | ReadModel：[Command] op model= 指向未声明读模型 |
-| `US7708` | error | ReadModel：声明无任何 op 引用（死声明） |
 | `US7601` | error | Agent.Skill：[Skill] backend= 不在工具注册表 |
 | `US7602` | error | Agent.Skill：[Profile] bands= 未声明 |
 | `US7603` | error | Agent.Skill：[Profile] base=on 缺 bands |
 | `US7604` | error | Agent.Port：[Node] fn= 不在函数注册表 |
 | `US7605` | error | Agent.Tool：轨 id 不在实现注册表 |
 | `US7606` | error | Agent.Behavior：[Rule] action= 不在 [Node]/动作注册表 |
+| `US7701` | error | ReadModel：[ReadModel] 模型 id 重复声明 |
+| `US7702` | error | ReadModel：[ReadModel] source= 缺失（至少一个源键） |
+| `US7703` | error | ReadModel：[ReadModel] version= 不在词表 |
+| `US7704` | error | ReadModel：[ReadModel] version=Ttl 但 ttl= 缺失或非正 |
+| `US7705` | error | ReadModel：[ReadModel] projector= 缺失 |
+| `US7706` | error | ReadModel：[ReadModel] 续行不可解析 |
+| `US7707` | error | ReadModel：[Command] op model= 指向未声明读模型 |
+| `US7708` | error | ReadModel：[ReadModel] 声明无任何 op 引用（死声明） |
+| `US7709` | error | Segment：[Segment] field= 重复声明 |
+| `US7710` | error | Segment：[Segment] type= 不在词表 |
+| `US7711` | error | ReadModel：[ReadModel] fields= 引用未声明段 |
+| `US7712` | error | ReadModel：[ReadModel] fields= 解析后为空 |
+| `US7713` | error | ReadModel：[ReadModel] fields= 引用段缺 field= |
+| `US7714` | warning | Segment：[Segment] 缺 field=（未进 DTO） |
 | `US7801` | error | Agent.Port：[Node] skill= 未声明 |
 | `US7802` | error | Agent.Port：[Node] 执行体归属非恰一 |
 | `US7803` | error | Agent.Port：[Node] kind= 越界 |
+| `US7901` | error | Entity：[Entity] scope/container/cardinality/role/authority 缺失或非法 |
+| `US7902` | error | Entity：每个 [Entity] 在 family 表中的 authority=true 权威面须恰一个 |
+| `US7903` | error | KeyLexicon：[KeyLexicon] 词表互斥被破坏（同一词条出现在两个词表） |
+| `US7904` | error | Shape：[AnswerShape]/[WindowShape] 缺必填约束或 default 未声明 |
+| `US7905` | error | KeyPolicy：[KeyPolicy] entity/cardinality/writer/on_unresolvable 缺失 |
+| `US7906` | error | KeyBridge：[KeyBridge] from/to/rule 缺失或 reversible 未声明 |
+| `US7907` | info | Entity：[Entity] 尚无 authority=true 的 family（语义层已声明；语法族待接） |
+| `US8101` | error | Relation：[Relation] 操作名重复声明 |
+| `US8102` | error | Relation：[Relation] edge= 未声明 |
+| `US8103` | error | Relation：[Relation] src/tgt 未声明或与 [Edge] 不一致 |
+| `US8104` | error | Relation：[Relation] flow= 不存在或执行体不是 fn=relation_apply |
+| `US8105` | error | Relation：[Relation] namespace= 未声明 |
+| `US8106` | error | Relation：[Relation] duplicate/on_missing/arity 非法 |
+| `US8107` | error | Relation：归属边缺少 mount_* operation（或有多个） |
+| `US8108` | error | Relation：[Relation] emit= 事件未声明 |
+| `US8109` | error | Invariant：[Invariant] 名重复声明 |
+| `US8110` | error | Invariant：[Invariant] edge= 未声明 |
+| `US8111` | error | Invariant：[Invariant] kind= 非法 |
+| `US8112` | error | Invariant：[Invariant] on_violation= 非法 |
+| `US8113` | error | Invariant：[Invariant] scope= 未声明 |
+| `US8114` | error | Invariant：[Invariant] (edge,kind,scope) 重复声明 |
+| `US8115` | error | Derive：[Derive] 名重复声明 |
+| `US8116` | error | Derive：[Derive] from/to 未声明 |
+| `US8117` | error | Derive：[Derive] via 含未声明边 |
+| `US8118` | error | Derive：[Derive] via 首尾不相接 |
+| `US8119` | error | Derive：[Derive] op/normalize/order/empty 非法 |
+| `US8120` | error | Derive：[Derive] via 含废弃边 |
+| `US8121` | error | Derive：[Derive] (from,to,via) 重复声明 |
+| `US8122` | error | RelationEmit：关系计划不可产出 |
+| `US8123` | error | Mount：[Mount] MountId 重复声明 |
+| `US8124` | error | Mount：[Mount] relation= 未在 [Relation] 声明 |
+| `US8125` | error | Mount：[Mount] trigger= 未声明事件或不在内置触发集 |
+| `US8126` | error | Mount：[Mount] stage/family/coalesce/posture/order 非法或出现禁用字段 |
+| `US8127` | error | Mount：ensure 关系操作缺少 [Mount] 绑定 |
+| `US8201` | error | Const：[Const] target 须为「命名空间.类型」（至少两段） |
+| `US8202` | error | Const：[Const] kind/valueType 不在受控词域 |
+| `US8203` | error | Const：[Const] modifier 与 kind 组合非法 |
+| `US8204` | error | Const：[Const] 成员名非法（文法或关键字） |
+| `US8205` | error | Const：[Const] 成员名重复（单元内/同 target） |
+| `US8206` | error | Const：[Const] 同 target 多单元 kind/modifier 不一致 |
+| `US8207` | error | Const：[Const] 值表达式不在白名单 |
+| `US8208` | error | Const：[Const] 续行无法解析为 Name = Expr |
 | `US9001` | info | Graph：图后端未装配 |
 | `US9002` | info | Obs：观测后端未装配 |
 
@@ -361,11 +412,10 @@ Frame/Usharp/
   src/Usharp.Adapters.Node/                ← 节点适配层（.ushar → ISpecSource/DefinitionSet）
   src/Usharp.Adapters.Declarations/        ← 声明库适配层（配置存储后端 / 词表 / 落库闭环 / 表投影）
   src/Usharp.Adapters.Agent/               ← Agent 领域反转包（[Skill]/[Profile]/[Segment]/[LLMDecl]/端口/工具面）
-  tests/（已迁 Environment\CentralTest\UsharpTests）：
-    Usharp.Tests/             ← MSTest（92 例；核心，零 UR）
-    Usharp.Emit.Tests/        ← MSTest（43 例；与 agent-loop.json 等价比对）
-    Usharp.Adapters.Tests/    ← MSTest（28 例；唯一引 UR 的测试工程）
-    Usharp.Adapters.Observability.Tests/ ← MSTest（7 例；manifest 全量等价门 + 步骤自动埋点）
+  tests/（测试真源 = `verify`；MSTest 迁移见 `Environment\CentralTest\UsharpTests`，非本仓验收前置）：
+    samples/baseline/         ← 正例快照（build / verify 输出，逐字比对）
+    samples/regression/       ← 反例夹具 + expected.tsv（`verify --suite` 断言 code/severity/line/exit）
+    verify 自检               ← UsharpDeclarationLoaderSelfCheck（US0017）+ UsharpValueMapperSelfCheck（enum/guid/bool/depth/setter）
 ```
 
 | 接线决策 | 内容 | 理由 |
@@ -414,7 +464,7 @@ dotnet run --project src\Usharp.Cli -- obs    ..\..\Projects\Plug\Agent\src\Agen
 | **U-V1** | 单一表层语言（不新增第二运行时） | 表层零自有行解析器；全部落到既有基座类型 | ✓ `UsharpParser` 仅薄包 `DslParser` |
 | **U-V2** | 引用即边 | 反向引用/边由编译器产出（不依赖外部脚本清单） | ✓ `UsharpGraphBuilder`；`Edges` 6 类 |
 | **U-V3** | 闸A：未声明坐标编译期报错 | `US1002/1003/1004/1005` 各有用例，含 `文件:行` | ✓ 5 例（`UsharpGateATests`） |
-| **U-V4** | 矩阵即函数：语法层无分支 | 前缀表中无 `if`/`loop`/`switch` 类前缀 | ✓（20 前缀 + 既有声明前缀均无分支语义；`[Obs]` 为观测声明单元，无分支语义） |
+| **U-V4** | 矩阵即函数：语法层无分支 | 前缀表中无 `if`/`loop`/`switch` 类前缀 | ✓（32 前缀 + 既有声明前缀均无分支语义；`[Obs]` 为观测声明单元，无分支语义） |
 | **U-V5** | linter 单一实现 | 悬空/废弃/循环/反向 四检收敛为语言级 | ◐ `Usharp.Cli lint` 四检已可跑（悬空 US2001 / 废弃 US2002 / 循环 US4001 经图后端 / 反向引用报表，单一实现复用核心）；clinerules 侧 PowerShell 四检迁移 → **U4b 待开工** |
 | **U-V6** | dogfooding：`agent-loop` 由 Usharp 编译且等价 | 样例零 error + 既有测试零回归 | ✓ 样例零 error；`RoundSpec` 与 `agent-loop.json` 等价（8 例，批 U3） |
 | **U-V7** | 核心零 UR 依赖 | `Usharp.Syntax`/`Usharp.Semantics` 的 csproj 不含 `UniversalWorkflowFramework`；核心公共签名无 UR 类型 | ✓ 4 个核心 csproj 零命中；`Usharp.sln` 条目仅 11 个 Usharp 工程 + 6 个 CsharpPrj 伞工程（平台叶子与 UR 路径零条目） |
@@ -442,7 +492,7 @@ dotnet run --project src\Usharp.Cli -- obs    ..\..\Projects\Plug\Agent\src\Agen
 | **U-P5** | 节点定位等价 | 层定位三元组 `(LevelId, Id, Scope)` 值等价于 `LevelRef` 形状 | ✓ `gate-a.subspace.ref-scope-ok`（`Step:progress:agent-loop`） |
 | **U-P6** | 骨架等价（真源替换门） | Usharp 产 schema JSON 与 `HierarchySchemas.HistoryTaskNodeJson` **规范化 JSON 全等** | ✓ `emit.hierarchy.equivalent-to-history-task-node`（常量 = 产出快照，单向依赖见 §10.9 ⑤） |
 | **U-P7** | 闭包不受污染 | `Usharp.Syntax`/`Usharp.Semantics` 仍零 UR、零 Observability；新增引用仅零依赖 `Modules\DeclarativeDataflow` | ✓（P2 复核） |
-| **U-P8** | 语言单元登记制 | 新增语言单元 = `UsharpUnitRegistry` 一行登记；前缀表条目数稳定（当前 20） | ✓ `UsharpParser.PrefixesRegistered()` 20 前缀（`usharp.syntax` 用例） |
+| **U-P8** | 语言单元登记制 | 新增语言单元 = `UsharpUnitRegistry` 一行登记；前缀表条目数稳定（当前 32） | ✓ `UsharpParser.PrefixesRegistered()` + `verify` 前缀一致性（13 核心 + 19 领域 = 32；`UsharpUnitRegistry.Units` 第三份表已删） |
 | **U-P9** | 连接可解析且不增第二路径 | `US1015`/`US1016` 各 ≥1 反例；连接产出经**既有** `RoundSpecChainMapper` → 建链路径 | ✓ `emit.connects.ok`（`linkCount=1`）+ 两反例 |
 | **U-P10** | 连接进入图校验 | 跨块写依赖未声明 → `US1017` | ✓ `emit.connects.write-dependency-missing`（恰 1 条 error） |
 

@@ -22,19 +22,10 @@ public static class TransitionReconciler
         ArgumentNullException.ThrowIfNull(compilation);
         if (string.IsNullOrWhiteSpace(overSpaceId)) return TransitionTableReadResult.None;
 
-        IReadOnlyDictionary<string, string>? table = null;
-        var matched = 0;
-        foreach (var binding in UsharpMatrixEmitter.Emit(compilation).Bindings)
-        {
-            if (binding.Kind != UsharpMatrixKind.Transition) continue;
-            if (!string.Equals(binding.OverSpaceId, overSpaceId, StringComparison.Ordinal)) continue;
-            if (binding.TransitionTable is not { Count: > 0 } candidate) continue;
-
-            matched++;
-            table ??= candidate;
-        }
-
-        return new TransitionTableReadResult(table, matched, overSpaceId);
+        // 判据单源 = TransitionTableScan（D-9）：同空间号 + 表非空才计入命中（既有口径逐字保留）。
+        return TransitionTableScan.Scan(UsharpMatrixEmitter.Emit(compilation).Bindings,
+            binding => string.Equals(binding.OverSpaceId, overSpaceId, StringComparison.Ordinal)
+                       && binding.TransitionTable is { Count: > 0 });
     }
 
     /// <summary>

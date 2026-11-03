@@ -27,8 +27,7 @@ public static class UsharpStepSequence
     }
 
     /// <summary>
-    /// <c>[Flow]</c> 声明的转移表（<c>[Flow]</c> → 步骤键序列 → 相邻对的唯一映射点；
-    /// 原 <c>UsharpTransitionTableBuilder</c> 已并入本类，R-10）。
+    /// <c>[Flow]</c> 声明的转移表（<c>[Flow]</c> → 步骤键序列 → 相邻对的唯一映射点；R-10 薄转发已并入）。
     /// </summary>
     /// <param name="flow">流声明。</param>
     public static IReadOnlyDictionary<string, string> ToTransitionTable(UsharpFlowDecl flow)

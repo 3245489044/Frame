@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Operation.DataStoreDriven.Abstractions;
+using Usharp.Semantics;
 
 namespace Usharp.Adapters.Declarations;
 
@@ -36,14 +37,8 @@ public sealed record ReferenceEdgeVocabularyReport(
 /// </summary>
 public static class ReferenceEdgeVocabularyCheck
 {
-    /// <summary>归属族边常量（4 类；本族对账基线。工作流静态引用边不在此族）。</summary>
-    public static readonly IReadOnlyList<string> HierarchyEdgeConstants = new[]
-    {
-        ReferenceTypes.HistoryOwnsTask,
-        ReferenceTypes.CrossDbLink,
-        ReferenceTypes.SessionOwns,
-        ReferenceTypes.TaskOwnsTask,
-    };
+    /// <summary>归属族边常量（4 类；常量单源 = <see cref="UsharpOwnershipEdgeVocabulary"/>，D-11）。</summary>
+    public static readonly IReadOnlyList<string> HierarchyEdgeConstants = UsharpOwnershipEdgeVocabulary.All;
 
     /// <summary>
     /// 对账：<paramref name="declaredEdgeTypes"/>（声明面产出）↔ 归属族常量集。

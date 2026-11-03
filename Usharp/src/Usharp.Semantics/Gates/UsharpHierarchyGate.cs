@@ -65,7 +65,7 @@ internal sealed class HierarchyGateRule : IGateRule<UsharpGateModel>
         // ③ 层图结构判据：无划分声明则无事可查（不调用内核、不产生信息型噪声）。
         if (graph.Pairs.Count == 0) return;
 
-        foreach (var issue in HierarchySchemaValidator.Validate(BuildForestSchema(graph.Pairs)))
+        foreach (var issue in HierarchySchemaValidator.Validate(BuildForestSchema(graph)))
         {
             // 归因取「问题文本提到的层」所属声明（环内空间），而不是永远报首个空间（E-8）。
             var owner = graph.DeclaredSpaces.FirstOrDefault(
@@ -77,41 +77,20 @@ internal sealed class HierarchyGateRule : IGateRule<UsharpGateModel>
     }
 
     /// <summary>
-    /// 把「包含对」投影为单根 <see cref="HierarchySchema"/>：合成根 → 全部顶层空间（含自环者的自环不计入"有父"）。
-    /// 层 Id 用空间 Id 原文（校验只关心层图结构，不解释实体语义）。
+    /// 把层图投影为单根 <see cref="HierarchySchema"/>：合成根 → 全部根层（D-7：层 Id / 根判定复用
+    /// <see cref="UsharpHierarchyGraph.LevelIds"/> / <see cref="UsharpHierarchyGraph.Roots"/>，不再各算一遍）。
     /// </summary>
-    private static HierarchySchema BuildForestSchema(IReadOnlyList<(string Parent, string Child, string Edge)> pairs)
+    private static HierarchySchema BuildForestSchema(UsharpHierarchyGraph graph)
     {
-        var childIds = new HashSet<string>(StringComparer.Ordinal);
-        var levelIds = new List<string>();
-        var seen = new HashSet<string>(StringComparer.Ordinal) { VirtualRootLevelId };
-
-        foreach (var (parent, child, _) in pairs)
-        {
-            if (seen.Add(parent)) levelIds.Add(parent);
-            if (seen.Add(child)) levelIds.Add(child);
-            if (!string.Equals(parent, child, StringComparison.Ordinal)) childIds.Add(child);
-        }
-
-        var contains = new Dictionary<string, List<HierarchyContainment>>(StringComparer.Ordinal);
-        foreach (var (parent, child, edge) in pairs)
-        {
-            if (!contains.TryGetValue(parent, out var list))
-                contains[parent] = list = new List<HierarchyContainment>();
-            list.Add(new HierarchyContainment(child, edge));
-        }
-
-        var levels = new List<HierarchyLevelSpec>(levelIds.Count + 1)
+        var levels = new List<HierarchyLevelSpec>(graph.LevelIds.Count + 1)
         {
             new(VirtualRootLevelId, VirtualRootLevelId,
-                levelIds.Where(id => !childIds.Contains(id))
-                        .Select(id => new HierarchyContainment(id, VirtualRootEdgeType))
-                        .ToList()),
+                graph.Roots.Select(id => new HierarchyContainment(id, VirtualRootEdgeType)).ToList()),
         };
 
-        foreach (var id in levelIds)
+        foreach (var id in graph.LevelIds)
             levels.Add(new HierarchyLevelSpec(id, id,
-                contains.TryGetValue(id, out var list) ? list : new List<HierarchyContainment>()));
+                graph.ChildrenOf(id).Select(c => new HierarchyContainment(c.Child, c.Edge)).ToList()));
 
         return new HierarchySchema(VirtualRootLevelId, levels);
     }

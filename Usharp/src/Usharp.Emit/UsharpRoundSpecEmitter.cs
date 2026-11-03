@@ -79,9 +79,7 @@ public static class UsharpRoundSpecEmitter
         foreach (var step in flow.Steps)
         {
             // 同文件优先（消除跨文件同名静默首胜）；无同文件声明 ⇒ 回退全量（跨文件引用仍可用）。
-            var node = sameFileNodes.TryGetValue(step.Key, out var own)
-                ? own
-                : (nodes.TryGetValue(step.Key, out var shared) ? shared : null);
+            var node = UsharpNodeLookup.Resolve(step.Key, sameFileNodes, nodes);
             if (node is null)
             {
                 diagnostics?.Add(UsharpDiagnostic.Error(UsharpCodes.FlowStepUnmapped,

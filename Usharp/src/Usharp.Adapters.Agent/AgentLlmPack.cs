@@ -150,10 +150,13 @@ internal sealed class LlmPromptProjector : IUsharpFacetProjector
     public object Emit(UsharpCompilation compilation)
     {
         var map = new Dictionary<string, LlmPromptContract>(StringComparer.Ordinal);
-        foreach (var d in LlmDecls(compilation))
-            map[d.Name] = new LlmPromptContract(d.Name, d.SystemBody, d.UserBody, d.InputFields, d.Temp, d.MaxCandidates);
+        foreach (var d in LlmDecls(compilation)) map[d.Name] = ToPrompt(d);
         return map;
     }
+
+    /// <summary>提示词契约构造**单点**（D-13：llm.prompt 与 llm.contract 共用，禁止两处各拼一遍）。</summary>
+    internal static LlmPromptContract ToPrompt(UsharpLlmDecl d)
+        => new(d.Name, d.SystemBody, d.UserBody, d.InputFields, d.Temp, d.MaxCandidates);
 
     /// <summary>契约声明集（投影器共用的 facet 读取单点）。</summary>
     internal static IReadOnlyList<UsharpLlmDecl> LlmDecls(UsharpCompilation compilation)
@@ -171,7 +174,7 @@ internal sealed class LlmContractProjector : IUsharpFacetProjector
         var map = new Dictionary<string, LlmContract>(StringComparer.Ordinal);
         foreach (var d in LlmPromptProjector.LlmDecls(compilation))
         {
-            var prompt = new LlmPromptContract(d.Name, d.SystemBody, d.UserBody, d.InputFields, d.Temp, d.MaxCandidates);
+            var prompt = LlmPromptProjector.ToPrompt(d);
             var output = new LlmOutputContract(d.Name, d.OutputRoot, d.OutputType, d.OutputFields);
             map[d.Name] = new LlmContract(prompt, output);
         }

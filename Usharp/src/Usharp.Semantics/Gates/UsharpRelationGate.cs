@@ -14,9 +14,8 @@ internal sealed class RelationGateRule : IGateRule<UsharpGateModel>
 {
     public string Name => "usharp.relation";
 
-    /// <summary>归属边集合（关系操作的唯一合法边域；与 hierarchy.ushar 的 contains= 对账）。</summary>
-    private static readonly string[] OwnershipEdges =
-        { "cross_db_link", "history_owns_task", "session_owns", "task_owns_task" };
+    /// <summary>归属边集合（常量单源 = <see cref="UsharpOwnershipEdgeVocabulary"/>；与 hierarchy.ushar 的 contains= 对账）。</summary>
+    private static readonly IReadOnlyList<string> OwnershipEdges = UsharpOwnershipEdgeVocabulary.All;
 
     public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
     {

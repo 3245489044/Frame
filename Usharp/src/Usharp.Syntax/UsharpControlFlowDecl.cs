@@ -22,7 +22,7 @@ public sealed record UsharpBranchDecl(
 {
     public static UsharpBranchDecl? From(DslDeclaration d)
     {
-        if (d.Kind != DslSymbolKind.Branch || string.IsNullOrWhiteSpace(d.Name)) return null;
+        if (string.IsNullOrWhiteSpace(d.Name)) return null;
         return new UsharpBranchDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldNode).Trim(),
             d.Field(UsharpLanguage.FieldJudge).Trim(), d.Field(UsharpLanguage.FieldThen).Trim(),
@@ -44,7 +44,7 @@ public sealed record UsharpSwitchDecl(
 
     public static UsharpSwitchDecl? From(DslDeclaration d)
     {
-        if (d.Kind != DslSymbolKind.Switch || string.IsNullOrWhiteSpace(d.Name)) return null;
+        if (string.IsNullOrWhiteSpace(d.Name)) return null;
         var routes = UsharpControlFlowFields.Parse(d.Field(UsharpLanguage.FieldRoutes), UsharpLanguage.FieldRoutes);
         return new UsharpSwitchDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldNode).Trim(),
@@ -71,7 +71,7 @@ public sealed record UsharpCallDecl(
 
     public static UsharpCallDecl? From(DslDeclaration d)
     {
-        if (d.Kind != DslSymbolKind.Call || string.IsNullOrWhiteSpace(d.Name)) return null;
+        if (string.IsNullOrWhiteSpace(d.Name)) return null;
         var inBindings = UsharpControlFlowFields.Parse(d.Field(UsharpLanguage.FieldInBindings), UsharpLanguage.FieldInBindings);
         var outBindings = UsharpControlFlowFields.Parse(d.Field(UsharpLanguage.FieldOutBindings), UsharpLanguage.FieldOutBindings);
         return new UsharpCallDecl(
@@ -102,7 +102,7 @@ public sealed record UsharpRegionDecl(
 
     public static UsharpRegionDecl? From(DslDeclaration d)
     {
-        if (d.Kind != DslSymbolKind.Region || string.IsNullOrWhiteSpace(d.Name)) return null;
+        if (string.IsNullOrWhiteSpace(d.Name)) return null;
         var inBindings = UsharpControlFlowFields.Parse(d.Field(UsharpLanguage.FieldInBindings), UsharpLanguage.FieldInBindings);
         var outBindings = UsharpControlFlowFields.Parse(d.Field(UsharpLanguage.FieldOutBindings), UsharpLanguage.FieldOutBindings);
         return new UsharpRegionDecl(
@@ -131,7 +131,7 @@ public sealed record UsharpWhenDecl(
 {
     public static UsharpWhenDecl? From(DslDeclaration d)
     {
-        if (d.Kind != DslSymbolKind.When || string.IsNullOrWhiteSpace(d.Name)) return null;
+        if (string.IsNullOrWhiteSpace(d.Name)) return null;
         return new UsharpWhenDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldFrom).Trim(),
             d.Field(UsharpLanguage.FieldTo).Trim(), d.Field(UsharpLanguage.FieldJudge).Trim(),
@@ -149,7 +149,7 @@ public sealed record UsharpGuardDecl(
 {
     public static UsharpGuardDecl? From(DslDeclaration d)
     {
-        if (d.Kind != DslSymbolKind.Guard || string.IsNullOrWhiteSpace(d.Name)) return null;
+        if (string.IsNullOrWhiteSpace(d.Name)) return null;
         return new UsharpGuardDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(),
             UsharpLanguage.SplitSegments(d.Field(UsharpLanguage.FieldNodes)).ToList(),

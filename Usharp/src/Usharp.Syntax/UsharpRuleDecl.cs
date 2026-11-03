@@ -63,6 +63,8 @@ public sealed record UsharpRuleDecl(
             var bag = UsharpFieldBag.Parse(new[] { line }, skip: 0, comparer: StringComparer.Ordinal);
             if (bag.Fields.Count == 0)
             {
+                // 无 `=` ⇒ 条件行；空键（`=x`）⇒ 坏段（与旧口径一致：不静默当条件）。
+                if (line.StartsWith('=')) { unparsed.Add(line); continue; }
                 conditions.Add(line);
                 continue;
             }

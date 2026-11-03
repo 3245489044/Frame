@@ -221,9 +221,7 @@ public static class DeclaredBundleBuilder
             foreach (var step in flow.Steps)
             {
                 if (string.IsNullOrWhiteSpace(step.Key)) continue;
-                var spec = sameFileNodes.TryGetValue(step.Key, out var own)
-                    ? own
-                    : (nodes.TryGetValue(step.Key, out var shared) ? shared : null);
+                var spec = Usharp.Emit.UsharpNodeLookup.Resolve(step.Key, sameFileNodes, nodes);
                 steps.Add(new ManifestStep(
                     step.Key,
                     spec?.FuncName ?? step.Key,

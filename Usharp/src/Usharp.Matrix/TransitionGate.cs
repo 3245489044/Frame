@@ -50,20 +50,9 @@ public sealed class TransitionGate
     {
         if (emit is null || string.IsNullOrWhiteSpace(matrixId)) return TransitionTableReadResult.None;
 
-        IReadOnlyDictionary<string, string>? table = null;
-        var matched = 0;
-        string? overSpaceId = null;
-        foreach (var binding in emit.Bindings)
-        {
-            if (binding.Kind != UsharpMatrixKind.Transition) continue;
-            if (!string.Equals(binding.MatrixId, matrixId, StringComparison.Ordinal)) continue;
-
-            matched++;
-            overSpaceId ??= binding.OverSpaceId;
-            if (binding.TransitionTable is { Count: > 0 } candidate) table ??= candidate;
-        }
-
-        return new TransitionTableReadResult(table, matched, overSpaceId);
+        // 判据单源 = TransitionTableScan（D-9）。
+        return TransitionTableScan.Scan(emit.Bindings,
+            binding => string.Equals(binding.MatrixId, matrixId, StringComparison.Ordinal));
     }
 
     /// <summary>终态（无后继）：该态已声明且转移表无该键。</summary>

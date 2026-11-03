@@ -1,0 +1,3 @@
+矩阵绑定 1 个 / 装配诊断 0
+   · ProgressMatrix（值域矩阵，over=Param，行 3）
+(no diagnostics)

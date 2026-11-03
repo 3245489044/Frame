@@ -48,19 +48,19 @@ internal sealed class ProcessBindingGateRule : IGateRule<UsharpGateModel>
         foreach (var f in model.Flows)
             Bind(f.OverSpaceId, f.ProcessId, $"[Flow] {f.FlowId}", f.SourceFile, f.LineNumber);
 
-        // 一层多绑定：一次一因（判定口径与 UsharpProcessBindings.MultiBoundLayers 一致；产出面据此「不产出」）。
-        // 单次枚举 + 一次分组 —— 不再重复枚举矩阵/流（原三重枚举已收敛）。
-        foreach (var group in declarations
-                     .Where(b => b.ProcessId is not null && !string.IsNullOrWhiteSpace(b.Layer))
-                     .GroupBy(b => b.Layer!, StringComparer.Ordinal))
+        // 一层多绑定：判定口径 = UsharpProcessBindings.MultiBoundLayers（单一判据）；本规则只做归因报文。
+        var multi = UsharpProcessBindings.MultiBoundLayers(
+            declarations.Select(b => ((string?)b.Layer, (string?)b.ProcessId)));
+        foreach (var layer in multi)
         {
-            if (group.Count() <= 1) continue;
+            var group = declarations
+                .Where(b => b.ProcessId is not null && string.Equals(b.Layer, layer, StringComparison.Ordinal))
+                .ToList();
 
-            var first = group.First();
             foreach (var duplicate in group.Skip(1))
             {
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProcessorBindingNotSingle,
-                    $"层 '{group.Key}' 的处理代数重复声明：{string.Join(" / ", group.Select(b => b.Owner))} —— 一层恰一个处理器声明者",
+                    $"层 '{layer}' 的处理代数重复声明：{string.Join(" / ", group.Select(b => b.Owner))} —— 一层恰一个处理器声明者",
                     duplicate.File, duplicate.Line));
             }
         }

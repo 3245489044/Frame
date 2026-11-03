@@ -53,6 +53,12 @@ public static class UsharpDiagnosticCatalog
     /// <summary>声明装载/回填/投影执行异常（失败原因必须可见，不静默吞）。</summary>
     public const string DeclarationLoadFailure = "US0017";
 
+    /// <summary>控制流子流嵌套超过 <c>MaxCallDepth</c>：截断可见化（保留前 N 层，不再静默返回空表）。</summary>
+    public const string CallDepthTruncated = "US0018";
+
+    /// <summary>控制流绑定段不可解析（<c>in=</c>/<c>out=</c>/<c>routes=</c> 中的无 <c>=</c> 段 / 空键 / 空值）。</summary>
+    public const string ControlFlowSegmentUnparsed = "US0019";
+
     // ── US79xx 键身份语义层（[Entity]/[KeyLexicon]/[AnswerShape]/[WindowShape]/[KeyPolicy]/[KeyBridge]）──
     /// <summary>[Entity] 语义轴字段缺失/非法。</summary>
     public const string IdentityEntityInvalid = "US7901";
@@ -149,6 +155,9 @@ public static class UsharpDiagnosticCatalog
     public const string TableColumnDuplicate = "US7203";
     public const string RecordShapeInvalid = "US7204";
     public const string RecordTableUndeclared = "US7205";
+
+    /// <summary><c>[Record] table=</c> 使用表容器名而非表 id（兼容窗口：先告警，后续收紧为 error）。</summary>
+    public const string RecordTableUsesContainer = "US7206";
     public const string LlmContractOutputUndeclared = "US7301";
     public const string LlmContractInputUndeclared = "US7302";
     public const string LlmDeclShapeInvalid = "US7303";
@@ -269,8 +278,10 @@ public static class UsharpDiagnosticCatalog
         E(FlowIdDuplicate, "Flow", UsharpSeverity.Error, "同名 [Flow] 重复声明", "flowId"),
         E(KeySpaceDuplicate, "KeySpace", UsharpSeverity.Error, "多个 [KeySpace] 声明（单键空间模型）", "keyspaceId"),
         E(DeclarationLoadFailure, "Declaration", UsharpSeverity.Error, "声明装载/回填/投影执行失败", "reason"),
+        E(CallDepthTruncated, "ControlFlow", UsharpSeverity.Warning, "控制流子流嵌套超过 MaxCallDepth（已截断，后续子流未装配）", "flowId, limit"),
+        E(ControlFlowSegmentUnparsed, "Binding", UsharpSeverity.Error, "控制流绑定段不可解析（无 '=' / 空键 / 空值）", "declaration, field, segment"),
         E(MatrixRowInvalid, "Matrix", UsharpSeverity.Error, "矩阵行形态非法", "matrixId, row"),
-        E(AxisKindUnknown, "Matrix", UsharpSeverity.Error, "矩阵轴种类非法", "matrixId, kind"),
+        E(AxisKindUnknown, "Space", UsharpSeverity.Error, "空间坐标值类非法（闸A 前移；矩阵装配同判据）", "spaceId, axis, kind"),
         E(SpaceKindUnknown, "Space", UsharpSeverity.Error, "[Space] kind= 取值非法", "spaceId, kind"),
         E(AxisLineUnparsed, "Space", UsharpSeverity.Error, "缩进块内坐标行不可解析", "spaceId, line"),
         E(CommandChannelMalformed, "Command", UsharpSeverity.Error, "[Command] channel= 不含 '.'", "action, channel"),
@@ -350,6 +361,7 @@ public static class UsharpDiagnosticCatalog
         E(TableColumnDuplicate, "Table", UsharpSeverity.Error, "列名重复", "tableId, column"),
         E(RecordShapeInvalid, "Record", UsharpSeverity.Error, "记录声明形态非法", "recordId"),
         E(RecordTableUndeclared, "Record", UsharpSeverity.Error, "记录引用的表未声明", "recordId, tableId"),
+        E(RecordTableUsesContainer, "Record", UsharpSeverity.Warning, "[Record] table= 使用容器名而非表 id（兼容期告警，后续收紧）", "recordId, table"),
 
         E(LlmContractOutputUndeclared, "LLMDecl", UsharpSeverity.Error, "output= 字段未在 O 区声明", "llmId, field"),
         E(LlmContractInputUndeclared, "LLMDecl", UsharpSeverity.Error, "input= 字段未在 I 区声明", "llmId, field"),

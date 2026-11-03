@@ -122,9 +122,4 @@ public static class UsharpDeclarationLoader
                 DeclarationLoadStatus.Exception, source.Path, null, null, new[] { diagnostic });
         }
     }
-
-    /// <summary>诊断是否为 error（判据单源 = <see cref="UsharpDiagnostics"/>；本方法仅作既有调用面转发）。</summary>
-    /// <param name="diagnostic">诊断。</param>
-    public static bool IsError(UsharpDiagnostic diagnostic)
-        => UsharpDiagnostics.IsError(diagnostic);
 }

@@ -1,0 +1,9 @@
+# 反例（E-13）：控制流绑定段坏段 → US0019；重复键 → US1019（均由共享词法 UsharpFieldBag 产出）。
+[Space] Step: kind=keys
+  a
+
+[Flow] F: over=Step
+  step a
+
+[Switch] S: flow=F | node=a | selector=x | routes=a=1;bad;a=2
+[Call] C: flow=F | node=a | child=F | in=a=1;oops

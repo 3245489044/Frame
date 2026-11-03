@@ -1,4 +1,5 @@
 using Plate.DslMethod.Model;
+using Usharp.Syntax;
 
 namespace Usharp.Adapters.Agent;
 
@@ -38,15 +39,8 @@ public sealed record UsharpProfileDecl(
     }
 
     private static bool IsOn(string? value)
-    {
-        var v = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        return string.Equals(v, "on", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(v, "1", StringComparison.Ordinal);
-    }
+        => UsharpLineReader.TryBool(value, UsharpBoolLexicon.OnOff, out var parsed) && parsed;
 
     private static IReadOnlyList<string> SplitList(string? value)
-        => string.IsNullOrWhiteSpace(value)
-            ? Array.Empty<string>()
-            : value.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        => UsharpLineReader.SplitList(value, ',', ' ');
 }

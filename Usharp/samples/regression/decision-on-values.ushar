@@ -1,0 +1,7 @@
+# 反例（E-1）：kind=values 空间上的判据续行必须报 US1105，不得静默吞掉。
+[Space] S: kind=values
+  a: flag
+  b: flag
+
+[Matrix] M: over=S
+  rule r1 | label=L | priority=1 | when=a.b

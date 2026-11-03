@@ -1,0 +1,6 @@
+# 反例（E-7）：值型空间坐标值类非法 → 闸A 即报 US0005（不等到矩阵装配；矩阵侧不双报）。
+[Space] S: kind=values
+  x: bogus
+
+[Matrix] M: over=S
+  x = x + 1

@@ -26,7 +26,8 @@ public static class UsharpCliCommands
           matrix <file|dir>                                         矩阵装配取数（值域矩阵 / 转移表）
           obs    <file|dir>                                         观测取数（[Obs] 闸A + manifest；未装配后端 → US9002）
           relation-plan <file|dir>                                  关系计划发射（operations / invariants / derivations）
-          verify <file|dir>                                         框架一致性审计（码表/严重度/重复 id/前缀表）
+          verify <file|dir> [--emit-flows]                         框架一致性审计（码表/严重度/重复 id/前缀表；--emit-flows 追加发射期诊断）
+          verify --suite <dir>                                     回归套件（按 expected.tsv 逐文件断言 code/severity/line/exit）
         """;
 
     /// <summary>命令入口。</summary>
@@ -58,7 +59,7 @@ public static class UsharpCliCommands
             "graph" => RunGraph(rest, output, backend),
             "obs" => RunWithPath(rest, output, (path, writer) => Obs(path, writer, obsBackend)),
             "relation-plan" => RunWithPath(rest, output, RelationPlan),
-            "verify" => RunWithPath(rest, output, Verify),
+            "verify" => RunVerify(rest, output),
             _ => Unknown(command, output),
         };
     }
@@ -181,9 +182,13 @@ public static class UsharpCliCommands
     }
 
     /// <summary>
-    /// 框架一致性审计（R-4/R-12 护栏）：码表唯一性 / 严重度与码表一致 / 重复 id / 前缀表一致。
+    /// 框架一致性审计（R-4/R-12 护栏）：码表唯一性 / 严重度与码表一致 / 重复 id / 前缀表一致；
+    /// <c>emitFlows</c> 为真时追加全部 <c>[Flow]</c> 的发射期诊断（US0018/US5002 等可回归）。
     /// </summary>
-    public static int Verify(string path, TextWriter output)
+    /// <param name="path">源文件或目录。</param>
+    /// <param name="output">输出。</param>
+    /// <param name="emitFlows">是否追加发射期诊断。</param>
+    public static int Verify(string path, TextWriter output, bool emitFlows = false)
     {
         var compilation = Compile(path, output, out var failure);
         if (compilation is null) return failure;
@@ -196,8 +201,159 @@ public static class UsharpCliCommands
         foreach (var issue in issues) output.WriteLine($"   · {issue}");
 
         WriteDiagnostics(compilation.Diagnostics, output);
-        return compilation.HasErrors || issues.Count > 0 ? ExitFailed : ExitOk;
+
+        var emitErrors = 0;
+        if (emitFlows)
+        {
+            var emitDiagnostics = EmitFlowDiagnostics(compilation);
+            output.WriteLine($"发射审计：流 {compilation.Flows.Count} / 诊断 {emitDiagnostics.Count}");
+            WriteDiagnostics(emitDiagnostics, output);
+            emitErrors = emitDiagnostics.Count(d => d.Severity == UsharpSeverity.Error);
+        }
+
+        return compilation.HasErrors || issues.Count > 0 || emitErrors > 0 ? ExitFailed : ExitOk;
     }
+
+    /// <summary>verify 参数解析：<c>[--emit-flows] &lt;path&gt;</c> 或 <c>--suite &lt;dir&gt;</c>。</summary>
+    private static int RunVerify(IReadOnlyList<string> args, TextWriter output)
+    {
+        string? path = null;
+        var suite = false;
+        var emitFlows = false;
+
+        foreach (var arg in args)
+        {
+            switch (arg)
+            {
+                case "--suite":
+                    suite = true;
+                    break;
+                case "--emit-flows":
+                    emitFlows = true;
+                    break;
+                default:
+                    if (path is not null)
+                    {
+                        output.WriteLine($"用法错误：verify 只接受一个 <file|dir>（多余参数 '{arg}'）。");
+                        output.WriteLine(Usage);
+                        return ExitUsage;
+                    }
+                    path = arg;
+                    break;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            output.WriteLine("用法错误：verify 需要 <file|dir> 或 --suite <dir>。");
+            output.WriteLine(Usage);
+            return ExitUsage;
+        }
+
+        return suite ? VerifySuite(path, output) : Verify(path, output, emitFlows);
+    }
+
+    /// <summary>
+    /// 回归套件：按 <c>&lt;dir&gt;/expected.tsv</c> 逐文件独立编译，断言
+    /// <c>(code, severity, line, exit)</c>；可选第 6 列 <c>emit</c> 追加发射期诊断（E-18）。
+    /// <para>行格式：<c>file|code|severity|line|exit[|emit]</c>；<c>#</c> 注释；line 支持 <c>*</c>。</para>
+    /// </summary>
+    public static int VerifySuite(string directory, TextWriter output)
+    {
+        var manifest = Path.Combine(directory, "expected.tsv");
+        if (!File.Exists(manifest))
+        {
+            output.WriteLine($"回归套件：缺少清单 {manifest}（行格式 file|code|severity|line|exit[|emit]）");
+            return ExitUsage;
+        }
+
+        var failures = 0;
+        var cases = 0;
+
+        foreach (var raw in File.ReadAllLines(manifest))
+        {
+            var text = raw.Trim();
+            if (text.Length == 0 || text.StartsWith('#')) continue;
+
+            var parts = text.Split('|', StringSplitOptions.TrimEntries);
+            if (parts.Length < 5)
+            {
+                output.WriteLine($"   ✗ 用例格式非法：{text}");
+                failures++;
+                continue;
+            }
+
+            cases++;
+            var file = Path.Combine(directory, parts[0]);
+            if (!File.Exists(file))
+            {
+                output.WriteLine($"   ✗ {parts[0]}: 文件不存在");
+                failures++;
+                continue;
+            }
+
+            var compilation = UsharpCompilation.CompileSources(UsharpSourceLoader.FromPath(file));
+            var diagnostics = compilation.Diagnostics.ToList();
+            var expectEmit = parts.Length >= 6 && string.Equals(parts[5], "emit", StringComparison.OrdinalIgnoreCase);
+            if (expectEmit) diagnostics.AddRange(EmitFlowDiagnostics(compilation));
+
+            var code = parts[1];
+            var severity = parts[2];
+            var line = parts[3];
+            var expectedExit = int.TryParse(parts[4], out var parsedExit) ? parsedExit : ExitFailed;
+
+            var matched = diagnostics.Any(d =>
+                string.Equals(d.Code, code, StringComparison.Ordinal)
+                && string.Equals(SeverityText(d.Severity), severity, StringComparison.OrdinalIgnoreCase)
+                && (line == "*" || d.LineNumber.ToString() == line));
+
+            var actualExit = compilation.HasErrors || diagnostics.Any(d => d.Severity == UsharpSeverity.Error)
+                ? ExitFailed
+                : ExitOk;
+
+            if (!matched)
+            {
+                failures++;
+                output.WriteLine($"   ✗ {parts[0]}: 未命中 {code}/{severity}@{line}（实得：{Describe(diagnostics)}）");
+            }
+
+            if (actualExit != expectedExit)
+            {
+                failures++;
+                output.WriteLine($"   ✗ {parts[0]}: 退出码期望 {expectedExit}，实得 {actualExit}");
+            }
+        }
+
+        output.WriteLine($"回归套件：{cases} 例 / {(failures == 0 ? "通过" : failures + " 项失败")}");
+        return failures == 0 ? ExitOk : ExitFailed;
+    }
+
+    /// <summary>全部 <c>[Flow]</c> 的发射期诊断（去重；E-18/E-4 回归用）。</summary>
+    private static IReadOnlyList<UsharpDiagnostic> EmitFlowDiagnostics(UsharpCompilation compilation)
+    {
+        var bag = new UsharpDiagnosticBag();
+        foreach (var flow in compilation.Flows)
+        {
+            var result = Usharp.Emit.UsharpRoundSpecEmitter.Emit(compilation, flow.FlowId);
+            bag.AddRange(result.Diagnostics);
+        }
+
+        bag.AddRange(Usharp.Emit.UsharpDeclarationLoaderSelfCheck.Run()
+            .Select(issue => UsharpDiagnostic.Error(UsharpCodes.DeclarationLoadFailure, issue, "(selfcheck)", 0)));
+        return bag.Items;
+    }
+
+    private static string SeverityText(UsharpSeverity severity) => severity switch
+    {
+        UsharpSeverity.Error => "error",
+        UsharpSeverity.Warning => "warn",
+        _ => "info",
+    };
+
+    private static string Describe(IReadOnlyList<UsharpDiagnostic> diagnostics)
+        => diagnostics.Count == 0
+            ? "(无诊断)"
+            : string.Join(", ", diagnostics.Select(d => $"{d.Code}/{SeverityText(d.Severity)}@{d.LineNumber}"));
 
     // ---------- 内部：解析与报表 ----------
 

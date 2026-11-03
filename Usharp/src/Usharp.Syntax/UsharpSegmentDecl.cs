@@ -64,12 +64,7 @@ public sealed record UsharpSegmentDecl(
     }
 
     private static bool IsOn(string? value)
-    {
-        var v = UsharpLineReader.NullIfEmpty(value);
-        return string.Equals(v, "on", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(v, "1", StringComparison.Ordinal);
-    }
+        => UsharpLineReader.TryBool(value, UsharpBoolLexicon.OnOff, out var parsed) && parsed;
 
     /// <summary>数值字段（未声明/非法 ⇒ <paramref name="fallback"/>）。</summary>
     private static int ParseInt(string? value, int fallback)

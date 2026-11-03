@@ -27,38 +27,12 @@ public sealed record UsharpUnitSpec<TDecl>(
 /// </summary>
 public static class UsharpUnitRegistry
 {
-    /// <summary>核心单元（声明序）。</summary>
-    public static readonly IReadOnlyList<(string Prefix, DslSymbolKind Kind)> Units = new[]
-    {
-        (UsharpLanguage.SpacePrefix, DslSymbolKind.Space),
-        (UsharpLanguage.ObsPrefix, DslSymbolKind.Obs),
-        (UsharpLanguage.MatrixPrefix, DslSymbolKind.Matrix),
-        (UsharpLanguage.FlowPrefix, DslSymbolKind.Flow),
-        (UsharpLanguage.RefPrefix, DslSymbolKind.Ref),
-        (UsharpLanguage.DomainPrefix, DslSymbolKind.Domain),
-        (UsharpLanguage.GatherPrefix, DslSymbolKind.Gather),
-        (UsharpLanguage.TablePrefix, DslSymbolKind.Table),
-        (UsharpLanguage.RecordPrefix, DslSymbolKind.Record),
-        (UsharpLanguage.ConfigPrefix, DslSymbolKind.Config),
-        (UsharpLanguage.RulePrefix, DslSymbolKind.Rule),
-        (UsharpLanguage.ConstPrefix, DslSymbolKind.Const),
-        (UsharpLanguage.KeySpacePrefix, DslSymbolKind.KeySpace),
-        (UsharpLanguage.CommandPrefix, DslSymbolKind.Command),
-        (UsharpLanguage.ReadModelPrefix, DslSymbolKind.ReadModel),
-        (UsharpLanguage.RelationPrefix, DslSymbolKind.Relation),
-        (UsharpLanguage.InvariantPrefix, DslSymbolKind.Invariant),
-        (UsharpLanguage.DerivePrefix, DslSymbolKind.Derive),
-        (UsharpLanguage.MountPrefix, DslSymbolKind.Mount),
-        (UsharpLanguage.SegmentPrefix, DslSymbolKind.Segment),
-        (UsharpLanguage.EntityPrefix, DslSymbolKind.Entity),
-        (UsharpLanguage.KeyLexiconPrefix, DslSymbolKind.KeyLexicon),
-        (UsharpLanguage.AnswerShapePrefix, DslSymbolKind.AnswerShape),
-        (UsharpLanguage.WindowShapePrefix, DslSymbolKind.WindowShape),
-        (UsharpLanguage.KeyPolicyPrefix, DslSymbolKind.KeyPolicy),
-        (UsharpLanguage.KeyBridgePrefix, DslSymbolKind.KeyBridge),
-    };
-
-    /// <summary>默认 facet provider 集（序 = <see cref="Units"/>）。</summary>
+    /// <summary>
+    /// 默认 facet provider 集（序 = 既有编译流序：spaces → obs → Matrix → Flow → Ref → Domain → Gather →
+    /// Table → Record → Config → Rule → KeySpace → Command → ReadModel → 关系/身份面；保诊断归因序与产物序）。
+    /// <para>前缀表唯一真源 = <c>UsharpCorePrefixes</c> + <c>UsharpPrefixes.DomainPrefixes</c>（R-4：
+    /// 原第三份 <c>Units</c> 前缀表已删除，避免「注册但永不消费」的第二真源）。</para>
+    /// </summary>
     public static readonly IReadOnlyList<IUsharpFacetProvider> Providers = new IUsharpFacetProvider[]
     {
         new SpaceFacetProvider(),

@@ -15,7 +15,8 @@ public static class UsharpMatrixEmitter
     public static UsharpMatrixEmitResult Emit(UsharpCompilation compilation)
     {
         ArgumentNullException.ThrowIfNull(compilation);
-        return Emit(compilation.Matrices, compilation.Spaces, compilation.Decisions);
+        // 编译期闸A 已由 SpaceRegistry 报 US0005（E-7）：矩阵侧只映射，不双报。
+        return Emit(compilation.Matrices, compilation.Spaces, compilation.Decisions, reportAxisKindUnknown: false);
     }
 
     /// <summary>
@@ -24,7 +25,8 @@ public static class UsharpMatrixEmitter
     /// </summary>
     public static UsharpMatrixEmitResult Emit(
         IReadOnlyList<UsharpMatrixDecl> matrices, SpaceRegistry spaces,
-        IReadOnlyDictionary<string, UsharpDecisionDecl>? decisions = null)
+        IReadOnlyDictionary<string, UsharpDecisionDecl>? decisions = null,
+        bool reportAxisKindUnknown = true)
     {
         ArgumentNullException.ThrowIfNull(matrices);
         ArgumentNullException.ThrowIfNull(spaces);
@@ -39,7 +41,9 @@ public static class UsharpMatrixEmitter
 
             var binding = space.Kind switch
             {
-                UsharpSpaceKind.Values => UsharpParameterMatrixEmitter.Emit(decl, space),
+                // 值类非法已在编译期闸A 由 SpaceRegistry 报 US0005（E-7），此处只映射、不双报。
+                UsharpSpaceKind.Values => UsharpParameterMatrixEmitter.Emit(
+                    decl, space, reportAxisKindUnknown),
                 UsharpSpaceKind.Terms => UsharpDecisionMatrixEmitter.Emit(
                     decl, space, decisions is not null && decisions.TryGetValue(decl.MatrixId, out var decision)
                         ? decision

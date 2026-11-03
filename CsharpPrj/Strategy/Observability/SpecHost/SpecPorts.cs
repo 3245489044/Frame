@@ -86,7 +86,8 @@ public static class SpecPorts
             surface,
             composer,
             options.Scope ?? resources.Scope,
-            options.Events ?? resources.Events);
+            options.Events ?? resources.Events,
+            new PortInjection { Factories = plans.Factories() });
 
         composer.Bind(planned);   // 逐端口装配 + fail-safe 记账（记账唯一权威 = 内核 PortComposer）
 

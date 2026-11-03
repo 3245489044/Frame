@@ -31,6 +31,9 @@ public enum UsharpBoolLexicon
     /// <summary>+ <c>on</c>/<c>off</c>。</summary>
     OnOff,
 
+    /// <summary>+ <c>yes</c>/<c>no</c>（**不含** <c>on/off</c> 与 <c>l1/l0</c>）：历史 <c>[Table]</c> 接受集。</summary>
+    NumericYes,
+
     /// <summary>+ <c>yes</c>/<c>no</c> + <c>l1</c>/<c>l0</c>（历史声明面全集）。</summary>
     Extended,
 }
@@ -128,6 +131,13 @@ public static class UsharpLineReader
         if (text == "0") { value = false; return true; }
         if (lexicon == UsharpBoolLexicon.Numeric) return false;
 
+        if (lexicon == UsharpBoolLexicon.NumericYes)
+        {
+            if (string.Equals(text, "yes", StringComparison.OrdinalIgnoreCase)) { value = true; return true; }
+            if (string.Equals(text, "no", StringComparison.OrdinalIgnoreCase)) { value = false; return true; }
+            return false;
+        }
+
         if (string.Equals(text, "on", StringComparison.OrdinalIgnoreCase)) { value = true; return true; }
         if (string.Equals(text, "off", StringComparison.OrdinalIgnoreCase)) { value = false; return true; }
         if (lexicon == UsharpBoolLexicon.OnOff) return false;
@@ -147,15 +157,23 @@ public static class UsharpLineReader
     public static IReadOnlyList<string>? SplitListOrNull(string? raw, params char[] separators)
         => string.IsNullOrWhiteSpace(raw) ? null : SplitList(raw, separators);
 
-    /// <summary>首词 + 空白后正文（整行即标记 ⇒ true 且 rest 为空；正文须非空否则 false）。</summary>
+    /// <summary>
+    /// 首词 + 空白后正文（兼容转发 = <see cref="TryMarker(string,string,UsharpMarkerBoundary,out string)"/> +
+    /// 「整行即标记 ⇒ true 且 rest 为空」历史特例；正文须非空否则 false）。
+    /// </summary>
     public static bool TryHead(string head, string marker, out string rest)
     {
+        if (TryMarker(head, marker, UsharpMarkerBoundary.HeadNonEmpty, out rest)) return true;
+
+        // 历史口径：整行即标记 ⇒ 命中（rest 空）。HeadNonEmpty 策略明确排除该形态，故在此显式补回。
+        if (head.Length == marker.Length && head.StartsWith(marker, StringComparison.Ordinal))
+        {
+            rest = string.Empty;
+            return true;
+        }
+
         rest = string.Empty;
-        if (!head.StartsWith(marker, StringComparison.Ordinal)) return false;
-        if (head.Length == marker.Length) return true;
-        if (!char.IsWhiteSpace(head[marker.Length])) return false;
-        rest = head[marker.Length..].Trim();
-        return rest.Length > 0;
+        return false;
     }
 
     /// <summary><c>&lt;族&gt;/&lt;名&gt;</c> 引用切分（无 <c>/</c> ⇒ 两段空串）。</summary>
@@ -174,5 +192,30 @@ public static class UsharpLineReader
     {
         var dot = value.LastIndexOf('.');
         return dot >= 0 && dot < value.Length - 1 ? value[(dot + 1)..] : value;
+    }
+
+    /// <summary>顶层声明头行判定：去空白后以已注册前缀（<c>[Prefix]</c>）起始。</summary>
+    public static bool IsDeclarationHeader(string line)
+    {
+        var trimmed = (line ?? string.Empty).TrimStart();
+        if (!trimmed.StartsWith('[')) return false;
+        var close = trimmed.IndexOf(']');
+        if (close <= 1) return false;
+        return UsharpPrefixes.Scope.Find(trimmed[..(close + 1)]) is not null;
+    }
+
+    /// <summary>头行 → 声明键（<c>[Node] my_step: fn=…</c> → <c>my_step</c>）；非头行/无键 → false。</summary>
+    public static bool TryDeclarationHeaderKey(string line, out string key)
+    {
+        key = string.Empty;
+        var trimmed = (line ?? string.Empty).TrimStart();
+        if (!trimmed.StartsWith('[')) return false;
+        var close = trimmed.IndexOf(']');
+        if (close < 0) return false;
+
+        var rest = trimmed[(close + 1)..].TrimStart();
+        var end = rest.IndexOfAny(new[] { ':', ' ', '\t' });
+        key = end < 0 ? rest : rest[..end];
+        return key.Length > 0;
     }
 }

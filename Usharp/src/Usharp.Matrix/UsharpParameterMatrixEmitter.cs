@@ -15,13 +15,19 @@ namespace Usharp.Matrix;
 public static class UsharpParameterMatrixEmitter
 {
     /// <summary>装配一个值型矩阵（<paramref name="space"/> 须为 <c>over=</c> 指向的空间声明）。</summary>
-    public static UsharpMatrixBinding Emit(UsharpMatrixDecl decl, UsharpSpaceDecl space)
+    /// <param name="decl">矩阵声明。</param>
+    /// <param name="space">所属值型空间。</param>
+    /// <param name="reportAxisKindUnknown">
+    /// 由编译期闸A 统一报 <c>US0005</c> 时传 false（单一归因点）；独立装配默认 true。
+    /// </param>
+    public static UsharpMatrixBinding Emit(
+        UsharpMatrixDecl decl, UsharpSpaceDecl space, bool reportAxisKindUnknown = true)
     {
         ArgumentNullException.ThrowIfNull(decl);
         ArgumentNullException.ThrowIfNull(space);
 
         var diagnostics = new List<UsharpDiagnostic>();
-        var schema = UsharpParameterSchemaFactory.Build(space, diagnostics);
+        var schema = UsharpParameterSchemaFactory.Build(space, diagnostics, reportAxisKindUnknown);
         var matrix = ParameterMatrix.For(schema);
         var rows = new List<UsharpMatrixRowBinding>(decl.Rows.Count);
 

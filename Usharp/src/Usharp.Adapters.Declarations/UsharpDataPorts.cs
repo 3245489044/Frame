@@ -36,8 +36,19 @@ public static class UsharpDataPorts
     /// <summary>任意 CLR 对象 → 中立 USharp 值（转调 <see cref="UsharpValueMapper.ToValue"/>）。</summary>
     public static UsharpValue ToValue(object? value) => UsharpValueMapper.ToValue(value);
 
-    /// <summary>中立 USharp 值 → 目标对象（转调 <see cref="UsharpValueMapper.ToObject{T}"/>；失败 ⇒ default）。</summary>
-    public static T? ToObject<T>(UsharpValue value) => UsharpValueMapper.ToObject<T>(value);
+    /// <summary>中立 USharp 值 → 目标对象（转调 <see cref="UsharpValueMapper.TryToObject{T}"/>；失败 ⇒ default）。</summary>
+    public static T? ToObject<T>(UsharpValue value)
+        => UsharpValueMapper.TryToObject<T>(value).Match(ok => ok, _ => default);
+
+    /// <summary>中立 USharp 值 → 目标对象（失败可见：原因经 <paramref name="reason"/> 透出）。</summary>
+    /// <param name="value">USharp 值。</param>
+    /// <param name="reason">失败原因（成功为 null）。</param>
+    public static T? ToObject<T>(UsharpValue value, out string? reason)
+    {
+        var result = UsharpValueMapper.TryToObject<T>(value);
+        reason = result.Ok ? null : result.Reason;
+        return result.Ok ? result.Value : default;
+    }
 
     // ===== ② 值 ↔ 文本（唯一 JSON 出口 = UsharpValueJson；兼容读出/迁移）=====
 

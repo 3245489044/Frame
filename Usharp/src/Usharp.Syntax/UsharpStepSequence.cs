@@ -3,7 +3,7 @@ namespace Usharp.Syntax;
 /// <summary>
 /// 步骤序列的**唯一**派生入口：<c>[Flow]</c> 的有序步骤键 → 相邻步骤对 / 转移表。
 /// <para>
-/// 消费方：流完整性判据（<c>UsharpGraphService</c>）与链转移表构造（<c>UsharpTransitionTableBuilder</c>）——
+/// 消费方：流完整性判据（<c>UsharpGraphService</c>）与链转移表构造（<c>UsharpRoundSpecEmitter</c>）——
 /// 尾步约定（无后继 = 链终点）在此单源，禁止各处再手写「相邻对」循环（J-类重复的收敛点）。
 /// </para>
 /// </summary>
@@ -25,6 +25,14 @@ public static class UsharpStepSequence
         for (var i = 0; i + 1 < steps.Count; i++) pairs.Add((steps[i], steps[i + 1]));
         return pairs;
     }
+
+    /// <summary>
+    /// <c>[Flow]</c> 声明的转移表（<c>[Flow]</c> → 步骤键序列 → 相邻对的唯一映射点；
+    /// 原 <c>UsharpTransitionTableBuilder</c> 已并入本类，R-10）。
+    /// </summary>
+    /// <param name="flow">流声明。</param>
+    public static IReadOnlyDictionary<string, string> ToTransitionTable(UsharpFlowDecl flow)
+        => ToTransitionTable(Keys(flow));
 
     /// <summary>
     /// 转移表：已完成步骤键 → 下一步骤键（重复键保留首个后继；尾步不在表内 = 链终点，

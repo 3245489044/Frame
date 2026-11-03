@@ -53,13 +53,13 @@ public static class UsharpNodeSpecEmitter
         {
             ["domain"] = domain.DomainId,
             ["identity"] = domain.Identity,
-            ["context"] = StringArray(domain.Context),
+            ["context"] = UsharpJson.Array(domain.Context),
         };
 
         // sequence 仅在声明时产出（archive / session-view 等单键域无 sequence）。
         if (domain.Sequence.Count > 0)
         {
-            root["sequence"] = StringArray(domain.Sequence);
+            root["sequence"] = UsharpJson.Array(domain.Sequence);
         }
 
         var placements = new JsonArray();
@@ -99,26 +99,26 @@ public static class UsharpNodeSpecEmitter
             placements.Add(item);
         }
         root["placements"] = placements;
-        root["selections"] = Map(domain.Selections);
-        root["retentions"] = Map(domain.Retentions);
+        root["selections"] = UsharpJson.Map(domain.Selections);
+        root["retentions"] = UsharpJson.Map(domain.Retentions);
         if (domain.Marks.Count > 0)
         {
-            root["marks"] = Map(domain.Marks);
+            root["marks"] = UsharpJson.Map(domain.Marks);
         }
 
         if (domain.Tags.Count > 0)
         {
-            root["tags"] = Map(domain.Tags);
+            root["tags"] = UsharpJson.Map(domain.Tags);
         }
 
         if (domain.Behaviors.Count > 0)
         {
-            root["behaviors"] = Map(domain.Behaviors);
+            root["behaviors"] = UsharpJson.Map(domain.Behaviors);
         }
 
         if (domain.Origins.Count > 0)
         {
-            root["origins"] = StringArray(domain.Origins);
+            root["origins"] = UsharpJson.Array(domain.Origins);
         }
 
         if (domain.Coordinates.Count > 0)
@@ -138,25 +138,5 @@ public static class UsharpNodeSpecEmitter
         }
 
         return root.ToJsonString();
-    }
-
-    private static JsonArray StringArray(IReadOnlyList<string> values)
-    {
-        var array = new JsonArray();
-        foreach (var value in values)
-        {
-            array.Add(value);
-        }
-        return array;
-    }
-
-    private static JsonObject Map(IReadOnlyDictionary<string, string> values)
-    {
-        var obj = new JsonObject();
-        foreach (var pair in values)
-        {
-            obj[pair.Key] = pair.Value;
-        }
-        return obj;
     }
 }

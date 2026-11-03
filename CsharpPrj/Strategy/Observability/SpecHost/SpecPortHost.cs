@@ -34,26 +34,30 @@ public sealed class SpecPortHost : IPortHost, IDisposable
     private readonly PortComposer? _composer;
     private readonly ISpecScopeProvider? _scope;
     private readonly ISpecEventSource? _events;
+    private readonly PortInjection _injection;
     private readonly HashSet<string> _replaced = new(StringComparer.Ordinal);
     private readonly List<string> _fieldIssues = new();
     private bool _disposed;
 
     /// <summary>
     /// <paramref name="composer"/>：装配期记账来源（内核唯一权威；null = 未装配，Unbound/Frozen 为空视图）；
-    /// <paramref name="scope"/> / <paramref name="events"/>：领域侧注入面（null = 无作用域 / 仅 <c>Port(…)</c> 根）。
+    /// <paramref name="scope"/> / <paramref name="events"/>：领域侧注入面（null = 无作用域 / 仅 <c>Port(…)</c> 根）；
+    /// <paramref name="injection"/>：装配注入袋（内联 invocation 的 <c>deps.factory</c> 解析源；null = 空袋）。
     /// </summary>
     public SpecPortHost(
         IPortCatalog catalog,
         ISpecPortSurface surface,
         PortComposer? composer = null,
         ISpecScopeProvider? scope = null,
-        ISpecEventSource? events = null)
+        ISpecEventSource? events = null,
+        PortInjection? injection = null)
     {
         _catalog = PortGuard.Required(catalog, nameof(catalog));
         _surface = PortGuard.Required(surface, nameof(surface));
         _composer = composer;
         _scope = scope;
         _events = events;
+        _injection = injection ?? PortInjection.Empty;
     }
 
     /// <summary>端口目录（调用记录 / 解析入口；守卫与诊断用）。</summary>
@@ -182,9 +186,9 @@ public sealed class SpecPortHost : IPortHost, IDisposable
             // 内联片段自身不可求值（声明面无法表达的行为体，如 scripted 空壳）⇒ 回落到同键已登记实现
             // （单一事实源：实现体在实现程序集标注，内联片段只声明键与契约）。
             var binding = spec.IsEvaluable
-                ? PortBinding.FromSpec(standard.Key, spec).RequireBinding()
+                ? PortBinding.FromSpec(standard.Key, spec, _injection).RequireBinding()
                 : _surface.BindingFactory(standard.Key)?.Invoke()
-                  ?? PortBinding.FromSpec(standard.Key, spec).RequireBinding();
+                  ?? PortBinding.FromSpec(standard.Key, spec, _injection).RequireBinding();
             // 记账单一实现：经目录记录装饰（P8），使内联调用对 Port(<条目键>) 投影可见。
             var recorded = _catalog.Decorate(standard.Key, binding);
             var result = recorded.InvokeAsync(BuildInput(request, standard.Key)).AsTask().GetAwaiter().GetResult();

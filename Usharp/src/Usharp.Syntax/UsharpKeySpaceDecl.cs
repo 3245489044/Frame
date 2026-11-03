@@ -185,10 +185,12 @@ public sealed record UsharpKeySpaceDecl(
 
             if (UsharpLineReader.TryHead(head, "derived", out var derivedRef))
             {
-                var eq = derivedRef.IndexOf('=');
-                if (eq <= 0) { unparsed.Add(line); continue; }
-                var familyRole = derivedRef[..eq].Trim();
-                var prefix = derivedRef[(eq + 1)..].Trim();
+                var bag = UsharpFieldBag.Parse(new[] { derivedRef }, skip: 0, comparer: StringComparer.Ordinal);
+                if (bag.Fields.Count == 0) { unparsed.Add(line); continue; }
+
+                var derivedPair = bag.Fields.First();
+                var familyRole = derivedPair.Key;
+                var prefix = derivedPair.Value;
                 var slash = familyRole.IndexOf('/');
                 if (slash <= 0 || slash >= familyRole.Length - 1 || prefix.Length == 0) { unparsed.Add(line); continue; }
                 var builder = Family(familyRole[..slash]);

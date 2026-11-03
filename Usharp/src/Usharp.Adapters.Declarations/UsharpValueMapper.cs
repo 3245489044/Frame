@@ -171,7 +171,7 @@ public static class UsharpValueMapper
 
     /// <summary>USharp 数据值 → 指定类型实例（尽力映射；不可映射 ⇒ null）。</summary>
     public static object? ToObject(UsharpValue value, Type target)
-        => ToObject(value, target, failures: null, path: string.Empty);
+        => ToObject(value, target, failures: null, path: string.Empty, depth: 0);
 
     /// <summary>
     /// 失败可见的映射入口：返回 value + 失败报告（不抛、不静默吞）。
@@ -181,7 +181,7 @@ public static class UsharpValueMapper
     public static UsharpTry<T> TryToObject<T>(UsharpValue value)
     {
         var failures = new List<UsharpFailure>();
-        var converted = ToObject(value, typeof(T), failures, typeof(T).Name);
+        var converted = ToObject(value, typeof(T), failures, typeof(T).Name, depth: 0);
         if (converted is T typed && failures.Count == 0) return UsharpTry<T>.Success(typed);
 
         var reason = failures.Count == 0
@@ -191,16 +191,23 @@ public static class UsharpValueMapper
     }
 
     private static object? ToObject(
-        UsharpValue value, Type target, List<UsharpFailure>? failures, string path)
+        UsharpValue value, Type target, List<UsharpFailure>? failures, string path, int depth)
     {
+        // 深度截断可见化（E-4）：嵌套记录递归须有上限，超限不再静默继续。
+        if (depth > MaxPopulateDepth)
+        {
+            failures?.Add(new UsharpFailure($"depth-limit({MaxPopulateDepth})", path));
+            return null;
+        }
+
         // object 目标必须「拆包」为 CLR 值；UsharpScalar/UsharpRecord 本身也是 object，
         // 不能走 IsInstanceOfType 短路（否则 Data / 字典 object 值会残留 Usharp 节点）。
         if (target != typeof(object) && target.IsInstanceOfType(value)) return value;
         return value switch
         {
             UsharpScalar scalar => ScalarToTarget(scalar, target, failures, path),
-            UsharpList list => ListToTarget(list, target, failures, path),
-            UsharpRecord record => RecordToTarget(record, target, failures, path),
+            UsharpList list => ListToTarget(list, target, failures, path, depth),
+            UsharpRecord record => RecordToTarget(record, target, failures, path, depth),
             _ => null,
         };
     }
@@ -261,14 +268,14 @@ public static class UsharpValueMapper
     };
 
     private static object ListToTarget(
-        UsharpList list, Type target, List<UsharpFailure>? failures, string path)
+        UsharpList list, Type target, List<UsharpFailure>? failures, string path, int depth)
     {
         if (target.IsArray)
         {
             var elem = target.GetElementType()!;
             var arr = Array.CreateInstance(elem, list.Items.Count);
             for (var i = 0; i < list.Items.Count; i++)
-                arr.SetValue(ToObject(list.Items[i], elem, failures, $"{path}[{i}]"), i);
+                arr.SetValue(ToObject(list.Items[i], elem, failures, $"{path}[{i}]", depth + 1), i);
             return arr;
         }
 
@@ -277,7 +284,7 @@ public static class UsharpValueMapper
 
         var result = new List<object?>(list.Items.Count);
         for (var i = 0; i < list.Items.Count; i++)
-            result.Add(ToObject(list.Items[i], itemType, failures, $"{path}[{i}]"));
+            result.Add(ToObject(list.Items[i], itemType, failures, $"{path}[{i}]", depth + 1));
 
         if (target == typeof(object) || target.IsAssignableFrom(typeof(List<object?>))) return result;
         var listType = typeof(List<>).MakeGenericType(itemType);
@@ -303,7 +310,7 @@ public static class UsharpValueMapper
     }
 
     private static object RecordToTarget(
-        UsharpRecord record, Type target, List<UsharpFailure>? failures, string path)
+        UsharpRecord record, Type target, List<UsharpFailure>? failures, string path, int depth)
     {
         if (typeof(IDictionary).IsAssignableFrom(target))
         {
@@ -314,7 +321,7 @@ public static class UsharpValueMapper
             {
                 var map = (IDictionary)Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(keyType, valueType))!;
                 foreach (var f in record.Fields)
-                    map[f.Key] = ToObject(f.Value, valueType, failures, $"{path}.{f.Key}");
+                    map[f.Key] = ToObject(f.Value, valueType, failures, $"{path}.{f.Key}", depth + 1);
                 return map;
             }
         }
@@ -333,7 +340,7 @@ public static class UsharpValueMapper
             foreach (var f in record.Fields)
             {
                 if (!plan.ByName.TryGetValue(f.Key, out var m)) continue;
-                ApplyMember(instance, m, f.Value, depth: 0, failures, $"{path}.{m.Name}");
+                ApplyMember(instance, m, f.Value, depth, failures, $"{path}.{m.Name}");
             }
             return instance;
         }
@@ -346,7 +353,7 @@ public static class UsharpValueMapper
             foreach (var f in record.Fields)
             {
                 if (!string.Equals(f.Key, p.Name, StringComparison.OrdinalIgnoreCase)) continue;
-                ctorArgs[i] = ToObject(f.Value, p.ParameterType, failures, $"{path}.{p.Name}");
+                ctorArgs[i] = ToObject(f.Value, p.ParameterType, failures, $"{path}.{p.Name}", depth + 1);
                 break;
             }
         }
@@ -366,23 +373,34 @@ public static class UsharpValueMapper
         object instance, MemberPlan member, UsharpValue value, int depth,
         List<UsharpFailure>? failures, string path)
     {
+        var setterFailed = false;
+
         if (member.Set is not null)
         {
-            member.Set(instance, ToObject(value, member.Type, failures, path));
-            return;
+            try
+            {
+                member.Set(instance, ToObject(value, member.Type, failures, path, depth + 1));
+                return;
+            }
+            catch (Exception ex)
+            {
+                // 编译委托抛错（如 setter 体抛异常）⇒ 失败可见，不再上抛中断整次映射。
+                failures?.Add(new UsharpFailure($"setter-failed({ex.GetType().Name})", path));
+                setterFailed = true;
+            }
         }
 
         if (member.Property?.SetMethod is { } setter)
         {
             try
             {
-                setter.Invoke(instance, new[] { ToObject(value, member.Type, failures, path) });
+                setter.Invoke(instance, new[] { ToObject(value, member.Type, failures, path, depth + 1) });
                 return;
             }
             catch (Exception ex)
             {
                 // init-only / 集合初始化器等不可在现有实例上写回 ⇒ 退回就地回填（失败可见）。
-                failures?.Add(new UsharpFailure($"setter-failed({ex.GetType().Name})", path));
+                if (!setterFailed) failures?.Add(new UsharpFailure($"setter-failed({ex.GetType().Name})", path));
             }
         }
 
@@ -414,7 +432,7 @@ public static class UsharpValueMapper
                 if (target is IDictionary<string, object> objectMap)
                 {
                     foreach (var f in record.Fields)
-                        objectMap[f.Key] = ToObject(f.Value, typeof(object), failures, $"{path}.{f.Key}")!;
+                        objectMap[f.Key] = ToObject(f.Value, typeof(object), failures, $"{path}.{f.Key}", depth + 1)!;
                     return;
                 }
 
@@ -423,7 +441,7 @@ public static class UsharpValueMapper
                 {
                     var valueType = GetDictionaryValueType(declaredType);
                     foreach (var f in record.Fields)
-                        map[f.Key] = ToObject(f.Value, valueType, failures, $"{path}.{f.Key}");
+                        map[f.Key] = ToObject(f.Value, valueType, failures, $"{path}.{f.Key}", depth + 1);
                     return;
                 }
 
@@ -444,7 +462,7 @@ public static class UsharpValueMapper
                     listTarget.Clear();
                     var index = 0;
                     foreach (var item in list.Items)
-                        listTarget.Add(ToObject(item, itemType, failures, $"{path}[{index++}]"));
+                        listTarget.Add(ToObject(item, itemType, failures, $"{path}[{index++}]", depth + 1));
                 }
                 return;
         }
@@ -476,7 +494,7 @@ public static class UsharpValueMapper
     {
         var dict = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var f in record.Fields)
-            dict[f.Key] = ToObject(f.Value, typeof(object), failures, $"{path}.{f.Key}");
+            dict[f.Key] = ToObject(f.Value, typeof(object), failures, $"{path}.{f.Key}", depth: 0);
         return dict;
     }
 }

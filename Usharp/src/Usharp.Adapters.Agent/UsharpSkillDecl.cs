@@ -71,20 +71,12 @@ public sealed record UsharpSkillDecl(
     public bool HasBody => !string.IsNullOrWhiteSpace(Body);
 
     private static bool IsOn(string? value)
-    {
-        var v = UsharpLineReader.NullIfEmpty(value);
-        return string.Equals(v, "on", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(v, "1", StringComparison.Ordinal)
-               || string.Equals(v, "l0", StringComparison.OrdinalIgnoreCase);
-    }
+        => UsharpLineReader.TryBool(value, UsharpBoolLexicon.OnOff, out var parsed) && parsed;
 
     /// <summary>段序权重（<c>order=</c>；未声明/非法 ⇒ -1 = 用声明行序）。</summary>
     private static int ParseOrder(string? value)
         => int.TryParse(value?.Trim(), out var n) ? n : -1;
 
     private static IReadOnlyList<string> SplitList(string? value)
-        => string.IsNullOrWhiteSpace(value)
-            ? Array.Empty<string>()
-            : value.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        => UsharpLineReader.SplitList(value, ',', ' ');
 }

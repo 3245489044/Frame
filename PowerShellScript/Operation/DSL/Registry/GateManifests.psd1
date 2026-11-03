@@ -2171,5 +2171,14 @@
         Note   = 'D1 pricing.json 解析仅 CostConfigLoader / D2 成本比较唯一 / D3 消费 IPriceTable / D4 声明策略单源 / D5 复用 ICostStore·ICostQuery / D6 负对照'
     }
 
+    ContractSingleSource = @{
+        Domain = 'Contract'
+        Family = 'Runtime'
+        Form   = 'Closure'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'C1 摘要直调=0（阻断）/ C2 嵌入资源直调=0（阻断）/ C3 TryGetProperty 直调≤37（棘轮只降不升）/ C4 单键域拼接=0（阻断）/ C5 诊断归因单表（无 ||）/ C6 负对照'
+    }
 
 }

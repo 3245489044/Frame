@@ -1,0 +1,19 @@
+# 反例（E-3）：同名 [Matrix] / [Flow] 必须报 US0014 / US0015（重复处归因）。
+[Space] Step: kind=keys
+  a
+  b
+
+[Space] Param: kind=values
+  x: flag
+
+[Matrix] M: over=Param
+  x = x
+
+[Matrix] M: over=Param
+  x = x
+
+[Flow] F: over=Step
+  step a
+
+[Flow] F: over=Step
+  step b

@@ -46,16 +46,47 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
     public T? Deserialize<T>(string text) => TryDeserialize(text, out T? value) ? value : default;
 
     /// <inheritdoc />
-    public bool TryDeserialize<T>(string text, out T? value)
+    public bool TryDeserialize<T>(string text, out T? value) => TryDeserialize(text, out value, out _);
+
+    /// <summary>
+    /// 失败可见的反序列化（E-4）：失败原因（<c>parse-failed</c> / <c>enum-invalid(...)</c> 等）经
+    /// <paramref name="reason"/> 透出，不再静默返回 default。
+    /// </summary>
+    /// <param name="text">USharp 文本。</param>
+    /// <param name="value">目标对象（失败为 default）。</param>
+    /// <param name="reason">失败原因（成功为 null）。</param>
+    public bool TryDeserialize<T>(string text, out T? value, out string? reason)
     {
         value = default;
-        if (string.IsNullOrWhiteSpace(text)) return false;
+        reason = null;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            reason = "empty-text";
+            return false;
+        }
 
         var usharp = ParseDocument(text, out var complete);
-        if (usharp is null || !complete) return false;
+        if (usharp is null)
+        {
+            reason = "parse-failed";
+            return false;
+        }
 
-        value = UsharpValueMapper.ToObject<T>(usharp);
-        return value is not null;
+        if (!complete)
+        {
+            reason = "document-incomplete";
+            return false;
+        }
+
+        var converted = UsharpValueMapper.TryToObject<T>(usharp);
+        if (!converted.Ok)
+        {
+            reason = converted.Reason ?? "mapping-failed";
+            return false;
+        }
+
+        value = converted.Value;
+        return true;
     }
 
     /// <inheritdoc />
@@ -99,12 +130,31 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
     }
 
     /// <inheritdoc />
-    public bool TryDeserializeRecord<T>(string text, out T? body)
+    public bool TryDeserializeRecord<T>(string text, out T? body) => TryDeserializeRecord(text, out body, out _);
+
+    /// <summary>失败可见的记录反序列化（E-4）：失败原因经 <paramref name="reason"/> 透出。</summary>
+    /// <param name="text">USharp 记录文本。</param>
+    /// <param name="body">目标对象（失败为 default）。</param>
+    /// <param name="reason">失败原因（成功为 null）。</param>
+    public bool TryDeserializeRecord<T>(string text, out T? body, out string? reason)
     {
         body = default;
-        if (!TryDeserializeRecord(text, out _, out _, out _, out var record)) return false;
-        body = UsharpValueMapper.ToObject<T>(record);
-        return body is not null;
+        reason = null;
+        if (!TryDeserializeRecord(text, out _, out _, out _, out var record))
+        {
+            reason = "record-parse-failed";
+            return false;
+        }
+
+        var converted = UsharpValueMapper.TryToObject<T>(record);
+        if (!converted.Ok)
+        {
+            reason = converted.Reason ?? "mapping-failed";
+            return false;
+        }
+
+        body = converted.Value;
+        return true;
     }
 
     /// <summary>解析记录头（<c>[Record] &lt;id&gt;: table=&lt;t&gt; | key=&lt;k&gt;</c>）：以**首个** <c>:</c> 分隔 id 与头字段。</summary>
@@ -116,15 +166,10 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
         string? table = null, key = null;
         if (sep >= 0)
         {
-            foreach (var part in rest[(sep + 1)..].Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                var eq = part.IndexOf('=');
-                if (eq <= 0) continue;
-                var name = part[..eq].Trim();
-                var value = UsharpLanguage.NullIfEmpty(part[(eq + 1)..]);
-                if (string.Equals(name, UsharpLanguage.FieldTable, StringComparison.Ordinal)) table = value;
-                else if (string.Equals(name, UsharpLanguage.FieldKey, StringComparison.Ordinal)) key = value;
-            }
+            var parts = rest[(sep + 1)..].Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var bag = UsharpFieldBag.Parse(parts, skip: 0, comparer: StringComparer.Ordinal);
+            if (bag.Fields.TryGetValue(UsharpLanguage.FieldTable, out var tableValue)) table = UsharpLanguage.NullIfEmpty(tableValue);
+            if (bag.Fields.TryGetValue(UsharpLanguage.FieldKey, out var keyValue)) key = UsharpLanguage.NullIfEmpty(keyValue);
         }
         return (id, table, key);
     }
@@ -137,7 +182,7 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
         if (!trimmed.StartsWith(UsharpLanguage.RecordPrefix, StringComparison.Ordinal))
         {
             if (!UsharpValueParser.TryParse(text, out var bare, out var unparsed)) return null;
-            complete = unparsed is null or { Count: 0 };
+            complete = string.IsNullOrEmpty(unparsed);
             return bare;
         }
 

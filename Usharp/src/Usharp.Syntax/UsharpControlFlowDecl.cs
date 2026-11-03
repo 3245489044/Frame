@@ -4,6 +4,15 @@ using Plate.DslMethod.Model;
 namespace Usharp.Syntax;
 
 /// <summary>
+/// 控制流绑定段（<c>in=</c>/<c>out=</c>/<c>routes=</c>）的一处词法问题：
+/// 坏段（无 <c>=</c> / 空键 / 空值）或重复键 —— 由闸A 报码，禁止静默丢弃。
+/// </summary>
+/// <param name="Field">字段名（<c>in</c>/<c>out</c>/<c>routes</c>）。</param>
+/// <param name="Segment">问题段原文（重复键时为键名）。</param>
+/// <param name="IsDuplicate">true = 重复键；false = 无法解析段。</param>
+public sealed record UsharpControlFlowBindingIssue(string Field, string Segment, bool IsDuplicate);
+
+/// <summary>
 /// 分支声明（R3，<c>[Branch]</c>）：<c>flow=</c> 所属流 + <c>node=</c> 承载节点 + <c>judge=</c> 判定键 +
 /// <c>then=</c> / <c>else=</c> 目标。判定载体 = 结构化数据键（禁表达式文本）。
 /// </summary>
@@ -29,14 +38,22 @@ public sealed record UsharpSwitchDecl(
     IReadOnlyDictionary<string, string> Routes, string? Default,
     string SourceFile, int LineNumber)
 {
+    /// <summary>绑定段词法问题（坏段 / 重复键；空表 = 全部解析成功）。</summary>
+    public IReadOnlyList<UsharpControlFlowBindingIssue> BindingIssues { get; init; }
+        = Array.Empty<UsharpControlFlowBindingIssue>();
+
     public static UsharpSwitchDecl? From(DslDeclaration d)
     {
         if (d.Kind != DslSymbolKind.Switch || string.IsNullOrWhiteSpace(d.Name)) return null;
+        var routes = UsharpControlFlowFields.Parse(d.Field(UsharpLanguage.FieldRoutes), UsharpLanguage.FieldRoutes);
         return new UsharpSwitchDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldNode).Trim(),
             d.Field(UsharpLanguage.FieldSelector).Trim(),
-            UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldRoutes)),
-            UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.FieldDefault)), d.SourceFile, d.LineNumber);
+            routes.Map,
+            UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.FieldDefault)), d.SourceFile, d.LineNumber)
+        {
+            BindingIssues = routes.Issues,
+        };
     }
 }
 
@@ -48,15 +65,23 @@ public sealed record UsharpCallDecl(
     IReadOnlyDictionary<string, string> InBindings, IReadOnlyDictionary<string, string> OutBindings,
     string SourceFile, int LineNumber)
 {
+    /// <summary>绑定段词法问题（<c>in=</c> ∪ <c>out=</c>；空表 = 全部解析成功）。</summary>
+    public IReadOnlyList<UsharpControlFlowBindingIssue> BindingIssues { get; init; }
+        = Array.Empty<UsharpControlFlowBindingIssue>();
+
     public static UsharpCallDecl? From(DslDeclaration d)
     {
         if (d.Kind != DslSymbolKind.Call || string.IsNullOrWhiteSpace(d.Name)) return null;
+        var inBindings = UsharpControlFlowFields.Parse(d.Field(UsharpLanguage.FieldInBindings), UsharpLanguage.FieldInBindings);
+        var outBindings = UsharpControlFlowFields.Parse(d.Field(UsharpLanguage.FieldOutBindings), UsharpLanguage.FieldOutBindings);
         return new UsharpCallDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldNode).Trim(),
             UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.FieldCallee)), d.Field(UsharpLanguage.FieldChildFlow).Trim(),
-            UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldInBindings)),
-            UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldOutBindings)),
-            d.SourceFile, d.LineNumber);
+            inBindings.Map, outBindings.Map,
+            d.SourceFile, d.LineNumber)
+        {
+            BindingIssues = inBindings.Issues.Concat(outBindings.Issues).ToList(),
+        };
     }
 }
 
@@ -71,18 +96,26 @@ public sealed record UsharpRegionDecl(
     IReadOnlyDictionary<string, string> InBindings, IReadOnlyDictionary<string, string> OutBindings,
     string SourceFile, int LineNumber)
 {
+    /// <summary>绑定段词法问题（<c>in=</c> ∪ <c>out=</c>；空表 = 全部解析成功）。</summary>
+    public IReadOnlyList<UsharpControlFlowBindingIssue> BindingIssues { get; init; }
+        = Array.Empty<UsharpControlFlowBindingIssue>();
+
     public static UsharpRegionDecl? From(DslDeclaration d)
     {
         if (d.Kind != DslSymbolKind.Region || string.IsNullOrWhiteSpace(d.Name)) return null;
+        var inBindings = UsharpControlFlowFields.Parse(d.Field(UsharpLanguage.FieldInBindings), UsharpLanguage.FieldInBindings);
+        var outBindings = UsharpControlFlowFields.Parse(d.Field(UsharpLanguage.FieldOutBindings), UsharpLanguage.FieldOutBindings);
         return new UsharpRegionDecl(
             d.Name, d.Field(UsharpLanguage.FieldFlow).Trim(), d.Field(UsharpLanguage.FieldNode).Trim(),
             d.Field(UsharpLanguage.FieldChildFlow).Trim(),
             d.Field(UsharpLanguage.FieldIteration).Trim(),
             UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.FieldJudge)),
             ParseInt(d.Field(UsharpLanguage.FieldMaxIterations)),
-            UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldInBindings)),
-            UsharpControlFlowFields.ParsePairs(d.Field(UsharpLanguage.FieldOutBindings)),
-            d.SourceFile, d.LineNumber);
+            inBindings.Map, outBindings.Map,
+            d.SourceFile, d.LineNumber)
+        {
+            BindingIssues = inBindings.Issues.Concat(outBindings.Issues).ToList(),
+        };
     }
 
     private static int? ParseInt(string v) => int.TryParse(v, out var n) ? n : null;
@@ -126,17 +159,41 @@ public sealed record UsharpGuardDecl(
 
 internal static class UsharpControlFlowFields
 {
-    public static IReadOnlyDictionary<string, string> ParsePairs(string field)
+    /// <summary>
+    /// 解析 <c>k=v;…</c> 字段：**保留坏段与重复键**（词法内核 = <see cref="UsharpFieldBag"/>）。
+    /// </summary>
+    /// <param name="field">字段原文（<c>in=</c>/<c>out=</c>/<c>routes=</c>）。</param>
+    /// <param name="fieldName">字段名（问题归因用）。</param>
+    public static (IReadOnlyDictionary<string, string> Map, IReadOnlyList<UsharpControlFlowBindingIssue> Issues)
+        Parse(string? field, string fieldName)
     {
+        var bag = UsharpFieldBag.Parse(
+            UsharpLanguage.SplitSegments(field), skip: 0, comparer: StringComparer.Ordinal);
+
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var segment in UsharpLanguage.SplitSegments(field))
+        var issues = new List<UsharpControlFlowBindingIssue>(bag.Unparsed.Count + bag.DuplicateKeys.Count);
+
+        foreach (var segment in bag.Unparsed)
+            issues.Add(new UsharpControlFlowBindingIssue(fieldName, segment, IsDuplicate: false));
+
+        foreach (var pair in bag.Fields)
         {
-            var eq = segment.IndexOf('=');
-            if (eq <= 0) continue;
-            var key = segment[..eq].Trim();
-            var value = segment[(eq + 1)..].Trim();
-            if (key.Length > 0 && value.Length > 0) map[key] = value;
+            // 空值沿用既有口径「丢弃」，但不再静默：记入坏段。
+            if (pair.Value.Length == 0)
+            {
+                issues.Add(new UsharpControlFlowBindingIssue(fieldName, $"{pair.Key}=", IsDuplicate: false));
+                continue;
+            }
+            map[pair.Key] = pair.Value;
         }
-        return map;
+
+        foreach (var key in bag.DuplicateKeys)
+            issues.Add(new UsharpControlFlowBindingIssue(fieldName, key, IsDuplicate: true));
+
+        return (map, issues);
     }
+
+    /// <summary>仅取字典（不关心问题的消费方；问题可见性由闸A 经 <c>BindingIssues</c> 负责）。</summary>
+    public static IReadOnlyDictionary<string, string> ParsePairs(string? field)
+        => Parse(field, string.Empty).Map;
 }

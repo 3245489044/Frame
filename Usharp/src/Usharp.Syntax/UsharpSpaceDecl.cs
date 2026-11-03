@@ -173,8 +173,19 @@ public sealed record UsharpSpaceDecl(
             }
             var valueKind = kind == UsharpSpaceKind.Keys ? null
                 : (m.Groups["kind"].Success ? m.Groups["kind"].Value.ToLowerInvariant() : "numeric");
-            double? min = m.Groups["min"].Success && double.TryParse(m.Groups["min"].Value, out var mn) ? mn : null;
-            double? max = m.Groups["max"].Success && double.TryParse(m.Groups["max"].Value, out var mx) ? mx : null;
+            double? min = null;
+            if (m.Groups["min"].Success)
+            {
+                if (double.TryParse(m.Groups["min"].Value, out var mn)) min = mn;
+                else unparsed.Add(line);   // 值域解析失败不得静默变「无界」（E-7）
+            }
+
+            double? max = null;
+            if (m.Groups["max"].Success)
+            {
+                if (double.TryParse(m.Groups["max"].Value, out var mx)) max = mx;
+                else unparsed.Add(line);
+            }
             axes.Add(new UsharpAxis(m.Groups["name"].Value, valueKind, min, max));
         }
         var contains = UsharpContainmentDecl.ParseList(d.Field(UsharpLanguage.FieldContains));

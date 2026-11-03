@@ -12,7 +12,14 @@ namespace Usharp.Matrix;
 public static class UsharpParameterSchemaFactory
 {
     /// <summary>把一个值型空间声明装配为参数坐标系。</summary>
-    public static ParameterSchema Build(UsharpSpaceDecl space, ICollection<UsharpDiagnostic>? diagnostics = null)
+    /// <param name="space">空间声明。</param>
+    /// <param name="diagnostics">诊断出口。</param>
+    /// <param name="reportAxisKindUnknown">
+    /// 是否在非法值类上产 <c>US0005</c>：编译期闸A 已报时传 false（避免双报），独立装配默认 true（兜底可见）。
+    /// </param>
+    public static ParameterSchema Build(
+        UsharpSpaceDecl space, ICollection<UsharpDiagnostic>? diagnostics = null,
+        bool reportAxisKindUnknown = true)
     {
         ArgumentNullException.ThrowIfNull(space);
 
@@ -20,7 +27,7 @@ public static class UsharpParameterSchemaFactory
         foreach (var axis in space.Axes)
             specs.Add(new ParameterSpec(
                 axis.Name,
-                ToParameterKind(axis, space, diagnostics),
+                ToParameterKind(axis, space, diagnostics, reportAxisKindUnknown),
                 Default: 0.0,
                 Min: axis.Min ?? double.NegativeInfinity,
                 Max: axis.Max ?? double.PositiveInfinity));
@@ -28,18 +35,23 @@ public static class UsharpParameterSchemaFactory
         return new ParameterSchema(specs);
     }
 
-    /// <summary>值类 → ParameterKind；未声明的值类按 numeric 装配并报 US0005（不静默降级）。</summary>
+    /// <summary>值类 → ParameterKind；未声明的值类按 numeric 装配（<paramref name="reportAxisKindUnknown"/> 为真时报 US0005）。</summary>
     public static ParameterKind ToParameterKind(
-        UsharpAxis axis, UsharpSpaceDecl? owner = null, ICollection<UsharpDiagnostic>? diagnostics = null)
+        UsharpAxis axis, UsharpSpaceDecl? owner = null, ICollection<UsharpDiagnostic>? diagnostics = null,
+        bool reportAxisKindUnknown = true)
     {
         // 值类白名单与映射的单一真源 = UsharpLanguage.ValueKinds + UsharpValueKindMap（本类不再各写一份）
         if (axis.ValueKind is null) return ParameterKind.Numeric;
         if (UsharpValueKindMap.TryParse(axis.ValueKind, out var kind)) return kind;
 
-        diagnostics?.Add(UsharpDiagnostic.Warn(UsharpCodes.AxisKindUnknown,
-            $"空间 {owner?.SpaceId ?? "(unknown)"} 坐标 '{axis.Name}' 声明了未知值类 '{axis.ValueKind}'"
-            + $"（合法值类：{string.Join("/", UsharpLanguage.ValueKinds)}），按 numeric 装配",
-            owner?.SourceFile ?? string.Empty, owner?.LineNumber ?? 0));
+        if (reportAxisKindUnknown)
+        {
+            diagnostics?.Add(UsharpDiagnostic.Error(UsharpCodes.AxisKindUnknown,
+                $"空间 {owner?.SpaceId ?? "(unknown)"} 坐标 '{axis.Name}' 声明了未知值类 '{axis.ValueKind}'"
+                + $"（合法值类：{string.Join("/", UsharpLanguage.ValueKinds)}），按 numeric 装配",
+                owner?.SourceFile ?? string.Empty, owner?.LineNumber ?? 0));
+        }
+
         return ParameterKind.Numeric;
     }
 }

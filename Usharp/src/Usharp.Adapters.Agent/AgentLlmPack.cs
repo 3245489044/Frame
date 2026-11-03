@@ -99,19 +99,35 @@ internal sealed class LlmContractGateRule : IGateRule<UsharpGateModel>
             var inTerms = TermsOf(space, "I");
             var outTerms = TermsOf(space, "O");
 
-            if (outTerms.Count > 0)
+            if (outTerms.Count == 0)
+            {
+                sink.Report(ConversionDiagnostic.Error(AgentLlmPack.CodeOutputUndeclared,
+                    $"[LLMDecl] {d.Name}: over='{d.OverSpace}' 的输出词元集为空（契约不可闭合；空态不得视为通过）",
+                    new SourceSpan(d.SourceFile, d.LineNumber, 0)));
+            }
+            else
+            {
                 foreach (var f in d.OutputFields)
                     if (!outTerms.Contains(f))
                         sink.Report(ConversionDiagnostic.Error(AgentLlmPack.CodeOutputUndeclared,
                             $"[LLMDecl] {d.Name}: output 字段 '{f}' 未在 {d.OverSpace} O 区词元中（消手写 Parse 漂移）",
                             new SourceSpan(d.SourceFile, d.LineNumber, 0)));
+            }
 
-            if (inTerms.Count > 0)
+            if (inTerms.Count == 0)
+            {
+                sink.Report(ConversionDiagnostic.Error(AgentLlmPack.CodeInputUndeclared,
+                    $"[LLMDecl] {d.Name}: over='{d.OverSpace}' 的输入词元集为空（契约不可闭合；空态不得视为通过）",
+                    new SourceSpan(d.SourceFile, d.LineNumber, 0)));
+            }
+            else
+            {
                 foreach (var f in d.InputFields)
                     if (!inTerms.Contains(f))
                         sink.Report(ConversionDiagnostic.Error(AgentLlmPack.CodeInputUndeclared,
                             $"[LLMDecl] {d.Name}: input 字段 '{f}' 未在 {d.OverSpace} I 区词元中（消手写 BuildPrompt 漂移）",
                             new SourceSpan(d.SourceFile, d.LineNumber, 0)));
+            }
         }
     }
 

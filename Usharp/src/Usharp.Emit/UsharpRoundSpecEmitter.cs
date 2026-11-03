@@ -49,9 +49,9 @@ public static class UsharpRoundSpecEmitter
         };
 
         // R3 控制流：装配 [Branch]/[Switch]/[Call] 声明（缺省无声明 = 原样）；复用本处已读的 [Node] 端口表。
-        spec = UsharpControlFlowEmitter.Apply(spec, compilation, nodes);
+        spec = UsharpControlFlowEmitter.Apply(spec, compilation, nodes, diagnostics);
 
-        return new Emitted(spec, UsharpTransitionTableBuilder.Build(flow));
+        return new Emitted(spec, UsharpStepSequence.ToTransitionTable(flow));
     }
 
     /// <summary>一次发射的中间产物（<see cref="UsharpEmit.Document"/> 的投影载体）。</summary>

@@ -40,18 +40,10 @@ public sealed record UsharpLlmDecl(
     {
         if (string.IsNullOrWhiteSpace(d.Name)) return null;
 
-        // 续行 <key> = <value>（键序无关；后写覆盖）——与 [Config]/[Rule] 同款口径。
-        var entries = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var raw in d.Continuation)
-        {
-            var line = raw.Trim();
-            if (line.Length == 0) continue;
-            var eq = line.IndexOf('=');
-            if (eq <= 0) continue;
-            var key = line[..eq].Trim();
-            var value = line[(eq + 1)..].Trim();
-            if (key.Length > 0) entries[key] = value;
-        }
+        // 续行 <key> = <value>（键序无关；后写覆盖）——与 [Config]/[Rule] 同款口径（词法内核 = UsharpDeclarationBody）。
+        var entries = new Dictionary<string, string>(
+            UsharpDeclarationBody.Parse(Array.Empty<string>(), d.Continuation, skip: 0, StringComparer.OrdinalIgnoreCase).Fields,
+            StringComparer.OrdinalIgnoreCase);
 
         string? Read(string key)
         {
@@ -101,7 +93,5 @@ public sealed record UsharpLlmDecl(
     private static string TrimQuotes(string s) => s.Trim().Trim('"', '\'');
 
     private static IReadOnlyList<string> SplitList(string? value)
-        => string.IsNullOrWhiteSpace(value)
-            ? Array.Empty<string>()
-            : value.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        => UsharpLineReader.SplitList(value, ',', ' ');
 }

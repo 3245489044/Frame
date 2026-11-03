@@ -534,16 +534,9 @@ internal sealed class GatherGateRule : IGateRule<UsharpGateModel>
     private static void CheckPresentation(UsharpGatherDecl gather, IConversionDiagnosticSink sink)
     {
         if (gather.Presentation is not { } presentation)
-        {
             return;
-        }
 
-        if (presentation.FrameSelection is not null && presentation.FrameSelection.Trim().Length == 0)
-        {
-            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.GatherShapeInvalid,
-                $"[Gather] {gather.DomainId}: frame-selection 不得为空（空 = 不声明，全量帧）",
-                gather.SourceFile, gather.LineNumber));
-        }
+        // FrameSelection 已在语法层归一（空白 ⇒ null）⇒ 此处只需校验受控词/锚点形态。
 
         if (presentation.TerminalPromotion is not null &&
             Array.IndexOf(UsharpLanguage.TerminalPromotions, presentation.TerminalPromotion) < 0)

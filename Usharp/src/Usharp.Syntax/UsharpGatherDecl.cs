@@ -341,13 +341,14 @@ public sealed record UsharpGatherDecl(
         name = string.Empty;
         kinds = Array.Empty<string>();
 
-        var eq = value.IndexOf('=');
-        if (eq <= 0) return false;
+        var bag = UsharpFieldBag.Parse(new[] { value }, skip: 0, comparer: StringComparer.Ordinal);
+        if (bag.Fields.Count == 0) return false;
 
-        name = value[..eq].Trim();
+        var pair = bag.Fields.First();
+        name = pair.Key;
         if (name.Length == 0) return false;
 
-        kinds = value[(eq + 1)..]
+        kinds = pair.Value
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return true;
     }

@@ -374,7 +374,7 @@ internal sealed class RelationGateRule : IGateRule<UsharpGateModel>
         {
             var prevTgt = End(edges[i - 1], UsharpLanguage.FieldTgt);
             var nextSrc = End(edges[i], UsharpLanguage.FieldSrc);
-            if (!ChainEndpointMatches(prevTgt, nextSrc) && !ChainEndpointMatches(nextSrc, prevTgt))
+            if (!ChainEndpointMatches(prevTgt, nextSrc))
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.DeriveViaBroken,
                     $"[Derive] '{derive.DeriveId}'：via 第 {i} 跳首尾不相接"
                     + $"（前跳 tgt='{prevTgt}' vs 后跳 src='{nextSrc}'）",

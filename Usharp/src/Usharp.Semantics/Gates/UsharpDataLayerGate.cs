@@ -45,18 +45,19 @@ internal sealed class TableGateRule : IGateRule<UsharpGateModel>
     }
 }
 
-/// <summary>闸A：<c>[Record]</c> 形态与表引用（US7204/US7205）。</summary>
+/// <summary>闸A：<c>[Record]</c> 形态与表引用（US7204/US7205/US7206）。</summary>
 internal sealed class RecordGateRule : IGateRule<UsharpGateModel>
 {
     public string Name => "usharp.record";
 
     public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
     {
-        var tables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var tableIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var containers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var table in model.Tables)
         {
-            tables.Add(table.TableId);
-            if (!string.IsNullOrWhiteSpace(table.Container)) tables.Add(table.Container);
+            tableIds.Add(table.TableId);
+            if (!string.IsNullOrWhiteSpace(table.Container)) containers[table.Container] = table.TableId;
         }
 
         foreach (var record in model.Records)
@@ -65,10 +66,21 @@ internal sealed class RecordGateRule : IGateRule<UsharpGateModel>
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RecordShapeInvalid,
                     $"[Record] {record.RecordId}: 无法解析的字段行 '{line}'", record.SourceFile, record.LineNumber));
 
-            if (record.Table is { Length: > 0 } tableId && !tables.Contains(tableId))
-                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RecordTableUndeclared,
-                    $"[Record] {record.RecordId}: 引用的表 '{tableId}' 未在本编译声明面中定义",
+            if (record.Table is not { Length: > 0 } tableId || tableIds.Contains(tableId)) continue;
+
+            // E-15：先告警（兼容窗口），下一批收紧为 US7205。
+            if (containers.TryGetValue(tableId, out var actualTableId))
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RecordTableUsesContainer,
+                    $"[Record] {record.RecordId}: table='{tableId}' 是表容器名，应写 table='{actualTableId}'"
+                    + "（表 id 与容器 id 不得混同；兼容期告警）",
                     record.SourceFile, record.LineNumber));
+                continue;
+            }
+
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RecordTableUndeclared,
+                $"[Record] {record.RecordId}: 引用的表 '{tableId}' 未在本编译声明面中定义",
+                record.SourceFile, record.LineNumber));
         }
     }
 }

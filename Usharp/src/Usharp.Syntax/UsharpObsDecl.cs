@@ -61,8 +61,8 @@ public sealed record UsharpObsDecl(
             UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldParent)),
             UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldScope)),
             UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldEntity)),
-            SplitList(required),
-            SplitList(d.Field(UsharpLanguage.FieldMetrics)),
+            UsharpLineReader.SplitList(required, ','),
+            UsharpLineReader.SplitList(d.Field(UsharpLanguage.FieldMetrics), ','),
             ParseEnums(d.Field(UsharpLanguage.FieldEnum), unparsedEnums),
             UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldVersion)),
             d.SourceFile,
@@ -82,10 +82,6 @@ public sealed record UsharpObsDecl(
             _ => UsharpObsKind.Unknown,
         };
 
-    /// <summary>逗号列表（去空去空白；空声明 → 空表）。</summary>
-    private static IReadOnlyList<string> SplitList(string? value)
-        => UsharpLineReader.SplitList(value, ',');
-
     /// <summary>
     /// <c>enum=</c> 解析：<c>&lt;字段&gt;:&lt;v1,v2&gt;</c>，多字段以 <c>;</c> 分段
     /// （<c>|</c> 为字段分隔、<c>,</c> 为列表分隔，均不可复用）。格式非法段忽略（不静默造字段）。
@@ -98,7 +94,7 @@ public sealed record UsharpObsDecl(
         foreach (var segment in UsharpLanguage.SplitSegments(value))
         {
             var (field, rawAllowed) = UsharpLanguage.SplitPair(segment);
-            var allowed = SplitList(rawAllowed);
+            var allowed = UsharpLineReader.SplitList(rawAllowed, ',');
             if (field.Length == 0 || allowed.Count == 0)
             {
                 unparsed.Add(segment);

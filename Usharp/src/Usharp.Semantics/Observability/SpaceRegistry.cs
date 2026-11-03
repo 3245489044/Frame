@@ -46,6 +46,20 @@ public sealed class SpaceRegistry : IUsharpDiagnosticCarrier
                 $"空间 {decl.SpaceId}: kind='{decl.KindRaw}' 非法（合法值：{string.Join("|", UsharpLanguage.SpaceKinds)}）",
                 decl.SourceFile, decl.LineNumber));
 
+        // 值类校验前移（E-7）：闸A 期即报 US0005，不等到矩阵装配才发现（值类词表唯一权威 = UsharpLanguage.ValueKinds）。
+        if (decl.Kind == UsharpSpaceKind.Values)
+        {
+            foreach (var axis in decl.Axes)
+            {
+                if (axis.ValueKind is null) continue;
+                if (UsharpLanguage.ValueKinds.Contains(axis.ValueKind, StringComparer.OrdinalIgnoreCase)) continue;
+                _diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.AxisKindUnknown,
+                    $"空间 {decl.SpaceId}: 坐标 '{axis.Name}' 值类 '{axis.ValueKind}' 非法"
+                    + $"（合法值类：{string.Join("/", UsharpLanguage.ValueKinds)}）",
+                    decl.SourceFile, decl.LineNumber));
+            }
+        }
+
         // 缩进块内不可解析的声明行 ⇒ 显式报错（禁止静默丢弃）
         foreach (var line in decl.UnparsedLines)
             _diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.AxisLineUnparsed,

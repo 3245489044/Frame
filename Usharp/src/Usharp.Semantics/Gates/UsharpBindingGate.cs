@@ -7,50 +7,49 @@ using Usharp.Syntax;
 namespace Usharp.Semantics;
 
 /// <summary>
-/// 规则 ⑥：控制流绑定段重复键（<c>in=</c>/<c>out=</c>/<c>routes=</c>）。
-/// 同一键重复出现会被解析层按「后值覆盖」静默吞掉（声明笔误不可见）⇒ 本规则读原始字段文本可见化（E4）。
-/// 严重度 = Warning：既有声明不改行为，仅暴露静默覆盖（对齐 US5005「同键抖动可见化」先例）。
+/// 规则 ⑥：控制流绑定段词法问题（<c>in=</c>/<c>out=</c>/<c>routes=</c>）。
+/// <para>
+/// 词法内核 = <see cref="UsharpFieldBag"/>（经声明的 <c>BindingIssues</c> 透出）：
+/// 重复键 → <c>US1019</c>；坏段（无 <c>=</c> / 空键 / 空值）→ <c>US0019</c> ——
+/// 不再由本规则手写第二套 <c>IndexOf('=')</c> 解析（R-7 补丁守卫随之删除）。
+/// </para>
 /// </summary>
 internal sealed class BindingDuplicateGateRule : IGateRule<UsharpGateModel>
 {
     public string Name => "usharp.binding.dup";
 
-    private static readonly string[] BindingFields =
-    {
-        UsharpLanguage.FieldInBindings, UsharpLanguage.FieldOutBindings, UsharpLanguage.FieldRoutes,
-    };
-
     public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
     {
         foreach (var doc in model.Documents)
-            foreach (var decl in doc.Declarations)
-            {
-                if (decl.Kind != DslSymbolKind.Call && decl.Kind != DslSymbolKind.Region && decl.Kind != DslSymbolKind.Switch)
-                    continue;
+        {
+            foreach (var branch in UsharpSyntaxProjector.Switches(doc))
+                Report(sink, $"[Switch] {branch.Name}", branch.BindingIssues, branch.SourceFile, branch.LineNumber);
 
-                foreach (var field in BindingFields)
-                {
-                    var duplicate = FirstDuplicateKey(decl.Field(field));
-                    if (duplicate is null) continue;
-                    sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.BindingKeyDuplicate,
-                        $"{decl.Prefix} {decl.Name}: {field}= 绑定键 '{duplicate}' 重复（同键多值静默覆盖；须唯一）",
-                        decl.SourceFile, decl.LineNumber));
-                }
-            }
+            foreach (var call in UsharpSyntaxProjector.Calls(doc))
+                Report(sink, $"[Call] {call.Name}", call.BindingIssues, call.SourceFile, call.LineNumber);
+
+            foreach (var region in UsharpSyntaxProjector.Regions(doc))
+                Report(sink, $"[Region] {region.Name}", region.BindingIssues, region.SourceFile, region.LineNumber);
+        }
     }
 
-    /// <summary>返回首个重复出现的绑定键（无重复 / 无 <c>=</c> ⇒ null）。</summary>
-    private static string? FirstDuplicateKey(string? raw)
+    private static void Report(
+        IConversionDiagnosticSink sink, string owner,
+        IReadOnlyList<UsharpControlFlowBindingIssue> issues, string file, int line)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var segment in UsharpLanguage.SplitSegments(raw))
+        foreach (var issue in issues)
         {
-            var eq = segment.IndexOf('=');
-            if (eq <= 0) continue;
-            var key = segment[..eq].Trim();
-            if (key.Length == 0) continue;
-            if (!seen.Add(key)) return key;
+            if (issue.IsDuplicate)
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.BindingKeyDuplicate,
+                    $"{owner}: {issue.Field}= 绑定键 '{issue.Segment}' 重复（同键多值静默覆盖；须唯一）",
+                    file, line));
+                continue;
+            }
+
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ControlFlowSegmentUnparsed,
+                $"{owner}: {issue.Field}= 段 '{issue.Segment}' 无法解析（须为 <键>=<值>）",
+                file, line));
         }
-        return null;
     }
 }

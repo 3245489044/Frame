@@ -55,6 +55,12 @@ public static class UsharpCodes
     /// <summary>声明装载/回填/投影执行失败（E-4/R-3）。</summary>
     public const string DeclarationLoadFailure = UsharpDiagnosticCatalog.DeclarationLoadFailure;
 
+    /// <summary>控制流子流嵌套超过 <c>MaxCallDepth</c>（截断可见化，保留前 N 层）。</summary>
+    public const string CallDepthTruncated = UsharpDiagnosticCatalog.CallDepthTruncated;
+
+    /// <summary>控制流绑定段不可解析（无 <c>=</c> / 空键 / 空值）。</summary>
+    public const string ControlFlowSegmentUnparsed = UsharpDiagnosticCatalog.ControlFlowSegmentUnparsed;
+
     /// <summary><c>[Space]</c> 的 <c>kind=</c> 取值非法（合法值：<c>keys</c>|<c>values</c>）——不静默按 values 装配。</summary>
     public const string SpaceKindUnknown = UsharpDiagnosticCatalog.SpaceKindUnknown;
 
@@ -287,6 +293,9 @@ public static class UsharpCodes
 
     /// <summary>记录引用的表未在本编译声明面中定义。</summary>
     public const string RecordTableUndeclared = UsharpDiagnosticCatalog.RecordTableUndeclared;
+
+    /// <summary><c>[Record] table=</c> 使用容器名而非表 id（兼容期告警）。</summary>
+    public const string RecordTableUsesContainer = UsharpDiagnosticCatalog.RecordTableUsesContainer;
 
     // LLM 判定契约面（[LLMDecl]：判定形状与契约外置；L 系闸A —— 输出/输入契约 ↔ 装配对账）
     /// <summary><c>[LLMDecl] output=</c> 的字段未在 <c>over=</c> 空间的 O 区词元中声明（消手写 Parse 的结构漂移）。</summary>

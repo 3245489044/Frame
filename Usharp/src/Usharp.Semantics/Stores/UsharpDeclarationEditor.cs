@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Usharp.Syntax;
 
 namespace Usharp.Semantics;
 
@@ -116,30 +117,12 @@ public sealed class UsharpDeclarationEditor : IDeclarationEditor
     private static List<string> SplitLines(string? text)
         => (text ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').ToList();
 
-    /// <summary>顶层声明头行判定：去空白后以已注册前缀（<c>[Prefix]</c>）起始。</summary>
-    private static bool IsHeader(string line)
-    {
-        var trimmed = line.TrimStart();
-        if (!trimmed.StartsWith("[", StringComparison.Ordinal)) return false;
-        var close = trimmed.IndexOf(']');
-        if (close <= 1) return false;
-        var prefix = trimmed[..(close + 1)];
-        return Usharp.Syntax.UsharpPrefixes.Scope.Find(prefix) is not null;
-    }
+    /// <summary>顶层声明头行判定：去空白后以已注册前缀（<c>[Prefix]</c>）起始（实现单源 = <see cref="UsharpLineReader.IsDeclarationHeader"/>）。</summary>
+    private static bool IsHeader(string line) => UsharpLineReader.IsDeclarationHeader(line);
 
-    /// <summary>头行 → 键（<c>[Node] my_step: fn=…</c> → <c>my_step</c>）；非头行/无键 → false。</summary>
+    /// <summary>头行 → 键（实现单源 = <see cref="UsharpLineReader.TryDeclarationHeaderKey"/>）；非头行/无键 → false。</summary>
     private static bool TryHeaderKey(string line, out string key)
-    {
-        key = string.Empty;
-        var trimmed = line.TrimStart();
-        if (!trimmed.StartsWith("[", StringComparison.Ordinal)) return false;
-        var close = trimmed.IndexOf(']');
-        if (close < 0) return false;
-        var rest = trimmed[(close + 1)..].TrimStart();
-        var end = rest.IndexOfAny(new[] { ':', ' ', '\t' });
-        key = end < 0 ? rest : rest[..end];
-        return key.Length > 0;
-    }
+        => UsharpLineReader.TryDeclarationHeaderKey(line, out key);
 
     /// <summary>定位锚点块起始行：优先键匹配；兼容以锚点文本直接起始的行。</summary>
     private static int FindAnchorIndex(List<string> lines, string anchor)

@@ -186,14 +186,9 @@ internal readonly struct UsharpIdentitySyntax
         var id = (colon >= 0 ? head[..colon] : head).Trim();
         var body = (colon >= 0 ? head[(colon + 1)..] : string.Empty).Trim();
 
-        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        for (var i = 1; i < segments.Length; i++)
-        {
-            var segment = segments[i].Trim();
-            var eq = segment.IndexOf('=');
-            if (eq <= 0) continue;
-            fields[segment[..eq].Trim()] = segment[(eq + 1)..].Trim();
-        }
+        var fields = new Dictionary<string, string>(
+            UsharpFieldBag.Parse(segments, skip: 1, comparer: StringComparer.OrdinalIgnoreCase).Fields,
+            StringComparer.OrdinalIgnoreCase);
 
         return new UsharpIdentitySyntax(id, body, fields);
     }

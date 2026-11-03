@@ -8,10 +8,12 @@ public sealed record UsharpMatrixRow(string OutputKey, string Expression, IReadO
     /// <summary>从缩进行 `outKey = expr` 解析（首个 `=` 切分；输出键剥离 next-state 后缀 `'`）。</summary>
     public static UsharpMatrixRow? Parse(string line)
     {
-        var eq = line.IndexOf('=');
-        if (eq <= 0) return null;
-        var output = line[..eq].Trim().TrimEnd('\'', '′').Trim();
-        var expr = line[(eq + 1)..].Trim();
+        var bag = UsharpFieldBag.Parse(new[] { line }, skip: 0, comparer: StringComparer.Ordinal);
+        if (bag.Fields.Count == 0) return null;
+
+        var pair = bag.Fields.First();
+        var output = pair.Key.TrimEnd('\'', '′').Trim();
+        var expr = pair.Value.Trim();
         if (output.Length == 0 || expr.Length == 0) return null;
 
         // 切词权威 = UsharpIdentifier（与 [Space] 坐标行、线性表达式词法共用同一字符集）

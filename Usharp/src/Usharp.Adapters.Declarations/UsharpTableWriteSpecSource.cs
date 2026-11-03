@@ -26,8 +26,13 @@ public sealed class UsharpTableWriteSpecSource : ITableWriteSpecSource
     public static UsharpTableWriteSpecSource Empty { get; } =
         new(new Dictionary<string, TableWriteSpec>(StringComparer.OrdinalIgnoreCase));
 
-    /// <summary>由已编译程序集投影（以 TableId 与 Container 双键登记）。</summary>
-    public static UsharpTableWriteSpecSource FromCompilation(UsharpCompilation compilation)
+    /// <summary>由已编译程序集投影（以 TableId 登记；<paramref name="includeContainerAliases"/> 为真的兼容窗口内并登记容器名）。</summary>
+    /// <param name="compilation">编译结果。</param>
+    /// <param name="includeContainerAliases">
+    /// E-15 兼容窗口：容器名别名登记（缺省 true 保零回归；收紧时传 false，只认表 id）。
+    /// </param>
+    public static UsharpTableWriteSpecSource FromCompilation(
+        UsharpCompilation compilation, bool includeContainerAliases = true)
     {
         ArgumentNullException.ThrowIfNull(compilation);
         var map = new Dictionary<string, TableWriteSpec>(StringComparer.OrdinalIgnoreCase);
@@ -35,7 +40,7 @@ public sealed class UsharpTableWriteSpecSource : ITableWriteSpecSource
         {
             var spec = ToSpec(decl);
             map[decl.TableId] = spec;
-            if (!string.IsNullOrWhiteSpace(decl.Container)) map[decl.Container] = spec;
+            if (includeContainerAliases && !string.IsNullOrWhiteSpace(decl.Container)) map[decl.Container] = spec;
         }
         return new UsharpTableWriteSpecSource(map);
     }

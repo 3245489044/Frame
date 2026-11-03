@@ -1,0 +1,13 @@
+# 回归套件清单（`verify --suite samples/regression`）
+# 行格式：file|code|severity|line|exit[|emit]
+#   severity = error|warn|info；line 支持 *；第 6 列 emit = 追加全部 [Flow] 发射期诊断
+broken-us1001.ushar|US1001|error|2|1
+decision-on-values.ushar|US1105|error|6|1
+duplicate-matrix-flow.ushar|US0014|error|12|1
+duplicate-matrix-flow.ushar|US0015|error|18|1
+space-value-kind-invalid.ushar|US0005|error|2|1
+controlflow-bad-binding.ushar|US0019|error|8|1
+controlflow-bad-binding.ushar|US1019|error|8|1
+controlflow-bad-binding.ushar|US0019|error|9|1
+record-table-uses-container.ushar|US7206|warn|5|0
+call-depth-truncated.ushar|US0018|warn|40|0|emit

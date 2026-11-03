@@ -256,11 +256,12 @@ public sealed record UsharpDomainDecl(
     {
         name = string.Empty;
         value = string.Empty;
-        var eq = line.IndexOf('=');
-        if (eq <= 0) return false;
+        var bag = UsharpFieldBag.Parse(new[] { line }, skip: 0, comparer: StringComparer.Ordinal);
+        if (bag.Fields.Count == 0) return false;
 
-        name = line[..eq].Trim();
-        value = line[(eq + 1)..].Trim();
+        var pair = bag.Fields.First();
+        name = pair.Key;
+        value = pair.Value;
         if (name.Length == 0 || value.Length == 0) return false;
 
         if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')

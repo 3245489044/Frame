@@ -1,0 +1,45 @@
+# 反例（E-18）：[Call] 子流嵌套超过 MaxCallDepth=8 → US0018（warn；保留前 8 层，不静默）。
+# 由 `verify --emit-flows` 断言（发射期诊断）。
+[Space] Step: kind=keys
+  a
+
+[Node] a: fn=a
+
+[Flow] F1: over=Step
+  step a
+[Call] C1: flow=F1 | node=a | child=F2
+
+[Flow] F2: over=Step
+  step a
+[Call] C2: flow=F2 | node=a | child=F3
+
+[Flow] F3: over=Step
+  step a
+[Call] C3: flow=F3 | node=a | child=F4
+
+[Flow] F4: over=Step
+  step a
+[Call] C4: flow=F4 | node=a | child=F5
+
+[Flow] F5: over=Step
+  step a
+[Call] C5: flow=F5 | node=a | child=F6
+
+[Flow] F6: over=Step
+  step a
+[Call] C6: flow=F6 | node=a | child=F7
+
+[Flow] F7: over=Step
+  step a
+[Call] C7: flow=F7 | node=a | child=F8
+
+[Flow] F8: over=Step
+  step a
+[Call] C8: flow=F8 | node=a | child=F9
+
+[Flow] F9: over=Step
+  step a
+[Call] C9: flow=F9 | node=a | child=F10
+
+[Flow] F10: over=Step
+  step a

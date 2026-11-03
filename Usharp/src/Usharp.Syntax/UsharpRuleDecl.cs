@@ -60,11 +60,16 @@ public sealed record UsharpRuleDecl(
             if (line.Length == 0) continue;
 
             // 无 `=` ⇒ 自由条件行（简单形态，如规则集 action 行）；有 `=` ⇒ 路径项（when/then/require 子树）。
-            var eq = line.IndexOf('=');
-            if (eq < 0) { conditions.Add(line); continue; }
+            var bag = UsharpFieldBag.Parse(new[] { line }, skip: 0, comparer: StringComparer.Ordinal);
+            if (bag.Fields.Count == 0)
+            {
+                conditions.Add(line);
+                continue;
+            }
 
-            var path = line[..eq].Trim();
-            var value = line[(eq + 1)..].Trim();
+            var pair = bag.Fields.First();
+            var path = pair.Key;
+            var value = pair.Value;
             if (path.Length == 0) { unparsed.Add(line); continue; }
 
             body.Add(new UsharpRuleEntry(path, value));

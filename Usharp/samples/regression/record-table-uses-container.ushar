@@ -1,0 +1,6 @@
+# 反例（E-15）：[Record] table= 写容器名（users）而非表 id（UsersTable）→ US7206（warn，兼容窗口）。
+[Table] UsersTable: container=users | key=id
+  id: int
+
+[Record] UserRow: table=users | key=1
+  name = "x"

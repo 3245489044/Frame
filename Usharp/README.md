@@ -314,6 +314,7 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US7404` | error | KeySpace：port 指向未声明族 |
 | `US7405` | error | KeySpace：policy 重复声明 |
 | `US7406` | error | KeySpace：[KeySpace] 续行不可解析 |
+| `US7407` | info | KeySpace：[Domain] 已声明 coordinates 但本次编译无 [KeySpace]（单文件装载，跨层校验由整包承担） |
 | `US7501` | error | Command：[Command] 重复声明 |
 | `US7502` | error | Command：channel 坐标未声明 |
 | `US7503` | error | Command：op 声明不完整 |

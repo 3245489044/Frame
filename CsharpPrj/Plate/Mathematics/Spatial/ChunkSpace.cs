@@ -150,11 +150,28 @@ public readonly record struct ChunkStreamOptions(
     int MaxVisibleChunks,
     float MaxDistance)
 {
-    public static ChunkStreamOptions Default => new(
-        HorizontalChunks: 4,
-        VerticalChunks: 1,
-        MaxVisibleChunks: 48,
-        MaxDistance: 256f);
+    /// <summary>
+    /// 物理范围 → 区块个数：配置层用米/厘米描述覆盖距离，区块边长由内核 chunkSize 决定。
+    /// <para>1 cm 世界下同一组「区块个数」常量会随 chunkSize 缩小覆盖 100 倍，因此流式参数必须以物理距离表达。</para>
+    /// <para>上下限只为阻止异常的候选枚举（例如 256 m 半径 + 1 cm 区块），不代表裁剪语义。</para>
+    /// </summary>
+    public static ChunkStreamOptions FromPhysical(
+        float horizontalCm, float verticalCm, int maxVisibleChunks, float maxDistanceCm,
+        int chunkSize, int maxHorizontalChunks = 64, int maxVerticalChunks = 32)
+    {
+        ChunkSpace.ShiftOf(chunkSize);
+
+        int horizontal = CeilChunks(horizontalCm, chunkSize, 0, maxHorizontalChunks);
+        int vertical = CeilChunks(verticalCm, chunkSize, 1, maxVerticalChunks);
+        return new ChunkStreamOptions(horizontal, vertical, maxVisibleChunks, maxDistanceCm);
+    }
+
+    private static int CeilChunks(float physicalCm, int chunkSize, int min, int max)
+    {
+        if (physicalCm <= 0f) return min;
+        int count = (int)MathF.Ceiling(physicalCm / chunkSize);
+        return Math.Clamp(count, min, max);
+    }
 }
 
 /// <summary>一帧的分块可见性快照：视锥剔除后的可见分块（近→远）+ 保守渲染域包围盒。</summary>

@@ -345,9 +345,9 @@ internal sealed class DomainGateRule : IGateRule<UsharpGateModel>
             // 跨层判据由整包编译（Generate-DeclaredBundle / 门禁）承担。
             if (domain.Coordinates.Count > 0 && model.KeySpaces.Count == 0)
             {
-                // 预期态（单文件装载无整包 [KeySpace]）⇒ Info：跨层判据由整包编译承担，
-                // 不得占用 WARN 通道（LG-F3：预期态逐文件刷屏 = 信噪比坍塌）。
-                sink.Report(UsharpGateDiagnostics.Info(UsharpCodes.KeyLineUnparsed,
+                // 预期态（单文件装载无整包 [KeySpace]）⇒ 专用 Info 码：跨层判据由整包编译承担，
+                // 不得占用 WARN 通道（LG-F3：预期态逐文件刷屏 = 信噪比坍塌），也不得复用 US7406（其语义为续行不可解析）。
+                sink.Report(UsharpGateDiagnostics.Info(UsharpCodes.SingleFileNoKeySpace,
                     $"[Domain] {domain.DomainId}: 已声明 coordinates 但本次编译无 [KeySpace]"
                     + "（单文件装载：跨层校验由整包编译承担）",
                     domain.SourceFile, domain.LineNumber));

@@ -327,6 +327,7 @@ public static class UsharpCodes
     public const string KeyPortFamilyUnknown = UsharpDiagnosticCatalog.KeyPortFamilyUnknown;
     public const string KeyPolicyDuplicate = UsharpDiagnosticCatalog.KeyPolicyDuplicate;
     public const string KeyLineUnparsed = UsharpDiagnosticCatalog.KeyLineUnparsed;
+    public const string SingleFileNoKeySpace = UsharpDiagnosticCatalog.SingleFileNoKeySpace;
 
     // ── [Command]（US75xx；从原误占的 US70xx 迁出）─────────────────────
     public const string CommandDuplicate = UsharpDiagnosticCatalog.CommandDuplicate;

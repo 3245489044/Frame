@@ -180,6 +180,9 @@ public static class UsharpDiagnosticCatalog
     public const string KeyPolicyDuplicate = "US7405";
     public const string KeyLineUnparsed = "US7406";
 
+    /// <summary>单文件装载无整包 <c>[KeySpace]</c>：预期态，不判红（跨层判据由整包编译承担）。</summary>
+    public const string SingleFileNoKeySpace = "US7407";
+
     // ── US75xx [Command] ────────────────────────────────────────────────
     public const string CommandDuplicate = "US7501";
     public const string CommandChannelUnknown = "US7502";
@@ -385,6 +388,8 @@ public static class UsharpDiagnosticCatalog
         E(KeyPortFamilyUnknown, "KeySpace", UsharpSeverity.Error, "port 指向未声明族", "spaceId, port"),
         E(KeyPolicyDuplicate, "KeySpace", UsharpSeverity.Error, "policy 重复声明", "spaceId, policy"),
         E(KeyLineUnparsed, "KeySpace", UsharpSeverity.Error, "[KeySpace] 续行不可解析", "spaceId, line"),
+        E(SingleFileNoKeySpace, "KeySpace", UsharpSeverity.Info,
+            "[Domain] 已声明 coordinates 但本次编译无 [KeySpace]（单文件装载：跨层校验由整包编译承担）", "domainId"),
 
         E(CommandDuplicate, "Command", UsharpSeverity.Error, "[Command] 重复声明", "action"),
         E(CommandChannelUnknown, "Command", UsharpSeverity.Error, "channel 坐标未声明", "action, channel"),

@@ -17,6 +17,9 @@ public static class NodeDocumentReasons
     public const string FormMismatch = "form-mismatch";
     public const string LocUnresolved = "loc-unresolved";
     public const string DomainUnregistered = "domain-unregistered";
+
+    /// <summary>注册表已注册但无任何域（装配后置阶段无条件执行 ⇒ 空表须显式呈现，不得回落通用域）。</summary>
+    public const string RegistryEmpty = "node-registry-empty";
     public const string KeyUnresolved = "key-unresolved";
     public const string KeyAmbiguous = "key-ambiguous";
     public const string ProjectionUnknown = "projection-unknown";

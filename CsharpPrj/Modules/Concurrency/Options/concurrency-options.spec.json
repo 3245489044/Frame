@@ -1,0 +1,182 @@
+{
+  "$schema": "./concurrency-options.spec.schema.json",
+  "schemaVersion": "concurrency-options-spec-v1",
+  "description": "并发策略声明（唯一结构源）：参数键/类型/默认/值域/消费方 + 复杂度特征表 + 拆分规则。本文件驱动 Generate-ConcurrencyOptions.ps1 生成 Generated\\ConcurrencyOptions.g.cs 与 Agent 配置 schema 片段；运行期值仍由 agent-config.ushar 承载（唯一配置根）。",
+  "sections": {
+    "TaskComplexity": {
+      "description": "复杂度评估声明（L0-1）：阈值/估算系数/特征表。消费方：DeclarativeComplexityAssessor / DeclarativeSplitPlanner。",
+      "params": [
+        {
+          "key": "ThetaSplitLow",
+          "type": "double",
+          "default": 0.35,
+          "min": 0,
+          "max": 1,
+          "level": "L0.5",
+          "consumer": "DeclarativeComplexityAssessor",
+          "description": "低于该分即 Simple（不拆分）。"
+        },
+        {
+          "key": "ThetaSplitHigh",
+          "type": "double",
+          "default": 0.65,
+          "min": 0,
+          "max": 1,
+          "level": "L0.5",
+          "consumer": "DeclarativeComplexityAssessor",
+          "description": "达到该分即 Complex（允许拆分）。"
+        },
+        {
+          "key": "TokensPerChar",
+          "type": "double",
+          "default": 0.6,
+          "min": 0,
+          "level": "L0.5",
+          "consumer": "DeclarativeSplitPlanner",
+          "description": "token 估算口径 = 字符数 × 该系数（可复算）。"
+        },
+        {
+          "key": "CalibrationTolerance",
+          "type": "double",
+          "default": 0.2,
+          "min": 0,
+          "level": "L0.5",
+          "consumer": "ConcurrencyCostRecorder",
+          "description": "估算偏差容忍度；超出即标 estimating-unstable（后续不并发）。"
+        },
+        {
+          "key": "UnitTokensPerNode",
+          "type": "long",
+          "default": 256,
+          "min": 1,
+          "level": "L0.5",
+          "consumer": "DeclarativeSplitPlanner|ConcurrencyBudgetGate",
+          "description": "每节点 token 单位（复用节省/协调开销的唯一换算单位）。"
+        }
+      ],
+      "invariants": [
+        {
+          "kind": "lessThan",
+          "left": "ThetaSplitLow",
+          "right": "ThetaSplitHigh",
+          "message": "ThetaSplitLow 必须小于 ThetaSplitHigh（否则档位无法划分）"
+        }
+      ],
+      "features": [
+        { "key": "input_tokens", "selector": "text_length", "saturateAt": 4000, "weight": 0.25 },
+        { "key": "deliverables", "selector": "deliverable_count", "saturateAt": 8, "weight": 0.25 },
+        { "key": "target_kinds", "selector": "target_kind_count", "saturateAt": 5, "weight": 0.15 },
+        { "key": "node_count", "selector": "node_count", "saturateAt": 16, "weight": 0.2 },
+        { "key": "cross_module", "selector": "cross_module_count", "saturateAt": 4, "weight": 0.1 },
+        { "key": "sub_agents", "selector": "sub_agent_count", "saturateAt": 4, "weight": 0.05 }
+      ],
+      "split": {
+        "separators": ["\n", ";", "；"],
+        "minSegments": 2,
+        "maxMembers": 8
+      }
+    },
+    "ConcurrencyBudget": {
+      "description": "并发成本门禁声明（L0-2）：协调开销/复用率/预算/名额/计价比例。消费方：ConcurrencyBudgetGate。",
+      "params": [
+        {
+          "key": "CoordOverheadRatio",
+          "type": "double",
+          "default": 0.05,
+          "min": 0,
+          "max": 1,
+          "level": "L0.5",
+          "consumer": "ConcurrencyBudgetGate",
+          "description": "协调开销系数（O_coord = N × unit × ratio）。"
+        },
+        {
+          "key": "ReuseProbDefault",
+          "type": "double",
+          "default": 0,
+          "min": 0,
+          "max": 1,
+          "level": "L0.5",
+          "consumer": "ConcurrencyBudgetGate",
+          "description": "无历史节点复用率；出厂 0 = 保守。"
+        },
+        {
+          "key": "AllowUnknownCost",
+          "type": "bool",
+          "default": false,
+          "level": "L0.5",
+          "consumer": "ConcurrencyBudgetGate",
+          "description": "缺省 false = 估不出成本就不并发。"
+        },
+        {
+          "key": "BudgetTokens",
+          "type": "long",
+          "default": 0,
+          "min": 0,
+          "level": "L0.5",
+          "consumer": "ConcurrencyBudgetGate",
+          "description": "组预算（token；0 = 未设限，仅做相对比较）。"
+        },
+        {
+          "key": "MaxConcurrentCalls",
+          "type": "int",
+          "default": 4,
+          "min": 1,
+          "level": "L0.5",
+          "consumer": "ConcurrencyBudgetGate",
+          "description": "可用并发名额上限（未装配容量源时的声明回退值）。"
+        },
+        {
+          "key": "SinglePenaltyFactor",
+          "type": "double",
+          "default": 1,
+          "min": 1,
+          "level": "L0.5",
+          "consumer": "ConcurrencyBudgetGate|DeclarativeSplitPlanner",
+          "description": "单次估算缺省放大系数（单任务把全量塞进一次调用的惩罚；≥1）。"
+        },
+        {
+          "key": "OutputTokenRatio",
+          "type": "double",
+          "default": 0.5,
+          "min": 0,
+          "max": 1,
+          "level": "L0.5",
+          "consumer": "ConcurrencyBudgetGate",
+          "description": "输出 token 占估算 token 的比例（金额口径分离 input/output）。"
+        },
+        {
+          "key": "CacheReadRatio",
+          "type": "double",
+          "default": 0,
+          "min": 0,
+          "max": 1,
+          "level": "L0.5",
+          "consumer": "ConcurrencyBudgetGate",
+          "description": "缓存读 token 占估算 token 的比例（金额口径分离 cache）。"
+        },
+        {
+          "key": "Provider",
+          "type": "string",
+          "level": "L0.5",
+          "consumer": "ConcurrencyBudgetGate",
+          "description": "计价模型提供方（缺省 ⇒ 金额口径 Unknown）。"
+        },
+        {
+          "key": "Model",
+          "type": "string",
+          "level": "L0.5",
+          "consumer": "ConcurrencyBudgetGate",
+          "description": "计价模型（缺省 ⇒ 金额口径 Unknown）。"
+        }
+      ],
+      "invariants": [
+        {
+          "kind": "bothOrNeither",
+          "left": "Provider",
+          "right": "Model",
+          "message": "Provider 与 Model 必须同时声明或同时缺省（否则金额口径不可判定）"
+        }
+      ]
+    }
+  }
+}

@@ -41,6 +41,7 @@ public sealed class ConcurrencyComposition
     /// <summary>
     /// 装配唯一组合根。
     /// <paramref name="capacity"/> 延迟解析（池在组合之后构造）；<paramref name="planStore"/> 必填（未落库不得拆分）。
+    /// <paramref name="maxMembers"/> = 0 ⇒ 取声明面 <c>split.maxMembers</c>（禁第二处硬编码上限）。
     /// </summary>
     public static ConcurrencyComposition Build(
         ConcurrencyOptions options,
@@ -51,19 +52,20 @@ public sealed class ConcurrencyComposition
         IConcurrencyUsageQuery? usageQuery = null,
         IGroupKeyPolicy? groupKeys = null,
         ConcurrencyWaitMode waitMode = ConcurrencyWaitMode.Await,
-        int maxMembers = 8)
+        int maxMembers = 0)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(capacity);
         ArgumentNullException.ThrowIfNull(planStore);
 
+        var memberCap = maxMembers > 0 ? maxMembers : ConcurrencyOptionSpecs.Split.MaxMembers;
         var gate = new ConcurrencyBudgetGate(options, priceSource, capacity);
         var pipeline = new ConcurrencyDecisionPipeline(
             new DeclarativeComplexityAssessor(options),
             new DeclarativeSplitPlanner(options),
             gate,
             planStore,
-            maxMembers);
+            memberCap);
         var recorder = costSink is null && usageQuery is null
             ? null
             : new ConcurrencyCostRecorder(options, costSink, usageQuery);

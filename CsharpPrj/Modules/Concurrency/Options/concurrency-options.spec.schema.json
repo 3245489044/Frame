@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "并发策略声明 spec（唯一结构源）",
+  "type": "object",
+  "required": ["schemaVersion", "sections"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": "concurrency-options-spec-v1" },
+    "description": { "type": "string" },
+    "sections": {
+      "type": "object",
+      "required": ["TaskComplexity", "ConcurrencyBudget"],
+      "additionalProperties": false,
+      "properties": {
+        "TaskComplexity": { "$ref": "#/definitions/section" },
+        "ConcurrencyBudget": { "$ref": "#/definitions/section" }
+      }
+    }
+  },
+  "definitions": {
+    "section": {
+      "type": "object",
+      "required": ["params"],
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": "string" },
+        "params": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/param" } },
+        "invariants": { "type": "array", "items": { "$ref": "#/definitions/invariant" } },
+        "features": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/feature" } },
+        "split": { "$ref": "#/definitions/split" }
+      }
+    },
+    "param": {
+      "type": "object",
+      "required": ["key", "type", "level", "consumer"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "type": { "enum": ["double", "long", "int", "bool", "string"] },
+        "default": { "type": ["number", "boolean", "string", "null"] },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "level": { "type": "string" },
+        "consumer": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "required": ["kind", "left", "right", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["lessThan", "bothOrNeither"] },
+        "left": { "type": "string" },
+        "right": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    },
+    "feature": {
+      "type": "object",
+      "required": ["key", "selector", "saturateAt", "weight"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "selector": {
+          "enum": [
+            "text_length",
+            "deliverable_count",
+            "target_kind_count",
+            "node_count",
+            "cross_module_count",
+            "sub_agent_count"
+          ]
+        },
+        "saturateAt": { "type": "number", "exclusiveMinimum": 0 },
+        "weight": { "type": "number", "minimum": 0 }
+      }
+    },
+    "split": {
+      "type": "object",
+      "required": ["separators", "minSegments", "maxMembers"],
+      "additionalProperties": false,
+      "properties": {
+        "separators": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "minSegments": { "type": "integer", "minimum": 1 },
+        "maxMembers": { "type": "integer", "minimum": 1, "maximum": 32 }
+      }
+    }
+  }
+}

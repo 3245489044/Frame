@@ -2191,8 +2191,20 @@
         Note   = 'D1 pricing.json 解析仅 CostConfigLoader / D2 成本比较唯一 / D3 消费 IPriceTable / D4 声明策略单源 / D5 复用 ICostStore·ICostQuery / D6 负对照'
     }
 
+    # ===== 并发策略声明单源（spec → 生成物 → 配置值面）=====
+    ConcurrencyOptionsSingleSource = @{
+        Domain  = 'Agent'
+        Family  = 'Declaration'
+        Form    = 'SingleSource'
+        Args    = @{ Check = $true; NegativeControl = $true }
+        Tier    = 'fast'
+        Expect  = 0
+        Carrier = '声明键集/生成属性集/schema 属性集/配置根键集 四面对拍 + 源码字面量计数 + 消费方符号存在性'
+        Note    = 'C1 spec ⇄ agent-config.ushar 键集；C2 spec ⇄ Generated\ConcurrencyOptions.g.cs ⇄ agent-config.schema；C3 权重/成员上限/静默钳制零回填；C4 UnitTokensPerNode 单声明且 Copy()=0；C5 声明键消费方可检索；负对照 C1/C3/C4/C5 必红'
+    }
+
     ContractSingleSource = @{
-        Domain = 'Contract'
+        Domain = 'Agent'
         Family = 'Runtime'
         Form   = 'Closure'
         Args   = @{ Check = $true; NegativeControl = $true }

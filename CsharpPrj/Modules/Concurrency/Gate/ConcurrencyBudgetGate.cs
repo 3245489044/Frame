@@ -39,6 +39,7 @@ public sealed class ConcurrencyBudgetGate : IConcurrencyBudgetGate
         IReadOnlyList<SplitMember> members, long? singleEstimateTokens, CancellationToken ct = default)
     {
         var options = _options.Budget;
+        var unitTokens = _options.TaskComplexity.UnitTokensPerNode;
         var n = members?.Count ?? 0;
         // 容量单源：池的上限与实时 slot 为唯一真值；未装配容量来源才回退声明名额。
         var capacity = _capacity?.Invoke();
@@ -53,17 +54,17 @@ public sealed class ConcurrencyBudgetGate : IConcurrencyBudgetGate
             return Deny("CONCURRENCY_COST_UNKNOWN", 0, 0, n, slots, "member EstTokens unavailable");
 
         var body = members.Sum(static m => Math.Max(0, m.EstTokens));
-        var overhead = (long)Math.Ceiling(n * Math.Max(1, options.UnitTokensPerNode) * Math.Max(0, options.CoordOverheadRatio));
+        // 声明快照已在唯一入口校验值域（ratio∈[0,1]、unit≥1、penalty≥1）⇒ 此处禁再静默钳制。
+        var overhead = (long)Math.Ceiling(n * (double)unitTokens * options.CoordOverheadRatio);
         var reuseRefs = members.SelectMany(static m => m.NodeRefs ?? Array.Empty<string>())
             .GroupBy(static r => r, StringComparer.Ordinal)
             .Sum(static g => Math.Max(0, g.Count() - 1));
-        var reuseSaving = (long)Math.Floor(reuseRefs * Math.Max(0, options.UnitTokensPerNode)
-                                         * Math.Clamp(options.ReuseProbDefault, 0, 1));
+        var reuseSaving = (long)Math.Floor(reuseRefs * (double)unitTokens * options.ReuseProbDefault);
         var groupTokens = Math.Max(0, body + overhead - reuseSaving);
 
         var singleTokens = singleEstimateTokens is > 0
             ? singleEstimateTokens.Value
-            : (long)Math.Ceiling(groupTokens * Math.Max(1, options.SinglePenaltyFactor));
+            : (long)Math.Ceiling(groupTokens * options.SinglePenaltyFactor);
 
         // 金额口径分离：成员声明 Provider/Model 时按成员计价（input/output/cache 分价），否则按缺省声明计价。
         var hasMemberPricing = members!.Any(static m =>
@@ -162,9 +163,9 @@ public sealed class ConcurrencyBudgetGate : IConcurrencyBudgetGate
     private static long ComputeAmount(long tokens, CostQuote quote, ConcurrencyBudgetOptions options)
     {
         var safeTokens = Math.Max(0, tokens);
-        var cacheRead = (long)Math.Floor(safeTokens * Math.Clamp(options.CacheReadRatio, 0, 1));
+        var cacheRead = (long)Math.Floor(safeTokens * options.CacheReadRatio);
         var input = Math.Max(0, safeTokens - cacheRead);
-        var output = (long)Math.Ceiling(safeTokens * Math.Clamp(options.OutputTokenRatio, 0, 1));
+        var output = (long)Math.Ceiling(safeTokens * options.OutputTokenRatio);
         var cacheRate = quote.CachedInputPerToken ?? quote.InputPerToken;
         var amount = input * quote.InputPerToken
                    + output * quote.OutputPerToken

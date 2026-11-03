@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（87 件）
+## Agent（99 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -23,12 +23,17 @@
 | `AgentRuntimeSlots` | full | 0 | Runtime | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-AgentRuntimeSlots.ps1` |
 | `AgentRuntimeUIConfig` | full | 0 | Presentation | Consistency | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-AgentRuntimeUIConfig.ps1` |
 | `AgentSpec` | fast | 0 | Declaration | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-AgentSpec.ps1` |
+| `AnswerIdentity` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-AnswerIdentity.ps1` |
 | `CanonicalForm` | fast | 0 | Contract | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-CanonicalForm.ps1` |
 | `CanonReplay` | fast | 0 | Meta | Consistency | `Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-CanonReplay.ps1` |
 | `CircuitSemantics` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-CircuitSemantics.ps1` |
+| `ConcurrencyLayering` | fast | 0 | Runtime | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ConcurrencyLayering.ps1` |
+| `ConcurrencyOptionsSingleSource` | fast | 0 | Declaration | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ConcurrencyOptionsSingleSource.ps1` |
 | `ContextGeometryBoundary` | fast | 0 | Boundary | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-ContextGeometryBoundary.ps1` |
 | `ContextGeometryConvergence` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ContextGeometryConvergence.ps1` |
 | `ContextGeometryPrefixPurity` | fast | 0 | Runtime | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ContextGeometryPrefixPurity.ps1` |
+| `ContractSingleSource` | fast | 0 | Runtime | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-ContractSingleSource.ps1` |
+| `CostGateReuse` | fast | 0 | Runtime | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-CostGateReuse.ps1` |
 | `DbRenderPurity` | fast | 0 | Presentation | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-DbRenderPurity.ps1` |
 | `DbToolbarDictAlloc` | fast | 0 | Presentation | Ratchet | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-DbToolbarDictAlloc.ps1` |
 | `DeclarationParity` | fast | 0 | Runtime | Drift | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-DeclarationParity.ps1` |
@@ -40,6 +45,9 @@
 | `EffectiveModeSingleSource` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-EffectiveModeSingleSource.ps1` |
 | `EntrySingleSource` | full | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-EntrySingleSource.ps1` |
 | `ExecutionLaneGate` | fast | 0 | Contract | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-ExecutionLaneGate.ps1` |
+| `FoldState` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-FoldState.ps1` |
+| `FrameIdentity` | fast | 0 | Declaration | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-FrameIdentity.ps1` |
+| `FrameSchema` | fast | 0 | Declaration | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-FrameSchema.ps1` |
 | `GatherClosure` | fast | 0 | Runtime | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-GatherClosure.ps1` |
 | `GatherDecl` | fast | 0 | Runtime | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-GatherDecl.ps1` |
 | `GatherDiagnosticsSingleSource` | fast | 0 | Observability | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Observability\Check-GatherDiagnosticsSingleSource.ps1` |
@@ -59,6 +67,7 @@
 | `NodePromptBinding` | full | 0 | Declaration | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-NodePromptBinding.ps1` |
 | `OperationRowCarriesActor` | fast | 0 | Observability | Consistency | `Frame\PowerShellScript\Operation\DSL\Agent\Observability\Check-OperationRowCarriesActor.ps1` |
 | `PowerShellHostSingleSource` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-PowerShellHostSingleSource.ps1` |
+| `PresentationContract` | fast | 0 | Presentation | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-PresentationContract.ps1` |
 | `PromptCacheStability` | fast | 0 | Declaration | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-PromptCacheStability.ps1` |
 | `PromptSegments` | fast | 0 | Declaration | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-PromptSegments.ps1` |
 | `PsSkillToolMap` | fast | 0 | Contract | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-PsSkillToolMap.ps1` |
@@ -77,6 +86,8 @@
 | `ShareMessagingBoundary` | fast | 0 | Boundary | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-ShareMessagingBoundary.ps1` |
 | `SignalDeclaration` | fast | 0 | Declaration | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-SignalDeclaration.ps1` |
 | `SignalTraceSchema` | fast | 0 | Observability | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Observability\Check-SignalTraceSchema.ps1` |
+| `TaskConcurrencySemantics` | fast | 0 | Runtime | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-TaskConcurrencySemantics.ps1` |
+| `TaskHistorySingleEntry` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-TaskHistorySingleEntry.ps1` |
 | `TemplateAccessSingleEntry` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-TemplateAccessSingleEntry.ps1` |
 | `ToolCallConvergence` | fast | 0 | Contract | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-ToolCallConvergence.ps1` |
 | `TransferKey` | fast | 0 | Contract | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-TransferKey.ps1` |
@@ -92,6 +103,7 @@
 | `UiViewCatalog` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-UiViewCatalog.ps1` |
 | `UiWriteFidelity` | fast | 0 | Presentation | Consistency | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-UiWriteFidelity.ps1` |
 | `UnknownVisible` | fast | 0 | Observability | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Observability\Check-UnknownVisible.ps1` |
+| `ViewContract` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-ViewContract.ps1` |
 | `ViewGolden` | fast | 0 | Runtime | Drift | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ViewGolden.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | Boundary | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-VmKernelReferenceBoundary.ps1` |
 | `WorkflowRegistration` | fast | 0 | Declaration | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-WorkflowRegistration.ps1` |
@@ -203,7 +215,7 @@
 | `UiThreadAffinity` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiThreadAffinity.ps1` |
 | `WriteBudgetNodes` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-WriteBudgetNodes.ps1` |
 
-## Node（36 件）
+## Node（37 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -227,6 +239,7 @@
 | `NodeFramework` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-NodeFramework.ps1` |
 | `NodeGather` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-NodeGather.ps1` |
 | `NodeHierarchyRefs` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-NodeHierarchyRefs.ps1` |
+| `NodeIo` | fast | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-NodeIo.ps1` |
 | `NodeKeyAddress` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-NodeKeyAddress.ps1` |
 | `NodeLocConsistency` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-NodeLocConsistency.ps1` |
 | `NodeLocPlacement` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-NodeLocPlacement.ps1` |
@@ -251,7 +264,7 @@
 | `KeyGrammar` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1` |
 | `RecognizerVocabulary` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1` |
 
-## Process（25 件）
+## Process（26 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -259,6 +272,7 @@
 | `AnalysisDocGrounding` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-AnalysisDocGrounding.ps1` |
 | `BatchLineEndings` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchLineEndings.ps1` |
 | `BatchScope` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchScope.ps1` |
+| `CallGovernance` | fast | 0 | CallGovernance | Boundary | `Frame\PowerShellScript\Operation\DSL\Tooling\Check-CallGovernance.ps1` |
 | `ContainerSemantics` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-ContainerSemantics.ps1` |
 | `DeclarationCapability` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-DeclarationCapability.ps1` |
 | `DimensionReduction` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-DimensionReduction.ps1` |

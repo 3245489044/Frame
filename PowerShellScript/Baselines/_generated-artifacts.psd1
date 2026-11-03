@@ -127,5 +127,29 @@
             Origin             = 'Derived'
             DueWhen            = ''
         }
+        @{
+            Name               = 'ConcurrencyOptionsCs'
+            Artifact           = 'Frame\CsharpPrj\Modules\Concurrency\Generated\ConcurrencyOptions.g.cs'
+            Generator          = 'Frame\PowerShellScript\Share\Concurrency\Generate-ConcurrencyOptions.ps1'
+            GeneratorArgs      = @{ Target = 'cs'; OutFile = '{TEMP}' }
+            Kind               = 'Text'
+            IgnoreLinePatterns = @()
+            SentinelPattern    = '此文件由 Generate-ConcurrencyOptions.ps1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Concurrency\Generate-ConcurrencyOptions.ps1'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
+            Name               = 'ConcurrencyOptionsSchema'
+            Artifact           = 'Projects\Plug\Agent\Config\generated\concurrency-options.schema.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Concurrency\Generate-ConcurrencyOptions.ps1'
+            GeneratorArgs      = @{ Target = 'schema'; OutFile = '{TEMP}' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'concurrency-options-schema-v1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Concurrency\Generate-ConcurrencyOptions.ps1'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
     )
 }

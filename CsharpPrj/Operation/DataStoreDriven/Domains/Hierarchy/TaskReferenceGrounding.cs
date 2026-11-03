@@ -8,6 +8,7 @@ using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using Operation.DataStoreDriven.Graph;
 using UniversalWorkflowFramework.Relations;
+using UniversalWorkflowFramework.Relations.Gather.Adapters;
 using UniversalWorkflowFramework.Core.Models;
 
 namespace Operation.DataStoreDriven.Core;

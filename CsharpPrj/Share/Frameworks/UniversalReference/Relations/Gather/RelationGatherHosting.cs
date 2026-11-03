@@ -1,4 +1,6 @@
-namespace UniversalWorkflowFramework.Relations;
+using UniversalWorkflowFramework.Relations.Kernel;
+
+namespace UniversalWorkflowFramework.Relations.Gather;
 
 /// <summary>
 /// 关系聚拢点的单一装配点（仿 NodeGatherHosting）：逐 operation 校验声明可达性，

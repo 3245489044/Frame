@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace UniversalWorkflowFramework.Relations;
+using UniversalWorkflowFramework.Relations.Kernel;
+
+namespace UniversalWorkflowFramework.Relations.Gather.Adapters;
 
 /// <summary>
 /// 关系写面适配模板：把「operation 解析 / 单条与批量归一 / 失败可见化」收到基类。
@@ -73,7 +75,7 @@ public abstract class RelationSurfaceAdapter
     {
         var declared = Ports.Operations.Resolve(operation)
             ?? throw new InvalidOperationException($"{_surfaceName}:未声明 operation:{operation}");
-        if (declared.IsRemove != remove)
+        if (declared.IsRemove() != remove)
             throw new InvalidOperationException(
                 $"{_surfaceName}:operation 意图不符:{operation}（声明 intent={declared.Intent}）");
         return declared;

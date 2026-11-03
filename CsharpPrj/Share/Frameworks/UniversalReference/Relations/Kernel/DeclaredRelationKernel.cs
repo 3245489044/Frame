@@ -1,6 +1,6 @@
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 /// <summary>
 /// 声明驱动的关系内核：<b>唯一写入口</b>（<see cref="IRelationCommandPort"/>）。

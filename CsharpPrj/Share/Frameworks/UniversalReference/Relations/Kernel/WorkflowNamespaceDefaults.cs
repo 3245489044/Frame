@@ -1,4 +1,6 @@
-namespace UniversalWorkflowFramework.Relations;
+using System;
+
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 /// <summary>
 /// 工作流命名空间的声明驱动实现（<see cref="IWorkflowNamespace"/> 唯一生产实现）。

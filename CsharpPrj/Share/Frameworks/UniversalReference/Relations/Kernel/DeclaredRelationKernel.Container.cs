@@ -1,4 +1,4 @@
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 /// <summary>容器归属校验段（U4）：声明面 <c>container=</c> 的写前判据。</summary>
 public sealed partial class DeclaredRelationKernel
@@ -11,7 +11,7 @@ public sealed partial class DeclaredRelationKernel
     private async Task<string?> CheckContainerAsync(
         RelationOperation plan, string sourceKey, string targetKey, List<string> diagnostics, CancellationToken ct)
     {
-        if (!plan.ChecksContainer) return null;
+        if (!plan.ChecksContainer()) return null;
 
         if (_containers is null)
         {
@@ -43,7 +43,7 @@ public sealed partial class DeclaredRelationKernel
         if (string.Equals(actual, sourceKey, StringComparison.Ordinal)) return null;
 
         var reason = $"container-mismatch:{sourceKey}|{actual ?? "(none)"}";
-        if (plan.ContainerRejects)
+        if (plan.ContainerRejects())
         {
             _diagnostics?.RelationRejected(plan.Id, plan.Edge, reason);
             return reason;

@@ -1,4 +1,5 @@
 using UniversalWorkflowFramework.Relations;
+using UniversalWorkflowFramework.Relations.Kernel;
 using Usharp.Semantics;
 
 namespace Usharp.Adapters.Declarations;
@@ -9,7 +10,7 @@ namespace Usharp.Adapters.Declarations;
 /// </summary>
 public static class DeclaredRelationPlan
 {
-    /// <summary>由编译产物构建计划（无声明 ⇒ <see cref="RelationPlan.Empty"/>，可见化由调用方判定）。</summary>
+    /// <summary>由编译产物构建计划（无声明 ⇒ <see cref="RelationPlans.Empty"/>，可见化由调用方判定）。</summary>
     public static RelationPlan BuildFromCompilation(UsharpCompilation compilation)
     {
         ArgumentNullException.ThrowIfNull(compilation);
@@ -31,7 +32,7 @@ public static class DeclaredRelationPlan
             .ToList();
 
         return operations.Count == 0 && invariants.Count == 0 && derivations.Count == 0
-            ? RelationPlan.Empty
+            ? RelationPlans.Empty
             : new RelationPlan("1.0", operations, invariants, derivations);
     }
 }

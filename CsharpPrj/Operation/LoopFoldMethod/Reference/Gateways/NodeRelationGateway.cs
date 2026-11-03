@@ -6,6 +6,7 @@ using Modules.Node.Relations;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.DataStoreDriven.Core;
 using UniversalWorkflowFramework.Relations;
+using UniversalWorkflowFramework.Relations.Gather.Adapters;
 using Operation.LoopFoldMethod.Reference.Derivation;
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;

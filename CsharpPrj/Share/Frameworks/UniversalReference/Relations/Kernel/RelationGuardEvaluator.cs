@@ -1,11 +1,10 @@
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 /// <summary>
 /// 守卫求值器（通用件，唯一实现）—— 谓词 → 结构事实的查表判定。
 /// <para>
 /// 纪律：① 未登记谓词 = 不可判定（<c>Satisfied=false</c> 且恒 <c>Blocks=true</c>，禁默认放行）；
-/// ② 姿态只影响「是否阻断」，不改变违反清单（可见化不得被姿态吞掉）；
-/// ③ 纯函数，同输入同输出。
+/// ② 姿态只影响「是否阻断」，不改变违反清单（可见化不得被姿态吞掉）；③ 纯函数，同输入同输出。
 /// </para>
 /// </summary>
 public sealed class RelationGuardEvaluator : IRelationGuardEvaluator

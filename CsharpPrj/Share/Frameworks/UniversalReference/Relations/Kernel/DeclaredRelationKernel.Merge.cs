@@ -1,4 +1,4 @@
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 /// <summary>
 /// 批量改挂（merge）：attach 全成 → detach 全成；任一步失败按补偿事务回到执行前逐边状态。
@@ -16,7 +16,7 @@ public sealed partial class DeclaredRelationKernel
             return Fail(request.Operation, null, "merge 的源与目标父相同（无操作；禁伪成功）");
 
         if (!TryResolve(request.Operation, out var ensurePlan, out var failure)) return failure!;
-        if (ensurePlan.IsRemove)
+        if (ensurePlan.IsRemove())
             return Fail(request.Operation, ensurePlan.Edge, "merge 需要 intent=ensure 的 operation");
         if (ResolveRemovePlan(ensurePlan) is not { } removePlan)
             return Fail(request.Operation, ensurePlan.Edge,

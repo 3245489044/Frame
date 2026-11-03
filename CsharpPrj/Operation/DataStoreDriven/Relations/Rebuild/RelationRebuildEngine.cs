@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UniversalWorkflowFramework.Relations;
+using UniversalWorkflowFramework.Relations.Kernel;
 using UniversalWorkflowFramework.Relations.Mounting;
 
 namespace Operation.DataStoreDriven.Relations.Rebuild;
@@ -165,7 +166,7 @@ public sealed class RelationRebuildEngine
                     continue;
                 }
 
-                var result = declared.IsRemove
+                var result = declared.IsRemove()
                     ? await _ports.Commands.RemoveAsync(action.Operation, request, ct).ConfigureAwait(false)
                     : await _ports.Commands.EnsureAsync(action.Operation, request, ct).ConfigureAwait(false);
 

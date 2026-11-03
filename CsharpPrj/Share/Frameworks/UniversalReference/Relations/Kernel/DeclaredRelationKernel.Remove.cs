@@ -1,6 +1,6 @@
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 public sealed partial class DeclaredRelationKernel
 {
@@ -12,10 +12,10 @@ public sealed partial class DeclaredRelationKernel
         if (TargetConflict(request) is { } conflict) return Fail(operation, null, conflict);
 
         if (!TryResolve(operation, out var plan, out var failure)) return failure!;
-        if (!plan.IsRemove)
+        if (!plan.IsRemove())
             return Fail(operation, plan.Edge, $"operation '{operation}' 声明 intent=ensure；RemoveAsync 不接受");
 
-        var targets = request.Targets;
+        var targets = request.Targets();
         if (targets.Count == 0)
             return Fail(operation, plan.Edge, "未提供 target_key(s)");
 

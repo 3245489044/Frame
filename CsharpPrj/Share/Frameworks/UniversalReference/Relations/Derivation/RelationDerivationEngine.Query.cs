@@ -1,6 +1,7 @@
+using UniversalWorkflowFramework.Relations.Kernel;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Derivation;
 
 /// <summary>
 /// 规格化查询（F4）：<see cref="RelationQuerySpec"/> → 有界逐跳键集。
@@ -23,17 +24,17 @@ public sealed partial class RelationDerivationEngine
         ArgumentNullException.ThrowIfNull(scope);
 
         if (string.IsNullOrWhiteSpace(spec.From))
-            return RelationQueryResult.Empty("query-invalid:from");
+            return RelationQueryResults.Empty("query-invalid:from");
 
         var via = ResolveVia(spec);
         if (via.Count == 0)
-            return RelationQueryResult.Empty("query-undeclared:label");
+            return RelationQueryResults.Empty("query-undeclared:label");
 
         var edges = new List<RelationEdgeSpec>(via.Count);
         foreach (var edgeName in via)
         {
             var edge = _policy.FindEdge(edgeName);
-            if (edge is null) return RelationQueryResult.Empty("edge-undeclared:" + edgeName);
+            if (edge is null) return RelationQueryResults.Empty("edge-undeclared:" + edgeName);
             edges.Add(edge);
         }
 
@@ -79,7 +80,7 @@ public sealed partial class RelationDerivationEngine
             level = next;
             currentType = string.IsNullOrWhiteSpace(edge.Target) ? currentType : edge.Target;
 
-            if (level.Count == 0) return RelationQueryResult.Empty("no-member");
+            if (level.Count == 0) return RelationQueryResults.Empty("no-member");
         }
 
         if (truncated) reasons.Add($"truncated:max-nodes={budget}");
@@ -98,7 +99,7 @@ public sealed partial class RelationDerivationEngine
             keys = keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
 
         return keys.Count == 0 && reasons.Count == 0
-            ? RelationQueryResult.Empty("no-member")
+            ? RelationQueryResults.Empty("no-member")
             : new RelationQueryResult(keys, reasons);
     }
 

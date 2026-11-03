@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using UniversalWorkflowFramework.Relations.Kernel;
 
 namespace UniversalWorkflowFramework.Relations.Mounting;
 
@@ -48,7 +49,7 @@ public sealed class MountRebuildExecutor
             return MountReceipt.Rejected(stub, operationId, null, "undeclared-operation:" + operationId);
 
         // 删除方向没有 Mount 绑定 ⇒ 用同 edge 的 ensure operation 作为绑定锚点。
-        var anchorOperation = operation.IsRemove
+        var anchorOperation = operation.IsRemove()
             ? _ports.Operations.ResolveByEdge(operation.Edge, remove: false)
             : operation;
 
@@ -57,7 +58,7 @@ public sealed class MountRebuildExecutor
             return MountReceipt.Rejected(stub, operation.Id, operation.Edge, "orphan-rebuild-action:" + operationId);
 
         var scope = new MountScope(operation.Source, request.SourceKey, request.Namespace, correlation);
-        var targets = request.Targets
+        var targets = request.Targets()
             .Select(key => new MountTarget(operation.Target, key))
             .ToList();
 
@@ -68,7 +69,7 @@ public sealed class MountRebuildExecutor
             mountId,
             scope,
             targets,
-            operation.IsRemove ? MountIntent.Remove : MountIntent.Ensure,
+            operation.IsRemove() ? MountIntent.Remove : MountIntent.Ensure,
             MountOrigin.Rebuild,
             MountTriggers.RebuildRequested,
             Actor: request.Actor,

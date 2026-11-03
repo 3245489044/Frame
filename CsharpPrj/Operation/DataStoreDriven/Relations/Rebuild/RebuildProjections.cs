@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UniversalWorkflowFramework.Relations;
+using UniversalWorkflowFramework.Relations.Gather.Adapters;
 
 namespace Operation.DataStoreDriven.Relations.Rebuild;
 

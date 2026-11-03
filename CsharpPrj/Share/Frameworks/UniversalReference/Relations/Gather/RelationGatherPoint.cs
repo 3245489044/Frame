@@ -1,4 +1,6 @@
-namespace UniversalWorkflowFramework.Relations;
+using UniversalWorkflowFramework.Relations.Kernel;
+
+namespace UniversalWorkflowFramework.Relations.Gather;
 
 /// <summary>
 /// 关系聚拢点实现：把「operation 解析 / 端点 provision / 写读转发」收到单一求值入口。
@@ -36,7 +38,7 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
 
         var operation = ResolveOperation(request, intent);
         if (operation is null)
-            return RelationResult.Rejected(string.Empty, null,
+            return RelationResults.Rejected(string.Empty, null,
                 $"未解析到唯一 operation（edge+intent={intent}；须在 [Relation] 声明）");
 
         return await InvokeCoreAsync(intent, operation, request, ct).ConfigureAwait(false);
@@ -50,7 +52,7 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
 
         var operation = _catalog.ResolveByEdge(edge, remove: intent == RelationIntent.Remove);
         if (operation is null)
-            return RelationResult.Rejected(edge, edge, $"edge '{edge}' 未声明唯一 {(intent == RelationIntent.Remove ? "remove" : "ensure")} operation");
+            return RelationResults.Rejected(edge, edge, $"edge '{edge}' 未声明唯一 {(intent == RelationIntent.Remove ? "remove" : "ensure")} operation");
 
         return await InvokeCoreAsync(intent, operation.Id, request, ct).ConfigureAwait(false);
     }
@@ -71,7 +73,7 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
     {
         var plan = _catalog.Resolve(operation);
         if (plan is null)
-            return RelationResult.Rejected(operation, null, $"operation '{operation}' 未在 [Relation] 声明");
+            return RelationResults.Rejected(operation, null, $"operation '{operation}' 未在 [Relation] 声明");
 
         // provision 只在写入方向发生（删除方向补建端点会复活镜像，语义相反）。
         if (intent == RelationIntent.Ensure)
@@ -100,8 +102,8 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
             {
                 _diagnostics?.RelationWriteUnavailable(
                     plan.Id, plan.Edge, "provision-unregistered", entity,
-                    string.Equals(entity, plan.Target, StringComparison.Ordinal) && request.Targets.Count > 0
-                        ? request.Targets[0]
+                    string.Equals(entity, plan.Target, StringComparison.Ordinal) && request.Targets().Count > 0
+                        ? request.Targets()[0]
                         : request.SourceKey);
                 continue;
             }
@@ -125,7 +127,7 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
 
         if (!string.Equals(entity, plan.Target, StringComparison.Ordinal)) yield break;
 
-        foreach (var key in request.Targets)
+        foreach (var key in request.Targets())
         {
             if (!string.IsNullOrWhiteSpace(key)) yield return key;
         }

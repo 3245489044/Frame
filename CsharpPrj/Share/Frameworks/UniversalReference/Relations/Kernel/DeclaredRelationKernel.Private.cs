@@ -1,6 +1,6 @@
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 public sealed partial class DeclaredRelationKernel
 {
@@ -65,6 +65,6 @@ public sealed partial class DeclaredRelationKernel
     private RelationResult Fail(string operation, string? edge, string reason)
     {
         _diagnostics?.RelationRejected(operation, edge, reason);
-        return RelationResult.Rejected(operation, edge, reason);
+        return RelationResults.Rejected(operation, edge, reason);
     }
 }

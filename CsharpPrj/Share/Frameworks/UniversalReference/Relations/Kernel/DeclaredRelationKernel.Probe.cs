@@ -1,6 +1,6 @@
 using UniversalWorkflowFramework.Core.Models;
 
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 public sealed partial class DeclaredRelationKernel
 {

@@ -1,6 +1,6 @@
 using UniversalWorkflowFramework.Core.Models;
 
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 /// <summary>关系端点工厂（唯一构造点）：类型 + 裸键 + 作用域 → <see cref="ResourceIdentifier"/>。</summary>
 public static class RelationEndpoints

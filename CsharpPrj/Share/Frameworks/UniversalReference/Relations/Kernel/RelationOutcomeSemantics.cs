@@ -1,19 +1,7 @@
+using System.Collections.Generic;
 using UniversalWorkflowFramework.Relations.Mounting;
 
-namespace UniversalWorkflowFramework.Relations;
-
-/// <summary>关系/挂载结果的中性语义（跨层映射单点；领域枚举保留，本类只做归一）。</summary>
-public enum OutcomeClass
-{
-    Ok,
-    Duplicate,
-    NotApplicable,
-    Rejected,
-    Missing,
-    Unavailable,
-    Partial,
-    Failed,
-}
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 /// <summary><see cref="RelationOutcome"/> / <see cref="MountOutcome"/> → <see cref="OutcomeClass"/> 唯一映射面。</summary>
 public static class RelationOutcomeSemantics

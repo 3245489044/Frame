@@ -1,4 +1,4 @@
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Kernel;
 
 /// <summary>
 /// 维护操作实现段（F3）：move / gc（merge 见同名分部文件）。
@@ -20,7 +20,7 @@ public sealed partial class DeclaredRelationKernel : IRelationMaintenancePort
             return Fail(request.Operation, null, "move 的源与目标父相同（无操作；禁伪成功）");
 
         if (!TryResolve(request.Operation, out var ensurePlan, out var failure)) return failure!;
-        if (ensurePlan.IsRemove)
+        if (ensurePlan.IsRemove())
             return Fail(request.Operation, ensurePlan.Edge, "move 需要 intent=ensure 的 operation");
         if (ResolveRemovePlan(ensurePlan) is not { } removePlan)
             return Fail(request.Operation, ensurePlan.Edge,

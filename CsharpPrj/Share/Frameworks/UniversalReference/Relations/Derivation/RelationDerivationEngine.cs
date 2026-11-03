@@ -1,7 +1,8 @@
 using UniversalWorkflowFramework.Core.Models;
+using UniversalWorkflowFramework.Relations.Kernel;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
-namespace UniversalWorkflowFramework.Relations;
+namespace UniversalWorkflowFramework.Relations.Derivation;
 
 /// <summary>
 /// 派生成员集引擎：<b>唯一读入口</b>（<see cref="IRelationQueryPort"/>）。
@@ -36,7 +37,7 @@ public sealed partial class RelationDerivationEngine : IRelationQueryPort, IRela
 
         var edge = _policy.FindEdge(edgeOrDerive);
         if (edge is null)
-            return RelationQueryResult.Empty("edge-undeclared:" + edgeOrDerive);
+            return RelationQueryResults.Empty("edge-undeclared:" + edgeOrDerive);
 
         var sourceType = scope.SourceType ?? (string.IsNullOrWhiteSpace(edge.Source) ? "node" : edge.Source);
         var source = RelationEndpoints.Create(sourceType, scope.SourceKey, LocationFor(sourceType, scope));
@@ -51,7 +52,7 @@ public sealed partial class RelationDerivationEngine : IRelationQueryPort, IRela
             .ToList();
 
         return keys.Count == 0
-            ? RelationQueryResult.Empty("no-member")
+            ? RelationQueryResults.Empty("no-member")
             : new RelationQueryResult(keys, Array.Empty<string>());
     }
 
@@ -62,7 +63,7 @@ public sealed partial class RelationDerivationEngine : IRelationQueryPort, IRela
 
         var derivation = _catalog.ResolveDerivation(deriveId);
         if (derivation is null)
-            return RelationQueryResult.Empty("derive-undeclared");
+            return RelationQueryResults.Empty("derive-undeclared");
 
         var currentType = derivation.From;
         var level = new List<string> { scope.SourceKey };
@@ -71,7 +72,7 @@ public sealed partial class RelationDerivationEngine : IRelationQueryPort, IRela
         {
             var edge = _policy.FindEdge(edgeName);
             if (edge is null)
-                return RelationQueryResult.Empty("edge-undeclared:" + edgeName);
+                return RelationQueryResults.Empty("edge-undeclared:" + edgeName);
 
             var next = new List<string>();
             foreach (var key in level)
@@ -91,7 +92,7 @@ public sealed partial class RelationDerivationEngine : IRelationQueryPort, IRela
             currentType = string.IsNullOrWhiteSpace(edge.Target) ? currentType : edge.Target;
 
             if (level.Count == 0)
-                return RelationQueryResult.Empty(derivation.Empty.Count > 0 ? derivation.Empty[0] : "no-edge");
+                return RelationQueryResults.Empty(derivation.Empty.Count > 0 ? derivation.Empty[0] : "no-edge");
         }
 
         var keys = derivation.Normalize switch
@@ -104,7 +105,7 @@ public sealed partial class RelationDerivationEngine : IRelationQueryPort, IRela
             keys = keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
 
         return keys.Count == 0
-            ? RelationQueryResult.Empty(derivation.Empty.Count > 0 ? derivation.Empty[0] : "no-member")
+            ? RelationQueryResults.Empty(derivation.Empty.Count > 0 ? derivation.Empty[0] : "no-member")
             : new RelationQueryResult(keys, Array.Empty<string>());
     }
 

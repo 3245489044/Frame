@@ -36,14 +36,17 @@ public enum UiSelectionRestore
 }
 
 /// <summary>
-/// 选择槽声明（作用域 × 槽 → 键类型 + 恢复策略）——
-/// 「谁必须被恢复」「这个槽装的是哪一类键」由声明面单源给出, 不再靠调用点命名约定。
+/// 选择槽声明（作用域 × 槽 → 键类型 + 恢复策略 + 实体校验）——
+/// 「谁必须被恢复」「这个槽装的是哪一类键」「什么值才算该槽的合法实体」由声明面单源给出,
+/// 不再靠调用点命名约定或事后纠正。
 /// </summary>
+/// <param name="Validate">实体归属/占位校验（领域注入；null ⇒ 不校验，迁移期兼容）。</param>
 public readonly record struct UiSelectionSlotDecl(
     string Scope,
     string Slot,
     UiKeyKind KeyKind,
-    UiSelectionRestore Restore);
+    UiSelectionRestore Restore,
+    Func<string, bool>? Validate = null);
 
 /// <summary>锚的三态（对齐 VisibleValue: 已知 / 未知 / 不适用; 禁以占位键冒充已知）。</summary>
 public enum UiAnchorState
@@ -154,6 +157,51 @@ public sealed class UiSelectionStore
         }
 
         _values[key] = value!.Trim();
+    }
+
+    /// <summary>
+    /// 校验式写入（新写入点唯一入口）：键类型 + 声明面实体校验（占位/归属）任一不通过 ⇒ 不写入并给原因。
+    /// <para>
+    /// 与 <see cref="Set"/> 的差异：不抛异常、拒绝可归因（<paramref name="reason"/>）；
+    /// 空白值仍按清空处理（清空不受实体校验约束）。
+    /// </para>
+    /// </summary>
+    public bool TrySet(string scope, string slot, string? value, UiKeyKind? keyKind, out string? reason)
+    {
+        reason = null;
+        if (string.IsNullOrWhiteSpace(scope) || string.IsNullOrWhiteSpace(slot))
+        {
+            reason = "ui.selection.scope-missing";
+            return false;
+        }
+
+        var key = KeyOf(scope, slot);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            _values.TryRemove(key, out _);
+            return true;
+        }
+
+        var trimmed = value!.Trim();
+        if (_decls.TryGetValue(key, out var decl))
+        {
+            if (keyKind is { IsNone: false } kind
+                && !decl.KeyKind.IsNone
+                && !string.Equals(decl.KeyKind.Name, kind.Name, StringComparison.Ordinal))
+            {
+                reason = "ui.selection.key-kind-mismatch";
+                return false;
+            }
+
+            if (decl.Validate is { } validate && !validate(trimmed))
+            {
+                reason = "ui.selection.rejected";
+                return false;
+            }
+        }
+
+        _values[key] = trimmed;
+        return true;
     }
 
     /// <summary>清空槽值。</summary>

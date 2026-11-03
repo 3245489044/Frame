@@ -24,6 +24,8 @@ $repo = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 $gateway = Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer\Abstractions\UiReadGateway.cs'
 $viewService = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.cs'
 $legacyPattern = 'TaskConversationStatus|TaskConversationShape|TaskConversationResult'
+$viewAll = (Get-ChildItem -LiteralPath (Split-Path -Parent $viewService) -Filter 'ConversationViewService*.cs' |
+    ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
 
 function Read-Text([string]$path) {
     if (-not (Test-Path -LiteralPath $path)) { throw "缺文件: $path" }
@@ -35,9 +37,15 @@ $rules = @(
         Ok = { $t = Read-Text $gateway
             ($t -match 'enum UiReadState') -and ($t -match 'Ok') -and ($t -match 'Empty') -and ($t -match 'NotAttached') -and ($t -match 'Failed') -and ($t -match 'record UiReadSpec') } }
     [pscustomobject]@{ Id = 'C2'; Title = '领域消费读网关（UiReadGateway + UiReadState）'
-        Ok = { $t = Read-Text $viewService; ($t -match 'UiReadGateway') -and ($t -match 'UiReadState') } }
+        Ok = { ($viewAll -match 'UiReadGateway') -and ($viewAll -match 'UiReadState') } }
     [pscustomobject]@{ Id = 'C3'; Title = '旧三态枚举不残留'
-        Ok = { -not ((Read-Text $viewService) -match $legacyPattern) } }
+        Ok = { -not ($viewAll -match $legacyPattern) } }
+    [pscustomobject]@{ Id = 'C5'; Title = 'Board 窗口也经读网关（UiReadGateway）'
+        Ok = { $t = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
+            ($t -match 'UiReadGateway') -and ($t -match 'UiReadShape\.WindowContext') } }
+    [pscustomobject]@{ Id = 'C6'; Title = '窗口状态由四态代数给出（不得塌成布尔/字符串）'
+        Ok = { $t = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
+            ($t -match 'UiReadState\.Ok') -and ($t -notmatch 'windowReason\s*=\s*"') } }
 )
 
 if ($NegativeControl) {

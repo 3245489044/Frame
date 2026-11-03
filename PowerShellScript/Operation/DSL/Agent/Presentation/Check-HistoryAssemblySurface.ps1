@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     History 装配面守卫（HistoryAssemblySurface）—— 空态预装配 + History 档案分档 + 动态视口单一入口 + 缓存最大化分段。
@@ -92,14 +92,14 @@ if ($vt -notmatch 'L0Segments') { Add-Violation 'H3' 'History 未经 L0Segments 
 if ($vt -notmatch 'text_prompt_history_no_task' -and $vt -notmatch 'PromptNoTask') { Add-Violation 'H3' 'History 提示词空态未走专用归因键' }
 
 # H4 视口单一入口（History 侧 task 枚举唯一 = TaskRuntimeReportProvider）
-$provider = Join-Path $agentRoot 'src\Agent.Session\Projection\TaskRuntimeReportProvider.cs'
-$context = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimeContext.cs'
+$provider = Join-Path $agentRoot 'src\Agent.Session\Projection\History\TaskRuntimeReportProvider.cs'
+$context = Join-Path $agentRoot 'src\Agent.Session\Projection\History\HistoryTaskRuntimeContext.cs'
 if (-not (Test-Path -LiteralPath $provider)) { Add-Violation 'H4' '缺 TaskRuntimeReportProvider.cs（通用视口供数口）' }
 $ct = Read-Text $context
 if ($ct -match 'GetMemberKeysAsync') { Add-Violation 'H4' 'HistoryTaskRuntimeContext 仍裸调 GetMemberKeysAsync（应收敛到端口）' }
 
 # H5 端口只读（新增视口实现零 ur_* 写）
-foreach ($f in @($provider, (Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryViewportAssembler.cs'))) {
+foreach ($f in @($provider, (Join-Path $agentRoot 'src\Agent.Session\Projection\History\HistoryViewportAssembler.cs'))) {
     $ft = Read-Text $f
     if ($ft -match '(?i)\b(INSERT|UPDATE|DELETE)\b[\s\S]{0,40}\bur_') {
         Add-Violation 'H5' "视口实现含写库 SQL：$f"
@@ -107,7 +107,7 @@ foreach ($f in @($provider, (Join-Path $agentRoot 'src\Agent.Session\Projection\
 }
 
 # H6 缓存最大化分段/差分
-$asm = Read-Text (Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryViewportAssembler.cs')
+$asm = Read-Text (Join-Path $agentRoot 'src\Agent.Session\Projection\History\HistoryViewportAssembler.cs')
 if ($asm -notmatch 'RenderSegments') { Add-Violation 'H6' 'HistoryViewportAssembler 缺 RenderSegments（稳定/易变分段）' }
 if ($asm -notmatch 'RenderDelta') { Add-Violation 'H6' 'HistoryViewportAssembler 缺 RenderDelta（差分渲染）' }
 
@@ -120,13 +120,10 @@ if (Test-Path -LiteralPath (Join-Path $respDir 'HistoryModeCatalog.cs')) {
     Add-Violation 'H7' 'HistoryModeCatalog.cs 未通用化（应删，改 StatePromptCatalog）'
 }
 
-# H8 宿主端口注册（组合根注入 IInjectionPort / ICreateTaskPort；R2/R3）
+# H8 宿主端口注册（组合根注入 IInjectionPort / IDecisionSource；R2/R3）
 $steps = Read-Text (Join-Path $agentRoot 'src\Agent.Launcher\Composition\Hosting\Session\ConversationAssemblySteps.cs')
 if ($steps -notmatch 'Register<Agent\.Modules\.Response\.IInjectionPort>') {
     Add-Violation 'H8' '组合根未注入 IInjectionPort（注入动作端口）'
-}
-if ($steps -notmatch 'Register<Agent\.Modules\.Response\.ICreateTaskPort>') {
-    Add-Violation 'H8' '组合根未注入 ICreateTaskPort（建任务端口）'
 }
 if ($steps -notmatch 'Register<Agent\.Modules\.Response\.IDecisionSource>') {
     Add-Violation 'H8' '组合根未注入 IDecisionSource（决策端口）'
@@ -188,12 +185,12 @@ if ($steps -notmatch 'ITransferFlow') { Add-Violation 'H14' '组合根未注入 
 if ($steps -notmatch 'TransferOpsServices') { Add-Violation 'H14' '组合根未装配 TransferOpsServices（fn 依赖束）' }
 
 # H15 UI 轨零 Binding（信息状态不得进 wire）：UI 投影器零 Binding；面板经模板渲染（非 ConversationMessage）
-$uiProj = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimeUiProjector.cs'
+$uiProj = Join-Path $agentRoot 'src\Agent.Session\Projection\History\HistoryTaskRuntimeUiProjector.cs'
 if (-not (Test-Path -LiteralPath $uiProj)) { Add-Violation 'H15' '缺 HistoryTaskRuntimeUiProjector.cs（UI 投影器）' }
 elseif ((Read-Text $uiProj) -match '\.Binding\b|ConversationMessage') { Add-Violation 'H15' 'UI 投影器出现 Binding/ConversationMessage（任务池信息状态不得进 LLM wire）' }
 
 # H16 双出口同供数（IHistoryTaskRuntimeSource）：UI/装配两侧均引用同一供数口；UI 侧不再自建 provider
-$srcPath = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimeSource.cs'
+$srcPath = Join-Path $agentRoot 'src\Agent.Session\Projection\History\HistoryTaskRuntimeSource.cs'
 if (-not (Test-Path -LiteralPath $srcPath)) { Add-Violation 'H16' '缺 HistoryTaskRuntimeSource.cs（唯一供数口）' }
 if ($steps -notmatch 'IHistoryTaskRuntimeSource') { Add-Violation 'H16' '组合根未引用 IHistoryTaskRuntimeSource（LLM 轨应经供数口）' }
 $vt2 = $vt
@@ -201,7 +198,7 @@ if ($vt2 -notmatch 'IHistoryTaskRuntimeSource') { Add-Violation 'H16' 'UI 侧未
 if ($vt2 -match 'new TaskRuntimeReportProvider\(') { Add-Violation 'H16' 'UI 侧仍自建 TaskRuntimeReportProvider（应经唯一供数口）' }
 
 # H17 空态可见化（空 ≠ 无）：UI 产 taskRuntimeEmpty 模板 ∧ LLM 投影器产 (empty) 标记
-$promptProj = Join-Path $agentRoot 'src\Agent.Session\Projection\HistoryTaskRuntimePromptProjector.cs'
+$promptProj = Join-Path $agentRoot 'src\Agent.Session\Projection\History\HistoryTaskRuntimePromptProjector.cs'
 if (-not (Test-Path -LiteralPath $promptProj)) { Add-Violation 'H17' '缺 HistoryTaskRuntimePromptProjector.cs（LLM 投影器）' }
 elseif ((Read-Text $promptProj) -notmatch '\(empty\)') { Add-Violation 'H17' 'LLM 投影器缺空标记 (empty)（空挂载不可静默省略）' }
 $uiCfg = Read-Text (Join-Path $repoRoot 'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json')
@@ -375,17 +372,17 @@ if (Test-Path -LiteralPath $nodesDir) {
     }
 }
 
-# H24 建容器单入口（P1/K1）：IHistoryProvision 实现点 = 1 ∧ 建容器原语直呼点 = 1。
+# H24 建容器单入口（P1/K1）：实现点 = 1 ∧ 入口登记点 = 1
 $agentSrc = Join-Path $agentRoot 'src'
 $agentCs = @(Get-ChildItem -LiteralPath $agentSrc -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
     Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' })
-$provisionImpls = @($agentCs | Select-String -Pattern ':\s*IHistoryProvision\b' -List)
-if ($provisionImpls.Count -ne 1) {
-    Add-Violation 'H24' "IHistoryProvision 实现点=$($provisionImpls.Count)（应为 1；建容器须收敛为单一所有者）"
+$ensureImpls = @($agentCs | Select-String -Pattern 'private static async Task<object> EnsureContainerAsync' -List)
+if ($ensureImpls.Count -ne 1) {
+    Add-Violation 'H24' "建容器实现点=$($ensureImpls.Count)（应为 1；建容器须收敛为单一所有者）"
 }
-$ensureDirect = @($agentCs | Select-String -Pattern '\.EnsureContainerAsync\(' -List)
-if ($ensureDirect.Count -ne 1) {
-    Add-Violation 'H24' "建容器原语（.EnsureContainerAsync）直呼点=$($ensureDirect.Count)（应为 1；5 处入口须经 IHistoryProvision）"
+$ensureRegister = @($agentCs | Select-String -Pattern 'WorkflowFunctionNames\.EnsureHistory' -List)
+if ($ensureRegister.Count -ne 1) {
+    Add-Violation 'H24' "建容器入口登记点=$($ensureRegister.Count)（应为 1；多入口即多写面）"
 }
 
 # H25 派生任务键声明化（P2/K4）：C# 字面量唯一允许点 = AgentKeySpaceDeclaration.cs（声明单源）；
@@ -395,10 +392,10 @@ $disallowedDerived = @($derivedFiles | Where-Object { $_ -notmatch 'AgentKeySpac
 if ($disallowedDerived.Count -gt 0) {
     Add-Violation 'H25' "派生任务前缀字面量散落 $($disallowedDerived.Count) 个非声明单源文件：$($disallowedDerived -join ', ')"
 }
-$keyspaceJson = Join-Path $agentRoot 'Config\keyspaces\agent.keyspace.json'
+$keyspaceJson = Join-Path $agentRoot 'Config\keyspaces\agent.keyspace.generated.json'
 $jsonText = Read-Text $keyspaceJson
 if ($jsonText -notmatch 'task_state_' -or $jsonText -notmatch 'task_member_') {
-    Add-Violation 'H25' 'agent.keyspace.json 未登记派生任务前缀（task_member_ / task_state_）'
+    Add-Violation 'H25' 'agent.keyspace.generated.json 未登记派生任务前缀（task_member_ / task_state_）'
 }
 
 # H26–H30 History 读取链彻底重构（单读面 / 单原因码 / 单开关 / 单取形 / 浮层作用域）
@@ -435,19 +432,56 @@ if ($rendererText -notmatch 'text_prompt_origin') {
 
 $overlayFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Overlay.cs'
 $overlayText = Read-Text $overlayFile
-if ($overlayText -notmatch '_overlayByKey' -or $overlayText -notmatch 'OverlayFor\(') {
-    Add-Violation 'H29' '浮层未按视图键作用域化（缺 _overlayByKey/OverlayFor）'
+if ($overlayText -match '_overlayByKey' -or $overlayText -match '_overlayHost') {
+    Add-Violation 'H35' '浮层仍用领域自建字典/裸宿主（须经 UiOverlayRegistry 单源分槽）'
+}
+if ($overlayText -notmatch 'UiOverlayRegistry') {
+    Add-Violation 'H35' '浮层未使用 UiOverlayRegistry（视图 × 类型 注册表缺失）'
 }
 
-if ($boardText -notmatch 'UiReadShape\.WindowContext' -and $boardText -notmatch 'WindowContextPolicy') {
-    $projectorText = Read-Text (Join-Path $agentRoot 'src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
-    if ($projectorText -notmatch 'WindowContextPolicy' -and $projectorText -notmatch 'UiReadShape\.WindowContext') {
-        Add-Violation 'H30' '窗口读取未使用 WindowContext 取形（禁 Full+Take 二次裁剪）'
-    }
+# H31 Board 不得直读窗口端口（窗口只经 history.board 读模型）
+if ($boardText -match 'ReadWindowAsync') {
+    Add-Violation 'H31' 'History 板直读窗口端口（Board.cs 命中 ReadWindowAsync；须经读模型）'
+}
+
+# H32 卡片窗口必须经 WindowContext 取形（禁 Full + Take 二次裁剪）
+$projectorText = Read-Text (Join-Path $agentRoot 'src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
+if ($projectorText -notmatch 'UiReadShape\.WindowContext') {
+    Add-Violation 'H32' '卡片窗口未使用 UiReadShape.WindowContext（禁 Full+Take 二次裁剪）'
+}
+
+# H33 窗口取形声明单源：有装载/消费点，且适配器无词表字面量
+$windowPolicyFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Projection\WindowContextPolicy.cs'
+$windowPolicyText = Read-Text $windowPolicyFile
+if ($windowPolicyText -match '"(endpoint|heartbeat|llm-call|llm_call|stage|tool)"') {
+    Add-Violation 'H33' 'WindowContextPolicy 仍硬编码阶段/角色词表（须读 read-paths.json windowContext）'
+}
+$windowDeclFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Projection\UiWindowDeclaration.cs'
+if (-not (Test-Path -LiteralPath $windowDeclFile)) {
+    Add-Violation 'H33' '缺窗口声明装载点（UiWindowDeclaration）'
+}
+$readPathsFile = Join-Path $agentRoot 'Config\nodes\read-paths.json'
+if ((Read-Text $readPathsFile) -notmatch 'windowContext') {
+    Add-Violation 'H33' 'read-paths.json 未声明 windowContext（窗口取形无单源）'
+}
+
+# H34 选择写入必须显式视图参数（禁 ambient 作用域）
+$selectionFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Selection.cs'
+$selectionText = Read-Text $selectionFile
+if ($selectionText -notmatch 'SetCurrentTask\(MainDialogViewType') {
+    Add-Violation 'H34' 'SetCurrentTask 未显式声明视图参数（ambient 作用域写）'
+}
+if ($selectionText -notmatch 'RememberTask\(MainDialogViewType') {
+    Add-Violation 'H34' 'RememberTask 未显式声明视图参数（ambient 作用域写）'
+}
+
+# H36 提示词陈旧原因码必须有生产点（或删除该码）
+if ($promptResolverText -notmatch 'PromptHistoryStale') {
+    Add-Violation 'H36' 'PromptHistoryStale 无生产点（历史快照缺失被误报为「未装配」）'
 }
 
 if ($violations.Count -eq 0) {
-    Write-Host "[HistoryAssemblySurface] OK（H1–H30 全过）"
+    Write-Host "[HistoryAssemblySurface] OK（H1–H36 全过）"
     exit 0
 }
 

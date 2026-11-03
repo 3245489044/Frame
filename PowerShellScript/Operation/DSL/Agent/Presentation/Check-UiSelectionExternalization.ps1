@@ -57,9 +57,11 @@ $rules = @(
     [pscustomobject]@{
         Id = 'C2'; Title = '选择态采集端存在（声明式 data-select-slot + capture）'
         Ok = {
-            $templates = Read-Text (Join-Path $plate 'Assets\templates.default.json')
-            $script = Read-Text (Join-Path $plate 'Assets\scripts\reconcile.js')
-            ($templates -match 'data-select-slot') -and ($script -match 'capture')
+            $assets = Join-Path $plate 'Assets'
+            $hasSlot = @(Get-ChildItem -LiteralPath $assets -Recurse -Include *.json, *.js |
+                Select-String -Pattern 'data-select-slot' -List).Count -gt 0
+            $script = Read-Text (Join-Path $assets 'scripts\reconcile.js')
+            $hasSlot -and ($script -match 'capture')
         }
     }
     [pscustomobject]@{

@@ -110,56 +110,42 @@ public static class DeclaredBundleBuilder
     /// <summary>关系声明目录名（<c>[Relation]</c>/<c>[Invariant]</c>/<c>[Derive]</c> 的唯一声明面）。</summary>
     public const string RelationsDirName = "relations";
 
-    /// <summary>从配置根构建（<c>Config\nodes</c> + <c>Config\workflows</c>；二目录缺失即空集，不兜底内容）。</summary>
-    /// <param name="configRoot">配置根目录（含 <c>nodes</c> / <c>workflows</c> 子目录）。</param>
+    /// <summary>从配置根构建（<c>Config</c> 闭包；目录缺失即空集，不兜底内容）。</summary>
+    /// <param name="configRoot">配置根目录（含 <c>nodes</c> / <c>workflows</c> / <c>keyspaces</c> / <c>commands</c> / <c>state</c> / <c>relations</c>）。</param>
     public static DeclaredBundleArtifacts Build(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        return Build(LoadConfigDocuments(configRoot), configRoot);
+        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Bundle(configRoot));
+        return BuildCore(closure, configRoot);
     }
 
-    /// <summary>装载配置根下声明文档（<c>nodes</c> / <c>workflows</c> / <c>keyspaces</c> / <c>commands</c> / <c>state</c> 目录全部 + 根级段声明面，路径序）。</summary>
+    /// <summary>装载配置根下声明文档（闭包单一实现：<see cref="DeclarationClosures"/>；本方法仅保留兼容签名）。</summary>
     /// <param name="configRoot">配置根目录。</param>
     public static IReadOnlyList<(string Path, string Text)> LoadConfigDocuments(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        var sources = UsharpSourceLoader.FromDirectories(new[]
-            {
-                Path.Combine(configRoot, NodesDirName),
-                Path.Combine(configRoot, WorkflowsDirName),
-                Path.Combine(configRoot, KeyspacesDirName),
-                Path.Combine(configRoot, CommandsDirName),
-                Path.Combine(configRoot, StateDirName),
-                Path.Combine(configRoot, RelationsDirName),
-            })
-            .Select(s => (s.Path, s.Text))
+        return DeclarationClosures.Resolve(DeclarationClosureSpec.Bundle(configRoot))
+            .Sources.Select(s => (s.Path, s.Text))
             .ToList();
-
-        // 根级段声明面（[Segment]）：`[ReadModel] fields=` 的跨声明闭合要求同一次编译可见（禁跨编译判据）。
-        var segmentFile = Path.Combine(configRoot, SegmentsFileName);
-        if (File.Exists(segmentFile))
-            sources.Add((segmentFile, File.ReadAllText(segmentFile)));
-
-        return sources;
     }
 
     /// <summary>由给定声明文档构建（<b>唯一一次</b>编译；调用方负责文档集，编译序 = 传入序）。</summary>
     /// <param name="documents">声明文档（路径 + 文本）。</param>
     public static DeclaredBundleArtifacts Build(IReadOnlyList<(string Path, string Text)> documents)
-        => Build(documents, null);
+        => BuildCore(DeclarationClosures.FromDocuments(documents), null);
 
-    private static DeclaredBundleArtifacts Build(
-        IReadOnlyList<(string Path, string Text)> documents, string? configRoot)
+    private static DeclaredBundleArtifacts BuildCore(DeclarationClosure closure, string? configRoot)
     {
-        ArgumentNullException.ThrowIfNull(documents);
+        ArgumentNullException.ThrowIfNull(closure);
 
-        var compilation = UsharpCompilation.Compile(documents);
-        var fingerprint = Fingerprint(documents, configRoot);
+        var compilation = UsharpCompilationHost.Shared.Resolve(closure);
+        var fingerprint = closure.Fingerprint;
         var nodes = UsharpNodePortReader.Read(compilation.Declarations);
         var manifest = BuildManifest(compilation, nodes, fingerprint);
         var roundSpec = BuildRoundSpec(compilation);
         var referenceSchema = SerializeReferenceSchema(UsharpReferenceSchemaEmitter.Emit(compilation));
-        var keySpaceJson = UsharpKeySpaceEmitter.Emit(compilation, KeySpaceFingerprint(documents), GeneratorVersion);
+        var keySpaceJson = UsharpKeySpaceEmitter.Emit(
+            compilation, DeclarationArtifactFingerprint.OfKeyspaces(closure.Sources), GeneratorVersion);
         var commandsJson = UsharpCommandEmitter.Emit(compilation);
 
         return new DeclaredBundleArtifacts(
@@ -170,7 +156,7 @@ public static class DeclaredBundleBuilder
             commandsJson,
             fingerprint,
             compilation.Errors.Count,
-            documents.Select(d => d.Path).ToList(),
+            closure.Sources.Select(s => s.Path).ToList(),
             compilation.Diagnostics);
     }
 
@@ -191,56 +177,13 @@ public static class DeclaredBundleBuilder
         WriteGzip(Path.Combine(outputDir, ManifestCompressedFileName), artifacts.ManifestJson);
     }
 
-    /// <summary>源指纹：全部文档（相对路径 + 文本）按路径序拼接后的 SHA256（十六进制小写）。</summary>
+    /// <summary>源指纹：委托 <see cref="DeclarationArtifactFingerprint"/>（唯一实现）。</summary>
     /// <param name="documents">声明文档。</param>
     public static string Fingerprint(IEnumerable<(string Path, string Text)> documents)
-        => Fingerprint(documents, null);
-
-    private static string Fingerprint(
-        IEnumerable<(string Path, string Text)> documents, string? configRoot)
     {
         ArgumentNullException.ThrowIfNull(documents);
-
-        var buffer = new StringBuilder();
-        foreach (var d in documents.OrderBy(d => d.Path, StringComparer.Ordinal))
-        {
-            buffer.Append(NormalizePath(d.Path, configRoot)).Append('|')
-                  .Append(d.Text ?? string.Empty).Append('\n');
-        }
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(buffer.ToString()));
-        return Convert.ToHexString(hash).ToLowerInvariant();
-    }
-
-    /// <summary>键空间源指纹：仅 <c>keyspaces</c> 目录文档（文件名 + 文本，路径序）的 SHA256；无该段 ⇒ null。</summary>
-    private static string? KeySpaceFingerprint(IReadOnlyList<(string Path, string Text)> documents)
-    {
-        var buffer = new StringBuilder();
-        foreach (var document in documents
-                     .Where(d => NormalizeDirectory(d.Path).Contains("/keyspaces/", StringComparison.OrdinalIgnoreCase))
-                     .OrderBy(d => d.Path, StringComparer.Ordinal))
-        {
-            buffer.Append(Path.GetFileName(document.Path)).Append('|')
-                  .Append(document.Text ?? string.Empty).Append('\n');
-        }
-
-        if (buffer.Length == 0)
-        {
-            return null;
-        }
-
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(buffer.ToString()))).ToLowerInvariant();
-    }
-
-    private static string NormalizeDirectory(string path)
-        => (path ?? string.Empty).Replace('\\', '/');
-
-    private static string NormalizePath(string path, string? configRoot)
-    {
-        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
-        var normalized = string.IsNullOrWhiteSpace(configRoot)
-            ? Path.GetFileName(path)
-            : Path.GetRelativePath(configRoot!, path);
-        return normalized.Replace('\\', '/');
+        return DeclarationArtifactFingerprint.Of(
+            documents.Select(d => new UsharpSourceFile(d.Path, d.Text ?? string.Empty, null)));
     }
 
     private static void WriteGzip(string path, string content)

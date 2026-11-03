@@ -37,23 +37,10 @@ public sealed record UsharpConfigDecl(
 
         var value = UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.FieldValue));
 
-        var entries = new List<UsharpConfigEntry>();
-        var unparsed = new List<string>();
-        foreach (var raw in d.Continuation)
-        {
-            var line = raw.Trim();
-            if (line.Length == 0) continue;
+        // 续行解析单源（注释跳过 / '=' 切分 / 未解析行可见化）见 UsharpContinuation。
+        var parsed = UsharpContinuation.Parse(d.Continuation);
 
-            var eq = line.IndexOf('=');
-            if (eq <= 0) { unparsed.Add(line); continue; }
-
-            var key = line[..eq].Trim();
-            var entryValue = line[(eq + 1)..].Trim();
-            if (key.Length == 0) { unparsed.Add(line); continue; }
-
-            entries.Add(new UsharpConfigEntry(key, entryValue));
-        }
-
-        return new UsharpConfigDecl(d.Name, value, entries, unparsed, d.SourceFile, d.LineNumber);
+        return new UsharpConfigDecl(
+            d.Name, value, parsed.Entries, parsed.UnparsedLines, d.SourceFile, d.LineNumber);
     }
 }

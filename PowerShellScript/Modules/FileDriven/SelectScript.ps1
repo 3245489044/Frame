@@ -18,7 +18,7 @@
     显示标题（可选，默认为"脚本选择"）
 
 .PARAMETER FilePattern
-    文件扩展名过滤（可选，默认为 ".json|.txt"）
+    文件扩展名过滤（可选，默认为 ".json"；.txt 属历史文本命令脚本，须显式指定才纳入）
 
 .PARAMETER ShowDirInfo
     是否显示目录结构信息（可选，默认为 $false）
@@ -51,7 +51,7 @@ param(
     [string]$Title = "脚本选择",
 
     [Parameter(Mandatory=$false)]
-    [string]$FilePattern = ".json|.txt",
+    [string]$FilePattern = ".json",
 
     [Parameter(Mandatory=$false)]
     [switch]$ShowDirInfo,

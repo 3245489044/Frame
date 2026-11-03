@@ -62,25 +62,11 @@ public sealed record UsharpConstDecl(
         var modifier = UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.ConstFieldModifier)) ?? DefaultModifier;
         var valueType = UsharpLanguage.NullIfEmpty(d.Field(UsharpLanguage.ConstFieldValueType)) ?? DefaultValueType;
 
-        var entries = new List<UsharpConfigEntry>();
-        var unparsed = new List<string>();
-        foreach (var raw in d.Continuation)
-        {
-            var line = raw.Trim();
-            if (line.Length == 0) continue;
-            if (line[0] == '#') continue;
-
-            var eq = line.IndexOf('=');
-            if (eq <= 0) { unparsed.Add(line); continue; }
-
-            var member = line[..eq].Trim();
-            var expression = line[(eq + 1)..].Trim();
-            if (member.Length == 0) { unparsed.Add(line); continue; }
-
-            entries.Add(new UsharpConfigEntry(member, expression));
-        }
+        // 续行解析单源（与 [Config] 同一实现；禁逐类复制注释/切分逻辑）。
+        var parsed = UsharpContinuation.Parse(d.Continuation);
 
         return new UsharpConstDecl(
-            target, kind, modifier, valueType, entries, unparsed, d.SourceFile, d.LineNumber);
+            target, kind, modifier, valueType,
+            parsed.Entries, parsed.UnparsedLines, d.SourceFile, d.LineNumber);
     }
 }

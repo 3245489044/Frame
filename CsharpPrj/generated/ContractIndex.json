@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-02T18:49:31.2593535Z",
+  "builtAt": "2026-11-03T00:14:06.0410276Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -1473,10 +1473,10 @@
       "truncated": true,
       "byRole": {
         "Gate": 5,
-        "Test": 44,
+        "Test": 43,
         "Declaration": 1,
         "Code": 18,
-        "Doc": 257,
+        "Doc": 258,
         "Other": 75
       },
       "hits": [
@@ -3470,6 +3470,13 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.3/2026-11-03-Agent.Contract快速重构与数据流图构建-分析与施工单.md",
+          "line": 137,
+          "role": "Doc",
+          "text": "- `StartsWith(\"…\")` 13 处 / 11 文件（多为 `axis.` / `proc.` / `resource:` 前缀判定）。"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.25/过程节点闭环-框架层实施分析.md",
           "line": 17,
           "role": "Doc",
@@ -4272,13 +4279,6 @@
           "line": 120,
           "role": "Test",
           "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.rX.tool-call.1\", out _, out _, out _, out _), \"轮次非数字（不猜）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 121,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r1.tool-call\", out _, out _, out _, out _), \"序数段缺失\");"
         }
       ]
     },
@@ -5309,7 +5309,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/AgentGraphComposition.cs",
-          "line": 165,
+          "line": 166,
           "role": "Code",
           "text": "skipped = relations.SkippedRelations.ToArray(),"
         },
@@ -8355,13 +8355,13 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 397,
+      "total": 399,
       "truncated": false,
       "byRole": {
         "Gate": 7,
         "Test": 89,
-        "Declaration": 60,
-        "Code": 19,
+        "Declaration": 61,
+        "Code": 20,
         "Doc": 221,
         "Other": 1
       },
@@ -10832,6 +10832,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/contract-consts.ushar",
+          "line": 221,
+          "role": "Declaration",
+          "text": "ToolCall = \"tool-call\""
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/identity.ushar",
           "line": 10,
           "role": "Declaration",
@@ -11067,6 +11074,13 @@
           "line": 38,
           "role": "Doc",
           "text": "- 层级任务经 `create_node_reference` 建任务时：`SubAgentTag=\"tool-call\"` ⇒ `UserInput` 必须是上表结构化 JSON；只给目标时省略 `tool` 键，由执行腿走 LLM 辅助。"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Contract/Generated/GeneratedContractConstants.g.cs",
+          "line": 286,
+          "role": "Code",
+          "text": "public const string ToolCall = \"tool-call\";"
         },
         {
           "repo": "Projects",
@@ -11478,13 +11492,13 @@
       "kind": "Placement",
       "pattern": "process-node",
       "note": "过程域位置 id",
-      "total": 39,
+      "total": 41,
       "truncated": false,
       "byRole": {
         "Gate": 0,
         "Test": 9,
-        "Declaration": 2,
-        "Code": 5,
+        "Declaration": 3,
+        "Code": 6,
         "Doc": 22,
         "Other": 1
       },
@@ -11729,10 +11743,24 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/keyspaces/contract-consts.ushar",
+          "line": 197,
+          "role": "Declaration",
+          "text": "PlacementId = \"process-node\""
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/process.ushar",
           "line": 10,
           "role": "Declaration",
           "text": "id=process-node | level=node | carrier=sql-nodes-process | key=proc.{container} | form=stream | retention=presentational | selection=all | writer=writer-process | record-type=event | thread-coordinate"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Contract/Generated/GeneratedContractConstants.g.cs",
+          "line": 258,
+          "role": "Code",
+          "text": "public const string PlacementId = \"process-node\";"
         },
         {
           "repo": "Projects",
@@ -11767,13 +11795,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1654.0,
+    "hitCount": 1658.0,
     "byRole": {
       "Gate": 42,
-      "Test": 202,
-      "Declaration": 102,
-      "Code": 351,
-      "Doc": 868,
+      "Test": 201,
+      "Declaration": 104,
+      "Code": 353,
+      "Doc": 869,
       "Other": 89
     },
     "truncatedFacts": [
@@ -11787,11 +11815,11 @@
       },
       {
         "repo": "Projects",
-        "lines": 287
+        "lines": 296
       },
       {
         "repo": "Main",
-        "lines": 1340
+        "lines": 1341
       }
     ]
   }

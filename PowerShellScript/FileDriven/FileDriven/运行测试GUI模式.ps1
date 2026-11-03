@@ -721,7 +721,7 @@ if (-not [string]::IsNullOrWhiteSpace($envInstantBody) -and [string]::IsNullOrWh
 
 if ($ScriptName -match '^\d+$') {
     $seqNumber = [int]$ScriptName
-    $extensions = @(".json", ".txt")
+    $extensions = @(".json")   # 与 SelectScript/ScriptRunner 的 FilePattern 默认同源（.txt 须显式指定）
     $allScripts = Get-ChildItem -Path $scriptsDir -File -Recurse | 
         Where-Object { $_.Extension -in $extensions } | 
         Sort-Object FullName

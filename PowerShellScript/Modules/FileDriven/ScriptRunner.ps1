@@ -64,7 +64,7 @@ function New-ScriptRunner {
         SelectScript.ps1 的路径（可选，默认为同目录下的 SelectScript.ps1）
 
     .PARAMETER FilePattern
-        脚本文件扩展名过滤（可选，默认为 ".json|.txt"）
+        脚本文件扩展名过滤（可选，默认为 ".json"；.txt 属历史文本命令脚本，须显式指定才纳入）
 
     .PARAMETER ExtraCommands
         额外命令哈希表（可选），格式: @{ "build" = "构建脚本"; "deploy" = "部署" }
@@ -90,7 +90,7 @@ function New-ScriptRunner {
         [string]$SelectScriptPath = "",
 
         [Parameter(Mandatory=$false)]
-        [string]$FilePattern = ".json|.txt",
+        [string]$FilePattern = ".json",
 
         [Parameter(Mandatory=$false)]
         [hashtable]$ExtraCommands = @{}
@@ -376,7 +376,7 @@ function Show-ScriptList {
         [string]$ScriptsDir,
 
         [Parameter(Mandatory=$false)]
-        [string]$FilePattern = ".json|.txt"
+        [string]$FilePattern = ".json"
     )
 
     Write-Header "可用脚本"
@@ -514,7 +514,7 @@ function Show-FileContent {
         [string]$ScriptsDir,
 
         [Parameter(Mandatory=$false)]
-        [string]$FilePattern = ".json|.txt"
+        [string]$FilePattern = ".json"
     )
 
     $showPath = Join-Path $ScriptsDir $FileName

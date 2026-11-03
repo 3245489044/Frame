@@ -27,6 +27,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+Import-Module (Join-Path $PSScriptRoot 'UsharpSourceScan.psm1') -Force
 function Resolve-Repo([string]$Path) {
     if ([System.IO.Path]::IsPathRooted($Path)) { return $Path }
     return (Join-Path $root $Path)
@@ -55,10 +56,7 @@ $changedFiles = 0
 $partialAdded = 0
 $removedConsts = 0
 
-foreach ($file in (Get-ChildItem -LiteralPath $sourceAbs -Recurse -File -Filter *.cs | Sort-Object FullName)) {
-    if ($file.Name -like '*.g.cs') { continue }
-    if ($file.FullName -match '\\Generated\\') { continue }
-
+foreach ($file in (Get-UsharpSourceFiles -SourceRoot $sourceAbs)) {
     $lines = [System.IO.File]::ReadAllLines($file.FullName)
     $namespace = ''
     $depth = 0

@@ -264,7 +264,7 @@ function Get-ScriptFiles {
         脚本目录路径
 
     .PARAMETER FilePattern
-        文件扩展名过滤，用 | 分隔，默认为 ".json|.txt"
+        文件扩展名过滤，用 | 分隔，默认为 ".json"（.txt 属历史文本命令脚本，须显式指定才纳入）
 
     .PARAMETER Recurse
         是否递归扫描子目录（默认为 $false）
@@ -277,7 +277,7 @@ function Get-ScriptFiles {
         [string]$ScriptsDir,
 
         [Parameter(Mandatory=$false)]
-        [string]$FilePattern = ".json|.txt",
+        [string]$FilePattern = ".json",
 
         [Parameter(Mandatory=$false)]
         [switch]$Recurse

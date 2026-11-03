@@ -146,6 +146,10 @@ public sealed class UsharpGateModel : IUsharpFacetReader
     public IReadOnlyList<UsharpRuleDecl> Rules
         => _facets.TryGetFacet<IReadOnlyList<UsharpRuleDecl>>(out var rule) ? rule : Array.Empty<UsharpRuleDecl>();
 
+    /// <summary><c>[Config]</c> 配置声明（空表 = 本编译无配置面）。</summary>
+    public IReadOnlyList<UsharpConfigDecl> Configs
+        => _facets.TryGetFacet<IReadOnlyList<UsharpConfigDecl>>(out var cfg) ? cfg : Array.Empty<UsharpConfigDecl>();
+
     /// <summary><c>[Const]</c> 成员级声明（空表 = 本编译无成员声明面）。</summary>
     public IReadOnlyList<UsharpConstDecl> Consts
         => _facets.TryGetFacet<IReadOnlyList<UsharpConstDecl>>(out var cst) ? cst : Array.Empty<UsharpConstDecl>();

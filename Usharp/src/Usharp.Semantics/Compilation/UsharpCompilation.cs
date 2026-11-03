@@ -125,7 +125,11 @@ public sealed class UsharpCompilation : IUsharpFacetReader
     /// <summary>编译一组内存源（同一 lib；path 仅用于诊断归因）。</summary>
     private static int _compileCount;
 
-    /// <summary>进程级编译计数（J1 可观测判据：启动期声明编译总次数；唯一编译点 = DeclaredBundleBuilder）。</summary>
+    /// <summary>
+    /// 进程级编译计数（**诊断取数**：真实编译次数；缓存命中不计）。
+    /// 生产入口唯一 = <see cref="UsharpCompilationHost"/>（按闭包指纹缓存）；本计数仅用于观察，
+    /// 门禁判据应读 <see cref="UsharpCompilationHost.CompileMisses"/>。
+    /// </summary>
     public static int CompileCount => System.Threading.Volatile.Read(ref _compileCount);
 
     /// <summary>清零编译计数（测试 / 验收取数前调用）。</summary>
@@ -155,17 +159,22 @@ public sealed class UsharpCompilation : IUsharpFacetReader
     /// 加载一律经 <see cref="UsharpSourceLoader"/>（路径 → 源集的单一实现）。
     /// </summary>
     public static UsharpCompilation CompileSources(IReadOnlyList<UsharpSourceFile> sources)
-        => CompileSources(sources, null);
+        => UsharpCompilationHost.Shared.Resolve(DeclarationClosures.FromSources(sources));
 
     /// <summary>
-    /// 编译源集（**去硬编码编译流**）：解析 → 泛型索引 → 符号索引 → facet 投影（packs）→ 引用即边 → 闸A。
-    /// <para><paramref name="packs"/> 为 null/空 ⇒ 默认 <c>new[] { UsharpDomainPack.Instance }</c>（单包零回归）。</para>
-    /// <para>
-    /// <b>编译作用域（I2）</b> = 框架核心前缀 ∪ 已装载包前缀（<see cref="UsharpPrefixScope.Resolve"/>）：
-    /// 未装载某包 ⇒ 其前缀不被识别 ⇒ 核心闸报 <c>US0013</c>（不再静默丢声明）。
-    /// </para>
+    /// 编译源集（**门面**）：走 <see cref="UsharpCompilationHost"/>（按内容指纹缓存）；
+    /// 真实编译体 = <see cref="CompileSourcesRaw"/>（仅 Host 调用）。
     /// </summary>
-    public static UsharpCompilation CompileSources(IReadOnlyList<UsharpSourceFile> sources, IReadOnlyList<IUsharpDomainPack>? packs)
+    public static UsharpCompilation CompileSources(
+        IReadOnlyList<UsharpSourceFile> sources, IReadOnlyList<IUsharpDomainPack>? packs)
+        => UsharpCompilationHost.Shared.Resolve(DeclarationClosures.FromSources(sources), packs);
+
+    /// <summary>
+    /// 真实编译体（**仅 Host 调用**；禁业务侧直呼）：解析 → 泛型索引 → 符号索引 → facet 投影 → 引用即边 → 闸A。
+    /// <para><paramref name="packs"/> 为 null/空 ⇒ 默认 <c>new[] { UsharpDomainPack.Instance }</c>（单包零回归）。</para>
+    /// </summary>
+    internal static UsharpCompilation CompileSourcesRaw(
+        IReadOnlyList<UsharpSourceFile> sources, IReadOnlyList<IUsharpDomainPack>? packs)
     {
         ArgumentNullException.ThrowIfNull(sources);
         System.Threading.Interlocked.Increment(ref _compileCount);

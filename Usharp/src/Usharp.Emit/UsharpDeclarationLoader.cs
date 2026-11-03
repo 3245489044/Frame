@@ -113,8 +113,13 @@ public static class UsharpDeclarationLoader
         catch (Exception ex)
         {
             log?.Report(DeclarationLogEvent.Exception, source.BaseName, source.FlowId, source.Path, ex);
+
+            // log == null 时异常也必须可见（E-4）：写入返回诊断，不再只剩 Status=Exception。
+            var diagnostic = UsharpDiagnostic.Error(UsharpCodes.DeclarationLoadFailure,
+                $"声明装载异常：{ex.GetType().Name}: {ex.Message}",
+                string.IsNullOrWhiteSpace(source.Path) ? "(memory)" : source.Path!, 1);
             return new DeclarationLoadResult<T>(
-                DeclarationLoadStatus.Exception, source.Path, null, null, Array.Empty<UsharpDiagnostic>());
+                DeclarationLoadStatus.Exception, source.Path, null, null, new[] { diagnostic });
         }
     }
 

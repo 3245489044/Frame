@@ -19,6 +19,7 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpGram
 
     private static readonly IReadOnlyList<IGateRule<UsharpGateModel>> Rules = new IGateRule<UsharpGateModel>[]
     {
+        new DeclarationIdentityGateRule(),
         new RefGateRule(),
         new MatrixGateRule(),
         new FlowGateRule(),

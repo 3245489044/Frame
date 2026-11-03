@@ -179,14 +179,12 @@ public sealed record UsharpDecisionDecl(
         if (segments.Length == 0) return false;
 
         id = segments[0].Trim().TrimStart('=').Trim();
-        for (var i = 1; i < segments.Length; i++)
-        {
-            // `k=v` 切分单源 = 解析器字段词法；散文段 ⇒ 整行不可解析（不静默丢弃）。
-            var kv = FieldParser.TryParsePart(segments[i]);
-            if (kv is null) return false;
-            fields[kv.Value.Key] = kv.Value.Value;
-        }
-        return true;
+
+        var bag = UsharpFieldBag.Parse(segments, skip: 1);
+        foreach (var pair in bag.Fields) fields[pair.Key] = pair.Value;
+
+        // 散文段/坏段 ⇒ 整行不可解析（不静默丢弃；与 UsharpFieldBag 同口径）。
+        return bag.Unparsed.Count == 0;
     }
 
     private static string Field(Dictionary<string, string> fields, string key)
@@ -196,5 +194,17 @@ public sealed record UsharpDecisionDecl(
         => UsharpLineReader.SplitList(Field(fields, key), ',');
 
     private static bool LooksLikeDecisionField(string line)
-        => UsharpLanguage.TryReadRowMarker(line.Trim(), out _);
+    {
+        var text = (line ?? string.Empty).Trim();
+        if (text.Length == 0) return false;
+
+        foreach (var key in DecisionFieldKeys)
+        {
+            if (!text.StartsWith(key, StringComparison.OrdinalIgnoreCase)) continue;
+            var rest = text[key.Length..].TrimStart();
+            if (rest.Length == 0 || rest[0] == '=' || rest[0] == '|') return true;
+        }
+
+        return false;
+    }
 }

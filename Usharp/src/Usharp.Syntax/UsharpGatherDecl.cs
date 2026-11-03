@@ -247,7 +247,13 @@ public sealed record UsharpGatherDecl(
             }
             if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerWindow, UsharpMarkerBoundary.WhitespaceExactLine, out var windowValue))
             {
-                windowSize = int.TryParse(windowValue.Trim(), out var parsedWindow) ? parsedWindow : 0;
+                if (int.TryParse(windowValue.Trim(), out var parsedWindow)) windowSize = parsedWindow;
+                else
+                {
+                    // 非法数字不得伪装成 0（E-13）：原文入 unparsed，由闸A 报「不可解析」而非「非正」。
+                    unparsed.Add(line);
+                    windowSize = 0;
+                }
                 hasProjectionMarker = true;
                 continue;
             }
@@ -288,7 +294,7 @@ public sealed record UsharpGatherDecl(
             }
             if (UsharpLineReader.TryMarker(line, UsharpLanguage.MarkerShaping, UsharpMarkerBoundary.WhitespaceExactLine, out var shapingValue))
             {
-                if (TryParseShaping(shapingValue, out var shaping)) shapings.Add(shaping!);
+                if (TryParseShaping(shapingValue, out var shaping, unparsed)) shapings.Add(shaping!);
                 else unparsed.Add(line);
                 continue;
             }
@@ -346,8 +352,8 @@ public sealed record UsharpGatherDecl(
         return true;
     }
 
-    /// <summary>塑形行解析：<c>&lt;kind&gt; | k=v | …</c>（字段袋保序）。</summary>
-    private static bool TryParseShaping(string value, out UsharpGatherShaping? shaping)
+    /// <summary>塑形行解析：<c>&lt;kind&gt; | k=v | …</c>（字段袋保序；坏段入 <paramref name="unparsed"/>，不静默丢）。</summary>
+    private static bool TryParseShaping(string value, out UsharpGatherShaping? shaping, List<string> unparsed)
     {
         shaping = null;
         var segments = value.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -356,17 +362,12 @@ public sealed record UsharpGatherDecl(
         var kind = segments[0].Trim();
         if (kind.Length == 0) return false;
 
-        var fields = new List<KeyValuePair<string, string>>();
-        for (var i = 1; i < segments.Length; i++)
-        {
-            var part = segments[i];
-            var eq = part.IndexOf('=');
-            if (eq <= 0) continue;
-            var key = part[..eq].Trim();
-            var fieldValue = part[(eq + 1)..].Trim();
-            if (key.Length == 0) continue;
-            fields.Add(new KeyValuePair<string, string>(key, fieldValue));
-        }
+        var bag = UsharpFieldBag.Parse(segments, skip: 1);
+        foreach (var bad in bag.Unparsed) unparsed.Add(bad);
+
+        var fields = bag.Fields
+            .Select(pair => new KeyValuePair<string, string>(pair.Key, pair.Value))
+            .ToList();
 
         shaping = new UsharpGatherShaping(kind, fields);
         return true;

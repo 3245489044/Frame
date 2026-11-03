@@ -42,17 +42,23 @@ public sealed class UsharpReferenceStoreWriter
     {
         ArgumentNullException.ThrowIfNull(compilation);
 
-        // 资源登记与端点解析共用同一次枚举（键型坐标 → 流号 → [Node] 名；不再各跑一遍三组遍历）
+        // 两阶段：先解析全部边（未知端点在此登记兜底资源），再统一落资源与引用。
         var endpoints = EndpointIndex.Build(compilation);
+        var edges = UsharpEdgeSelection.GraphEdges(compilation)
+            .Select(edge => (
+                Source: endpoints.Resolve(edge.Source),
+                Target: endpoints.Resolve(edge.Target),
+                Type: compilation.Declarations.EdgeRefType(edge.Type)))
+            .ToList();
+
         foreach (var resource in endpoints.Resources)
             await _store.AddResourceAsync(resource, ct: ct).ConfigureAwait(false);
 
         var written = 0;
-        foreach (var edge in UsharpEdgeSelection.GraphEdges(compilation))
+        foreach (var edge in edges)
         {
             await _store.AddReferenceAsync(
-                endpoints.Resolve(edge.Source), endpoints.Resolve(edge.Target),
-                compilation.Declarations.EdgeRefType(edge.Type), ct: ct).ConfigureAwait(false);
+                edge.Source, edge.Target, edge.Type, ct: ct).ConfigureAwait(false);
             written++;
         }
 
@@ -88,9 +94,15 @@ public sealed class UsharpReferenceStoreWriter
         }
 
         public ResourceIdentifier Resolve(string? token)
-            => token is not null && _byToken.TryGetValue(token, out var id)
-                ? id
-                : new ResourceIdentifier { ResourceType = FallbackResourceType, Id = token ?? string.Empty };
+        {
+            if (token is not null && _byToken.TryGetValue(token, out var id)) return id;
+
+            // 兜底端点被引用却从未登记 = 落库悬空 resource（E-11）：解析时同步登记。
+            var fallback = new ResourceIdentifier { ResourceType = FallbackResourceType, Id = token ?? string.Empty };
+            if (token is not null && _resourceKeys.Add(FallbackResourceType + "\u0000" + token))
+                _resources.Add(fallback);
+            return fallback;
+        }
 
         private void Add(string token, string resourceType)
         {

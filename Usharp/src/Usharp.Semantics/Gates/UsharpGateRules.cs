@@ -10,15 +10,22 @@ namespace Usharp.Semantics;
 /// </summary>
 internal static class UsharpGateDiagnostics
 {
+    public static void Report(IConversionDiagnosticSink sink, string code, string message, string file, int line)
+        => sink.Report(Conversion(code, message, file, line));
+
     public static ConversionDiagnostic Error(string code, string message, string file, int line)
-        => ConversionDiagnostic.Error(code, message, new SourceSpan(file, line, 0));
+        => Conversion(code, message, file, line);
 
     public static ConversionDiagnostic Warn(string code, string message, string file, int line)
-        => ConversionDiagnostic.Warning(code, message, new SourceSpan(file, line, 0));
+        => Conversion(code, message, file, line);
 
     /// <summary>信息级（预期态/过程事实）：不占 WARN 通道（LG-F3：预期态不得以告警呈现）。</summary>
     public static ConversionDiagnostic Info(string code, string message, string file, int line)
-        => ConversionDiagnostic.Info(code, message, new SourceSpan(file, line, 0));
+        => Conversion(code, message, file, line);
+
+    /// <summary>严重度唯一来源 = 码表（E-9）；未登记码按 Error 兜底并在 verify 审计中暴露。</summary>
+    private static ConversionDiagnostic Conversion(string code, string message, string file, int line)
+        => UsharpDiagnosticFactory.Conversion(code, message, file, line);
 }
 
 /// <summary>规则 ①：<c>[Ref]</c> 坐标归属 + 闸A（空间须已声明、坐标须在空间内可解析）。</summary>

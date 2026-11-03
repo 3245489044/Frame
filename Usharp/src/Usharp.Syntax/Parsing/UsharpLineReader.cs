@@ -14,6 +14,25 @@ public enum UsharpMarkerBoundary
 
     /// <summary>标记后须跟 <c>:</c> 或空白；整行即标记 ⇒ 命中。</summary>
     WhitespaceOrColon,
+
+    /// <summary>标记后须跟空白，且正文非空；整行即标记 ⇒ 不命中（替代 <see cref="UsharpLineReader.TryHead"/>）。</summary>
+    HeadNonEmpty,
+}
+
+/// <summary>布尔词法接受集（差异必须显式声明，禁止各处各写一套）。</summary>
+public enum UsharpBoolLexicon
+{
+    /// <summary>仅 <c>true</c>/<c>false</c>。</summary>
+    Strict,
+
+    /// <summary>+ <c>1</c>/<c>0</c>。</summary>
+    Numeric,
+
+    /// <summary>+ <c>on</c>/<c>off</c>。</summary>
+    OnOff,
+
+    /// <summary>+ <c>yes</c>/<c>no</c> + <c>l1</c>/<c>l0</c>（历史声明面全集）。</summary>
+    Extended,
 }
 
 /// <summary>
@@ -75,6 +94,7 @@ public static class UsharpLineReader
         {
             UsharpMarkerBoundary.Whitespace => char.IsWhiteSpace(next),
             UsharpMarkerBoundary.WhitespaceExactLine => char.IsWhiteSpace(next),
+            UsharpMarkerBoundary.HeadNonEmpty => char.IsWhiteSpace(next),
             UsharpMarkerBoundary.WhitespaceOrPipe => next == '|' || char.IsWhiteSpace(next),
             UsharpMarkerBoundary.WhitespaceOrColon => next == ':' || char.IsWhiteSpace(next),
             _ => false,
@@ -87,8 +107,45 @@ public static class UsharpLineReader
             UsharpMarkerBoundary.WhitespaceOrColon => line[marker.Length..].TrimStart(' ', ':').Trim(),
             _ => line[marker.Length..].Trim(),
         };
-        return true;
+        return boundary != UsharpMarkerBoundary.HeadNonEmpty || rest.Length > 0;
     }
+
+    /// <summary>布尔词法（接受集显式声明；失败 ⇒ false，不猜默认）。</summary>
+    /// <param name="raw">原文。</param>
+    /// <param name="lexicon">接受集。</param>
+    /// <param name="value">解析结果。</param>
+    public static bool TryBool(string? raw, UsharpBoolLexicon lexicon, out bool value)
+    {
+        value = false;
+        var text = (raw ?? string.Empty).Trim();
+        if (text.Length == 0) return false;
+
+        if (string.Equals(text, "true", StringComparison.OrdinalIgnoreCase)) { value = true; return true; }
+        if (string.Equals(text, "false", StringComparison.OrdinalIgnoreCase)) { value = false; return true; }
+        if (lexicon == UsharpBoolLexicon.Strict) return false;
+
+        if (text == "1") { value = true; return true; }
+        if (text == "0") { value = false; return true; }
+        if (lexicon == UsharpBoolLexicon.Numeric) return false;
+
+        if (string.Equals(text, "on", StringComparison.OrdinalIgnoreCase)) { value = true; return true; }
+        if (string.Equals(text, "off", StringComparison.OrdinalIgnoreCase)) { value = false; return true; }
+        if (lexicon == UsharpBoolLexicon.OnOff) return false;
+
+        if (string.Equals(text, "yes", StringComparison.OrdinalIgnoreCase)) { value = true; return true; }
+        if (string.Equals(text, "no", StringComparison.OrdinalIgnoreCase)) { value = false; return true; }
+        if (string.Equals(text, "l1", StringComparison.OrdinalIgnoreCase)) { value = true; return true; }
+        if (string.Equals(text, "l0", StringComparison.OrdinalIgnoreCase)) { value = false; return true; }
+        return false;
+    }
+
+    /// <summary>
+    /// 列表切分；空白输入 ⇒ <c>null</c>（区分「未声明」与「声明为空」，D-24）。
+    /// </summary>
+    /// <param name="raw">原文。</param>
+    /// <param name="separators">分隔符（缺省 <c>,</c>+<c>;</c>）。</param>
+    public static IReadOnlyList<string>? SplitListOrNull(string? raw, params char[] separators)
+        => string.IsNullOrWhiteSpace(raw) ? null : SplitList(raw, separators);
 
     /// <summary>首词 + 空白后正文（整行即标记 ⇒ true 且 rest 为空；正文须非空否则 false）。</summary>
     public static bool TryHead(string head, string marker, out string rest)

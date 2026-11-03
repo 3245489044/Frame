@@ -107,10 +107,15 @@ internal sealed class RelationGateRule : IGateRule<UsharpGateModel>
             if (mountCount == 0 && unmountCount == 0 && derivedEdges.Contains(edge)) continue;
 
             if (mountCount != 1)
+            {
+                var (file, line) = model.Declarations.TryGetEdgeDecl(edge, out var edgeDecl)
+                    ? (edgeDecl.SourceFile, edgeDecl.LineNumber)
+                    : (model.Documents.FirstOrDefault()?.FilePath ?? "(memory)", 1);
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RelationMountMissing,
                     $"归属边 '{edge}' 必须恰有一个 mount_* operation（实测 {mountCount} 个），"
                     + "或该边无任何 mount_/unmount_ 且由单跳 [Derive] 派生",
-                    model.Documents.FirstOrDefault()?.FilePath ?? "(memory)", 0));
+                    file, line));
+            }
         }
     }
 

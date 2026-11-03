@@ -43,6 +43,18 @@ public static class UsharpCodes
     public const string AxisDup = UsharpDiagnosticCatalog.AxisDup;
     public const string DeclEmpty = UsharpDiagnosticCatalog.DeclEmpty;
 
+    /// <summary>同名 <c>[Matrix]</c> 重复声明（E-3）。</summary>
+    public const string MatrixIdDuplicate = UsharpDiagnosticCatalog.MatrixIdDuplicate;
+
+    /// <summary>同名 <c>[Flow]</c> 重复声明（E-3）。</summary>
+    public const string FlowIdDuplicate = UsharpDiagnosticCatalog.FlowIdDuplicate;
+
+    /// <summary>多个 <c>[KeySpace]</c> 声明（E-3）。</summary>
+    public const string KeySpaceDuplicate = UsharpDiagnosticCatalog.KeySpaceDuplicate;
+
+    /// <summary>声明装载/回填/投影执行失败（E-4/R-3）。</summary>
+    public const string DeclarationLoadFailure = UsharpDiagnosticCatalog.DeclarationLoadFailure;
+
     /// <summary><c>[Space]</c> 的 <c>kind=</c> 取值非法（合法值：<c>keys</c>|<c>values</c>）——不静默按 values 装配。</summary>
     public const string SpaceKindUnknown = UsharpDiagnosticCatalog.SpaceKindUnknown;
 

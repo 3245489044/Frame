@@ -51,8 +51,8 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
         value = default;
         if (string.IsNullOrWhiteSpace(text)) return false;
 
-        var usharp = ParseDocument(text);
-        if (usharp is null) return false;
+        var usharp = ParseDocument(text, out var complete);
+        if (usharp is null || !complete) return false;
 
         value = UsharpValueMapper.ToObject<T>(usharp);
         return value is not null;
@@ -107,11 +107,11 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
         return body is not null;
     }
 
-    /// <summary>解析记录头（<c>[Record] &lt;id&gt;: table=&lt;t&gt; | key=&lt;k&gt;</c>）：以首个 <c>": "</c> 分隔 id 与头字段。</summary>
+    /// <summary>解析记录头（<c>[Record] &lt;id&gt;: table=&lt;t&gt; | key=&lt;k&gt;</c>）：以**首个** <c>:</c> 分隔 id 与头字段。</summary>
     private static (string Id, string? Table, string? Key) ParseRecordHeader(string head)
     {
         var rest = head[UsharpLanguage.RecordPrefix.Length..].TrimStart();
-        var sep = rest.IndexOf(": ", StringComparison.Ordinal);
+        var sep = rest.IndexOf(':');
         var id = sep >= 0 ? rest[..sep].Trim() : rest.Trim();
         string? table = null, key = null;
         if (sep >= 0)
@@ -129,15 +129,22 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
         return (id, table, key);
     }
 
-    /// <summary>解析 USharp 文档：<c>[Record]</c> 头块 或 裸值（解析失败 ⇒ null）。</summary>
-    private static UsharpValue? ParseDocument(string text)
+    /// <summary>解析 USharp 文档：<c>[Record]</c> 头块 或 裸值（解析失败/有未解析行 ⇒ null + complete=false）。</summary>
+    private static UsharpValue? ParseDocument(string text, out bool complete)
     {
+        complete = false;
         var trimmed = text.TrimStart();
         if (!trimmed.StartsWith(UsharpLanguage.RecordPrefix, StringComparison.Ordinal))
-            return UsharpValueParser.TryParse(text, out var bare, out _) ? bare : null;
+        {
+            if (!UsharpValueParser.TryParse(text, out var bare, out var unparsed)) return null;
+            complete = unparsed is null or { Count: 0 };
+            return bare;
+        }
 
         var lines = text.Replace("\r\n", "\n").Split('\n');
-        var unparsed = new List<string>();
-        return UsharpValueParser.ParseRecordBlock(lines.Skip(1), unparsed);
+        var recordUnparsed = new List<string>();
+        var value = UsharpValueParser.ParseRecordBlock(lines.Skip(1), recordUnparsed);
+        complete = recordUnparsed.Count == 0;
+        return value;
     }
 }

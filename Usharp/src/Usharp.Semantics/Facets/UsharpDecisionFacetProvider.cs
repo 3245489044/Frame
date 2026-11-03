@@ -20,9 +20,15 @@ internal sealed class DecisionFacetProvider : IUsharpFacetProvider
 
     public object Project(UsharpFacetContext ctx)
     {
+        var index = UsharpDeclarationIdIndex<UsharpMatrixDecl>.Build(
+            ctx.Documents.SelectMany(UsharpSyntaxProjector.Matrices),
+            matrix => matrix.MatrixId,
+            matrix => UsharpSourceRef.At(matrix.SourceFile, matrix.LineNumber));
+
+        // winner = FirstWins（重复本身由 DeclarationIdentityGateRule 报 US0014，产物口径不再各处各写）。
         var map = new Dictionary<string, UsharpDecisionDecl>(StringComparer.Ordinal);
-        foreach (var doc in ctx.Documents)
-            foreach (var matrix in UsharpSyntaxProjector.Matrices(doc))
+        foreach (var matrix in index.All)
+            if (!map.ContainsKey(matrix.MatrixId))
                 map[matrix.MatrixId] = UsharpDecisionDecl.From(matrix);
         return map;
     }

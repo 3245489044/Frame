@@ -28,16 +28,28 @@ public sealed class UsharpObservabilityBackend : IUsharpObservabilityBackend
     /// <summary>装配的契约注册表（宿主可据此查询/校验）。</summary>
     public IBoundaryContractRegistry Boundaries => _boundaries;
 
+    /// <summary>
+    /// 登记结果台账：<c>TryRegister</c> 的返回值不再丢弃（E-14）；冲突可在宿主侧读取并上报。
+    /// </summary>
+    public IReadOnlyList<UsharpRegistrationResult> Registrations => _registrations;
+
     public bool IsAvailable => true;
 
-    public void RegisterEvent(UsharpObsDecl decl) => _boundaries.TryRegister(UsharpObsContractMapper.Event(decl));
+    public void RegisterEvent(UsharpObsDecl decl) => Register(_boundaries.TryRegister(UsharpObsContractMapper.Event(decl)));
 
-    public void RegisterScope(UsharpObsDecl decl) => _boundaries.TryRegister(UsharpObsContractMapper.Scope(decl));
+    public void RegisterScope(UsharpObsDecl decl) => Register(_boundaries.TryRegister(UsharpObsContractMapper.Scope(decl)));
 
-    public void RegisterEntity(UsharpObsDecl decl) => _boundaries.TryRegister(UsharpObsContractMapper.Entity(decl));
+    public void RegisterEntity(UsharpObsDecl decl) => Register(_boundaries.TryRegister(UsharpObsContractMapper.Entity(decl)));
 
     public void RegisterFlowEmits(string flowId, string stepKey, IReadOnlyList<string> eventKinds)
-        => _boundaries.TryRegister(UsharpObsContractMapper.FlowStep(flowId, stepKey, eventKinds));
+        => Register(_boundaries.TryRegister(UsharpObsContractMapper.FlowStep(flowId, stepKey, eventKinds)));
+
+    private readonly List<UsharpRegistrationResult> _registrations = new();
+
+    private void Register(bool registered)
+        => _registrations.Add(registered
+            ? UsharpRegistrationResult.Success
+            : UsharpRegistrationResult.Conflict(null));
 
     public string RenderManifest(UsharpCompilation compilation) => UsharpObsManifestEmitter.Render(compilation);
 }

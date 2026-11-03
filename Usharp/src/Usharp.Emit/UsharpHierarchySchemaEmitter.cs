@@ -71,25 +71,28 @@ public static class UsharpHierarchySchemaEmitter
         }
 
         var root = graph.Roots[0];
+        var processBindings = compilation.Matrices
+            .Where(m => m.ProcessId is not null).Select(m => (m.OverSpaceId, m.ProcessId))
+            .Concat(compilation.Flows.Where(f => f.ProcessId is not null).Select(f => (f.OverSpaceId, f.ProcessId)))
+            .ToList();
+
         var levels = graph.LevelOrder(root).Select(levelId => new HierarchyLevelSpec(
             levelId,
             levelId,
             graph.ChildrenOf(levelId).Select(c => new HierarchyContainment(c.Child, c.Edge)).ToList(),
-            ProcessIdOf(compilation, levelId))).ToList();
+            UsharpProcessBindings.ProcessOf(processBindings, levelId))).ToList();
 
         var schema = new HierarchySchema(root, levels);
         return new UsharpHierarchySchemaResult(schema, HierarchySchemaJson.Serialize(schema), diagnostics);
     }
 
-    /// <summary>层处理器 Id（<c>[Matrix]|[Flow] process=</c> 的绑定；一层至多一个声明者由 US1011 保证）。</summary>
+    /// <summary>
+    /// 层处理器 Id（<c>[Matrix]|[Flow] process=</c> 的绑定；一层至多一个声明者由 US1011 保证）。
+    /// <para>保留为薄转发：判定单源 = <see cref="UsharpProcessBindings.ProcessOf"/>（E-5）。</para>
+    /// </summary>
     private static string? ProcessIdOf(UsharpCompilation compilation, string levelId)
-    {
-        var fromMatrix = compilation.Matrices
-            .FirstOrDefault(m => string.Equals(m.OverSpaceId, levelId, StringComparison.Ordinal))?.ProcessId;
-        if (!string.IsNullOrWhiteSpace(fromMatrix)) return fromMatrix;
-
-        var fromFlow = compilation.Flows
-            .FirstOrDefault(f => string.Equals(f.OverSpaceId, levelId, StringComparison.Ordinal))?.ProcessId;
-        return string.IsNullOrWhiteSpace(fromFlow) ? null : fromFlow;
-    }
+        => UsharpProcessBindings.ProcessOf(
+            compilation.Matrices.Where(m => m.ProcessId is not null).Select(m => (m.OverSpaceId, m.ProcessId))
+                .Concat(compilation.Flows.Where(f => f.ProcessId is not null).Select(f => (f.OverSpaceId, f.ProcessId))),
+            levelId);
 }

@@ -15,10 +15,10 @@ namespace Usharp.Semantics;
 internal sealed class ConstGateRule : IGateRule<UsharpGateModel>
 {
     private static readonly Regex TargetShape =
-        new(@"^[A-Za-z_]\w*(\.[A-Za-z_]\w*)+$", RegexOptions.CultureInvariant);
+        new(@"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$", RegexOptions.CultureInvariant);
 
     private static readonly Regex MemberName =
-        new(@"^[A-Za-z_]\w*$", RegexOptions.CultureInvariant);
+        new(@"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant);
 
     private static readonly Regex StringLiteral =
         new("^\"([^\"\\\\]|\\\\.)*\"$", RegexOptions.CultureInvariant);
@@ -30,10 +30,9 @@ internal sealed class ConstGateRule : IGateRule<UsharpGateModel>
         new(@"^-?(0|[1-9]\d*)$", RegexOptions.CultureInvariant);
 
     private static readonly Regex NameOfReference =
-        new(@"^nameof\(\s*[A-Za-z_]\w*(\.[A-Za-z_]\w*)+\s*\)$", RegexOptions.CultureInvariant);
-
+        new(@"^nameof\(\s*[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*){1,}\s*\)$", RegexOptions.CultureInvariant);
     private static readonly Regex MemberReference =
-        new(@"^[A-Za-z_]\w*(\.[A-Za-z_]\w*)+$", RegexOptions.CultureInvariant);
+        new(@"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$", RegexOptions.CultureInvariant);
 
     /// <summary>C# 关键字（成员名禁止）。</summary>
     private static readonly HashSet<string> Keywords = new(StringComparer.Ordinal)

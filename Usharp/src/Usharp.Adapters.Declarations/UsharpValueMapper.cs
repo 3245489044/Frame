@@ -7,6 +7,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Plate.DslMethod.Usharp;
+using Usharp.Semantics;
 using Usharp.Syntax;
 
 namespace Usharp.Adapters.Declarations;
@@ -170,33 +171,84 @@ public static class UsharpValueMapper
 
     /// <summary>USharp 数据值 → 指定类型实例（尽力映射；不可映射 ⇒ null）。</summary>
     public static object? ToObject(UsharpValue value, Type target)
+        => ToObject(value, target, failures: null, path: string.Empty);
+
+    /// <summary>
+    /// 失败可见的映射入口：返回 value + 失败报告（不抛、不静默吞）。
+    /// </summary>
+    /// <param name="value">USharp 值。</param>
+    /// <typeparam name="T">目标类型。</typeparam>
+    public static UsharpTry<T> TryToObject<T>(UsharpValue value)
+    {
+        var failures = new List<UsharpFailure>();
+        var converted = ToObject(value, typeof(T), failures, typeof(T).Name);
+        if (converted is T typed && failures.Count == 0) return UsharpTry<T>.Success(typed);
+
+        var reason = failures.Count == 0
+            ? $"无法映射为 {typeof(T).Name}"
+            : string.Join("; ", failures.Select(f => $"{f.Path}:{f.Reason}"));
+        return UsharpTry<T>.Failure(reason);
+    }
+
+    private static object? ToObject(
+        UsharpValue value, Type target, List<UsharpFailure>? failures, string path)
     {
         // object 目标必须「拆包」为 CLR 值；UsharpScalar/UsharpRecord 本身也是 object，
         // 不能走 IsInstanceOfType 短路（否则 Data / 字典 object 值会残留 Usharp 节点）。
         if (target != typeof(object) && target.IsInstanceOfType(value)) return value;
         return value switch
         {
-            UsharpScalar scalar => ScalarToTarget(scalar, target),
-            UsharpList list => ListToTarget(list, target),
-            UsharpRecord record => RecordToTarget(record, target),
+            UsharpScalar scalar => ScalarToTarget(scalar, target, failures, path),
+            UsharpList list => ListToTarget(list, target, failures, path),
+            UsharpRecord record => RecordToTarget(record, target, failures, path),
             _ => null,
         };
     }
 
-    private static object? ScalarToTarget(UsharpScalar scalar, Type target)
+    private static object? ScalarToTarget(
+        UsharpScalar scalar, Type target, List<UsharpFailure>? failures, string path)
     {
         if (target == typeof(object)) return Uncooked(scalar);
         var t = Nullable.GetUnderlyingType(target) ?? target;
         if (scalar.Kind == UsharpScalarKind.Null) return null;
         if (t == typeof(string)) return scalar.Text;
-        if (t == typeof(bool)) return string.Equals(scalar.Text, "true", StringComparison.OrdinalIgnoreCase);
-        if (t.IsEnum) return Enum.Parse(t, scalar.Text, ignoreCase: true);
-        if (t == typeof(Guid)) return Guid.Parse(scalar.Text);
-        if (t == typeof(DateTime)) return DateTime.Parse(scalar.Text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-        if (t == typeof(DateTimeOffset)) return DateTimeOffset.Parse(scalar.Text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+        if (t == typeof(bool))
+            return UsharpLineReader.TryBool(scalar.Text, UsharpBoolLexicon.Extended, out var b)
+                ? b
+                : Fail($"bool-invalid('{scalar.Text}')", path, failures);
+        if (t.IsEnum)
+        {
+            if (Enum.TryParse(t, scalar.Text, ignoreCase: true, out var parsed) && Enum.IsDefined(t, parsed))
+                return parsed;
+            return Fail($"enum-invalid('{scalar.Text}')", path, failures);
+        }
+
+        if (t == typeof(Guid))
+            return Guid.TryParse(scalar.Text, out var guid) ? guid : Fail($"guid-invalid('{scalar.Text}')", path, failures);
+        if (t == typeof(DateTime))
+            return DateTime.TryParse(scalar.Text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt)
+                ? dt
+                : Fail($"datetime-invalid('{scalar.Text}')", path, failures);
+        if (t == typeof(DateTimeOffset))
+            return DateTimeOffset.TryParse(scalar.Text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dto)
+                ? dto
+                : Fail($"datetimeoffset-invalid('{scalar.Text}')", path, failures);
         if (t == typeof(char)) return scalar.Text.Length > 0 ? scalar.Text[0] : '\0';
-        try { return Convert.ChangeType(scalar.Text, t, CultureInfo.InvariantCulture); }
-        catch { return null; }
+
+        try
+        {
+            return Convert.ChangeType(scalar.Text, t, CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex)
+        {
+            return Fail($"convert-failed({ex.GetType().Name})", path, failures);
+        }
+    }
+
+    private static object? Fail(string reason, string path, List<UsharpFailure>? failures)
+    {
+        failures?.Add(new UsharpFailure(reason, path));
+        return null;
     }
 
     private static object? Uncooked(UsharpScalar scalar) => scalar.Kind switch
@@ -208,13 +260,15 @@ public static class UsharpValueMapper
         _ => scalar.Text,
     };
 
-    private static object ListToTarget(UsharpList list, Type target)
+    private static object ListToTarget(
+        UsharpList list, Type target, List<UsharpFailure>? failures, string path)
     {
         if (target.IsArray)
         {
             var elem = target.GetElementType()!;
             var arr = Array.CreateInstance(elem, list.Items.Count);
-            for (var i = 0; i < list.Items.Count; i++) arr.SetValue(ToObject(list.Items[i], elem), i);
+            for (var i = 0; i < list.Items.Count; i++)
+                arr.SetValue(ToObject(list.Items[i], elem, failures, $"{path}[{i}]"), i);
             return arr;
         }
 
@@ -222,7 +276,8 @@ public static class UsharpValueMapper
         if (target == typeof(object) || itemType is null) itemType = typeof(object);
 
         var result = new List<object?>(list.Items.Count);
-        foreach (var item in list.Items) result.Add(ToObject(item, itemType));
+        for (var i = 0; i < list.Items.Count; i++)
+            result.Add(ToObject(list.Items[i], itemType, failures, $"{path}[{i}]"));
 
         if (target == typeof(object) || target.IsAssignableFrom(typeof(List<object?>))) return result;
         var listType = typeof(List<>).MakeGenericType(itemType);
@@ -247,7 +302,8 @@ public static class UsharpValueMapper
         return null;
     }
 
-    private static object RecordToTarget(UsharpRecord record, Type target)
+    private static object RecordToTarget(
+        UsharpRecord record, Type target, List<UsharpFailure>? failures, string path)
     {
         if (typeof(IDictionary).IsAssignableFrom(target))
         {
@@ -257,26 +313,27 @@ public static class UsharpValueMapper
             if (keyType == typeof(string))
             {
                 var map = (IDictionary)Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(keyType, valueType))!;
-                foreach (var f in record.Fields) map[f.Key] = ToObject(f.Value, valueType);
+                foreach (var f in record.Fields)
+                    map[f.Key] = ToObject(f.Value, valueType, failures, $"{path}.{f.Key}");
                 return map;
             }
         }
 
         if (target == typeof(object) || target.IsAbstract || target.IsInterface)
-            return RecordToDictionary(record);
+            return RecordToDictionary(record, failures, path);
 
         var plan = GetPlan(target);
-        if (plan.Ctor is null) return RecordToDictionary(record);
+        if (plan.Ctor is null) return RecordToDictionary(record, failures, path);
 
         // 无参构造：逐属性注入。
         if (plan.CtorParams is null or { Length: 0 })
         {
             var instance = plan.Ctor.Invoke(null);
-            if (instance is null) return RecordToDictionary(record);
+            if (instance is null) return RecordToDictionary(record, failures, path);
             foreach (var f in record.Fields)
             {
                 if (!plan.ByName.TryGetValue(f.Key, out var m)) continue;
-                ApplyMember(instance, m, f.Value, depth: 0);
+                ApplyMember(instance, m, f.Value, depth: 0, failures, $"{path}.{m.Name}");
             }
             return instance;
         }
@@ -289,11 +346,11 @@ public static class UsharpValueMapper
             foreach (var f in record.Fields)
             {
                 if (!string.Equals(f.Key, p.Name, StringComparison.OrdinalIgnoreCase)) continue;
-                ctorArgs[i] = ToObject(f.Value, p.ParameterType);
+                ctorArgs[i] = ToObject(f.Value, p.ParameterType, failures, $"{path}.{p.Name}");
                 break;
             }
         }
-        return plan.Ctor.Invoke(ctorArgs) ?? (object)RecordToDictionary(record);
+        return plan.Ctor.Invoke(ctorArgs) ?? (object)RecordToDictionary(record, failures, path);
     }
 
     /// <summary>
@@ -305,11 +362,13 @@ public static class UsharpValueMapper
     ///    以及 Record / LoopState 这类只读组合对象）→ 对**现有实例**就地回填。
     /// <para>旧实现只做 ①，导致「只读集合/组合对象」在 USharp round-trip 后丢失（UI 显示执行体 Unknown 的根因）。</para>
     /// </summary>
-    private static void ApplyMember(object instance, MemberPlan member, UsharpValue value, int depth)
+    private static void ApplyMember(
+        object instance, MemberPlan member, UsharpValue value, int depth,
+        List<UsharpFailure>? failures, string path)
     {
         if (member.Set is not null)
         {
-            member.Set(instance, ToObject(value, member.Type));
+            member.Set(instance, ToObject(value, member.Type, failures, path));
             return;
         }
 
@@ -317,28 +376,36 @@ public static class UsharpValueMapper
         {
             try
             {
-                setter.Invoke(instance, new[] { ToObject(value, member.Type) });
+                setter.Invoke(instance, new[] { ToObject(value, member.Type, failures, path) });
                 return;
             }
-            catch
+            catch (Exception ex)
             {
-                // init-only / 集合初始化器等不可在现有实例上写回 ⇒ 退回就地回填。
+                // init-only / 集合初始化器等不可在现有实例上写回 ⇒ 退回就地回填（失败可见）。
+                failures?.Add(new UsharpFailure($"setter-failed({ex.GetType().Name})", path));
             }
         }
 
         if (member.Get is null) return;
         var current = member.Get(instance);
         if (current is null) return;
-        PopulateInto(current, value, member.Type, depth + 1);
+        PopulateInto(current, value, member.Type, depth + 1, failures, path);
     }
 
     /// <summary>
     /// 把 USharp 值就地回填到只读成员（字典 / 列表 / 只读组合对象）。
     /// 只处理「容器或可递归对象」；标量只读属性（计算属性）无写入语义，保持原状。
     /// </summary>
-    private static void PopulateInto(object target, UsharpValue value, Type declaredType, int depth)
+    private static void PopulateInto(
+        object target, UsharpValue value, Type declaredType, int depth,
+        List<UsharpFailure>? failures, string path)
     {
-        if (depth > MaxPopulateDepth) return;
+        if (depth > MaxPopulateDepth)
+        {
+            // 深度截断不再静默（E-4）：可见化为 depth-limit。
+            failures?.Add(new UsharpFailure($"depth-limit({MaxPopulateDepth})", path));
+            return;
+        }
 
         switch (value)
         {
@@ -347,7 +414,7 @@ public static class UsharpValueMapper
                 if (target is IDictionary<string, object> objectMap)
                 {
                     foreach (var f in record.Fields)
-                        objectMap[f.Key] = ToObject(f.Value, typeof(object))!;
+                        objectMap[f.Key] = ToObject(f.Value, typeof(object), failures, $"{path}.{f.Key}")!;
                     return;
                 }
 
@@ -356,7 +423,7 @@ public static class UsharpValueMapper
                 {
                     var valueType = GetDictionaryValueType(declaredType);
                     foreach (var f in record.Fields)
-                        map[f.Key] = ToObject(f.Value, valueType);
+                        map[f.Key] = ToObject(f.Value, valueType, failures, $"{path}.{f.Key}");
                     return;
                 }
 
@@ -366,7 +433,7 @@ public static class UsharpValueMapper
                 foreach (var f in record.Fields)
                 {
                     if (!plan.ByName.TryGetValue(f.Key, out var member)) continue;
-                    ApplyMember(target, member, f.Value, depth + 1);
+                    ApplyMember(target, member, f.Value, depth + 1, failures, $"{path}.{member.Name}");
                 }
                 return;
 
@@ -375,8 +442,9 @@ public static class UsharpValueMapper
                 {
                     var itemType = GetEnumerableElementType(declaredType) ?? typeof(object);
                     listTarget.Clear();
+                    var index = 0;
                     foreach (var item in list.Items)
-                        listTarget.Add(ToObject(item, itemType));
+                        listTarget.Add(ToObject(item, itemType, failures, $"{path}[{index++}]"));
                 }
                 return;
         }
@@ -403,10 +471,12 @@ public static class UsharpValueMapper
         return typeof(object);
     }
 
-    private static Dictionary<string, object?> RecordToDictionary(UsharpRecord record)
+    private static Dictionary<string, object?> RecordToDictionary(
+        UsharpRecord record, List<UsharpFailure>? failures = null, string path = "")
     {
         var dict = new Dictionary<string, object?>(StringComparer.Ordinal);
-        foreach (var f in record.Fields) dict[f.Key] = ToObject(f.Value, typeof(object));
+        foreach (var f in record.Fields)
+            dict[f.Key] = ToObject(f.Value, typeof(object), failures, $"{path}.{f.Key}");
         return dict;
     }
 }

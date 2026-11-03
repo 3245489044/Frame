@@ -52,9 +52,10 @@ public static class UsharpLocPlacementEmitter
 
         if (matrix is null)
         {
+            var file = compilation.Documents.FirstOrDefault()?.FilePath ?? "(memory)";
             diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.LocPlacementNotProducible,
                 $"位置反解表不可产出：未找到 [Matrix] {MatrixId}（位置 = loc 反解的唯一声明面）",
-                SpaceId, 0));
+                file, 1));
             return new UsharpLocPlacementResult(null, diagnostics);
         }
 

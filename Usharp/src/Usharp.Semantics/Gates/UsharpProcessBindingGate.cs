@@ -57,9 +57,12 @@ internal sealed class ProcessBindingGateRule : IGateRule<UsharpGateModel>
             if (group.Count() <= 1) continue;
 
             var first = group.First();
-            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProcessorBindingNotSingle,
-                $"层 '{group.Key}' 的处理代数重复声明：{string.Join(" / ", group.Select(b => b.Owner))} —— 一层恰一个处理器声明者",
-                first.File, first.Line));
+            foreach (var duplicate in group.Skip(1))
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProcessorBindingNotSingle,
+                    $"层 '{group.Key}' 的处理代数重复声明：{string.Join(" / ", group.Select(b => b.Owner))} —— 一层恰一个处理器声明者",
+                    duplicate.File, duplicate.Line));
+            }
         }
     }
 }

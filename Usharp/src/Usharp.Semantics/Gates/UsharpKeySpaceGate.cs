@@ -27,7 +27,7 @@ internal sealed class KeySpaceGateRule : IGateRule<UsharpGateModel>
                 if (seenFamilies.TryGetValue(family.Id, out var origin))
                     sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.KeyFamilyDuplicate,
                         $"[KeySpace] {space.Id}: 族 '{family.Id}' 重复声明（首次声明于 {origin.File}:{origin.Line}）",
-                        origin.File, origin.Line));
+                        space.SourceFile, space.LineNumber));
                 else
                     seenFamilies[family.Id] = (space.SourceFile, space.LineNumber);
 
@@ -128,7 +128,7 @@ internal sealed class KeySpaceGateRule : IGateRule<UsharpGateModel>
                 if (seenPolicies.TryGetValue(policy.Key, out var origin))
                     sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.KeyPolicyDuplicate,
                         $"[KeySpace] {space.Id}: policy '{policy.Key}' 重复声明（首次声明于 {origin.File}:{origin.Line}）",
-                        origin.File, origin.Line));
+                        space.SourceFile, space.LineNumber));
                 else
                     seenPolicies[policy.Key] = (space.SourceFile, space.LineNumber);
         }

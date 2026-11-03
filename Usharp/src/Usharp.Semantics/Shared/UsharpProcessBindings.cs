@@ -23,4 +23,31 @@ public static class UsharpProcessBindings
 
         return owners.Where(kv => kv.Value > 1).Select(kv => kv.Key).ToList();
     }
+
+    /// <summary>
+    /// 取某层的处理器 Id：该层全部声明者中**唯一的非空 <c>process=</c>**。
+    /// <para>
+    /// 顺序假设消除（E-5）：不再 `FirstOrDefault(over==level)?.ProcessId`；
+    /// 多个非空声明者 ⇒ 返回 null（由闸A US1011 报，产物不猜）。
+    /// </para>
+    /// </summary>
+    /// <param name="bindings">全部绑定（层, process=）。</param>
+    /// <param name="layerId">层 Id。</param>
+    public static string? ProcessOf(
+        IEnumerable<(string? Layer, string? ProcessId)> bindings, string? layerId)
+    {
+        ArgumentNullException.ThrowIfNull(bindings);
+        if (string.IsNullOrWhiteSpace(layerId)) return null;
+
+        string? found = null;
+        foreach (var (layer, processId) in bindings)
+        {
+            if (string.IsNullOrWhiteSpace(processId)) continue;
+            if (!string.Equals(layer, layerId, StringComparison.Ordinal)) continue;
+            if (found is not null) return null; // 多声明者 ⇒ 冲突，由 US1011 报
+            found = processId;
+        }
+
+        return found;
+    }
 }

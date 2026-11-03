@@ -26,6 +26,7 @@ public static class UsharpCliCommands
           matrix <file|dir>                                         矩阵装配取数（值域矩阵 / 转移表）
           obs    <file|dir>                                         观测取数（[Obs] 闸A + manifest；未装配后端 → US9002）
           relation-plan <file|dir>                                  关系计划发射（operations / invariants / derivations）
+          verify <file|dir>                                         框架一致性审计（码表/严重度/重复 id/前缀表）
         """;
 
     /// <summary>命令入口。</summary>
@@ -57,6 +58,7 @@ public static class UsharpCliCommands
             "graph" => RunGraph(rest, output, backend),
             "obs" => RunWithPath(rest, output, (path, writer) => Obs(path, writer, obsBackend)),
             "relation-plan" => RunWithPath(rest, output, RelationPlan),
+            "verify" => RunWithPath(rest, output, Verify),
             _ => Unknown(command, output),
         };
     }
@@ -97,7 +99,7 @@ public static class UsharpCliCommands
 
         WriteReverseReferences(compilation, output);
 
-        return errors > 0 ? ExitFailed : ExitOk;
+        return Finish(compilation, errors);
     }
 
     /// <summary>引用图查询：环检测 / 流完整性 / 影响域（--reachable）/ 两点路径（--path）。</summary>
@@ -131,7 +133,7 @@ public static class UsharpCliCommands
         if (!string.IsNullOrWhiteSpace(from) && !string.IsNullOrWhiteSpace(to))
             output.WriteLine($"两点可达 {from} → {to}：{(service.HasPath(compilation, from!, to!) ? "是" : "否")}");
 
-        return errors > 0 ? ExitFailed : ExitOk;
+        return Finish(compilation, errors);
     }
 
     /// <summary>矩阵装配取数：绑定（值域矩阵 / 转移表）+ 装配诊断。</summary>
@@ -147,7 +149,7 @@ public static class UsharpCliCommands
                              + $"，over={b.OverSpaceId}，行 {b.RowCount}）");
         WriteDiagnostics(result.Diagnostics, output);
 
-        return result.HasErrors ? ExitFailed : ExitOk;
+        return Finish(compilation, result.HasErrors ? 1 : 0);
     }
 
     /// <summary>矩阵读法标签（<c>matrix</c> 取数可读性；读法集合权威 = <see cref="UsharpMatrixKind"/>）。</summary>
@@ -178,7 +180,30 @@ public static class UsharpCliCommands
         return compilation.HasErrors ? ExitFailed : ExitOk;
     }
 
+    /// <summary>
+    /// 框架一致性审计（R-4/R-12 护栏）：码表唯一性 / 严重度与码表一致 / 重复 id / 前缀表一致。
+    /// </summary>
+    public static int Verify(string path, TextWriter output)
+    {
+        var compilation = Compile(path, output, out var failure);
+        if (compilation is null) return failure;
+
+        var s = compilation.Snapshot();
+        output.WriteLine($"verify：空间 {s.Spaces} / 矩阵 {s.Matrices} / 流 {s.Flows} / 错误 {s.Errors} / 警告 {s.Warnings}");
+
+        var issues = UsharpFrameworkAudit.Run(compilation);
+        output.WriteLine($"框架审计：{(issues.Count == 0 ? "通过" : issues.Count + " 项")}");
+        foreach (var issue in issues) output.WriteLine($"   · {issue}");
+
+        WriteDiagnostics(compilation.Diagnostics, output);
+        return compilation.HasErrors || issues.Count > 0 ? ExitFailed : ExitOk;
+    }
+
     // ---------- 内部：解析与报表 ----------
+
+    /// <summary>统一收尾：编译期 error + 本节错误（E-2；禁止只看本节）。</summary>
+    private static int Finish(UsharpCompilation compilation, int sectionErrors)
+        => compilation.HasErrors || sectionErrors > 0 ? ExitFailed : ExitOk;
 
     private static int RunWithPath(IReadOnlyList<string> args, TextWriter output, Func<string, TextWriter, int> action)
     {

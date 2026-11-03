@@ -17,7 +17,7 @@ namespace Usharp.Semantics;
 public sealed class UsharpGateModel : IUsharpFacetReader
 {
     private readonly UsharpFacetRegistry _facets;
-    private readonly Dictionary<string, UsharpFlowDecl> _flowsById = new(StringComparer.Ordinal);
+    private readonly UsharpDeclarationIdIndex<UsharpFlowDecl> _flowIndex;
 
     public UsharpGateModel(
         IReadOnlyList<DslDocument> documents,
@@ -36,12 +36,13 @@ public sealed class UsharpGateModel : IUsharpFacetReader
 
         var flows = Flows;
         // 共享索引：一次构造，规则间复用（避免每条规则重复枚举）。
-        FlowIds = new HashSet<string>(flows.Select(f => f.FlowId), StringComparer.Ordinal);
+        _flowIndex = UsharpDeclarationIdIndex<UsharpFlowDecl>.Build(
+            flows, flow => flow.FlowId,
+            flow => UsharpSourceRef.At(flow.SourceFile, flow.LineNumber));
+        FlowIds = new HashSet<string>(_flowIndex.Ids, StringComparer.Ordinal);
         NodeNames = new HashSet<string>(declarations.NodeNames, StringComparer.Ordinal);
         WrittenCoordinates = BuildWrittenCoordinates(Matrices);
         Hierarchy = UsharpHierarchyGraph.Build(Spaces);
-        foreach (var flow in flows)
-            if (!string.IsNullOrWhiteSpace(flow.FlowId)) _flowsById.TryAdd(flow.FlowId, flow);
     }
 
     public IReadOnlyList<DslDocument> Documents { get; }
@@ -200,9 +201,9 @@ public sealed class UsharpGateModel : IUsharpFacetReader
             if (flow.OverSpaceId is { } over && covering.Contains(over)) yield return flow;
     }
 
-    /// <summary>按流号取流声明（未声明 → null；闸A 端点解析单源）。</summary>
+    /// <summary>按流号取流声明（未声明 → null；闸A 端点解析单源；重复 ⇒ FirstWins）。</summary>
     public UsharpFlowDecl? FlowById(string flowId)
-        => _flowsById.TryGetValue(flowId ?? "", out var flow) ? flow : null;
+        => _flowIndex.TryGet(flowId, out var flow) ? flow : null;
 
     private static IReadOnlyDictionary<string, HashSet<string>> BuildWrittenCoordinates(
         IReadOnlyList<UsharpMatrixDecl> matrices)

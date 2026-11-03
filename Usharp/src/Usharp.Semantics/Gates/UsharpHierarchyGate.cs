@@ -66,8 +66,14 @@ internal sealed class HierarchyGateRule : IGateRule<UsharpGateModel>
         if (graph.Pairs.Count == 0) return;
 
         foreach (var issue in HierarchySchemaValidator.Validate(BuildForestSchema(graph.Pairs)))
+        {
+            // 归因取「问题文本提到的层」所属声明（环内空间），而不是永远报首个空间（E-8）。
+            var owner = graph.DeclaredSpaces.FirstOrDefault(
+                            s => issue.Contains(s.SpaceId, StringComparison.Ordinal))
+                        ?? graph.DeclaredSpaces[0];
             sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.SpaceHierarchyInvalid,
-                $"空间划分层图非法：{issue}", graph.DeclaredSpaces[0].SourceFile, graph.DeclaredSpaces[0].LineNumber));
+                $"空间划分层图非法：{issue}", owner.SourceFile, owner.LineNumber));
+        }
     }
 
     /// <summary>

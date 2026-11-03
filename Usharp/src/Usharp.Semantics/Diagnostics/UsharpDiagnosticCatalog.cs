@@ -40,6 +40,19 @@ public static class UsharpDiagnosticCatalog
     /// <summary>声明行前缀未在任何已装载领域包注册（未装载 ⇒ 不识别；禁静默丢声明）。</summary>
     public const string UnregisteredPrefix = "US0013";
 
+    // ── US00xx 声明身份/装载面 ──────────────────────────────────────────
+    /// <summary>同名 <c>[Matrix]</c> 重复声明（产物只取 winner，重复必须可见化）。</summary>
+    public const string MatrixIdDuplicate = "US0014";
+
+    /// <summary>同名 <c>[Flow]</c> 重复声明。</summary>
+    public const string FlowIdDuplicate = "US0015";
+
+    /// <summary>多个 <c>[KeySpace]</c> 声明（产物为单键空间模型；多声明须显式拒绝，不得静默只取首个）。</summary>
+    public const string KeySpaceDuplicate = "US0016";
+
+    /// <summary>声明装载/回填/投影执行异常（失败原因必须可见，不静默吞）。</summary>
+    public const string DeclarationLoadFailure = "US0017";
+
     // ── US79xx 键身份语义层（[Entity]/[KeyLexicon]/[AnswerShape]/[WindowShape]/[KeyPolicy]/[KeyBridge]）──
     /// <summary>[Entity] 语义轴字段缺失/非法。</summary>
     public const string IdentityEntityInvalid = "US7901";
@@ -252,6 +265,10 @@ public static class UsharpDiagnosticCatalog
         E(SpaceDup, "Space", UsharpSeverity.Error, "同一空间 id 重复声明", "spaceId"),
         E(AxisDup, "Space", UsharpSeverity.Error, "同一空间内坐标重复声明", "spaceId, axis"),
         E(DeclEmpty, "Space", UsharpSeverity.Error, "声明为空（缺 id）", "prefix"),
+        E(MatrixIdDuplicate, "Matrix", UsharpSeverity.Error, "同名 [Matrix] 重复声明", "matrixId"),
+        E(FlowIdDuplicate, "Flow", UsharpSeverity.Error, "同名 [Flow] 重复声明", "flowId"),
+        E(KeySpaceDuplicate, "KeySpace", UsharpSeverity.Error, "多个 [KeySpace] 声明（单键空间模型）", "keyspaceId"),
+        E(DeclarationLoadFailure, "Declaration", UsharpSeverity.Error, "声明装载/回填/投影执行失败", "reason"),
         E(MatrixRowInvalid, "Matrix", UsharpSeverity.Error, "矩阵行形态非法", "matrixId, row"),
         E(AxisKindUnknown, "Matrix", UsharpSeverity.Error, "矩阵轴种类非法", "matrixId, kind"),
         E(SpaceKindUnknown, "Space", UsharpSeverity.Error, "[Space] kind= 取值非法", "spaceId, kind"),
@@ -432,6 +449,24 @@ public static class UsharpDiagnosticCatalog
 
     /// <summary>全部码值（声明序）。</summary>
     public static readonly IReadOnlyList<string> Codes = All.Select(s => s.Code).ToArray();
+
+    private static readonly IReadOnlyDictionary<string, UsharpCodeSpec> ByCode =
+        All.ToDictionary(s => s.Code, StringComparer.Ordinal);
+
+    /// <summary>按码取值取登记事实（未登记 ⇒ false）。</summary>
+    /// <param name="code">诊断码。</param>
+    /// <param name="spec">登记事实。</param>
+    public static bool TryGet(string? code, out UsharpCodeSpec spec)
+    {
+        if (!string.IsNullOrWhiteSpace(code) && ByCode.TryGetValue(code, out var found))
+        {
+            spec = found;
+            return true;
+        }
+
+        spec = null!;
+        return false;
+    }
 
     /// <summary>码值唯一性断言（重复即抛；供单测与装配期自检）。</summary>
     public static void AssertUnique()

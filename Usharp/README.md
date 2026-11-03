@@ -232,6 +232,10 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US0011` | error | Obs：[Obs] enum= 段非法 |
 | `US0012` | error | Document：落库正文行不可解析 |
 | `US0013` | error | Decl：声明行前缀未在任何已装载领域包注册（未装载 ⇒ 不识别） |
+| `US0014` | error | Matrix：同名 [Matrix] 重复声明 |
+| `US0015` | error | Flow：同名 [Flow] 重复声明 |
+| `US0016` | error | KeySpace：多个 [KeySpace] 声明（单键空间模型） |
+| `US0017` | error | Declaration：声明装载/回填/投影执行失败 |
 | `US1001` | error | Ref：引用的空间未声明 |
 | `US1002` | error | Ref：引用坐标未在空间声明 |
 | `US1003` | error | Matrix：矩阵行输出坐标未声明 |

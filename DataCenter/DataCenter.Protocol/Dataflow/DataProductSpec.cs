@@ -11,6 +11,9 @@ public static class ProductRoles
 
     /// <summary>聚合 / 指标 / 视图（可随时从 raw 重算）。</summary>
     public const string Derived = "derived";
+
+    /// <summary>边产品（关系作为一等数据产品；字段契约见 <see cref="EdgeProductSpec"/>）。</summary>
+    public const string Edge = "edge";
 }
 
 /// <summary>兼容性取值（C15 的判据取值域）。</summary>

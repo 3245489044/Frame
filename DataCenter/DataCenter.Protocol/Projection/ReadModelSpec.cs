@@ -22,6 +22,9 @@ public enum ReadModelVersionMode
 
     /// <summary>图成员轴版本（须注册版本探针：成员集版本号）。</summary>
     GraphMembership,
+
+    /// <summary>声明指纹版本（须注册版本探针：声明图内容指纹；声明漂移 ⇒ 必刷新）。</summary>
+    Declared,
 }
 
 /// <summary>
@@ -40,9 +43,11 @@ public sealed record ReadModelSpec(
     int? TtlMs,
     IReadOnlyList<string> Args)
 {
-    /// <summary>版本源是否需要外部探针（<see cref="ReadModelVersionMode.Event"/> / <see cref="ReadModelVersionMode.GraphMembership"/>）。</summary>
+    /// <summary>版本源是否需要外部探针（<see cref="ReadModelVersionMode.Event"/> / <see cref="ReadModelVersionMode.GraphMembership"/> / <see cref="ReadModelVersionMode.Declared"/>）。</summary>
     public bool RequiresVersionProbe
-        => Version is ReadModelVersionMode.Event or ReadModelVersionMode.GraphMembership;
+        => Version is ReadModelVersionMode.Event
+            or ReadModelVersionMode.GraphMembership
+            or ReadModelVersionMode.Declared;
 
     /// <summary>构造声明（去空白/去空项；空 id 或空源即抛，禁静默空声明）。</summary>
     public static ReadModelSpec Create(

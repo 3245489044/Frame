@@ -1,4 +1,5 @@
 using MathematicalAlgorithms.Noise;
+using Modules.Observe.Metrics;
 
 namespace MathematicalAlgorithms.Spatial;
 
@@ -47,6 +48,9 @@ public sealed class TerrainHeightTiles
     /// <summary>footprint → 高度区间（跨多个瓦片时取并集）。</summary>
     public HeightSpan Query(int minX, int minZ, int maxX, int maxZ)
     {
+        // 最小埋点：只测这一层的求值耗时；关闭态整个作用域是 no-op。
+        using var _ = Metrics.Timer(MetricId.HeightQuery);
+
         int x0 = Math.Min(minX, maxX), x1 = Math.Max(minX, maxX);
         int z0 = Math.Min(minZ, maxZ), z1 = Math.Max(minZ, maxZ);
         int tx0 = (int)MathF.Floor(x0 / (float)_tileSize);

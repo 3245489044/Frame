@@ -18,6 +18,20 @@ public sealed record UiWindowContextSpec(
     IReadOnlySet<string> ExcludedStages,
     IReadOnlySet<string> ExcludedRoles)
 {
+    /// <summary>
+    /// 通道白名单（**肯定式**面选择）：非空 ⇒ 只有该通道的事实可见，且 <see cref="ExcludedStages"/>/
+    /// <see cref="ExcludedRoles"/> 不再参与（白名单 = 替换，不是叠加）。
+    /// <para>缺省空集 ⇒ 走旧否认词表（legacy 路径，兼容既有声明）。</para>
+    /// </summary>
+    public IReadOnlySet<string> IncludedChannels { get; init; } = EmptyChannels;
+
+    /// <summary>是否已声明通道白名单（true ⇒ 肯定式模式）。</summary>
+    public bool UsesChannelWhitelist => IncludedChannels.Count > 0;
+
+    /// <summary>空通道集（单例，避免每次构造新集合）。</summary>
+    public static IReadOnlySet<string> EmptyChannels { get; } =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>空声明（不过滤、不限条数）。</summary>
     public static UiWindowContextSpec Empty { get; } = new(
         0,
@@ -36,17 +50,44 @@ public sealed record UiWindowContextSpec(
 public static class UiWindowContextPolicy
 {
     /// <summary>按声明过滤并取末 N 条（源序保留；空声明/空输入 ⇒ 不伪造）。</summary>
+    /// <remarks>兼容入口：未提供通道取值时不支持通道白名单（声明了白名单会显式抛，禁静默放行/静默过滤）。</remarks>
     public static IReadOnlyList<T> Apply<T>(
         IReadOnlyList<T> items,
         UiWindowContextSpec spec,
         Func<T, string?> stageOf,
         Func<T, string?> roleOf)
+        => Apply(items, spec, stageOf, roleOf, channelOf: null);
+
+    /// <summary>
+    /// 按声明过滤并取末 N 条（白名单优先；源序保留；切片在过滤之后做一次）。
+    /// </summary>
+    public static IReadOnlyList<T> Apply<T>(
+        IReadOnlyList<T> items,
+        UiWindowContextSpec spec,
+        Func<T, string?> stageOf,
+        Func<T, string?> roleOf,
+        Func<T, string?>? channelOf)
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(spec);
         ArgumentNullException.ThrowIfNull(stageOf);
         ArgumentNullException.ThrowIfNull(roleOf);
         if (items.Count == 0) return Array.Empty<T>();
+
+        if (spec.UsesChannelWhitelist)
+        {
+            if (channelOf is null)
+                throw new InvalidOperationException(
+                    "声明了 IncludedChannels，但调用方未提供通道取值（面选择判据不可判定；禁静默放行/静默过滤）");
+
+            var kept = new List<T>(items.Count);
+            foreach (var item in items)
+            {
+                if (IsChannelAllowed(spec, channelOf(item))) kept.Add(item);
+            }
+
+            return Trim(kept, spec.Take);
+        }
 
         if (spec.ExcludedStages.Count == 0 && spec.ExcludedRoles.Count == 0)
             return Trim(items, spec.Take);
@@ -61,9 +102,25 @@ public static class UiWindowContextPolicy
     }
 
     /// <summary>单条可见判定（空 stage/role ⇒ 不因该维度被排除）。</summary>
+    /// <remarks>声明了通道白名单时该重载不可判定 ⇒ 显式抛（改用带 channel 的重载）。</remarks>
     public static bool IsVisible(UiWindowContextSpec spec, string? stage, string? role)
     {
         ArgumentNullException.ThrowIfNull(spec);
+        if (spec.UsesChannelWhitelist)
+            throw new InvalidOperationException(
+                "声明了 IncludedChannels，但调用方未提供通道取值（面选择判据不可判定）");
+
+        return IsVisible(spec, stage, role, channel: null);
+    }
+
+    /// <summary>
+    /// 单条可见判定（白名单已声明 ⇒ 只判通道；否则按否认词表判 stage/role）。
+    /// </summary>
+    public static bool IsVisible(UiWindowContextSpec spec, string? stage, string? role, string? channel)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+
+        if (spec.UsesChannelWhitelist) return IsChannelAllowed(spec, channel);
 
         if (!string.IsNullOrWhiteSpace(role) && spec.ExcludedRoles.Contains(role.Trim())) return false;
         if (string.IsNullOrWhiteSpace(stage)) return true;
@@ -84,6 +141,13 @@ public static class UiWindowContextPolicy
         }
 
         return true;
+    }
+
+    /// <summary>通道白名单判定（空白通道 ⇒ 不可判定 ⇒ 拒绝）。</summary>
+    private static bool IsChannelAllowed(UiWindowContextSpec spec, string? channel)
+    {
+        if (string.IsNullOrWhiteSpace(channel)) return false;
+        return spec.IncludedChannels.Contains(channel.Trim());
     }
 
     private static IReadOnlyList<T> Trim<T>(IReadOnlyList<T> items, int take)

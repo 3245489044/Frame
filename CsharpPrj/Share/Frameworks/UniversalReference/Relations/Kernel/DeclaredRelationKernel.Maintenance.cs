@@ -1,0 +1,134 @@
+namespace UniversalWorkflowFramework.Relations;
+
+/// <summary>
+/// 维护操作实现段（F3）：move / gc（merge 见同名分部文件）。
+/// <para>
+/// 全部复用 <see cref="EnsureAsync"/> / <see cref="RemoveAsync"/>（同一写原语）；失败按补偿事务回到执行前状态，
+/// 补偿动作逐条进 Diagnostics（禁静默回滚）。
+/// </para>
+/// </summary>
+public sealed partial class DeclaredRelationKernel : IRelationMaintenancePort
+{
+    /// <inheritdoc />
+    public async Task<RelationResult> MoveAsync(RelationMoveRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.FromSourceKey) || string.IsNullOrWhiteSpace(request.ToSourceKey))
+            return Fail(request.Operation, null, "move 需要 from/to 两个源键");
+        if (string.Equals(request.FromSourceKey, request.ToSourceKey, StringComparison.Ordinal))
+            return Fail(request.Operation, null, "move 的源与目标父相同（无操作；禁伪成功）");
+
+        if (!TryResolve(request.Operation, out var ensurePlan, out var failure)) return failure!;
+        if (ensurePlan.IsRemove)
+            return Fail(request.Operation, ensurePlan.Edge, "move 需要 intent=ensure 的 operation");
+        if (ResolveRemovePlan(ensurePlan) is not { } removePlan)
+            return Fail(request.Operation, ensurePlan.Edge,
+                $"remove-operation-undeclared：edge '{ensurePlan.Edge}' 无 intent=remove 声明");
+
+        var attach = await EnsureAsync(
+            request.Operation,
+            Request(request.ToSourceKey, request.TargetKey, request.Namespace, request.Actor, request.Origin),
+            ct).ConfigureAwait(false);
+        if (!attach.Ok) return attach;
+
+        var detach = await RemoveAsync(
+            removePlan.Id,
+            Request(request.FromSourceKey, request.TargetKey, request.Namespace, request.Actor, request.Origin),
+            ct).ConfigureAwait(false);
+        if (detach.Ok)
+        {
+            return new RelationResult(true, request.Operation, ensurePlan.Edge, 1,
+                Combine(detach.Diagnostics, attach.Diagnostics), RelationOutcome.Applied)
+            {
+                Revived = attach.Revived,
+                ReviveReasons = attach.ReviveReasons,
+            };
+        }
+
+        var rollback = await RemoveAsync(
+            removePlan.Id,
+            Request(request.ToSourceKey, request.TargetKey, request.Namespace, request.Actor, request.Origin),
+            ct).ConfigureAwait(false);
+
+        var diagnostics = new List<string>();
+        diagnostics.AddRange(detach.Diagnostics);
+        diagnostics.AddRange(attach.Diagnostics);
+        diagnostics.AddRange(rollback.Diagnostics);
+        diagnostics.Add($"compensate:move｜detach={detach.Outcome}｜rollback={rollback.Outcome}");
+
+        return new RelationResult(false, request.Operation, ensurePlan.Edge, 0, diagnostics, RelationOutcome.Skipped);
+    }
+
+    /// <inheritdoc />
+    public async Task<RelationResult> GcAsync(RelationGcRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.Origin == RelationOrigin.Runtime)
+            return Fail(request.Operation, null, "gc 仅允许 rebuild/admin 角色（业务角色禁止）");
+        if (request.TargetKeys is null || request.TargetKeys.Count == 0)
+            return Fail(request.Operation, null, "gc 需要显式候选目标集（禁全库扫描）");
+
+        if (!TryResolve(request.Operation, out var ensurePlan, out var failure)) return failure!;
+        if (ResolveRemovePlan(ensurePlan) is not { } removePlan)
+            return Fail(request.Operation, ensurePlan.Edge,
+                $"remove-operation-undeclared：edge '{ensurePlan.Edge}' 无 intent=remove 声明");
+
+        if (!_probeAssembled)
+            return Fail(request.Operation, ensurePlan.Edge,
+                "probe-unassembled：gc 需要存在性探针（禁按名字猜孤儿）");
+
+        var diagnostics = new List<string>();
+        var removed = 0;
+
+        foreach (var raw in request.TargetKeys)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) continue;
+            var target = raw.Trim();
+
+            if (!_probe.IsMapped(ensurePlan.Target))
+            {
+                diagnostics.Add($"probe-unmapped：{ensurePlan.Target}:{target}（已跳过，禁判孤儿）");
+                continue;
+            }
+
+            if (await _probe.ExistsAsync(ensurePlan.Target, target, ct).ConfigureAwait(false))
+                continue;
+
+            var outcome = await RemoveAsync(
+                removePlan.Id,
+                Request(request.SourceKey, target, request.Namespace, request.Actor, request.Origin),
+                ct).ConfigureAwait(false);
+            diagnostics.AddRange(outcome.Diagnostics);
+            if (outcome.Ok) removed++;
+        }
+
+        if (removed > 0)
+        {
+            return new RelationResult(true, request.Operation, ensurePlan.Edge, removed, diagnostics,
+                RelationOutcome.Applied);
+        }
+
+        var empty = new List<string>(diagnostics) { "gc:no-orphan" };
+        return new RelationResult(false, request.Operation, ensurePlan.Edge, 0, empty, RelationOutcome.NotFound);
+    }
+
+    private RelationOperation? ResolveRemovePlan(RelationOperation ensurePlan)
+        => _catalog.ResolveByEdge(ensurePlan.Edge, remove: true);
+
+    private static RelationRequest Request(
+        string sourceKey, string targetKey, string? ns, string actor, RelationOrigin origin)
+        => new(sourceKey, TargetKey: targetKey, Namespace: ns, Actor: actor, Origin: origin);
+
+    private static IReadOnlyList<string> Combine(params IReadOnlyList<string>[] parts)
+    {
+        var result = new List<string>();
+        foreach (var part in parts)
+        {
+            if (part is { Count: > 0 }) result.AddRange(part);
+        }
+
+        return result;
+    }
+}

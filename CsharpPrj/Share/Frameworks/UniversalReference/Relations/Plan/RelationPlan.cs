@@ -33,13 +33,35 @@ public sealed record RelationOperation(
     public bool ContainerRejects => !string.Equals(OnMismatch, "report", StringComparison.Ordinal);
 }
 
-/// <summary>关系不变量声明（<c>[Invariant]</c> 的中性运行期形态）。</summary>
+/// <summary>关系不变量声明（<c>[Invariant]</c> 的中性运行期形态；<c>guard.pre|guard.post</c> 由声明面填充）。</summary>
+/// <param name="Id">不变量标识。</param>
+/// <param name="Kind">不变量种类（<c>target_single_parent</c> / <c>acyclic</c> / <c>many_to_many</c> 等）。</param>
+/// <param name="Edge">边标签。</param>
+/// <param name="OnViolation">违反处置（<c>reject</c> / <c>report</c> / <c>repair</c>）。</param>
+/// <param name="Scope">作用域（声明面可空）。</param>
+/// <param name="Pre">写前守卫谓词（空 = 未声明）。</param>
+/// <param name="Post">写后守卫谓词（空 = 未声明）。</param>
+/// <param name="Posture">守卫姿态（<see cref="RelationGuardPostures"/>）。</param>
 public sealed record RelationInvariant(
     string Id,
     string Kind,
     string Edge,
     string OnViolation,
-    string? Scope);
+    string? Scope,
+    IReadOnlyList<string>? Pre = null,
+    IReadOnlyList<string>? Post = null,
+    string Posture = RelationGuardPostures.Require)
+{
+    /// <summary>是否声明了守卫谓词（pre/post 任一非空）；未声明 ⇒ 沿用不变量事后判定。</summary>
+    public bool HasGuard => (Pre?.Count ?? 0) > 0 || (Post?.Count ?? 0) > 0;
+
+    /// <summary>编译为守卫（未声明 pre/post ⇒ <c>null</c>；禁伪造空守卫）。</summary>
+    public RelationGuard? ToGuard()
+        => HasGuard
+            ? new RelationGuard(
+                Id, Edge, Pre ?? Array.Empty<string>(), Post ?? Array.Empty<string>(), Posture, OnViolation)
+            : null;
+}
 
 /// <summary>派生成员集声明（<c>[Derive]</c> 的中性运行期形态；<c>Via</c> 序 = 路径序）。</summary>
 public sealed record RelationDerivation(
@@ -85,6 +107,7 @@ public sealed class RelationPlanCatalog
     private readonly Dictionary<string, RelationOperation> _operations = new(StringComparer.Ordinal);
     private readonly Dictionary<string, RelationDerivation> _derivations = new(StringComparer.Ordinal);
     private readonly Dictionary<string, RelationBinding> _bindings = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, RelationInvariant> _guardsByEdge = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<RelationInvariant>> _invariantsByEdge;
 
     public RelationPlanCatalog(RelationPlan plan)
@@ -102,6 +125,11 @@ public sealed class RelationPlanCatalog
         _invariantsByEdge = plan.Invariants
             .GroupBy(i => i.Edge, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => (IReadOnlyList<RelationInvariant>)g.ToList(), StringComparer.Ordinal);
+
+        foreach (var invariant in plan.Invariants)
+        {
+            if (invariant.HasGuard) _guardsByEdge.TryAdd(invariant.Edge, invariant);
+        }
     }
 
     public RelationPlan Plan { get; }
@@ -120,6 +148,13 @@ public sealed class RelationPlanCatalog
 
     public IReadOnlyList<RelationInvariant> InvariantsFor(string edge)
         => _invariantsByEdge.TryGetValue(edge, out var found) ? found : Array.Empty<RelationInvariant>();
+
+    /// <summary>取该边声明的守卫（未声明 pre/post ⇒ null；同边多声明取首条，禁隐式合并）。</summary>
+    public RelationGuard? GuardFor(string edge)
+        => !string.IsNullOrWhiteSpace(edge)
+           && _guardsByEdge.TryGetValue(edge, out var invariant)
+            ? invariant.ToGuard()
+            : null;
 
     public RelationOperation? ResolveByEdge(string edge, bool remove)
     {

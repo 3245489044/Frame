@@ -7,7 +7,7 @@ namespace UniversalWorkflowFramework.Relations;
 /// 派生成员集引擎：<b>唯一读入口</b>（<see cref="IRelationQueryPort"/>）。
 /// <para>只做「路径遍历 / 去重 / 归一 / 排序」，不解释策略；每一跳走 <see cref="IResourceReferenceStore.GetReferencesAsync"/>。</para>
 /// </summary>
-public sealed class RelationDerivationEngine : IRelationQueryPort
+public sealed partial class RelationDerivationEngine : IRelationQueryPort, IRelationSpecQueryPort
 {
     private readonly IResourceReferenceStore _reader;
     private readonly RelationPlanCatalog _catalog;

@@ -1,4 +1,5 @@
 using System;
+using Modules.Observe.Metrics;
 using TConfig.GameMath;
 
 namespace MathematicalAlgorithms.Spatial;
@@ -131,6 +132,16 @@ public static class OccupancySweep
     private static bool RegionSolid(
         int x0, int x1, int y0, int y1, int z0, int z1, IOccupancySource source)
     {
+        long reads = 0;
+        bool solid = RegionSolidCore(x0, x1, y0, y1, z0, z1, source, ref reads);
+        // 最小埋点：只累计本轮读取的列占位数；关闭态是一次静态分支，零分配。
+        Metrics.Counter(MetricId.CollideCellReads).Add(reads);
+        return solid;
+    }
+
+    private static bool RegionSolidCore(
+        int x0, int x1, int y0, int y1, int z0, int z1, IOccupancySource source, ref long reads)
+    {
         int size = source.ChunkSize;
         int mask0 = size - 1;
 
@@ -150,6 +161,7 @@ public static class OccupancySweep
                 for (int cx = cx0; cx <= cx1; cx++)
                 {
                     var occupancy = source.Get(new ChunkCoord(cx, cy, cz));
+                    reads++;
                     if (occupancy is null) continue;
 
                     int lx0 = Math.Max(x0, cx * size) & mask0;

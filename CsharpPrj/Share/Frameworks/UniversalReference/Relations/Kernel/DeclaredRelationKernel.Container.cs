@@ -17,7 +17,7 @@ public sealed partial class DeclaredRelationKernel
         {
             const string uncheckedReason = "container-unchecked：声明 container= 但未装配容器解析端口";
             diagnostics.Add(uncheckedReason);
-            _diagnostics?.RelationWriteSkipped(plan.Id, plan.Edge, "container-uncheckable", plan.Container, targetKey);
+            _diagnostics?.RelationWriteUnavailable(plan.Id, plan.Edge, "container-uncheckable", plan.Container, targetKey);
             return null;
         }
 
@@ -25,15 +25,16 @@ public sealed partial class DeclaredRelationKernel
         switch (resolution.Status)
         {
             case RelationContainerStatus.NotApplicable:
+                // 判据不适用（合法跳过）：写入照常落库，禁表述为「未落库」（ERR-4）。
                 diagnostics.Add($"container-not-applicable:{resolution.Reason}");
-                _diagnostics?.RelationWriteSkipped(
-                    plan.Id, plan.Edge, "container-not-applicable", plan.Container, targetKey);
+                _diagnostics?.RelationWriteNotApplicable(
+                    plan.Id, plan.Edge, resolution.Reason ?? "container-not-applicable", plan.Container, targetKey);
                 return null;
 
             case RelationContainerStatus.Unresolvable:
                 // 不可判定 ≠ 违规：解析失败只可见化，不据此拒绝（否则存量非域键被 on_mismatch=reject 误伤）。
                 diagnostics.Add($"container-unresolved:{resolution.Reason}");
-                _diagnostics?.RelationWriteSkipped(
+                _diagnostics?.RelationWriteUnavailable(
                     plan.Id, plan.Edge, "container-unresolved", plan.Container, targetKey);
                 return null;
         }

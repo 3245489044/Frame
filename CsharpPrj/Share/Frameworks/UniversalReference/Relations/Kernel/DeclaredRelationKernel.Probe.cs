@@ -15,7 +15,7 @@ public sealed partial class DeclaredRelationKernel
         {
             const string reason = "probe-unassembled：存在性探针未装配，写前门 fail-closed（禁恒真放行）";
             diagnostics.Add(reason);
-            _diagnostics?.RelationMissingEndpoint(plan.Id, plan.Edge, reason);
+            _diagnostics?.RelationProbeUnassembled(plan.Id, plan.Edge, reason);
             return reason;
         }
 
@@ -32,7 +32,7 @@ public sealed partial class DeclaredRelationKernel
             var endpoints = string.Join(",", unmapped);
             var reason = $"probe_unmapped：{endpoints}（实体类型未映射存在性谓词）";
             diagnostics.Add(reason);
-            _diagnostics?.RelationMissingEndpoint(plan.Id, plan.Edge, endpoints);
+            _diagnostics?.RelationProbeUnmapped(plan.Id, plan.Edge, endpoints);
             return reason;
         }
 

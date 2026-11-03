@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Modules.Node.Carriers;
 using Modules.Node.Diagnostics;
 using Modules.Node.Identity;
@@ -14,12 +15,14 @@ namespace Modules.Node;
 /// <param name="Carriers">载体数。</param>
 /// <param name="Errors">声明诊断 Error 数。</param>
 /// <param name="Warnings">声明诊断 Warning 数。</param>
+/// <param name="PlacementIds">该域实际装配的位置 id（位置对账消费装配报告，免二次装载）。</param>
 public sealed record NodeDomainAssemblyFact(
     string DomainKey,
     int Placements,
     int Carriers,
     int Errors,
-    int Warnings);
+    int Warnings,
+    IReadOnlyList<string>? PlacementIds = null);
 
 /// <summary>
 /// 域装配门面的装配端口集（机制与数据分离：装配流水线唯一实现，差异全在此）。
@@ -161,7 +164,8 @@ public static class NodeFrameworkAssembly
             });
 
         ports.OnAssembled?.Invoke(new NodeDomainAssemblyFact(
-            descriptor.DomainKey, framework.Placements.Count, registry.All.Count, errors, warnings));
+            descriptor.DomainKey, framework.Placements.Count, registry.All.Count, errors, warnings,
+            framework.Placements.All.Select(static p => p.PlacementId).ToArray()));
 
         return framework;
     }

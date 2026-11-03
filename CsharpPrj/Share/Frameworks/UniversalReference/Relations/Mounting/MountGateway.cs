@@ -214,16 +214,17 @@ public sealed class MountGateway : IMountPort
         await domain.Mirror(key, ct).ConfigureAwait(false);
     }
 
-    private (MountOutcome Overall, MountTargetStatus Status, bool Ok) Map(RelationResult result) => result.Outcome switch
-    {
-        RelationOutcome.Applied => (MountOutcome.Committed, MountTargetStatus.Applied, true),
-        RelationOutcome.Duplicate => (MountOutcome.Committed, MountTargetStatus.Duplicate, true),
-        RelationOutcome.Rejected => (MountOutcome.Rejected, MountTargetStatus.Rejected, false),
-        RelationOutcome.NotFound => (MountOutcome.PartiallyApplied, MountTargetStatus.NotFound, false),
-        RelationOutcome.Skipped => (MountOutcome.PartiallyApplied, MountTargetStatus.Skipped, false),
-        RelationOutcome.NotAssembled => (MountOutcome.Missing, MountTargetStatus.Unavailable, false),
-        _ => (MountOutcome.Failed, MountTargetStatus.Rejected, false),
-    };
+    private (MountOutcome Overall, MountTargetStatus Status, bool Ok) Map(RelationResult result)
+        => RelationOutcomeSemantics.Of(result.Outcome) switch
+        {
+            OutcomeClass.Ok => (MountOutcome.Committed, MountTargetStatus.Applied, true),
+            OutcomeClass.Duplicate => (MountOutcome.Committed, MountTargetStatus.Duplicate, true),
+            OutcomeClass.NotApplicable => (MountOutcome.PartiallyApplied, MountTargetStatus.Skipped, false),
+            OutcomeClass.Rejected => (MountOutcome.Rejected, MountTargetStatus.Rejected, false),
+            OutcomeClass.Missing => (MountOutcome.PartiallyApplied, MountTargetStatus.NotFound, false),
+            OutcomeClass.Unavailable => (MountOutcome.Missing, MountTargetStatus.Unavailable, false),
+            _ => (MountOutcome.Failed, MountTargetStatus.Rejected, false),
+        };
 
     /// <summary>来源映射（命令 = Admin，显式优先；运行时 = Runtime；重建 = Rebuild）。</summary>
     private static RelationOrigin MapOrigin(MountOrigin origin) => origin switch

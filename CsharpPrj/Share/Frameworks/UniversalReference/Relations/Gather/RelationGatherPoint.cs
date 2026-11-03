@@ -98,7 +98,7 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
             var provision = _adapters.TryGet(entity);
             if (provision is null)
             {
-                _diagnostics?.RelationWriteSkipped(
+                _diagnostics?.RelationWriteUnavailable(
                     plan.Id, plan.Edge, "provision-unregistered", entity,
                     string.Equals(entity, plan.Target, StringComparison.Ordinal) && request.Targets.Count > 0
                         ? request.Targets[0]

@@ -37,7 +37,7 @@ public static class DeclaredDomainCompiler
 {
     private static readonly object Gate = new();
     private static readonly Dictionary<string, DomainCompileOutcome> Cache = new(StringComparer.Ordinal);
-    private static readonly Dictionary<string, IReadOnlyList<(string Path, string Text)>> ContextCache =
+    private static readonly Dictionary<string, (string Fingerprint, IReadOnlyList<(string Path, string Text)> Docs)> ContextCache =
         new(StringComparer.Ordinal);
 
     /// <summary>编译单个域声明；命中缓存时 <see cref="DomainCompileOutcome.CacheHit"/> = true。</summary>
@@ -117,17 +117,20 @@ public static class DeclaredDomainCompiler
 
     private static IReadOnlyList<(string Path, string Text)> LoadKeyspaceContext(string directory)
     {
-        lock (Gate)
-        {
-            if (ContextCache.TryGetValue(directory, out var cached))
-            {
-                return cached;
-            }
-        }
-
         if (!Directory.Exists(directory))
         {
             return Array.Empty<(string, string)>();
+        }
+
+        // 长驻宿主：目录内容（文件集/长度/最后写时间）变化即失效，禁以目录键永久命中旧上下文。
+        var fingerprint = Fingerprint(directory);
+        lock (Gate)
+        {
+            if (ContextCache.TryGetValue(directory, out var cached)
+                && string.Equals(cached.Fingerprint, fingerprint, StringComparison.Ordinal))
+            {
+                return cached.Docs;
+            }
         }
 
         var docs = Directory
@@ -138,10 +141,25 @@ public static class DeclaredDomainCompiler
 
         lock (Gate)
         {
-            ContextCache[directory] = docs;
+            ContextCache[directory] = (fingerprint, docs);
         }
 
         return docs;
+    }
+
+    private static string Fingerprint(string directory)
+    {
+        var builder = new StringBuilder();
+        foreach (var path in Directory.EnumerateFiles(directory, "*.ushar", SearchOption.TopDirectoryOnly)
+                     .OrderBy(static path => path, StringComparer.Ordinal))
+        {
+            var info = new FileInfo(path);
+            builder.Append(Path.GetFileName(path)).Append('|')
+                .Append(info.Length).Append('|')
+                .Append(info.LastWriteTimeUtc.Ticks).Append('\n');
+        }
+
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
     }
 
     private static string Key(

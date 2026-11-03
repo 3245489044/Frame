@@ -72,6 +72,12 @@ public interface IRelationDiagnostics
 
     void RelationMissingEndpoint(string operation, string? edge, string endpoint);
 
+    /// <summary>存在性探针未装配（能力缺失，不是「端点不存在」）。</summary>
+    void RelationProbeUnassembled(string operation, string? edge, string reason);
+
+    /// <summary>实体类型未映射存在性谓词（声明缺口，不是「端点不存在」）。</summary>
+    void RelationProbeUnmapped(string operation, string? edge, string endpoints);
+
     void RelationInvariantViolation(string operation, string invariant, string reason);
 
     void RelationPlanMissing(string reason);
@@ -79,6 +85,12 @@ public interface IRelationDiagnostics
     void RelationRevived(string edge, string sourceKey, string targetKey, string? tombstoneReason);
 
     void RelationWriteSkipped(string operation, string? edge, string verdict, string role, string key);
+
+    /// <summary>判据不适用（合法跳过：写入本身不受影响，不计失败 —— 禁表述为「未落库」）。</summary>
+    void RelationWriteNotApplicable(string operation, string? edge, string reason, string role, string key);
+
+    /// <summary>判据不可用（未装配 / 无法解析：跳过校验但不据此拒绝，属能力缺失可见化）。</summary>
+    void RelationWriteUnavailable(string operation, string? edge, string code, string role, string key);
 }
 
 /// <summary>诊断收集器（测试/观测装配用；线程内顺序即事件序）。</summary>
@@ -97,6 +109,12 @@ public sealed class RelationDiagnosticsCollector : IRelationDiagnostics
     public void RelationMissingEndpoint(string operation, string? edge, string endpoint)
         => _entries.Add($"missing-endpoint|{operation}|{edge}|{endpoint}");
 
+    public void RelationProbeUnassembled(string operation, string? edge, string reason)
+        => _entries.Add($"probe-unassembled|{operation}|{edge}|{reason}");
+
+    public void RelationProbeUnmapped(string operation, string? edge, string endpoints)
+        => _entries.Add($"probe-unmapped|{operation}|{edge}|{endpoints}");
+
     public void RelationInvariantViolation(string operation, string invariant, string reason)
         => _entries.Add($"invariant|{operation}|{invariant}|{reason}");
 
@@ -108,4 +126,10 @@ public sealed class RelationDiagnosticsCollector : IRelationDiagnostics
 
     public void RelationWriteSkipped(string operation, string? edge, string verdict, string role, string key)
         => _entries.Add($"write-skipped|{operation}|{edge}|{verdict}|{role}|{key}");
+
+    public void RelationWriteNotApplicable(string operation, string? edge, string reason, string role, string key)
+        => _entries.Add($"write-not-applicable|{operation}|{edge}|{reason}|{role}|{key}");
+
+    public void RelationWriteUnavailable(string operation, string? edge, string code, string role, string key)
+        => _entries.Add($"write-unavailable|{operation}|{edge}|{code}|{role}|{key}");
 }

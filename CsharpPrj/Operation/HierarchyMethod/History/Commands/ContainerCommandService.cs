@@ -127,12 +127,10 @@ public sealed class ContainerCommandService : IContainerCommandPort
     {
         ArgumentNullException.ThrowIfNull(cmd);
         var historyKey = Normalize(cmd.History);
-        // DUP-4：自环判据只有写边守卫一处（ReferenceGrounding → ContainerSelfLoopException）；
-        // 本层不重复判断，避免两份错误源/两份文案。
-        var decision = _gate.AuthorizeTask(
-            cmd.Intent, new[] { historyKey }, SessionRole.TaskMember, null, null, null);
-        if (!decision.Allowed)
-            throw new InvalidOperationException($"归拢任务被拒绝：{decision.Reason}");
+        // 归拢不是创建：创建门的 parents/role 规则在 attach 上下文不可判（目标父集尚未成立），
+        // 只保留可判的一条规则（Automatic 拒绝）；其余判据由端口单父预检 + 写前门（存在性/自环）承担。
+        if (cmd.Intent == CreationIntent.Automatic)
+            throw new InvalidOperationException("归拢任务被拒绝：automatic-intent-cannot-attach-task");
 
         // 存在性判据唯一归属 = 关系内核写前门（EntityExistenceRegistry → 各实体 Store）：
         // 本层不再重复检查 root/task，避免「命令层通过、内核层拒绝」的两套判定（GP-2/E1）。

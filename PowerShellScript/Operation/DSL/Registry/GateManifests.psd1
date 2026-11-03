@@ -1605,6 +1605,16 @@
         Note   = '渲染纯化（B3/ERR-07+SCT-04）：数据库页渲染路径零写交互态（写入只在命令期）；正/负对照'
     }
 
+    TaskHistorySingleEntry = @{
+        Domain = 'Agent'
+        Family = 'Runtime'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '归拢写边单入口（DUP-01/ERR-01..03 防回退）：Attach/DetachTaskCommand 构造点唯一于 TaskHistoryCommandPort.cs；归拢写面禁 UserRequested（统一 SystemExplicit）；正/负对照'
+    }
+
     DomainResolveSingleEntry = @{
         Domain = 'Agent'
         Family = 'Runtime'

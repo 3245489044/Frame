@@ -29,6 +29,11 @@ public static class ChunkVisibility
         Aabb streamBounds = default;
         bool hasBounds = false;
 
+        // 配额一旦填满，只对「水平距离不比方块中心更远」的 footprint 做视锥测试：
+        // footprint 的水平距离是块中心距离的下界，所以不会漏掉更近的块，同时省掉绝大多数平面测试。
+        bool quotaFilled = false;
+        float farthestKept = float.PositiveInfinity;
+
         for (int cx = eyeChunk.X - horizontal; cx <= eyeChunk.X + horizontal; cx++)
         for (int cz = eyeChunk.Z - horizontal; cz <= eyeChunk.Z + horizontal; cz++)
         {
@@ -36,6 +41,9 @@ public static class ChunkVisibility
             int minZ = ChunkSpace.ChunkOrigin(cz, chunkSize);
             int maxX = minX + chunkSize - 1;
             int maxZ = minZ + chunkSize - 1;
+
+            float planarDistance = MathF.Sqrt(
+                (cx - eyeChunk.X) * (cx - eyeChunk.X) + (cz - eyeChunk.Z) * (cz - eyeChunk.Z)) * chunkSize;
 
             int cy0, cy1;
             if (heightSpan != null)
@@ -61,6 +69,10 @@ public static class ChunkVisibility
                 streamBounds = hasBounds ? Union(streamBounds, chunkBounds) : chunkBounds;
                 hasBounds = true;
 
+                // 保守渲染域已累积完（上一行 Union），这里才按配额裁剪视锥测试。
+                if (quotaFilled && planarDistance > farthestKept)
+                    continue;
+
                 if (!frustum.Intersects(chunkBounds))
                     continue;
 
@@ -74,6 +86,13 @@ public static class ChunkVisibility
                     continue;
 
                 visible.Add((new ChunkCoord(cx, cy, cz), distance));
+                if (!quotaFilled && visible.Count >= maxVisible)
+                {
+                    quotaFilled = true;
+                    farthestKept = 0f;
+                    foreach (var kept in visible)
+                        if (kept.Distance > farthestKept) farthestKept = kept.Distance;
+                }
             }
         }
 

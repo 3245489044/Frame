@@ -184,12 +184,8 @@ public static class OccupancySweep
         out int x0, out int x1, out int y0, out int y1, out int z0, out int z1,
         float skin)
     {
-        float minX = position.X - halfExtents.X;
-        float maxX = position.X + halfExtents.X;
-        float minY = position.Y;
-        float maxY = position.Y + halfExtents.Y * 2f;
-        float minZ = position.Z - halfExtents.Z;
-        float maxZ = position.Z + halfExtents.Z;
+        BodyExtents(position, halfExtents,
+            out float minX, out float maxX, out float minY, out float maxY, out float minZ, out float maxZ);
 
         x0 = (int)MathF.Floor(minX + skin);
         x1 = (int)MathF.Floor(maxX - skin);
@@ -197,6 +193,21 @@ public static class OccupancySweep
         y1 = (int)MathF.Floor(maxY - skin);
         z0 = (int)MathF.Floor(minZ + skin);
         z1 = (int)MathF.Floor(maxZ - skin);
+    }
+
+    /// <summary>
+    /// 身体的浮动外框（cm）：唯一一份几何约定，CellRange 与 LeadingFace 共用，避免两处各写一遍「Y 是脚底还是中心」。
+    /// </summary>
+    private static void BodyExtents(
+        Vec3 position, Vec3 halfExtents,
+        out float minX, out float maxX, out float minY, out float maxY, out float minZ, out float maxZ)
+    {
+        minX = position.X - halfExtents.X;
+        maxX = position.X + halfExtents.X;
+        minY = position.Y;                          // 脚底中心约定：Y 即脚底
+        maxY = position.Y + halfExtents.Y * 2f;     // 与 AabbSweep 的 maxY 同式
+        minZ = position.Z - halfExtents.Z;
+        maxZ = position.Z + halfExtents.Z;
     }
 
     private static void CellRange(
@@ -208,10 +219,11 @@ public static class OccupancySweep
         Vec3 position, Vec3 halfExtents, int axis, float sign, float skin,
         out int lead, out float toNext)
     {
-        float center = axis == 0 ? position.X : axis == 1 ? position.Y : position.Z;
-        float half = axis == 0 ? halfExtents.X : axis == 1 ? halfExtents.Y : halfExtents.Z;
-        float min = center - half;
-        float max = axis == 1 ? center + half * 2f : center + half;
+        BodyExtents(position, halfExtents,
+            out float minX, out float maxX, out float minY, out float maxY, out float minZ, out float maxZ);
+
+        float min = axis == 0 ? minX : axis == 1 ? minY : minZ;
+        float max = axis == 0 ? maxX : axis == 1 ? maxY : maxZ;
 
         if (sign > 0f)
         {

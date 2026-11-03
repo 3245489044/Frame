@@ -165,6 +165,30 @@ if (Test-Path $agentSrcDir)
     if (-not (Test-AgentNodeWrite 'Agent.Ui/Forbidden.cs' 'await nodes.PutAsync(record, ct);')) {
         $violations.Add('[J/J1] 负对照失效：合成裸写未被判据捕获')
     }
+
+    # J2：节点写门直调点唯一（NodeDocumentWriteGateway.TryApplyAsync 只允许 NodeWriteService.cs）。
+    # 判据载体 = 源码静态调用点计数（结构事实），不做语义豁免。
+    $gatewayAllowed = @('NodeWriteService.cs')
+    function Test-NodeGatewayBypass([string]$file, [string]$text) {
+        if ($text -match 'NodeDocumentWriteGateway[\s\S]{0,120}?TryApplyAsync\s*\(') {
+            $leaf = Split-Path $file -Leaf
+            if ($gatewayAllowed -notcontains $leaf) {
+                return "[J/J2] $file 直接调用 NodeDocumentWriteGateway.TryApplyAsync（唯一入口 = NodeWriteService.cs）"
+            }
+        }
+        return $null
+    }
+    foreach ($file in $agentFiles) {
+        $text = [System.IO.File]::ReadAllText($file.FullName)
+        $hit = Test-NodeGatewayBypass $file.FullName $text
+        if ($hit) { $violations.Add($hit) }
+    }
+    if (-not (Test-NodeGatewayBypass 'Agent.Ui/Forbidden.cs' 'await Agent.Core.Entry.NodeDocumentWriteGateway.TryApplyAsync(key, t, th, s, p, ct);')) {
+        $violations.Add('[J/J2] 负对照失效：合成写门直调未被判据捕获')
+    }
+    if (Test-NodeGatewayBypass 'Agent.Core/Entry/NodeWriteService.cs' 'await NodeDocumentWriteGateway.TryApplyAsync(key, t, th, s, p, ct);') {
+        $violations.Add('[J/J2] 正对照失效：唯一入口 NodeWriteService.cs 被判为违规')
+    }
 }
 elseif ($ShowDetail) { Write-Host "SKIP(J): 未找到 Agent 源码目录（Frame-only 检出）。" -ForegroundColor Gray }
 

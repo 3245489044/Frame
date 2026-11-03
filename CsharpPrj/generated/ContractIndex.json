@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-03T00:14:06.0410276Z",
+  "builtAt": "2026-11-03T13:12:52.5400164Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -4525,23 +4525,30 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 160,
+          "line": 158,
           "role": "Code",
           "text": "await _relations.AttachTaskAsync(historyKey.Value, cmd.Task.Value, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 188,
+          "line": 186,
           "role": "Code",
           "text": "await _relations.DetachTaskAsync(historyKey.Value, cmd.Task.Value, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 206,
+          "line": 204,
           "role": "Code",
           "text": "await _relations.DeleteAsync(key.Value, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/HierarchyMethod/History/Runtime/ContainerRuntimeService.cs",
+          "line": 117,
+          "role": "Code",
+          "text": ": await _relations.GetTaskKeysAsync(historyId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
@@ -4549,6 +4556,20 @@
           "line": 93,
           "role": "Code",
           "text": "? (_relations is null ? (IReadOnlyList<string>)System.Array.Empty<string>() : await _relations.GetTaskKeysAsync(scope.OwnerId, ct).ConfigureAwait(false))"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/HierarchyMethod/Tasks/Queries/TaskPoolTaskQuery.cs",
+          "line": 48,
+          "role": "Code",
+          "text": "var keys = await _relations.GetTaskKeysAsync(history.Value, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/HierarchyMethod/Tasks/Queries/TaskPoolTaskQuery.cs",
+          "line": 56,
+          "role": "Code",
+          "text": "var keys = await _relations.GetHistoryKeysAsync(task.Value, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
@@ -4679,14 +4700,14 @@
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Data/Check-RelationGraphParity.ps1",
-          "line": 62,
+          "line": 64,
           "role": "Gate",
           "text": "foreach ($name in $relations.Keys) {"
         },
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Data/Check-RelationGraphParity.ps1",
-          "line": 84,
+          "line": 86,
           "role": "Gate",
           "text": "if (-not $relations.Contains($operation)) {"
         },
@@ -5280,27 +5301,6 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Core/Engine/ContainerRuntime/ContainerRuntimeService.cs",
-          "line": 117,
-          "role": "Code",
-          "text": ": await _relations.GetTaskKeysAsync(historyId, ct).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskQuery.cs",
-          "line": 39,
-          "role": "Code",
-          "text": "var keys = await _relations.GetTaskKeysAsync(history.Value, ct).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Core/Engine/TaskPool/AgentTaskQuery.cs",
-          "line": 49,
-          "role": "Code",
-          "text": "var keys = await _relations.GetHistoryKeysAsync(task.Value, ct).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Core/Orchestration/SessionWorkflow/NodeWrite/SyncRelationsBlock.cs",
           "line": 66,
           "role": "Code",
@@ -5309,9 +5309,23 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/AgentGraphComposition.cs",
-          "line": 166,
+          "line": 167,
           "role": "Code",
           "text": "skipped = relations.SkippedRelations.ToArray(),"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/Framework/History/TaskHistoryCommandPort.cs",
+          "line": 89,
+          "role": "Code",
+          "text": "var owners = await relations.GetHistoryKeysAsync(key, ct).ConfigureAwait(false);"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/src/Agent.Modules/Framework/History/TaskHistoryCommandPort.cs",
+          "line": 146,
+          "role": "Code",
+          "text": "var owners = await relations.GetHistoryKeysAsync(key, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
@@ -5365,98 +5379,84 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Conversation/AgentUiLibraryConversation.cs",
-          "line": 347,
+          "line": 348,
           "role": "Code",
           "text": "foreach (var member in await relations.GetTaskKeysAsync(historyId, CancellationToken.None).ConfigureAwait(false))"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 163,
-          "role": "Code",
-          "text": "var members = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 166,
-          "role": "Code",
-          "text": "await relations.DetachTaskAsync(hid, key, CancellationToken.None).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 292,
+          "line": 299,
           "role": "Code",
           "text": ": await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/History/AgentUiLibraryHistory.cs",
-          "line": 342,
+          "line": 349,
           "role": "Code",
           "text": "var taskKeys = await relations.GetTaskKeysAsync(hid, CancellationToken.None).ConfigureAwait(false);"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 357,
+          "line": 358,
           "role": "Code",
           "text": "// ---- 声明式构建 + 图维护（relations.* / graph.*）----"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 361,
+          "line": 362,
           "role": "Code",
           "text": "/// <summary>主动声明关系（relations.declare）：经守卫写 ur_nodes + 推导边。未装配守卫返回诊断。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 366,
+          "line": 367,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.declare 不可用：请经完整框架路径装配引用层。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 368,
+          "line": 369,
           "role": "Code",
           "text": "return \"（缺少声明）relations.declare 需提供 declarations[]（relationId + from/to/refType）。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 373,
+          "line": 374,
           "role": "Code",
           "text": "/// <summary>撤销声明（relations.undeclare）：物理删除声明 + 派生边 + 墓碑（重启/装配/重建均不恢复）。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 378,
+          "line": 379,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.undeclare 不可用。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 380,
+          "line": 381,
           "role": "Code",
           "text": "return \"（缺少 relationIds）relations.undeclare 需提供 relationIds[]。\";"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 385,
+          "line": 386,
           "role": "Code",
           "text": "/// <summary>列出声明（relations.list）为文本。</summary>"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Ui/Core/Functions/Runtime/AgentUiLibraryRuntime.cs",
-          "line": 389,
+          "line": 390,
           "role": "Code",
           "text": "return \"（未装配引用守卫）relations.list 不可用。\";"
         },
@@ -6328,14 +6328,14 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 215,
+          "line": 213,
           "role": "Code",
           "text": "await _transcripts.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
-          "line": 216,
+          "line": 214,
           "role": "Code",
           "text": "await _sessions.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
         },
@@ -8355,13 +8355,13 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 399,
+      "total": 397,
       "truncated": false,
       "byRole": {
         "Gate": 7,
-        "Test": 89,
+        "Test": 88,
         "Declaration": 61,
-        "Code": 20,
+        "Code": 19,
         "Doc": 221,
         "Other": 1
       },
@@ -9951,56 +9951,56 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
-          "line": 17,
+          "line": 18,
           "role": "Test",
           "text": "new SubAgentDefinition { Agent = \"tool-call\", Executor = \"subagent-tool-call\" },"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
-          "line": 42,
+          "line": 43,
           "role": "Test",
           "text": "var route = Resolver(catalog: null, useDefaultCatalog: false).Resolve(\"tool-call\", null);"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
-          "line": 66,
+          "line": 67,
           "role": "Test",
           "text": "var route = Resolver().Resolve(\"tool-call\", null);"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
-          "line": 68,
+          "line": 69,
           "role": "Test",
           "text": "Assert.AreEqual(\"subagent-tool-call\", route.ExecutorId);"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
-          "line": 74,
+          "line": 75,
           "role": "Test",
           "text": "var route = Resolver().Resolve(\"tool-call\", \"SUBAGENT-TOOL-CALL\");"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
-          "line": 76,
+          "line": 77,
           "role": "Test",
           "text": "Assert.AreEqual(\"subagent-tool-call\", route.ExecutorId);"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
-          "line": 82,
+          "line": 83,
           "role": "Test",
           "text": "var route = Resolver().Resolve(\"tool-call\", \"llm-loop\");"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskRouteResolverTests.cs",
-          "line": 84,
+          "line": 85,
           "role": "Test",
           "text": "Assert.AreEqual(\"subagent_executor_conflict:tool-call\", route.Code);"
         },
@@ -10191,19 +10191,12 @@
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
           "line": 134,
           "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.IsKindSegment(\"tool-call\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 144,
-          "role": "Test",
           "text": "Assert.AreEqual(\"task-a\", AgentNodeCarriers.ThreadIdFromProcessKey(\"proc.task-a.r2.tool-call.3\"));"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 178,
+          "line": 168,
           "role": "Test",
           "text": "(\"task-1\", 2, \"tool-call\", 37L),"
         },
@@ -10833,7 +10826,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/contract-consts.ushar",
-          "line": 221,
+          "line": 226,
           "role": "Declaration",
           "text": "ToolCall = \"tool-call\""
         },
@@ -11078,16 +11071,9 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/Generated/GeneratedContractConstants.g.cs",
-          "line": 286,
+          "line": 291,
           "role": "Code",
           "text": "public const string ToolCall = \"tool-call\";"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/NodeTaxonomy.cs",
-          "line": 42,
-          "role": "Code",
-          "text": "\"tool-call\" => T((\"purpose\", \"action\"), (\"func\", \"invoke\"), (\"life\", \"round\"), (\"prov\", \"agent\"), (\"trust\", \"confirmed\")),"
         },
         {
           "repo": "Projects",
@@ -11099,7 +11085,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/DataStoreHosting.cs",
-          "line": 220,
+          "line": 225,
           "role": "Code",
           "text": "[\"subagent-tool-call\"] = Agent.Modules.SubAgent.SingleStep.SingleStepSubAgentTaskExecutor.ExecutorId,"
         },
@@ -11201,21 +11187,21 @@
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Node/Check-DomainWireSingleSource.ps1",
-          "line": 143,
+          "line": 145,
           "role": "Gate",
           "text": "$locSet = @($locTokens | Where-Object { $_ -ne 'agent_round' } | Sort-Object)"
         },
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Node/Check-DomainWireSingleSource.ps1",
-          "line": 159,
+          "line": 161,
           "role": "Gate",
           "text": "$locBody = ((@('  agent_round') + @($expectedWire | ForEach-Object { '  ' + $_ })) -join \"`r`n\") + \"`r`n\""
         },
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Node/Check-DomainWireSingleSource.ps1",
-          "line": 164,
+          "line": 166,
           "role": "Gate",
           "text": "$mxBody = ((@($expectedWire | ForEach-Object { '  ' + $_ + ' = agent_round' })) -join \"`r`n\") + \"`r`n\""
         },
@@ -11229,7 +11215,7 @@
         {
           "repo": "Frame",
           "file": "Usharp/src/Usharp.Emit/UsharpLocPlacementEmitter.cs",
-          "line": 145,
+          "line": 146,
           "role": "Code",
           "text": "/// 行输出 = 位置 id（<c>archive_raw → archive-raw</c>）；行输入 = loc 值（<c>agent_round → agent-round</c>）。"
         },
@@ -11744,7 +11730,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/keyspaces/contract-consts.ushar",
-          "line": 197,
+          "line": 202,
           "role": "Declaration",
           "text": "PlacementId = \"process-node\""
         },
@@ -11758,7 +11744,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/Generated/GeneratedContractConstants.g.cs",
-          "line": 258,
+          "line": 263,
           "role": "Code",
           "text": "public const string PlacementId = \"process-node\";"
         },
@@ -11779,7 +11765,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Framework/NodeSpec/AgentNodeSpec.cs",
-          "line": 67,
+          "line": 59,
           "role": "Code",
           "text": "/// 过程是**运行态事实**：运行中住内存（读侧 overlay 源），整体跑完经唯一写门落库（位置 <c>process-node</c>）。"
         },
@@ -11795,12 +11781,12 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1658.0,
+    "hitCount": 1656.0,
     "byRole": {
       "Gate": 42,
-      "Test": 201,
+      "Test": 200,
       "Declaration": 104,
-      "Code": 353,
+      "Code": 352,
       "Doc": 869,
       "Other": 89
     },
@@ -11811,11 +11797,11 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 481
+        "lines": 484
       },
       {
         "repo": "Projects",
-        "lines": 296
+        "lines": 293
       },
       {
         "repo": "Main",

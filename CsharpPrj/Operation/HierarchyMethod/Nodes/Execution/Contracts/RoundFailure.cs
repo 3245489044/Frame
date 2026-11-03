@@ -26,6 +26,9 @@ public static class RoundFailureCodes
 
     /// <summary>运行身份缺失（R0 一等失败码）：不再以空作用域继续执行（ERR-01）。</summary>
     public const string IdentityMissing = KeyReasonCodes.IdentityMissing;
+
+    /// <summary>守卫空输入（空输入 = 轮次不成立，不得继续走 provide_prompt/cline_execute）。</summary>
+    public const string GuardEmptyInput = KeyReasonCodes.GuardEmptyInput;
 }
 
 /// <summary>

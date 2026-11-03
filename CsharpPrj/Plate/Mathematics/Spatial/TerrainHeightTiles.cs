@@ -18,7 +18,8 @@ public sealed class TerrainHeightTiles
         public HeightSpan Span;
     }
 
-    private const int MaxResidentTiles = 8192;
+    // 覆盖 16 m 半径的 chunk 对齐瓦片（101×101 ≈ 1.0 万）仍远小于上限；上限只防极端半径把内存撑爆。
+    private const int MaxResidentTiles = 32768;
 
     private readonly TerrainHeightModel _model;
     private readonly int _tileSize;

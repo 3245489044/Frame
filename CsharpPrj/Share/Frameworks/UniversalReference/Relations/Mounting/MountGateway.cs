@@ -214,17 +214,24 @@ public sealed class MountGateway : IMountPort
         await domain.Mirror(key, ct).ConfigureAwait(false);
     }
 
-    private (MountOutcome Overall, MountTargetStatus Status, bool Ok) Map(RelationResult result)
-        => RelationOutcomeSemantics.Of(result.Outcome) switch
+    /// <summary>中性语义 → 挂载结果（单表；新增终态 = 增一行，禁散落 switch）。</summary>
+    private static readonly IReadOnlyDictionary<OutcomeClass, (MountOutcome Overall, MountTargetStatus Status, bool Ok)>
+        OutcomeMap = new Dictionary<OutcomeClass, (MountOutcome, MountTargetStatus, bool)>
         {
-            OutcomeClass.Ok => (MountOutcome.Committed, MountTargetStatus.Applied, true),
-            OutcomeClass.Duplicate => (MountOutcome.Committed, MountTargetStatus.Duplicate, true),
-            OutcomeClass.NotApplicable => (MountOutcome.PartiallyApplied, MountTargetStatus.Skipped, false),
-            OutcomeClass.Rejected => (MountOutcome.Rejected, MountTargetStatus.Rejected, false),
-            OutcomeClass.Missing => (MountOutcome.PartiallyApplied, MountTargetStatus.NotFound, false),
-            OutcomeClass.Unavailable => (MountOutcome.Missing, MountTargetStatus.Unavailable, false),
-            _ => (MountOutcome.Failed, MountTargetStatus.Rejected, false),
+            [OutcomeClass.Ok] = (MountOutcome.Committed, MountTargetStatus.Applied, true),
+            [OutcomeClass.Duplicate] = (MountOutcome.Committed, MountTargetStatus.Duplicate, true),
+            [OutcomeClass.NotApplicable] = (MountOutcome.PartiallyApplied, MountTargetStatus.Skipped, false),
+            [OutcomeClass.Rejected] = (MountOutcome.Rejected, MountTargetStatus.Rejected, false),
+            [OutcomeClass.Missing] = (MountOutcome.PartiallyApplied, MountTargetStatus.NotFound, false),
+            [OutcomeClass.Unavailable] = (MountOutcome.Missing, MountTargetStatus.Unavailable, false),
+            [OutcomeClass.Partial] = (MountOutcome.PartiallyApplied, MountTargetStatus.Skipped, false),
+            [OutcomeClass.Failed] = (MountOutcome.Failed, MountTargetStatus.Rejected, false),
         };
+
+    private static (MountOutcome Overall, MountTargetStatus Status, bool Ok) Map(RelationResult result)
+        => OutcomeMap.TryGetValue(RelationOutcomeSemantics.Of(result.Outcome), out var mapped)
+            ? mapped
+            : (MountOutcome.Failed, MountTargetStatus.Rejected, false);
 
     /// <summary>来源映射（命令 = Admin，显式优先；运行时 = Runtime；重建 = Rebuild）。</summary>
     private static RelationOrigin MapOrigin(MountOrigin origin) => origin switch

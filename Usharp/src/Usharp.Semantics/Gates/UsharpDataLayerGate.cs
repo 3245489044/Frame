@@ -68,7 +68,7 @@ internal sealed class RecordGateRule : IGateRule<UsharpGateModel>
 
             if (record.Table is not { Length: > 0 } tableId || tableIds.Contains(tableId)) continue;
 
-            // E-15：先告警（兼容窗口），下一批收紧为 US7205。
+            // E-15（已收紧）：容器名与表 id 分离；用容器名 ⇒ error（US7206），不再回落别名。
             if (containers.TryGetValue(tableId, out var actualTableId))
             {
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RecordTableUsesContainer,

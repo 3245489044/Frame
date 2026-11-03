@@ -81,6 +81,9 @@ public static class UsharpDiagnosticCatalog
     /// <summary>语义实体尚无权威族（信息级：语义层已声明，语法族待接）。</summary>
     public const string IdentityAuthorityPending = "US7907";
 
+    /// <summary>身份声明行含无法解析的字段段（坏段不得静默丢弃，R-9）。</summary>
+    public const string IdentityLineUnparsed = "US7908";
+
     // ── US1xxx 闸A ──────────────────────────────────────────────────────
     public const string SpaceUnknown = "US1001";
     public const string CoordUndeclared = "US1002";
@@ -156,8 +159,14 @@ public static class UsharpDiagnosticCatalog
     public const string RecordShapeInvalid = "US7204";
     public const string RecordTableUndeclared = "US7205";
 
-    /// <summary><c>[Record] table=</c> 使用表容器名而非表 id（兼容窗口：先告警，后续收紧为 error）。</summary>
+    /// <summary><c>[Record] table=</c> 使用表容器名而非表 id（E-15 已收紧：error）。</summary>
     public const string RecordTableUsesContainer = "US7206";
+
+    /// <summary>同名 <c>[Table]</c> 重复声明（产物 winner = FirstWins）。</summary>
+    public const string TableIdDuplicate = "US7207";
+
+    /// <summary>同名 <c>[Record]</c> 重复声明（产物 winner = FirstWins）。</summary>
+    public const string RecordIdDuplicate = "US7208";
     public const string LlmContractOutputUndeclared = "US7301";
     public const string LlmContractInputUndeclared = "US7302";
     public const string LlmDeclShapeInvalid = "US7303";
@@ -361,7 +370,9 @@ public static class UsharpDiagnosticCatalog
         E(TableColumnDuplicate, "Table", UsharpSeverity.Error, "列名重复", "tableId, column"),
         E(RecordShapeInvalid, "Record", UsharpSeverity.Error, "记录声明形态非法", "recordId"),
         E(RecordTableUndeclared, "Record", UsharpSeverity.Error, "记录引用的表未声明", "recordId, tableId"),
-        E(RecordTableUsesContainer, "Record", UsharpSeverity.Warning, "[Record] table= 使用容器名而非表 id（兼容期告警，后续收紧）", "recordId, table"),
+        E(RecordTableUsesContainer, "Record", UsharpSeverity.Error, "[Record] table= 使用容器名而非表 id（表 id 与容器 id 不得混同）", "recordId, table"),
+        E(TableIdDuplicate, "Table", UsharpSeverity.Error, "同名 [Table] 重复声明", "tableId"),
+        E(RecordIdDuplicate, "Record", UsharpSeverity.Error, "同名 [Record] 重复声明", "recordId"),
 
         E(LlmContractOutputUndeclared, "LLMDecl", UsharpSeverity.Error, "output= 字段未在 O 区声明", "llmId, field"),
         E(LlmContractInputUndeclared, "LLMDecl", UsharpSeverity.Error, "input= 字段未在 I 区声明", "llmId, field"),
@@ -449,6 +460,7 @@ public static class UsharpDiagnosticCatalog
         E(IdentityPolicyInvalid, "KeyPolicy", UsharpSeverity.Error, "[KeyPolicy] entity/cardinality/writer/on_unresolvable 缺失", "policy, field"),
         E(IdentityBridgeInvalid, "KeyBridge", UsharpSeverity.Error, "[KeyBridge] from/to/rule 缺失或 reversible 未声明", "bridge, field"),
         E(IdentityAuthorityPending, "Entity", UsharpSeverity.Info, "[Entity] 尚无 authority=true 的 family（语义层已声明；语法族待接）", "entity"),
+        E(IdentityLineUnparsed, "Identity", UsharpSeverity.Error, "身份声明行含无法解析/重复的字段段（[Entity]/[KeyLexicon]/[AnswerShape]/[WindowShape]/[KeyPolicy]/[KeyBridge]）", "declaration, segment"),
         E(ConstTargetInvalid, "Const", UsharpSeverity.Error, "[Const] target 须为「命名空间.类型」（至少两段）", "target"),
         E(ConstKindInvalid, "Const", UsharpSeverity.Error, "[Const] kind/valueType 不在受控词域", "target, field"),
         E(ConstModifierInvalid, "Const", UsharpSeverity.Error, "[Const] modifier 与 kind 组合非法", "target, modifier"),

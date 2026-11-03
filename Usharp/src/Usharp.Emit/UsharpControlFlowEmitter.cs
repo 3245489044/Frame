@@ -71,43 +71,29 @@ public static class UsharpControlFlowEmitter
     }
 
     private static List<RoundBranch> CollectBranches(UsharpCompilation compilation, string flowId)
-    {
-        var list = new List<RoundBranch>();
-        foreach (var doc in compilation.Documents)
-            foreach (var b in UsharpSyntaxProjector.Branches(doc))
-                if (Matches(b.FlowId, flowId) && b.Node.Length > 0)
-                    list.Add(new RoundBranch(b.Node, b.JudgeKey, b.Then, b.Else));
-        return list;
-    }
+        => Collect(compilation, UsharpSyntaxProjector.Branches,
+            b => Matches(b.FlowId, flowId) && b.Node.Length > 0,
+            b => new RoundBranch(b.Node, b.JudgeKey, b.Then, b.Else));
 
     private static List<RoundSwitch> CollectSwitches(UsharpCompilation compilation, string flowId)
-    {
-        var list = new List<RoundSwitch>();
-        foreach (var doc in compilation.Documents)
-            foreach (var s in UsharpSyntaxProjector.Switches(doc))
-                if (Matches(s.FlowId, flowId) && s.Node.Length > 0 && s.Routes.Count > 0)
-                    list.Add(new RoundSwitch(s.Node, s.SelectorKey,
-                        new Dictionary<string, string>(s.Routes, StringComparer.Ordinal), s.Default));
-        return list;
-    }
+        => Collect(compilation, UsharpSyntaxProjector.Switches,
+            s => Matches(s.FlowId, flowId) && s.Node.Length > 0 && s.Routes.Count > 0,
+            s => new RoundSwitch(s.Node, s.SelectorKey,
+                new Dictionary<string, string>(s.Routes, StringComparer.Ordinal), s.Default));
 
     private static List<RoundCall> CollectCalls(
         UsharpCompilation compilation, string flowId, IReadOnlyDictionary<string, UsharpNodeSpec> nodes, int depth,
         ICollection<UsharpDiagnostic>? diagnostics)
-    {
-        var list = new List<RoundCall>();
-        foreach (var doc in compilation.Documents)
-            foreach (var c in UsharpSyntaxProjector.Calls(doc))
+        => CollectWithChild(compilation, UsharpSyntaxProjector.Calls,
+            c => Matches(c.FlowId, flowId) && c.Node.Length > 0 && c.ChildFlowId.Length > 0,
+            c =>
             {
-                if (!Matches(c.FlowId, flowId) || c.Node.Length == 0 || c.ChildFlowId.Length == 0) continue;
                 var child = BuildChildSpec(compilation, c.ChildFlowId, nodes, depth + 1, diagnostics);
-                if (child is null) continue;
-                list.Add(new RoundCall(c.Node, child, c.Callee,
+                if (child is null) return null;
+                return new RoundCall(c.Node, child, c.Callee,
                     c.InBindings.Select(kv => new RoundPortBinding(kv.Key, kv.Value)).ToList(),
-                    c.OutBindings.Select(kv => new RoundPortBinding(kv.Key, kv.Value)).ToList()));
-            }
-        return list;
-    }
+                    c.OutBindings.Select(kv => new RoundPortBinding(kv.Key, kv.Value)).ToList());
+            });
 
     /// <summary>
     /// 子流就地发射为子骨架（<c>[Node]</c> 键 → 步骤；递归装配其自身控制流）。
@@ -142,25 +128,21 @@ public static class UsharpControlFlowEmitter
     private static List<RoundRegion> CollectRegions(
         UsharpCompilation compilation, string flowId, IReadOnlyDictionary<string, UsharpNodeSpec> nodes, int depth,
         ICollection<UsharpDiagnostic>? diagnostics)
-    {
-        var list = new List<RoundRegion>();
-        foreach (var doc in compilation.Documents)
-            foreach (var r in UsharpSyntaxProjector.Regions(doc))
+        => CollectWithChild(compilation, UsharpSyntaxProjector.Regions,
+            r => Matches(r.FlowId, flowId) && r.ParentNode.Length > 0 && r.ChildFlowId.Length > 0,
+            r =>
             {
-                if (!Matches(r.FlowId, flowId) || r.ParentNode.Length == 0 || r.ChildFlowId.Length == 0) continue;
                 var child = BuildChildSpec(compilation, r.ChildFlowId, nodes, depth + 1, diagnostics);
-                if (child is null) continue;
-                list.Add(new RoundRegion(
+                if (child is null) return null;
+                return new RoundRegion(
                     r.ParentNode,
                     child,
                     MapIteration(r.Iteration),
                     r.MaxIterations,
                     r.JudgePort,
                     r.InBindings.Select(kv => new RoundPortBinding(kv.Key, kv.Value)).ToList(),
-                    r.OutBindings.Select(kv => new RoundPortBinding(kv.Key, kv.Value)).ToList()));
-            }
-        return list;
-    }
+                    r.OutBindings.Select(kv => new RoundPortBinding(kv.Key, kv.Value)).ToList());
+            });
 
     private static RoundRegionIteration MapIteration(string iter)
     {
@@ -173,26 +155,49 @@ public static class UsharpControlFlowEmitter
     }
 
     private static List<RoundWhenDecl> CollectWhens(UsharpCompilation compilation, string flowId)
+        => Collect(compilation, UsharpSyntaxProjector.Whens,
+            w => Matches(w.FlowId, flowId)
+                && w.FromNode.Length > 0 && w.To.Length > 0 && w.JudgeKey.Length > 0,
+            w => new RoundWhenDecl(w.FromNode, w.To, w.JudgeKey));
+
+    private static List<RoundGuardDecl> CollectGuards(UsharpCompilation compilation, string flowId)
+        => Collect(compilation, UsharpSyntaxProjector.Guards,
+            g => Matches(g.FlowId, flowId) && g.NodeIds.Count > 0,
+            g => new RoundGuardDecl(g.NodeIds));
+
+    /// <summary>
+    /// 声明收集模板（D-14 单一实现）：**文档序 → 投影序列 → 过滤 → 投影**。
+    /// <para>顺序与过滤逐条照旧（禁改语义）；新增控制流声明只改本处调用的三个委托。</para>
+    /// </summary>
+    private static List<TDto> Collect<TDecl, TDto>(
+        UsharpCompilation compilation,
+        Func<Plate.DslMethod.Model.DslDocument, IEnumerable<TDecl>> source,
+        Func<TDecl, bool> accept,
+        Func<TDecl, TDto> project)
     {
-        var list = new List<RoundWhenDecl>();
+        var list = new List<TDto>();
         foreach (var doc in compilation.Documents)
-            foreach (var w in UsharpSyntaxProjector.Whens(doc))
-            {
-                if (!Matches(w.FlowId, flowId) || w.FromNode.Length == 0 || w.To.Length == 0 || w.JudgeKey.Length == 0)
-                    continue;
-                list.Add(new RoundWhenDecl(w.FromNode, w.To, w.JudgeKey));
-            }
+            foreach (var decl in source(doc))
+                if (accept(decl)) list.Add(project(decl));
         return list;
     }
 
-    private static List<RoundGuardDecl> CollectGuards(UsharpCompilation compilation, string flowId)
+    /// <summary>声明收集模板（可空投影：子流装配失败 ⇒ 该项不产出，与既有 <c>continue</c> 等价）。</summary>
+    private static List<TDto> CollectWithChild<TDecl, TDto>(
+        UsharpCompilation compilation,
+        Func<Plate.DslMethod.Model.DslDocument, IEnumerable<TDecl>> source,
+        Func<TDecl, bool> accept,
+        Func<TDecl, TDto?> project)
+        where TDto : class
     {
-        var list = new List<RoundGuardDecl>();
+        var list = new List<TDto>();
         foreach (var doc in compilation.Documents)
-            foreach (var g in UsharpSyntaxProjector.Guards(doc))
+            foreach (var decl in source(doc))
             {
-                if (!Matches(g.FlowId, flowId) || g.NodeIds.Count == 0) continue;
-                list.Add(new RoundGuardDecl(g.NodeIds));
+                if (!accept(decl)) continue;
+                var dto = project(decl);
+                if (dto is null) continue;
+                list.Add(dto);
             }
         return list;
     }

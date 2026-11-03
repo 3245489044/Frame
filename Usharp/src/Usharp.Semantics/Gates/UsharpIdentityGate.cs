@@ -19,6 +19,12 @@ internal sealed class KeyIdentityGateRule : IGateRule<UsharpGateModel>
 
     public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
     {
+        ReportFieldIssues(model.Entities, e => $"[Entity] {e.Id}", e => e.SourceFile, e => e.LineNumber, sink);
+        ReportFieldIssues(model.KeyLexicons, l => $"[KeyLexicon] {l.Name}", l => l.SourceFile, l => l.LineNumber, sink);
+        ReportFieldIssues(model.KeyShapes, s => $"[{s.Kind}Shape] {s.Id}", s => s.SourceFile, s => s.LineNumber, sink);
+        ReportFieldIssues(model.IdentityPolicies, p => $"[KeyPolicy] {p.Id}", p => p.SourceFile, p => p.LineNumber, sink);
+        ReportFieldIssues(model.KeyBridges, b => $"[KeyBridge] {b.Id}", b => b.SourceFile, b => b.LineNumber, sink);
+
         var entityIds = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var entity in model.Entities)
@@ -63,6 +69,27 @@ internal sealed class KeyIdentityGateRule : IGateRule<UsharpGateModel>
         CheckPolicies(model, sink, entityIds);
         CheckBridges(model, sink);
         CheckAuthority(model, sink, authorityFamilies);
+    }
+
+    private static void ReportFieldIssues<T>(
+        IEnumerable<T> items,
+        Func<T, string> labelOf,
+        Func<T, string> fileOf,
+        Func<T, int> lineOf,
+        IConversionDiagnosticSink sink)
+        where T : class, Usharp.Syntax.IUsharpIdentityFieldIssues
+    {
+        foreach (var item in items)
+        {
+            var label = labelOf(item);
+            foreach (var segment in item.UnparsedSegments)
+                sink.Report(UsharpGateDiagnostics.Error(UsharpDiagnosticCatalog.IdentityLineUnparsed,
+                    $"{label}: 无法解析的字段段 '{segment}'（坏段不得静默丢弃）", fileOf(item), lineOf(item)));
+
+            foreach (var key in item.DuplicateKeys)
+                sink.Report(UsharpGateDiagnostics.Error(UsharpDiagnosticCatalog.IdentityLineUnparsed,
+                    $"{label}: 重复字段键 '{key}'（后者覆盖前者，须显式去重）", fileOf(item), lineOf(item)));
+        }
     }
 
     private static void CheckLexicons(UsharpGateModel model, IConversionDiagnosticSink sink)

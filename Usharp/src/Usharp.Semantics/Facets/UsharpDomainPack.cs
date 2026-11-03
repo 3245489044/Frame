@@ -50,12 +50,6 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpGram
     /// <summary>默认 facet provider 集（序 = <see cref="UsharpUnitRegistry.Providers"/>，保既有诊断归因序与产物序）。</summary>
     private static readonly IReadOnlyList<IUsharpFacetProvider> Providers = UsharpUnitRegistry.Providers;
 
-    /// <summary>
-    /// 默认 facet 投影器集（空 = 既有发射器仍由消费方手写调用；本批只落「统一出口」抽象，
-    /// 具体发射器实现 <see cref="IUsharpFacetProjector"/> 归后续批次，避免语义漂移）。
-    /// </summary>
-    private static readonly IReadOnlyList<IUsharpFacetProjector> Projectors = System.Array.Empty<IUsharpFacetProjector>();
-
     private UsharpDomainPack()
     {
     }
@@ -67,8 +61,6 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpGram
     public IReadOnlyList<IGateRule<UsharpGateModel>> GateRules => Rules;
 
     public IReadOnlyList<IUsharpFacetProvider> FacetProviders => Providers;
-
-    public IReadOnlyList<IUsharpFacetProjector> FacetProjectors => Projectors;
 
     /// <summary>
     /// 本包私有前缀（B1 暂为全量 25 条：核心结构 13 + 业务领域 12）。

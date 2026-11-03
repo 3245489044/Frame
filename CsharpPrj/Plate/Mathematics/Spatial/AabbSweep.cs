@@ -16,7 +16,13 @@ public static class AabbSweep
     private const float Skin = 0.001f;
     private const float SubStep = 0.05f;
 
-    public static bool Collides(Vec3 position, Vec3 halfExtents, SolidSampler solid)
+    /// <summary>
+    /// 碰撞检测。<paramref name="skin"/> / <paramref name="subStep"/> 是世界单位参数：
+    /// 米制调用保持旧默认值；厘米制调用方应显式传入 cm 值。
+    /// </summary>
+    public static bool Collides(
+        Vec3 position, Vec3 halfExtents, SolidSampler solid,
+        float skin = Skin)
     {
         ArgumentNullException.ThrowIfNull(solid);
 
@@ -27,12 +33,12 @@ public static class AabbSweep
         float minZ = position.Z - halfExtents.Z;
         float maxZ = position.Z + halfExtents.Z;
 
-        int x0 = (int)MathF.Floor(minX + Skin);
-        int x1 = (int)MathF.Floor(maxX - Skin);
-        int y0 = (int)MathF.Floor(minY + Skin);
-        int y1 = (int)MathF.Floor(maxY - Skin);
-        int z0 = (int)MathF.Floor(minZ + Skin);
-        int z1 = (int)MathF.Floor(maxZ - Skin);
+        int x0 = (int)MathF.Floor(minX + skin);
+        int x1 = (int)MathF.Floor(maxX - skin);
+        int y0 = (int)MathF.Floor(minY + skin);
+        int y1 = (int)MathF.Floor(maxY - skin);
+        int z0 = (int)MathF.Floor(minZ + skin);
+        int z1 = (int)MathF.Floor(maxZ - skin);
 
         for (int y = y0; y <= y1; y++)
         for (int z = z0; z <= z1; z++)
@@ -46,18 +52,19 @@ public static class AabbSweep
     /// <summary>推进一位移；grounded = 向下被阻挡，hitHorizontal = X/Z 被阻挡。</summary>
     public static Vec3 Move(
         Vec3 position, Vec3 delta, Vec3 halfExtents, SolidSampler solid,
-        out bool grounded, out bool hitHorizontal)
+        out bool grounded, out bool hitHorizontal,
+        float skin = Skin, float subStep = SubStep)
     {
         grounded = false;
         hitHorizontal = false;
 
-        position = MoveAxis(position, delta.X, 0, halfExtents, solid, out bool blockedX);
+        position = MoveAxis(position, delta.X, 0, halfExtents, solid, out bool blockedX, skin, subStep);
         hitHorizontal |= blockedX;
 
-        position = MoveAxis(position, delta.Z, 2, halfExtents, solid, out bool blockedZ);
+        position = MoveAxis(position, delta.Z, 2, halfExtents, solid, out bool blockedZ, skin, subStep);
         hitHorizontal |= blockedZ;
 
-        position = MoveAxis(position, delta.Y, 1, halfExtents, solid, out bool blockedY);
+        position = MoveAxis(position, delta.Y, 1, halfExtents, solid, out bool blockedY, skin, subStep);
         if (blockedY && delta.Y < 0) grounded = true;
 
         return position;
@@ -66,7 +73,8 @@ public static class AabbSweep
     /// <summary>台阶抬升：水平被挡且已着地时，尝试抬高 stepHeight 后继续水平位移。</summary>
     public static Vec3 TryStepUp(
         Vec3 position, Vec3 delta, Vec3 halfExtents, float stepHeight,
-        SolidSampler solid, bool grounded)
+        SolidSampler solid, bool grounded,
+        float skin = Skin, float subStep = SubStep)
     {
         if (!grounded) return position;
 
@@ -74,23 +82,24 @@ public static class AabbSweep
         if (horizontal <= 0f) return position;
 
         Vec3 raised = position + new Vec3(0, stepHeight, 0);
-        if (Collides(raised, halfExtents, solid)) return position;
+        if (Collides(raised, halfExtents, solid, skin)) return position;
 
         Vec3 target = raised + new Vec3(delta.X, 0, delta.Z);
-        if (Collides(target, halfExtents, solid)) return position;
+        if (Collides(target, halfExtents, solid, skin)) return position;
 
-        Vec3 landed = MoveAxis(target, -stepHeight, 1, halfExtents, solid, out _);
-        if (Collides(landed, halfExtents, solid)) return position;
+        Vec3 landed = MoveAxis(target, -stepHeight, 1, halfExtents, solid, out _, skin, subStep);
+        if (Collides(landed, halfExtents, solid, skin)) return position;
         return landed;
     }
 
     private static Vec3 MoveAxis(
-        Vec3 position, float amount, int axis, Vec3 halfExtents, SolidSampler solid, out bool blocked)
+        Vec3 position, float amount, int axis, Vec3 halfExtents, SolidSampler solid, out bool blocked,
+        float skin, float subStep)
     {
         blocked = false;
         if (amount == 0f) return position;
 
-        int steps = Math.Max(1, (int)MathF.Ceiling(MathF.Abs(amount) / SubStep));
+        int steps = Math.Max(1, (int)MathF.Ceiling(MathF.Abs(amount) / subStep));
         float sign = amount > 0 ? 1f : -1f;
         float perStep = MathF.Abs(amount) / steps;
 
@@ -102,7 +111,7 @@ public static class AabbSweep
             else if (axis == 1) next.Y += sign * perStep;
             else next.Z += sign * perStep;
 
-            if (Collides(next, halfExtents, solid))
+            if (Collides(next, halfExtents, solid, skin))
             {
                 blocked = true;
                 break;

@@ -8,10 +8,23 @@ namespace MathematicalAlgorithms.Noise;
 public static class TerrainNoise
 {
     /// <summary>归一化地形高度（约 -1..1），供上层按 terrain 常量换算为高度/高度带。</summary>
-    public static float ComputeHeight(int x, int z, int seed) =>
-        0.62f * ValueNoise(x, z, 16, seed) +
-        0.28f * ValueNoise(x, z, 8, seed) +
-        0.10f * ValueNoise(x, z, 4, seed);
+    public static float ComputeHeight(int x, int z, int seed)
+        => ComputeHeight(x, z, seed, unitsPerMeter: 1);
+
+    /// <summary>
+    /// 归一化地形高度（单位感知）：<paramref name="unitsPerMeter"/> 为坐标单位/米。
+    /// <para>传入 100 时，x/z 为厘米坐标，波长同步放大到 1600/800/400 cm。</para>
+    /// <para>CPU 与 GPU 必须共用该公式（GPU 用 cm 波长），避免负坐标取整分叉。</para>
+    /// </summary>
+    public static float ComputeHeight(int x, int z, int seed, int unitsPerMeter)
+    {
+        if (unitsPerMeter <= 0)
+            throw new System.ArgumentOutOfRangeException(nameof(unitsPerMeter));
+
+        return 0.62f * ValueNoise(x, z, 16 * unitsPerMeter, seed) +
+               0.28f * ValueNoise(x, z, 8 * unitsPerMeter, seed) +
+               0.10f * ValueNoise(x, z, 4 * unitsPerMeter, seed);
+    }
 
     public static float ValueNoise(int x, int z, int cell, int seed)
     {

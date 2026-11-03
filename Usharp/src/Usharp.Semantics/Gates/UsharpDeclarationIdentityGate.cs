@@ -25,6 +25,12 @@ internal sealed class DeclarationIdentityGateRule : IGateRule<UsharpGateModel>
 
         ReportDuplicates(model.KeySpaces, k => k.Id, k => $"[KeySpace] {k.Id}",
             UsharpCodes.KeySpaceDuplicate, k => UsharpSourceRef.At(k.SourceFile, k.LineNumber), sink);
+
+        ReportDuplicates(model.Tables, t => t.TableId, t => $"[Table] {t.TableId}",
+            UsharpDiagnosticCatalog.TableIdDuplicate, t => UsharpSourceRef.At(t.SourceFile, t.LineNumber), sink);
+
+        ReportDuplicates(model.Records, r => r.RecordId, r => $"[Record] {r.RecordId}",
+            UsharpDiagnosticCatalog.RecordIdDuplicate, r => UsharpSourceRef.At(r.SourceFile, r.LineNumber), sink);
     }
 
     private static void ReportDuplicates<T>(

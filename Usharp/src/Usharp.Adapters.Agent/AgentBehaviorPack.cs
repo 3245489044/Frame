@@ -31,8 +31,7 @@ public sealed class AgentBehaviorPack : UsharpDomainPackSpec
     public AgentBehaviorPack(IReadOnlyCollection<string>? knownActions = null, string? modeSpaceId = null)
         : base("agent.behavior",
             new IUsharpFacetProvider[] { new BehaviorFacetProvider(modeSpaceId ?? "HistoryMode") },
-            new IGateRule<UsharpGateModel>[] { new BehaviorActionGateRule(knownActions ?? Array.Empty<string>()) },
-            new IUsharpFacetProjector[] { new BehaviorTableProjector() })
+            new IGateRule<UsharpGateModel>[] { new BehaviorActionGateRule(knownActions ?? Array.Empty<string>()) })
     {
         if (!string.IsNullOrWhiteSpace(modeSpaceId)) ModeSpaceId = modeSpaceId!;
     }
@@ -95,13 +94,4 @@ internal sealed class BehaviorActionGateRule : IGateRule<UsharpGateModel>
                 new SourceSpan(r.SourceFile, r.LineNumber, 0)));
         }
     }
-}
-
-/// <summary>投影器 <c>behavior.table</c>：模式词表 + 行为规则产物。</summary>
-internal sealed class BehaviorTableProjector : IUsharpFacetProjector
-{
-    public string Id => "behavior.table";
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Space, DslSymbolKind.Rule };
-
-    public object Emit(UsharpCompilation compilation) => compilation.Facet<AgentBehaviorTable>();
 }

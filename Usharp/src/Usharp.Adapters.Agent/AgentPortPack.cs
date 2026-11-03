@@ -61,8 +61,7 @@ public sealed class AgentPortPack : UsharpDomainPackSpec
                 new PortSkillGateRule(),
                 new PortExecutorExclusivityGateRule(),
                 new PortKindGateRule(),
-            },
-            new IUsharpFacetProjector[] { new PortContractProjector() })
+            })
     {
     }
 }
@@ -202,13 +201,4 @@ internal sealed class PortKindGateRule : IGateRule<UsharpGateModel>
                 new SourceSpan(n.SourceFile, n.LineNumber, 0)));
         }
     }
-}
-
-/// <summary>投影器 <c>port.contract</c>：端口契约产物（节点 fn/inports/outports）。</summary>
-internal sealed class PortContractProjector : IUsharpFacetProjector
-{
-    public string Id => "port.contract";
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Node };
-
-    public object Emit(UsharpCompilation compilation) => compilation.Facet<IReadOnlyList<AgentPortNode>>();
 }

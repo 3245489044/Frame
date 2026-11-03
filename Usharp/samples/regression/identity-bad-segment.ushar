@@ -1,0 +1,3 @@
+# 反例（R-9）：身份声明坏段 / 重复键 → US7908（归因声明自身）。
+[Entity] answer: 终答 | scope=turn | container=conversation | cardinality=one-per-turn | terminal=true | role=final | authority=canonical | badsegment
+[KeyLexicon] K: a, b | values=a,b | values=c

@@ -9,5 +9,9 @@ space-value-kind-invalid.ushar|US0005|error|2|1
 controlflow-bad-binding.ushar|US0019|error|8|1
 controlflow-bad-binding.ushar|US1019|error|8|1
 controlflow-bad-binding.ushar|US0019|error|9|1
-record-table-uses-container.ushar|US7206|warn|5|0
+record-table-uses-container.ushar|US7206|error|5|1
 call-depth-truncated.ushar|US0018|warn|40|0|emit
+identity-bad-segment.ushar|US7908|error|2|1
+identity-bad-segment.ushar|US7908|error|3|1
+duplicate-table-record.ushar|US7207|error|8|1
+duplicate-table-record.ushar|US7208|error|11|1

@@ -3,6 +3,19 @@ using Plate.DslMethod.Model;
 namespace Usharp.Syntax;
 
 /// <summary>
+/// 身份声明（<c>[Entity]</c>/<c>[KeyLexicon]</c>/<c>[AnswerShape]</c>/<c>[WindowShape]</c>/
+/// <c>[KeyPolicy]</c>/<c>[KeyBridge]</c>）的**字段问题面**：坏段与重复键不得静默丢弃（R-9）。
+/// </summary>
+public interface IUsharpIdentityFieldIssues
+{
+    /// <summary>无法解析的字段段（已 Trim）。</summary>
+    IReadOnlyList<string> UnparsedSegments { get; }
+
+    /// <summary>重复出现的字段键（声明序，可重复）。</summary>
+    IReadOnlyList<string> DuplicateKeys { get; }
+}
+
+/// <summary>
 /// <c>[Entity] answer: 终答 | scope=turn | container=conversation | cardinality=one-per-turn | ...</c>
 /// 语义轴声明：实体「是什么」（与语法轴 family/surface「怎么写」正交）。
 /// </summary>
@@ -18,8 +31,14 @@ public sealed record UsharpEntityDecl(
     string MemberType,
     string Description,
     string SourceFile,
-    int LineNumber)
+    int LineNumber) : IUsharpIdentityFieldIssues
 {
+    /// <inheritdoc/>
+    public IReadOnlyList<string> UnparsedSegments { get; init; } = Array.Empty<string>();
+
+    /// <inheritdoc/>
+    public IReadOnlyList<string> DuplicateKeys { get; init; } = Array.Empty<string>();
+
     /// <summary>投影单条 <c>[Entity]</c>（无名 ⇒ null）。</summary>
     public static UsharpEntityDecl? From(DslDeclaration d)
     {
@@ -37,7 +56,11 @@ public sealed record UsharpEntityDecl(
             parsed.Get("member"),
             parsed.Body,
             d.SourceFile,
-            d.LineNumber);
+            d.LineNumber)
+        {
+            UnparsedSegments = parsed.UnparsedSegments,
+            DuplicateKeys = parsed.DuplicateKeys,
+        };
     }
 }
 
@@ -47,8 +70,14 @@ public sealed record UsharpKeyLexiconDecl(
     string Description,
     IReadOnlyList<string> Values,
     string SourceFile,
-    int LineNumber)
+    int LineNumber) : IUsharpIdentityFieldIssues
 {
+    /// <inheritdoc/>
+    public IReadOnlyList<string> UnparsedSegments { get; init; } = Array.Empty<string>();
+
+    /// <inheritdoc/>
+    public IReadOnlyList<string> DuplicateKeys { get; init; } = Array.Empty<string>();
+
     /// <summary>投影单条 <c>[KeyLexicon]</c>（无名 ⇒ null；值域 = body ∪ values=）。</summary>
     public static UsharpKeyLexiconDecl? From(DslDeclaration d)
     {
@@ -62,7 +91,11 @@ public sealed record UsharpKeyLexiconDecl(
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        return new UsharpKeyLexiconDecl(parsed.Id, string.Empty, values, d.SourceFile, d.LineNumber);
+        return new UsharpKeyLexiconDecl(parsed.Id, string.Empty, values, d.SourceFile, d.LineNumber)
+        {
+            UnparsedSegments = parsed.UnparsedSegments,
+            DuplicateKeys = parsed.DuplicateKeys,
+        };
     }
 }
 
@@ -77,8 +110,14 @@ public sealed record UsharpKeyShapeDecl(
     string Default,
     string Crit,
     string SourceFile,
-    int LineNumber)
+    int LineNumber) : IUsharpIdentityFieldIssues
 {
+    /// <inheritdoc/>
+    public IReadOnlyList<string> UnparsedSegments { get; init; } = Array.Empty<string>();
+
+    /// <inheritdoc/>
+    public IReadOnlyList<string> DuplicateKeys { get; init; } = Array.Empty<string>();
+
     /// <summary>取约束值（未声明 ⇒ null，不猜默认）。</summary>
     public string? Get(string name)
         => Constraints.TryGetValue(name, out var value) && value.Length > 0 ? value : null;
@@ -94,7 +133,11 @@ public sealed record UsharpKeyShapeDecl(
 
         return new UsharpKeyShapeDecl(
             kind, parsed.Id, parsed.Fields, parsed.Get("default"), parsed.Get("crit"),
-            d.SourceFile, d.LineNumber);
+            d.SourceFile, d.LineNumber)
+        {
+            UnparsedSegments = parsed.UnparsedSegments,
+            DuplicateKeys = parsed.DuplicateKeys,
+        };
     }
 }
 
@@ -107,8 +150,14 @@ public sealed record UsharpIdentityPolicyDecl(
     string Writer,
     string OnUnresolvable,
     string SourceFile,
-    int LineNumber)
+    int LineNumber) : IUsharpIdentityFieldIssues
 {
+    /// <inheritdoc/>
+    public IReadOnlyList<string> UnparsedSegments { get; init; } = Array.Empty<string>();
+
+    /// <inheritdoc/>
+    public IReadOnlyList<string> DuplicateKeys { get; init; } = Array.Empty<string>();
+
     /// <summary>投影单条 <c>[KeyPolicy]</c>（无名 ⇒ null）。</summary>
     public static UsharpIdentityPolicyDecl? From(DslDeclaration d)
     {
@@ -122,7 +171,11 @@ public sealed record UsharpIdentityPolicyDecl(
             parsed.Get("writer"),
             parsed.Get("on_unresolvable"),
             d.SourceFile,
-            d.LineNumber);
+            d.LineNumber)
+        {
+            UnparsedSegments = parsed.UnparsedSegments,
+            DuplicateKeys = parsed.DuplicateKeys,
+        };
     }
 }
 
@@ -134,8 +187,14 @@ public sealed record UsharpKeyBridgeDecl(
     string Rule,
     bool Reversible,
     string SourceFile,
-    int LineNumber)
+    int LineNumber) : IUsharpIdentityFieldIssues
 {
+    /// <inheritdoc/>
+    public IReadOnlyList<string> UnparsedSegments { get; init; } = Array.Empty<string>();
+
+    /// <inheritdoc/>
+    public IReadOnlyList<string> DuplicateKeys { get; init; } = Array.Empty<string>();
+
     /// <summary>投影单条 <c>[KeyBridge]</c>（无名 ⇒ null）。</summary>
     public static UsharpKeyBridgeDecl? Project(DslDeclaration d)
     {
@@ -148,7 +207,11 @@ public sealed record UsharpKeyBridgeDecl(
             parsed.Get("rule"),
             string.Equals(parsed.Get("reversible"), "true", StringComparison.OrdinalIgnoreCase),
             d.SourceFile,
-            d.LineNumber);
+            d.LineNumber)
+        {
+            UnparsedSegments = parsed.UnparsedSegments,
+            DuplicateKeys = parsed.DuplicateKeys,
+        };
     }
 }
 
@@ -158,16 +221,29 @@ public sealed record UsharpKeyBridgeDecl(
 /// </summary>
 internal readonly struct UsharpIdentitySyntax
 {
-    private UsharpIdentitySyntax(string id, string body, IReadOnlyDictionary<string, string> fields)
+    private UsharpIdentitySyntax(
+        string id,
+        string body,
+        IReadOnlyDictionary<string, string> fields,
+        IReadOnlyList<string> unparsedSegments,
+        IReadOnlyList<string> duplicateKeys)
     {
         Id = id;
         Body = body;
         Fields = fields;
+        UnparsedSegments = unparsedSegments;
+        DuplicateKeys = duplicateKeys;
     }
 
     public string Id { get; }
     public string Body { get; }
     public IReadOnlyDictionary<string, string> Fields { get; }
+
+    /// <summary>无法解析的字段段（R-9：不得静默丢弃）。</summary>
+    public IReadOnlyList<string> UnparsedSegments { get; }
+
+    /// <summary>重复出现的字段键（后者覆盖前者；本列表用于可见化）。</summary>
+    public IReadOnlyList<string> DuplicateKeys { get; }
 
     public string Get(string key)
         => Fields.TryGetValue(key, out var value) ? value : string.Empty;
@@ -186,10 +262,9 @@ internal readonly struct UsharpIdentitySyntax
         var id = (colon >= 0 ? head[..colon] : head).Trim();
         var body = (colon >= 0 ? head[(colon + 1)..] : string.Empty).Trim();
 
-        var fields = new Dictionary<string, string>(
-            UsharpFieldBag.Parse(segments, skip: 1, comparer: StringComparer.OrdinalIgnoreCase).Fields,
-            StringComparer.OrdinalIgnoreCase);
+        var bag = UsharpFieldBag.Parse(segments, skip: 1, comparer: StringComparer.OrdinalIgnoreCase);
+        var fields = new Dictionary<string, string>(bag.Fields, StringComparer.OrdinalIgnoreCase);
 
-        return new UsharpIdentitySyntax(id, body, fields);
+        return new UsharpIdentitySyntax(id, body, fields, bag.Unparsed, bag.DuplicateKeys);
     }
 }

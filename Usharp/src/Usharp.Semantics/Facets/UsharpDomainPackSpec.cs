@@ -19,14 +19,12 @@ public abstract class UsharpDomainPackSpec : IUsharpGrammarPack
         string id,
         IReadOnlyList<IUsharpFacetProvider> providers,
         IReadOnlyList<IGateRule<UsharpGateModel>> rules,
-        IReadOnlyList<IUsharpFacetProjector>? projectors = null,
         IReadOnlyList<DslPrefixDef>? prefixes = null,
         IReadOnlyList<DslSymbolKind>? kinds = null)
     {
         Id = id ?? throw new ArgumentNullException(nameof(id));
         FacetProviders = providers ?? Array.Empty<IUsharpFacetProvider>();
         GateRules = rules ?? Array.Empty<IGateRule<UsharpGateModel>>();
-        FacetProjectors = projectors ?? Array.Empty<IUsharpFacetProjector>();
         Prefixes = prefixes ?? Array.Empty<DslPrefixDef>();
         Kinds = kinds ?? Prefixes.Select(p => p.Kind).Distinct().ToArray();
     }
@@ -38,8 +36,6 @@ public abstract class UsharpDomainPackSpec : IUsharpGrammarPack
     public IReadOnlyList<IUsharpFacetProvider> FacetProviders { get; }
 
     public IReadOnlyList<IGateRule<UsharpGateModel>> GateRules { get; }
-
-    public IReadOnlyList<IUsharpFacetProjector> FacetProjectors { get; }
 
     /// <summary>本包私有前缀（默认空 = 不参与编译作用域）。</summary>
     public IReadOnlyList<DslPrefixDef> Prefixes { get; }

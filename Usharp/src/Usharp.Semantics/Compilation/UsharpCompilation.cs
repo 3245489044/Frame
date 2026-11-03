@@ -14,10 +14,8 @@ namespace Usharp.Semantics;
 /// 旧属性保留为**薄访问器**（<c>=&gt; Facet&lt;X&gt;()</c>），签名与语义逐字不变（零回归）。
 /// </para>
 /// </summary>
-public sealed class UsharpCompilation : IUsharpFacetReader
+public sealed class UsharpCompilation : UsharpFacetViewSet
 {
-    private readonly UsharpFacetRegistry _facets;
-
     private UsharpCompilation(
         IReadOnlyList<DslDocument> documents,
         UsharpDeclarationIndex declarations,
@@ -25,12 +23,12 @@ public sealed class UsharpCompilation : IUsharpFacetReader
         IReadOnlyList<UsharpEdge> edges,
         UsharpFacetRegistry facets,
         IReadOnlyList<UsharpDiagnostic> diagnostics)
+        : base(facets)
     {
         Documents = documents;
         Declarations = declarations;
         Index = index;
         Edges = edges;
-        _facets = facets;
         Diagnostics = diagnostics;
     }
 
@@ -44,66 +42,12 @@ public sealed class UsharpCompilation : IUsharpFacetReader
     /// <summary>引用即边（<c>[Ref]</c>/<c>[CR]</c> 的统一图观）。</summary>
     public IReadOnlyList<UsharpEdge> Edges { get; }
 
-    // ── 通用 facet 读取（替代逐字段属性）──────────────────────────────────────
+    // ── facet 视图（单一实现 = UsharpFacetViewSet；此处只钉「未注册 ⇒ 抛」语义）────
 
-    /// <summary>取 facet 视图（未注册 → 抛，不静默给空）。</summary>
-    public T Facet<T>() where T : class => _facets.Facet<T>();
-
-    /// <summary>取 facet 视图（未注册 → false）。</summary>
-    public bool TryGetFacet<T>(out T facet) where T : class => _facets.TryGetFacet(out facet);
-
-    // ── 薄访问器（签名与语义逐字不变：实现改为 Facet&lt;X&gt;()）──────────────
-
-    public SpaceRegistry Spaces => Facet<SpaceRegistry>();
-    public IReadOnlyList<UsharpMatrixDecl> Matrices => Facet<IReadOnlyList<UsharpMatrixDecl>>();
-
-    /// <summary><c>[Matrix]</c> 判据读法投影（E5：闸A 与装配共读，禁各自解析）。</summary>
-    public IReadOnlyDictionary<string, UsharpDecisionDecl> Decisions
-        => Facet<IReadOnlyDictionary<string, UsharpDecisionDecl>>();
-    public IReadOnlyList<UsharpFlowDecl> Flows => Facet<IReadOnlyList<UsharpFlowDecl>>();
-    public IReadOnlyList<UsharpRefDecl> Refs => Facet<IReadOnlyList<UsharpRefDecl>>();
-
-    /// <summary><c>[Domain]</c> 域定义声明（节点域定义面；U1；声明序）。</summary>
-    public IReadOnlyList<UsharpDomainDecl> Domains => Facet<IReadOnlyList<UsharpDomainDecl>>();
-
-    /// <summary><c>[Gather]</c> 聚拢声明（收集端口枚举；U2；声明序）。</summary>
-    public IReadOnlyList<UsharpGatherDecl> Gathers => Facet<IReadOnlyList<UsharpGatherDecl>>();
-
-    /// <summary><c>[Table]</c> 表结构声明（数据层：数据库表由声明派生；声明序）。</summary>
-    public IReadOnlyList<UsharpTableDecl> Tables => Facet<IReadOnlyList<UsharpTableDecl>>();
-
-    /// <summary><c>[Record]</c> 记录载荷声明（数据层：行/文档 USharp 化；声明序）。</summary>
-    public IReadOnlyList<UsharpRecordDecl> Records => Facet<IReadOnlyList<UsharpRecordDecl>>();
-
-    /// <summary><c>[KeySpace]</c> 键空间声明（键族/面/轴/端口/策略/回退链；声明序）。</summary>
-    public IReadOnlyList<UsharpKeySpaceDecl> KeySpaces => Facet<IReadOnlyList<UsharpKeySpaceDecl>>();
-
-    /// <summary><c>[Command]</c> 连接点命令声明（action/op 路由 + 键配方；声明序）。</summary>
-    public IReadOnlyList<UsharpCommandDecl> Commands => Facet<IReadOnlyList<UsharpCommandDecl>>();
-
-    /// <summary><c>[ReadModel]</c> 读模型声明（模型 id → 源键/版本源/投影器/参数名表；声明序）。</summary>
-    public IReadOnlyList<UsharpReadModelDecl> ReadModels => Facet<IReadOnlyList<UsharpReadModelDecl>>();
-
-    /// <summary><c>[Relation]</c> 关系操作声明（唯一写入口 operation；空表 = 无关系操作声明面）。</summary>
-    public IReadOnlyList<UsharpRelationDecl> Relations => Facet<IReadOnlyList<UsharpRelationDecl>>();
-
-    /// <summary><c>[Invariant]</c> 关系不变量声明（空表 = 无关系不变量）。</summary>
-    public IReadOnlyList<UsharpInvariantDecl> Invariants => Facet<IReadOnlyList<UsharpInvariantDecl>>();
-
-    /// <summary><c>[Derive]</c> 派生成员集声明（空表 = 无派生成员集）。</summary>
-    public IReadOnlyList<UsharpDeriveDecl> Derivations => Facet<IReadOnlyList<UsharpDeriveDecl>>();
-
-    /// <summary><c>[Mount]</c> 挂载绑定声明（四轴唯一组合点；空表 = 未声明绑定）。</summary>
-    public IReadOnlyList<UsharpMountDecl> Mounts => Facet<IReadOnlyList<UsharpMountDecl>>();
-
-    /// <summary><c>[Config]</c> 配置声明（配置面：配置项由声明派生；声明序）。</summary>
-    public IReadOnlyList<UsharpConfigDecl> Configs => Facet<IReadOnlyList<UsharpConfigDecl>>();
-
-    /// <summary><c>[Rule]</c> 规则声明（规则面：条件 → 动作；声明序）。</summary>
-    public IReadOnlyList<UsharpRuleDecl> Rules => Facet<IReadOnlyList<UsharpRuleDecl>>();
-
-    /// <summary><c>[Const]</c> 成员级声明（C# 类型成员：名 + 值 + 类型身份；声明序）。</summary>
-    public IReadOnlyList<UsharpConstDecl> Consts => Facet<IReadOnlyList<UsharpConstDecl>>();
+    /// <summary>
+    /// 编译门面的列表视图判据：**未注册 ⇒ 抛**（缺 provider 属装配错误，禁静默成空声明面）。
+    /// </summary>
+    protected override IReadOnlyList<T> View<T>() => Facet<IReadOnlyList<T>>();
 
     /// <summary>观测声明注册中心（<c>[Obs]</c>：作用域 / 实体 / 事件；第五语言单元）。</summary>
     public ObsRegistry Obs => Facet<ObsRegistry>();

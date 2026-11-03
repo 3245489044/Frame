@@ -19,8 +19,7 @@ public sealed class AgentPromptPack : UsharpDomainPackSpec
     public AgentPromptPack()
         : base("agent.prompt",
             new IUsharpFacetProvider[] { new PromptIndexFacetProvider() },
-            Array.Empty<IGateRule<UsharpGateModel>>(),
-            new IUsharpFacetProjector[] { new PromptEmitProjector() })
+            Array.Empty<IGateRule<UsharpGateModel>>())
     {
     }
 }
@@ -51,13 +50,4 @@ internal sealed class PromptIndexFacetProvider : IUsharpFacetProvider
 
         return new AgentPromptIndex(bands, names);
     }
-}
-
-/// <summary>投影器 <c>prompt.emit</c>：提示词面索引产物（band 序 + 技能名集）。</summary>
-internal sealed class PromptEmitProjector : IUsharpFacetProjector
-{
-    public string Id => "prompt.emit";
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Profile, DslSymbolKind.Skill };
-
-    public object Emit(UsharpCompilation compilation) => compilation.Facet<AgentPromptIndex>();
 }

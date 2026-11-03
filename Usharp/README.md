@@ -301,7 +301,9 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US7203` | error | Table：列名重复 |
 | `US7204` | error | Record：记录声明形态非法 |
 | `US7205` | error | Record：记录引用的表未声明 |
-| `US7206` | warning | Record：[Record] table= 使用容器名而非表 id（兼容期告警，后续收紧） |
+| `US7206` | error | Record：[Record] table= 使用容器名而非表 id（表 id 与容器 id 不得混同） |
+| `US7207` | error | Table：同名 [Table] 重复声明 |
+| `US7208` | error | Record：同名 [Record] 重复声明 |
 | `US7301` | error | LLMDecl：output= 字段未在 O 区声明 |
 | `US7302` | error | LLMDecl：input= 字段未在 I 区声明 |
 | `US7303` | error | LLMDecl：LLMDecl 形态非法 |
@@ -352,6 +354,7 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US7905` | error | KeyPolicy：[KeyPolicy] entity/cardinality/writer/on_unresolvable 缺失 |
 | `US7906` | error | KeyBridge：[KeyBridge] from/to/rule 缺失或 reversible 未声明 |
 | `US7907` | info | Entity：[Entity] 尚无 authority=true 的 family（语义层已声明；语法族待接） |
+| `US7908` | error | Identity：身份声明行含无法解析/重复的字段段（[Entity]/[KeyLexicon]/[AnswerShape]/[WindowShape]/[KeyPolicy]/[KeyBridge]） |
 | `US8101` | error | Relation：[Relation] 操作名重复声明 |
 | `US8102` | error | Relation：[Relation] edge= 未声明 |
 | `US8103` | error | Relation：[Relation] src/tgt 未声明或与 [Edge] 不一致 |

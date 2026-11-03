@@ -30,8 +30,7 @@ public sealed class AgentToolPack : UsharpDomainPackSpec
     public AgentToolPack(IReadOnlyCollection<string>? knownTracks = null)
         : base("agent.tool",
             new IUsharpFacetProvider[] { new ToolFaceFacetProvider() },
-            new IGateRule<UsharpGateModel>[] { new ToolFaceTrackGateRule(knownTracks ?? Array.Empty<string>()) },
-            new IUsharpFacetProjector[] { new ToolFaceProjector() })
+            new IGateRule<UsharpGateModel>[] { new ToolFaceTrackGateRule(knownTracks ?? Array.Empty<string>()) })
     {
     }
 }
@@ -87,13 +86,4 @@ internal sealed class ToolFaceTrackGateRule : IGateRule<UsharpGateModel>
     }
 
     private static string Normalize(string trackId) => trackId.Replace('-', '_');
-}
-
-/// <summary>投影器 <c>tool.face</c>：工具面边产物（面→轨 / 面→源）。</summary>
-internal sealed class ToolFaceProjector : IUsharpFacetProjector
-{
-    public string Id => "tool.face";
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Ref };
-
-    public object Emit(UsharpCompilation compilation) => compilation.Facet<IReadOnlyList<AgentToolFaceEdge>>();
 }

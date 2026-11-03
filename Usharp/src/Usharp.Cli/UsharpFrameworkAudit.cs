@@ -47,6 +47,8 @@ public static class UsharpFrameworkAudit
         ReportDuplicates(compilation.Matrices, m => m.MatrixId, m => m.SourceFile, m => m.LineNumber, "[Matrix]", issues);
         ReportDuplicates(compilation.Flows, f => f.FlowId, f => f.SourceFile, f => f.LineNumber, "[Flow]", issues);
         ReportDuplicates(compilation.KeySpaces, k => k.Id, k => k.SourceFile, k => k.LineNumber, "[KeySpace]", issues);
+        ReportDuplicates(compilation.Tables, t => t.TableId, t => t.SourceFile, t => t.LineNumber, "[Table]", issues);
+        ReportDuplicates(compilation.Records, r => r.RecordId, r => r.SourceFile, r => r.LineNumber, "[Record]", issues);
 
         var core = UsharpCorePrefixes.Definitions.Count;
         var domain = UsharpPrefixes.DomainPrefixes.Count;

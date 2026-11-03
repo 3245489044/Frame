@@ -39,11 +39,6 @@ public sealed class AgentSkillPack : UsharpDomainPackSpec
                 new SkillBackendGateRule(knownTools ?? Array.Empty<string>()),
                 new ProfileBandGateRule(knownBands ?? Array.Empty<string>()),
                 new ProfileBaseGateRule(),
-            },
-            new IUsharpFacetProjector[]
-            {
-                new PromptSkillsProjector(),
-                new PromptBandsProjector(),
             })
     {
     }
@@ -121,22 +116,4 @@ internal sealed class ProfileBaseGateRule : IGateRule<UsharpGateModel>
                 new SourceSpan(p.SourceFile, p.LineNumber, 0)));
         }
     }
-}
-
-/// <summary>投影器 <c>prompt.skills</c>：技能元数据产物。</summary>
-internal sealed class PromptSkillsProjector : IUsharpFacetProjector
-{
-    public string Id => "prompt.skills";
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Skill };
-
-    public object Emit(UsharpCompilation compilation) => compilation.Facet<IReadOnlyList<UsharpSkillDecl>>();
-}
-
-/// <summary>投影器 <c>prompt.bands</c>：档案 band 序产物。</summary>
-internal sealed class PromptBandsProjector : IUsharpFacetProjector
-{
-    public string Id => "prompt.bands";
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.Profile };
-
-    public object Emit(UsharpCompilation compilation) => compilation.Facet<IReadOnlyList<UsharpProfileDecl>>();
 }

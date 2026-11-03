@@ -1,0 +1,12 @@
+# 反例（S5）：同名 [Table] / [Record] → US7207 / US7208（归因重复处自身）。
+[Table] T: container=t1 | key=id
+  id: int
+
+[Record] R: table=T | key=1
+  name = "x"
+
+[Table] T: container=t2 | key=id
+  id: int
+
+[Record] R: table=T | key=1
+  name = "y"

@@ -47,8 +47,7 @@ public sealed class AgentLlmPack : UsharpDomainPackSpec
                 new UsharpFacetProvider<UsharpLlmDecl>(DslSymbolKind.LlmDecl, ctx =>
                     ctx.Declarations.OfKind(DslSymbolKind.LlmDecl).Select(UsharpLlmDecl.From).OfType<UsharpLlmDecl>()),
             },
-            new IGateRule<UsharpGateModel>[] { new LlmContractGateRule() },
-            new IUsharpFacetProjector[] { new LlmPromptProjector(), new LlmContractProjector() })
+            new IGateRule<UsharpGateModel>[] { new LlmContractGateRule() })
     {
     }
 }
@@ -138,46 +137,5 @@ internal sealed class LlmContractGateRule : IGateRule<UsharpGateModel>
             if (string.Equals(axis.Zone, zone, StringComparison.OrdinalIgnoreCase))
                 foreach (var term in axis.Terms) set.Add(term);
         return set;
-    }
-}
-
-/// <summary>投影器 <c>llm.prompt</c>：按 Id 取提示词契约（system/user/inputs/temp）。</summary>
-internal sealed class LlmPromptProjector : IUsharpFacetProjector
-{
-    public string Id => "llm.prompt";
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.LlmDecl };
-
-    public object Emit(UsharpCompilation compilation)
-    {
-        var map = new Dictionary<string, LlmPromptContract>(StringComparer.Ordinal);
-        foreach (var d in LlmDecls(compilation)) map[d.Name] = ToPrompt(d);
-        return map;
-    }
-
-    /// <summary>提示词契约构造**单点**（D-13：llm.prompt 与 llm.contract 共用，禁止两处各拼一遍）。</summary>
-    internal static LlmPromptContract ToPrompt(UsharpLlmDecl d)
-        => new(d.Name, d.SystemBody, d.UserBody, d.InputFields, d.Temp, d.MaxCandidates);
-
-    /// <summary>契约声明集（投影器共用的 facet 读取单点）。</summary>
-    internal static IReadOnlyList<UsharpLlmDecl> LlmDecls(UsharpCompilation compilation)
-        => compilation.TryGetFacet<IReadOnlyList<UsharpLlmDecl>>(out var d) ? d : Array.Empty<UsharpLlmDecl>();
-}
-
-/// <summary>投影器 <c>llm.contract</c>：按 Id 取完整契约（prompt + 输出 schema）。</summary>
-internal sealed class LlmContractProjector : IUsharpFacetProjector
-{
-    public string Id => "llm.contract";
-    public IReadOnlyList<DslSymbolKind> Kinds => new[] { DslSymbolKind.LlmDecl };
-
-    public object Emit(UsharpCompilation compilation)
-    {
-        var map = new Dictionary<string, LlmContract>(StringComparer.Ordinal);
-        foreach (var d in LlmPromptProjector.LlmDecls(compilation))
-        {
-            var prompt = LlmPromptProjector.ToPrompt(d);
-            var output = new LlmOutputContract(d.Name, d.OutputRoot, d.OutputType, d.OutputFields);
-            map[d.Name] = new LlmContract(prompt, output);
-        }
-        return map;
     }
 }

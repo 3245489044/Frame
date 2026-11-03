@@ -11,12 +11,12 @@ namespace Usharp.Semantics;
 /// 规则只读本模型，不产生副作用（对齐「本层只校验不执行」）。
 /// <para>
 /// <b>去硬编码（H4 消除）</b>：构造器只收「泛型声明事实 + facet 注册表」；领域视图经
-/// <see cref="Facet{T}"/> 读取，属性保留为**薄访问器**（签名与语义逐字不变）。
+/// <see cref="UsharpFacetViewSet"/> 的**单一实现**读取（D-5：本类不再重复声明视图）。
+/// 闸A 语义 = 未装载领域包 ⇒ 空表（<see cref="UsharpFacetViewSet.View{T}"/> 的缺省判据）。
 /// </para>
 /// </summary>
-public sealed class UsharpGateModel : IUsharpFacetReader
+public sealed class UsharpGateModel : UsharpFacetViewSet
 {
-    private readonly UsharpFacetRegistry _facets;
     private readonly UsharpDeclarationIdIndex<UsharpFlowDecl> _flowIndex;
 
     public UsharpGateModel(
@@ -26,11 +26,11 @@ public sealed class UsharpGateModel : IUsharpFacetReader
         UsharpFacetRegistry facets,
         IReadOnlyList<UsharpSourceFile>? sources = null,
         Plate.DslMethod.Parsing.DslPrefixSet? prefixScope = null)
+        : base(facets)
     {
         Documents = documents;
         Declarations = declarations;
         Index = index;
-        _facets = facets;
         Sources = sources ?? System.Array.Empty<UsharpSourceFile>();
         PrefixScope = prefixScope;
 
@@ -58,102 +58,10 @@ public sealed class UsharpGateModel : IUsharpFacetReader
     /// <summary>本次编译的前缀作用域（核心 ∪ 已装载包；null = 未提供 ⇒ 该判据跳过）。</summary>
     public Plate.DslMethod.Parsing.DslPrefixSet? PrefixScope { get; }
 
-    /// <summary>取 facet 视图（未注册 → 抛）。</summary>
-    public T Facet<T>() where T : class => _facets.Facet<T>();
-
-    /// <summary>取 facet 视图（未注册 → false）。</summary>
-    public bool TryGetFacet<T>(out T facet) where T : class => _facets.TryGetFacet(out facet);
-
-    public SpaceRegistry Spaces => _facets.Facet<SpaceRegistry>();
-
-    public IReadOnlyList<UsharpMatrixDecl> Matrices => _facets.Facet<IReadOnlyList<UsharpMatrixDecl>>();
-
-    /// <summary><c>[Matrix]</c> 判据读法投影（E5：与装配共读同一份）。</summary>
-    public IReadOnlyDictionary<string, UsharpDecisionDecl> Decisions
-        => _facets.Facet<IReadOnlyDictionary<string, UsharpDecisionDecl>>();
-
-    public IReadOnlyList<UsharpFlowDecl> Flows => _facets.Facet<IReadOnlyList<UsharpFlowDecl>>();
-
-    public IReadOnlyList<UsharpRefDecl> Refs => _facets.Facet<IReadOnlyList<UsharpRefDecl>>();
-
     /// <summary>观测声明注册中心（可为 null：未启用 <c>[Obs]</c> 闸A 时）。</summary>
-    public ObsRegistry? Obs => _facets.TryGetFacet<ObsRegistry>(out var obs) ? obs : null;
+    public ObsRegistry? Obs => TryGetFacet<ObsRegistry>(out var obs) ? obs : null;
 
-    /// <summary><c>[Domain]</c> 域定义声明（U1；空表 = 本编译无域定义面）。</summary>
-    public IReadOnlyList<UsharpDomainDecl> Domains
-        => _facets.TryGetFacet<IReadOnlyList<UsharpDomainDecl>>(out var d) ? d : Array.Empty<UsharpDomainDecl>();
-
-    /// <summary><c>[Gather]</c> 聚拢声明（U2；空表 = 本编译无收集端口声明）。</summary>
-    public IReadOnlyList<UsharpGatherDecl> Gathers
-        => _facets.TryGetFacet<IReadOnlyList<UsharpGatherDecl>>(out var g) ? g : Array.Empty<UsharpGatherDecl>();
-
-    /// <summary><c>[Entity]</c> 语义轴声明（空表 = 无实体语义面）。</summary>
-    public IReadOnlyList<UsharpEntityDecl> Entities
-        => _facets.TryGetFacet<IReadOnlyList<UsharpEntityDecl>>(out var ent) ? ent : Array.Empty<UsharpEntityDecl>();
-
-    /// <summary><c>[KeyLexicon]</c> 受控词表声明（空表 = 无词表面）。</summary>
-    public IReadOnlyList<UsharpKeyLexiconDecl> KeyLexicons
-        => _facets.TryGetFacet<IReadOnlyList<UsharpKeyLexiconDecl>>(out var lex) ? lex : Array.Empty<UsharpKeyLexiconDecl>();
-
-    /// <summary><c>[AnswerShape]</c> / <c>[WindowShape]</c> 形状契约（空表 = 无形状面）。</summary>
-    public IReadOnlyList<UsharpKeyShapeDecl> KeyShapes
-        => _facets.TryGetFacet<IReadOnlyList<UsharpKeyShapeDecl>>(out var shape) ? shape : Array.Empty<UsharpKeyShapeDecl>();
-
-    /// <summary><c>[KeySpace]</c> 键空间声明（空表 = 本编译无键声明面）。</summary>
-    public IReadOnlyList<UsharpKeySpaceDecl> KeySpaces
-        => _facets.TryGetFacet<IReadOnlyList<UsharpKeySpaceDecl>>(out var ks) ? ks : Array.Empty<UsharpKeySpaceDecl>();
-
-    /// <summary><c>[Command]</c> 连接点命令声明（空表 = 本编译无命令声明面）。</summary>
-    public IReadOnlyList<UsharpCommandDecl> Commands
-        => _facets.TryGetFacet<IReadOnlyList<UsharpCommandDecl>>(out var cmd) ? cmd : Array.Empty<UsharpCommandDecl>();
-
-    /// <summary><c>[ReadModel]</c> 读模型声明（空表 = 本编译无读模型声明面）。</summary>
-    public IReadOnlyList<UsharpReadModelDecl> ReadModels
-        => _facets.TryGetFacet<IReadOnlyList<UsharpReadModelDecl>>(out var rm) ? rm : Array.Empty<UsharpReadModelDecl>();
-
-    /// <summary><c>[Relation]</c> 关系操作声明（空表 = 无关系操作声明面）。</summary>
-    public IReadOnlyList<UsharpRelationDecl> Relations
-        => _facets.TryGetFacet<IReadOnlyList<UsharpRelationDecl>>(out var rel) ? rel : Array.Empty<UsharpRelationDecl>();
-
-    /// <summary><c>[Invariant]</c> 关系不变量声明（空表 = 无关系不变量）。</summary>
-    public IReadOnlyList<UsharpInvariantDecl> Invariants
-        => _facets.TryGetFacet<IReadOnlyList<UsharpInvariantDecl>>(out var inv) ? inv : Array.Empty<UsharpInvariantDecl>();
-
-    /// <summary><c>[Derive]</c> 派生成员集声明（空表 = 无派生成员集）。</summary>
-    public IReadOnlyList<UsharpDeriveDecl> Derivations
-        => _facets.TryGetFacet<IReadOnlyList<UsharpDeriveDecl>>(out var der) ? der : Array.Empty<UsharpDeriveDecl>();
-
-    /// <summary><c>[KeyPolicy]</c> 写侧策略声明（空表 = 无写侧策略面）。</summary>
-    public IReadOnlyList<UsharpIdentityPolicyDecl> IdentityPolicies
-        => _facets.TryGetFacet<IReadOnlyList<UsharpIdentityPolicyDecl>>(out var pol) ? pol : Array.Empty<UsharpIdentityPolicyDecl>();
-
-    /// <summary><c>[KeyBridge]</c> 跨域映射声明（空表 = 无跨域映射）。</summary>
-    public IReadOnlyList<UsharpKeyBridgeDecl> KeyBridges
-        => _facets.TryGetFacet<IReadOnlyList<UsharpKeyBridgeDecl>>(out var br) ? br : Array.Empty<UsharpKeyBridgeDecl>();
-
-    /// <summary><c>[Mount]</c> 挂载绑定声明（空表 = 本编译无绑定面）。</summary>
-    public IReadOnlyList<UsharpMountDecl> Mounts
-        => _facets.TryGetFacet<IReadOnlyList<UsharpMountDecl>>(out var mount) ? mount : Array.Empty<UsharpMountDecl>();
-
-    /// <summary><c>[Table]</c> 表结构声明（空表 = 本编译无数据层）。</summary>
-    public IReadOnlyList<UsharpTableDecl> Tables
-        => _facets.TryGetFacet<IReadOnlyList<UsharpTableDecl>>(out var t) ? t : Array.Empty<UsharpTableDecl>();
-
-    /// <summary><c>[Record]</c> 记录载荷声明（空表 = 本编译无记录面）。</summary>
-    public IReadOnlyList<UsharpRecordDecl> Records
-        => _facets.TryGetFacet<IReadOnlyList<UsharpRecordDecl>>(out var r) ? r : Array.Empty<UsharpRecordDecl>();
-
-    /// <summary><c>[Rule]</c> 规则声明（空表 = 本编译无规则面）。</summary>
-    public IReadOnlyList<UsharpRuleDecl> Rules
-        => _facets.TryGetFacet<IReadOnlyList<UsharpRuleDecl>>(out var rule) ? rule : Array.Empty<UsharpRuleDecl>();
-
-    /// <summary><c>[Config]</c> 配置声明（空表 = 本编译无配置面）。</summary>
-    public IReadOnlyList<UsharpConfigDecl> Configs
-        => _facets.TryGetFacet<IReadOnlyList<UsharpConfigDecl>>(out var cfg) ? cfg : Array.Empty<UsharpConfigDecl>();
-
-    /// <summary><c>[Const]</c> 成员级声明（空表 = 本编译无成员声明面）。</summary>
-    public IReadOnlyList<UsharpConstDecl> Consts
-        => _facets.TryGetFacet<IReadOnlyList<UsharpConstDecl>>(out var cst) ? cst : Array.Empty<UsharpConstDecl>();
+    // 核心/领域视图（Spaces/Matrices/…/Consts）全部来自 UsharpFacetViewSet（D-5：单一实现）。
 
     /// <summary>已声明流 id 集（规则 ③ 复用）。</summary>
     public HashSet<string> FlowIds { get; }

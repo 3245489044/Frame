@@ -66,6 +66,7 @@ public static class SectionPlanAdapter
                     list.Add(target.Payload switch
                     {
                         UiNode tree => TreeSection(name, tree, plan.Interaction),
+                        UiRegionHtml regionHtml => HtmlSection(name, regionHtml.Html, plan.Interaction),
                         UiStreamAppend append => StreamSection(name, append),
                         UiStreamTrim trim => TrimSection(name, trim),
                         string value => LeafSection(name, value),

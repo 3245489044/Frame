@@ -58,6 +58,19 @@ public sealed class MetricHistogram
 
     public double MaxMs => MaxTicks * 1000.0 / Stopwatch.Frequency;
 
+    /// <summary>
+    /// 任意数值样本的 log2 桶上界近似（<c>2^(b+1)-1</c>），与 <see cref="PercentileTicks"/> 同一口径。
+    /// 供“样本已精确持有、但输出要与桶直方图对齐”的通道使用（bench / EngineMetrics），
+    /// 避免出现第三套百分位定义。单位随入参（ms 或 ticks）保持。
+    /// </summary>
+    public static double BucketUpperBoundValue(double value)
+    {
+        if (value <= 0) return 1;
+        int bucket = (int)Math.Floor(Math.Log2(value));
+        if (bucket >= BucketCount - 1) bucket = BucketCount - 2;
+        return (1L << (bucket + 1)) - 1;
+    }
+
     internal void Reset()
     {
         Array.Clear(_buckets, 0, _buckets.Length);

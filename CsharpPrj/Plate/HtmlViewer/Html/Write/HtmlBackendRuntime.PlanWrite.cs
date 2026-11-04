@@ -482,7 +482,23 @@ public sealed partial class HtmlBackendRuntime
                 break;
 
             case UiWriteKind.Composite:
-                // 同拍组合（顺序 = 树 → 流 → 叶子）：按载荷形态分派；无法分派的载荷必须显式失败（禁静默丢写）。
+                // 同拍组合（顺序 = 区域 → 树 → 流 → 叶子）：按载荷形态分派；无法分派的载荷必须显式失败（禁静默丢写）。
+                var compositeRegions = FilterTargets(plan.Targets, static t => t.Payload is UiRegionHtml);
+                if (compositeRegions.Count > 0)
+                {
+                    var regionTargets = new List<UiWriteTarget>(compositeRegions.Count);
+                    foreach (var target in compositeRegions)
+                    {
+                        regionTargets.Add(new UiWriteTarget(target.Name, ((UiRegionHtml)target.Payload!).Html));
+                    }
+
+                    var regionPart = await WriteCoreAsync(
+                        new UiWritePlan(UiWriteKind.Region, regionTargets, TraceId: trace, Source: plan.Source), trace, ct).ConfigureAwait(false);
+                    written.AddRange(regionPart.Written);
+                    unchanged.AddRange(regionPart.UnchangedTargets ?? Array.Empty<string>());
+                    failed.AddRange(regionPart.FailedTargets ?? Array.Empty<string>());
+                }
+
                 var compositeTrees = FilterTargets(plan.Targets, static t => t.Payload is UiNode);
                 if (compositeTrees.Count > 0)
                 {
@@ -530,7 +546,7 @@ public sealed partial class HtmlBackendRuntime
                 // 未知形态（null / 未登记的载荷类型）不得被静默吞掉：逐目标显式失败 + 诊断。
                 foreach (var t in plan.Targets)
                 {
-                    if (t.Payload is UiNode or UiStreamAppend or UiStreamTrim or string) continue;
+                    if (t.Payload is UiNode or UiStreamAppend or UiStreamTrim or UiRegionHtml or string) continue;
                     var name = t.Name ?? string.Empty;
                     Report("EventBridge_writeback",
                         $"同拍组合 {name} 跳过：载荷类型={t.Payload?.GetType().Name ?? "<null>"}（树/流追加/流裁剪/叶子四类之外）trace={trace}");

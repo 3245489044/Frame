@@ -43,7 +43,13 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
     private readonly string _streamRegionPrefix;
     private readonly string _streamName;
     private readonly Action<string, Exception>? _onFailure;
+    private readonly Func<TSnapshot, string>? _viewKeyOf;
+    private readonly Func<TSnapshot, string>? _rootRenderer;
+    private readonly UiViewHost? _viewHost;
     private TSnapshot? _last;
+
+    // 视图生命周期由 UiViewHost（框架件）单一裁决：本流水线只消费「是否切换」，
+    // 不再持有清空标记（卸载由根子集投影表达：旧根键缺失 ⇒ 键控对齐原语删除旧子树）。
 
     public RegionRenderPipeline(
         IRefreshStore store,
@@ -59,7 +65,11 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         Action<string, Exception>? onFailure = null,
         string streamRegionPrefix = HtmlPageRegionLayout.StreamSectionPrefix,
         // 流目标 DOM 名 = 壳体容器名（region-bubbles）；曾与段键前缀 "bubbles:" 混用 ⇒ 目标恒 NOT_FOUND（failed=[bubbles]）。
-        string streamName = $"{HtmlShellProjector.RegionNamePrefix}bubbles")
+        string streamName = $"{HtmlShellProjector.RegionNamePrefix}bubbles",
+        // 视图作用域（框架件）：视图键取用 + 根投影渲染 + 视图程序（缺省 ⇒ 单视图零回归）。
+        Func<TSnapshot, string>? viewKeyOf = null,
+        Func<TSnapshot, string>? rootRenderer = null,
+        UiViewBlueprintCatalog? blueprints = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _hash = hash ?? throw new ArgumentNullException(nameof(hash));
@@ -74,6 +84,12 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         _onFailure = onFailure;
         _streamRegionPrefix = streamRegionPrefix;
         _streamName = streamName;
+        _viewKeyOf = viewKeyOf;
+        _rootRenderer = rootRenderer;
+        if (blueprints is { Count: > 0 })
+        {
+            _viewHost = new UiViewHost(blueprints, message => _onFailure?.Invoke(message, new InvalidOperationException(message)));
+        }
     }
 
     /// <summary>记录本拍快照（渲染装配路径调用；供刷新/显式路径复用，避免重复取数）。</summary>
@@ -107,6 +123,30 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
     {
         if (_last is not { } snapshot) return RenderOutput.Skip;
 
+        // 视图作用域：切换判定由框架 ViewHost 单一裁决（卸载 = 根子集不含旧视图键，非清空动词）。
+        var viewKey = _viewKeyOf?.Invoke(snapshot);
+        var transition = _viewHost is null
+            ? UiViewTransition.Keep(viewKey)
+            : _viewHost.Ensure(viewKey, _rootRenderer is null ? null : _ => _rootRenderer(snapshot));
+
+        // 状态迁移（VSC-4）：按目标视图声明裁剪交互态；未声明项丢弃并可见化（view_state_dropped）。
+        if (transition.Changed)
+        {
+            var migration = UiViewStateMigrationPolicy.Apply(
+                _viewHost is { } host && host.Catalog.TryGet(viewKey, out var target) ? target : null, interaction);
+            if (migration.Migrated is { } migrated) interaction = migrated;
+            foreach (var droppedKey in migration.Dropped)
+            {
+                _onFailure?.Invoke("view_state_dropped:" + droppedKey,
+                    new InvalidOperationException("state dropped on view switch: " + droppedKey));
+            }
+        }
+
+        // 根投影（首挂载/切换拍）：唯一目标 = 视图宿主；旧视图根由键控对齐按键删除。
+        var roots = transition is { Changed: true, RootName: { Length: > 0 } rootName, RootHtml: { Length: > 0 } rootHtml }
+            ? new List<UiWriteTarget>(1) { new(rootName, new UiRegionHtml(rootHtml)) }
+            : new List<UiWriteTarget>(0);
+
         // 去重提交延迟到"计划已建成"之后：渲染失败/提前返回不推进 baseline（禁预提交）。
         var commits = new List<(string SlotKey, long Version, string Fingerprint)>();
         RenderOutput Done(RenderOutput output)
@@ -115,10 +155,11 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
             return output;
         }
 
-        if (fingerprintShortCircuit && !Changed(_stableSlotKey, _stableFingerprint(snapshot), commits))
+        if (fingerprintShortCircuit && !transition.Changed
+            && !Changed(StableSlot(viewKey), _stableFingerprint(snapshot), commits))
         {
             // 稳定输入未变 ⇒ 区域不重渲染；仅易变叶子可能变化（心跳定点更新路径 ⇒ Tick）。
-            if (!Changed(_volatileSlotKey, _volatileFingerprint(snapshot), commits)) return RenderOutput.Skip;
+            if (!Changed(VolatileSlot(viewKey), _volatileFingerprint(snapshot), commits)) return RenderOutput.Skip;
             var heartbeatLeaves = _leaves(snapshot);
             return heartbeatLeaves is null ? RenderOutput.Skip : Done(AsTick(heartbeatLeaves));
         }
@@ -136,7 +177,7 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         }
 
         // 易变指纹在本拍只裁决一次（与稳定指纹同口径，避免「叶子计划永不可达」）。
-        var volatileChanged = Changed(_volatileSlotKey, _volatileFingerprint(snapshot), commits);
+        var volatileChanged = Changed(VolatileSlot(viewKey), _volatileFingerprint(snapshot), commits);
 
         var trees = new List<UiWriteTarget>(regions.Count);
         var streamItems = new List<UiStreamItem>();
@@ -145,7 +186,7 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         {
             // 折叠态先绑定再算指纹/序列化：态变化必须进入变更判定（否则折叠交互被判「无变化」）。
             var bound = UiStateBinder.Bind(FoldBinder.Bind(region.Value, foldState), openKeys);
-            if (!Changed(_regionSlotPrefix + region.Key, _hash(UiFragmentWriter.Serialize(bound)), commits)) continue;
+            if (!Changed(RegionSlot(viewKey, region.Key), _hash(UiFragmentWriter.Serialize(bound)), commits)) continue;
             if (region.Key.StartsWith(_streamRegionPrefix, StringComparison.Ordinal))
             {
                 // 流段（气泡）：同键 ⇒ 定点更新；新键 ⇒ 按流序插入（方向由载荷声明 = OldestFirst）。
@@ -154,24 +195,38 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
                 continue;
             }
 
-            // 节点直绑（不再把 HTML 解析回树：渲染产物本身即节点）。
-            trees.Add(new UiWriteTarget(_regionNamePrefix + region.Key, bound));
+            // 节点直绑（不再把 HTML 解析回树：渲染产物本身即节点）；容器键已是 DOM 名（region-*）。
+            trees.Add(new UiWriteTarget(TargetName(region.Key), bound));
         }
 
-        var streams = new List<UiWriteTarget>(1);
+        var streams = new List<UiWriteTarget>(2);
         if (streamItems.Count > 0)
         {
             streams.Add(new UiWriteTarget(
-                _streamName, new UiStreamAppend(streamItems, null, UiStreamDirection.OldestFirst)));
+                StreamNameFor(viewKey), new UiStreamAppend(streamItems, null, UiStreamDirection.OldestFirst)));
         }
 
         var leaves = volatileChanged ? _leaves(snapshot)?.Targets : null;
+        var hasRoots = roots.Count > 0;
         var hasTrees = trees.Count > 0;
         var hasStreams = streams.Count > 0;
         var hasLeaves = leaves is { Count: > 0 };
 
         // 空计划 ⇒ 无任何写目标，不得推进 baseline（契约：送达且变化才 Commit）。
-        if (!hasTrees && !hasStreams && !hasLeaves) return RenderOutput.Skip;
+        if (!hasRoots && !hasTrees && !hasStreams && !hasLeaves) return RenderOutput.Skip;
+
+        if (hasRoots)
+        {
+            // 切换/首挂载拍：根投影 + 区域/流/叶子同拍单计划（根排首位：先立骨架再填内容）。
+            var projected = new List<UiWriteTarget>(roots.Count + trees.Count + streams.Count + (leaves?.Count ?? 0));
+            projected.AddRange(roots);
+            projected.AddRange(trees);
+            projected.AddRange(streams);
+            if (hasLeaves) projected.AddRange(leaves!);
+            _viewHost?.Confirm(transition.To);
+            return Done(RenderOutput.Write(UiWritePlan.Composite(projected, interaction, traceId, source)));
+        }
+
         if (hasTrees && !hasStreams && !hasLeaves)
             return Done(RenderOutput.Write(UiWritePlan.Trees(trees, interaction, null, traceId, source)));
         if (!hasTrees && hasStreams && !hasLeaves)
@@ -187,6 +242,25 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         if (hasLeaves) composite.AddRange(leaves!);
         return Done(RenderOutput.Write(UiWritePlan.Composite(composite, interaction, traceId, source)));
     }
+
+    /// <summary>区域槽键（按视图分区：卸载即失效，切回必回源重写）。</summary>
+    private string RegionSlot(string? viewKey, string key) => _regionSlotPrefix + (viewKey ?? "-") + "/" + key;
+
+    /// <summary>写目标名（容器键已是 DOM 名 ⇒ 不重复加前缀）。</summary>
+    private string TargetName(string key)
+        => key.StartsWith(_regionNamePrefix, StringComparison.Ordinal) ? key : _regionNamePrefix + key;
+
+    /// <summary>稳定输入槽键（按视图分区）。</summary>
+    private string StableSlot(string? viewKey) => _stableSlotKey + "/" + (viewKey ?? "-");
+
+    /// <summary>易变输入槽键（按视图分区）。</summary>
+    private string VolatileSlot(string? viewKey) => _volatileSlotKey + "/" + (viewKey ?? "-");
+
+    /// <summary>流目标容器名（视图程序声明优先；未声明 ⇒ 兼容缺省）。</summary>
+    private string StreamNameFor(string? viewKey)
+        => _viewHost is { } host && host.Catalog.TryGet(viewKey, out var blueprint) && blueprint.StreamContainer is { } stream
+            ? stream.Key
+            : _streamName;
 
     /// <summary>心跳产物唯一产地（Tick 只允许易变叶子）：动词非叶子即结构性违约 ⇒ 显式失败（禁静默降标）。
     /// 判据载体 = 计划动词（结构事实），非入口自述。</summary>

@@ -20,7 +20,7 @@ public static class HtmlPageRegionLayout
 
     /// <summary>区域键（顺序稳定；写回目标名 = <see cref="HtmlShellProjector.RegionNamePrefix"/> + Key）。
     /// <c>main</c> 不计入：它是壳容器（首挂载即固定），稳态写只落子容器。</summary>
-    public static readonly IReadOnlyList<string> RegionKeys = new[] { "seg", "head", "subhead", "aside", "nodes", "composer", "overlay" };
+    // 固定键表已下线（A5）：容器集由视图程序声明派生（view-programs.generated.json）。
 
     /// <summary>页面分区产物（各区域 HTML + 气泡段 + 刷新属性）。</summary>
     public sealed record Parts(
@@ -35,7 +35,7 @@ public static class HtmlPageRegionLayout
         string PollAttrs = "");
 
     /// <summary>分区产物 → 区域片段字典（整页与区域路径共用同一口径）；气泡段按键逐个参与差分。</summary>
-    public static IReadOnlyDictionary<string, string> ToRegions(Parts parts) => ToRegions(parts, RegionKeys);
+    // 默认键表重载已下线（A5）：区域键/容器集一律由调用方声明供给（见 ToRegions(parts, keys)）。
 
     /// <summary>分区产物 → 区域片段字典（区域键由声明驱动：<c>AgentRuntimeUI.htmlPage.regions</c>）。</summary>
     /// <param name="parts">分区产物。</param>

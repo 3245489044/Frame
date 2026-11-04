@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DataCenter.Protocol.Projection;
@@ -25,6 +27,21 @@ public sealed class ReadModelHost
     private readonly ConcurrentDictionary<string, VersionedSnapshotCache<object>> _caches =
         new(StringComparer.Ordinal);
 
+    /// <summary>缓存键（INV-F3）：模型 + owner + 参数指纹；参数不同不得复用同 owner 的旧模型。</summary>
+    private readonly record struct CacheKey(object Owner, string ArgsHash);
+
+    /// <summary>参数指纹（键序稳定；null/空参数 ⇒ 空串，保持既有 owner 级语义）。</summary>
+    private static string ArgsHashOf(IReadOnlyDictionary<string, string?>? args)
+    {
+        if (args is null || args.Count == 0) return string.Empty;
+        var builder = new StringBuilder();
+        foreach (var pair in args.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            builder.Append(pair.Key).Append('=').Append(pair.Value ?? "\u0001").Append('\u0000');
+        }
+        return builder.ToString();
+    }
+
     public ReadModelHost(ReadModelRegistry registry)
         => _registry = registry ?? throw new ArgumentNullException(nameof(registry));
 
@@ -42,8 +59,9 @@ public sealed class ReadModelHost
 
         var version = ReadModelVersionProbe.Resolve(spec, probe, owner);
         var cache = _caches.GetOrAdd(spec.ModelId, _ => new VersionedSnapshotCache<object>(spec.TtlMs ?? 0));
+        var cacheKey = new CacheKey(owner, ArgsHashOf(args));
 
-        if (cache.TryGet(owner, version, out var cached))
+        if (cache.TryGet(cacheKey, version, out var cached))
             return cached is T typed
                 ? ReadOutcome<T>.Ok(typed)
                 : ReadOutcome<T>.Violation("readmodel.type-mismatch:" + spec.ModelId);
@@ -87,14 +105,18 @@ public sealed class ReadModelHost
         if (after != version)
             return ReadOutcome<T>.Stale(value, "readmodel.version-changed:" + spec.ModelId);
 
-        cache.Put(owner, version, value);
+        cache.Put(cacheKey, version, value);
         return ReadOutcome<T>.Ok(value);
     }
 
     /// <summary>指定 owner 最近一次读是否命中缓存（遥测/诊断口径；无 owner 级汇总）。</summary>
     public bool WasCacheHit(string modelId, object owner)
+        => WasCacheHit(modelId, owner, null);
+
+    /// <summary>指定 owner + 参数最近一次读是否命中缓存（参数参与键 ⇒ 必须按同参数查询）。</summary>
+    public bool WasCacheHit(string modelId, object owner, IReadOnlyDictionary<string, string?>? args)
         => !string.IsNullOrWhiteSpace(modelId)
            && owner is not null
            && _caches.TryGetValue(modelId.Trim(), out var cache)
-           && cache.LastHit(owner);
+           && cache.LastHit(new CacheKey(owner, ArgsHashOf(args)));
 }

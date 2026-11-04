@@ -444,25 +444,27 @@ if ($boardText -match 'ReadWindowAsync') {
     Add-Violation 'H31' 'History 板直读窗口端口（Board.cs 命中 ReadWindowAsync；须经读模型）'
 }
 
-# H32 卡片窗口必须经 WindowContext 取形（禁 Full + Take 二次裁剪）
+# H32 History 卡片不得读取消息窗口（A：纯控制台；窗口正文只属 Task 视图）
 $projectorText = Read-Text (Join-Path $agentRoot 'src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
-if ($projectorText -notmatch 'UiReadShape\.WindowContext') {
-    Add-Violation 'H32' '卡片窗口未使用 UiReadShape.WindowContext（禁 Full+Take 二次裁剪）'
+if ($projectorText -match 'ReadWindowAsync|UiReadShape\.WindowContext|FromWindow') {
+    Add-Violation 'H32' 'History 卡片仍读取消息窗口（A 语义：卡片只承载状态/执行体，无窗口正文）'
+}
+if ($projectorText -match 'WindowContextPolicy') {
+    Add-Violation 'H32' 'History 卡片仍依赖 WindowContextPolicy（窗口适配器应已退场）'
 }
 
-# H33 窗口取形声明单源：有装载/消费点，且适配器无词表字面量
+# H33 流水窗口声明单源：feedTake 有装载/消费点；窗口适配器不得复活
 $windowPolicyFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Projection\WindowContextPolicy.cs'
-$windowPolicyText = Read-Text $windowPolicyFile
-if ($windowPolicyText -match '"(endpoint|heartbeat|llm-call|llm_call|stage|tool)"') {
-    Add-Violation 'H33' 'WindowContextPolicy 仍硬编码阶段/角色词表（须读 read-paths.json windowContext）'
+if (Test-Path -LiteralPath $windowPolicyFile) {
+    Add-Violation 'H33' 'WindowContextPolicy 仍存在（A 语义下无窗口取形消费方，应删除）'
 }
-$windowDeclFile = Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Projection\UiWindowDeclaration.cs'
-if (-not (Test-Path -LiteralPath $windowDeclFile)) {
-    Add-Violation 'H33' '缺窗口声明装载点（UiWindowDeclaration）'
+$windowDeclText = Read-Text (Join-Path $agentRoot 'src\Agent.Ui\Ui\Views\Projection\UiWindowDeclaration.cs')
+if ($windowDeclText -notmatch 'FeedTake') {
+    Add-Violation 'H33' '缺流水条数消费点（UiWindowDeclaration.FeedTake）'
 }
 $readPathsFile = Join-Path $agentRoot 'Config\nodes\read-paths.json'
-if ((Read-Text $readPathsFile) -notmatch 'windowContext') {
-    Add-Violation 'H33' 'read-paths.json 未声明 windowContext（窗口取形无单源）'
+if ((Read-Text $readPathsFile) -notmatch 'feedTake') {
+    Add-Violation 'H33' 'read-paths.json 未声明 windowContext.feedTake（流水条数无单源）'
 }
 
 # H34 选择写入必须显式视图参数（禁 ambient 作用域）
@@ -493,7 +495,7 @@ if ($boardProjText -match '_ => UiReasonCodes\.CardsEmpty') {
 # H40 领域不得直呼 UiWindowContextPolicy（机制层必须经 WindowContextPolicy 适配）
 $policyHits = @(Get-ChildItem -LiteralPath (Join-Path $agentRoot 'src') -Recurse -Filter '*.cs' |
     Select-String -Pattern 'UiWindowContextPolicy\.' -List |
-    Where-Object { $_.Path -notmatch 'WindowContextPolicy\.cs$' })
+    Where-Object { $_.Path -notmatch '(WindowContextPolicy|FeedWindowPolicy)\.cs$' })
 if ($policyHits.Count -gt 0) {
     Add-Violation 'H40' ("领域直呼 UiWindowContextPolicy：" + (($policyHits | ForEach-Object { $_.Path }) -join ', '))
 }

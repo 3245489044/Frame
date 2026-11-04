@@ -15,7 +15,7 @@ public static class MetricSinks
     {
         long solid = 0;
         double tickP95 = 0, heightP95 = 0;
-        long visible = 0, resident = 0;
+        long visible = 0, resident = 0, entities = 0;
 
         foreach (var counter in snapshot.Counters)
             if (counter.Name == MetricCatalog.NameOf(MetricId.CollideCellReads))
@@ -31,20 +31,26 @@ public static class MetricSinks
         {
             if (gauge.Name == MetricCatalog.NameOf(MetricId.ChunkVisible)) visible = gauge.Last;
             else if (gauge.Name == MetricCatalog.NameOf(MetricId.ChunkResident)) resident = gauge.Last;
+            else if (gauge.Name == MetricCatalog.NameOf(MetricId.ChunkEntities)) entities = gauge.Last;
         }
 
         return string.Format(
             CultureInfo.InvariantCulture,
-            "metrics: solid={0} tick.p95={1:F2}ms vis={2} resident={3} height.p95={4:F2}ms",
-            solid, tickP95, visible, resident, heightP95);
+            "metrics: solid={0} tick.p95={1:F2}ms vis={2} resident={3} entities={4} height.p95={5:F2}ms",
+            solid, tickP95, visible, resident, entities, heightP95);
     }
 
     public static string WriteJson(MetricSnapshot snapshot, string? directory = null)
     {
         string targetDir = directory ?? ResolveDirectory();
         Directory.CreateDirectory(targetDir);
-        string fileName = "engine-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + ".json";
+        // 运行隔离：秒级时间戳 + 进程号，避免并发/同秒 flush 覆盖同一份快照。
+        string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        string fileName = $"engine-{stamp}-{Environment.ProcessId}.json";
         string path = Path.Combine(targetDir, fileName);
+        int suffix = 1;
+        while (File.Exists(path))
+            path = Path.Combine(targetDir, $"engine-{stamp}-{Environment.ProcessId}-{suffix++}.json");
         File.WriteAllText(path, JsonSerializer.Serialize(snapshot, JsonOptions));
         return path;
     }

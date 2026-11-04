@@ -40,12 +40,12 @@ $rules = @(
         Ok = { ($viewAll -match 'UiReadGateway') -and ($viewAll -match 'UiReadState') } }
     [pscustomobject]@{ Id = 'C3'; Title = '旧三态枚举不残留'
         Ok = { -not ($viewAll -match $legacyPattern) } }
-    [pscustomobject]@{ Id = 'C5'; Title = 'Board 窗口也经读网关（UiReadGateway）'
+    [pscustomobject]@{ Id = 'C5'; Title = 'History 卡片不读消息窗口（A：纯控制台）'
         Ok = { $t = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
-            ($t -match 'UiReadGateway') -and ($t -match 'UiReadShape\.WindowContext') } }
-    [pscustomobject]@{ Id = 'C6'; Title = '窗口状态由四态代数给出（不得塌成布尔/字符串）'
-        Ok = { $t = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
-            ($t -match 'UiReadState\.Ok') -and ($t -notmatch 'windowReason\s*=\s*"') } }
+            -not ($t -match 'ReadWindowAsync|UiReadShape\.WindowContext|FromWindow') } }
+    [pscustomobject]@{ Id = 'C6'; Title = '卡片模型无窗口正文（窗口字段已退场）'
+        Ok = { $t = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Projection\HistoryBoardModel.cs')
+            -not ($t -match 'WindowContextEntry|WindowContextSummary|ToContextEntry') } }
     [pscustomobject]@{ Id = 'C7'; Title = '回退可见（模型无 Origin 伪字段 ∧ 回退留痕在册，H39）'
         Ok = { $model = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Projection\HistoryBoardModel.cs')
             $board = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Board.cs')

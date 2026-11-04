@@ -514,6 +514,37 @@
         Expect = 0
         Note   = '区域归属（P1）：C1 nodes 不再前置 runtime / C2 nodes 不承载 feed·board·prompt / C3 五区域各恰一个生产者 case；负对照 nodes 越界必红'
     }
+    ViewProgramConsistency = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '视图程序一致性（VSC-A1）：C1 产物在位且结构合法 / C2 产物 ≡ 声明重生成（逐键）/ C3 读取面 = 嵌入产物单源；负对照容器键篡改必红'
+    }
+
+    ViewContainerOwnership = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '视图容器所有权（VSC-1）：C1 容器非空 / C2 ownerView == viewKey / C3 视图内容器键唯一 / C4 流容器≤1 / C5 框架源码零 UiRegionKind；负对照跨视图 owner 必红'
+    }
+
+    NoClearWrite = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Boundary'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '无清空写（VSC-3）：C1 SetView 下线 / C2 _pendingStreamClear 下线 / C3-C4 无 Trim(0)/空串清空目标；负对照清空写点必红'
+    }
+
+
 
     UiTextSafe = @{
         Domain = 'Agent'

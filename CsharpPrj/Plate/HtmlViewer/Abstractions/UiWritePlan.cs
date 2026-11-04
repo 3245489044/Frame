@@ -54,6 +54,12 @@ public sealed record UiStreamAppend(
 /// <summary>流裁剪载荷：保留流首 <paramref name="Keep"/> 项（≤0 = 不裁）。</summary>
 public sealed record UiStreamTrim(int Keep);
 
+/// <summary>
+/// 区域 HTML 载荷（显式标记）：同拍组合中按「区域键控对齐」写（区别于易变叶子字符串）。
+/// <para>用于视图根投影（容器键 = 视图宿主名），使根写与叶子写分派可判。</para>
+/// </summary>
+public sealed record UiRegionHtml(string Html);
+
 /// <summary>单条写回目标（Region/Tree/Leaf 用具名 Name；FullDocument 用 null）。Payload 形态随 Kind：Region=string / Tree=UiNode / Leaf=string / FullDocument=string。</summary>
 public readonly record struct UiWriteTarget(string? Name, object? Payload);
 

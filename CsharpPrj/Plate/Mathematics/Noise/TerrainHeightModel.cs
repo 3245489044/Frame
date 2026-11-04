@@ -51,19 +51,33 @@ public readonly record struct TerrainConstants(
 /// 地形高度公式 <c>H(x,z) → groundY → band(x,y,z)</summary> 的唯一实现（纯函数、无状态变化）。
 /// <ul>
 ///   <li>只依赖 x,z 的高度 H 可在列/瓦片层缓存：同一列的所有 y 复用一次噪声。</li>
-///   <li>浮点运算顺序与迁移前 <c>VoxelTerrainGen</c> 逐字保持一致（黄金地形哈希不变）。</li>
-///   <li><see cref="Band"/> 与 HLSL <c>GetNode</c> 共用同一组常量与判据顺序。</li>
+///   <li>高度仍是「基线高度噪声 × 群系幅度 + 群系偏移」，没有第二套高度公式；
+///       未注入 <see cref="BiomeField"/> 时逐字退化为原公式。</li>
+///   <li><see cref="Band"/> 的常量与判据顺序仍与 HLSL <c>GetNode</c> 共用（群系调制只作用于 CPU 世界生成的列高）。</li>
 /// </ul>
 /// </summary>
 public sealed class TerrainHeightModel
 {
     private readonly int _seed;
     private readonly TerrainConstants _constants;
+    private readonly BiomeField? _biomes;
+    private readonly int _surfaceExtraAboveCm;
 
-    public TerrainHeightModel(in TerrainProfile profile, int seed, int unitsPerMeter = 100)
+    /// <summary>
+    /// <paramref name="biomes"/> 为 null ⇒ 保持原「单调高度」公式；非 null ⇒ 高度幅度/偏移由群系决定。
+    /// <paramref name="surfaceExtraAboveCm"/> 把地表以上的可见内容（树冠）并入 <see cref="SurfaceSpan"/>。
+    /// </summary>
+    public TerrainHeightModel(
+        in TerrainProfile profile,
+        int seed,
+        int unitsPerMeter = 100,
+        BiomeField? biomes = null,
+        int surfaceExtraAboveCm = 0)
     {
         _seed = seed;
         _constants = TerrainConstants.From(profile, unitsPerMeter);
+        _biomes = biomes;
+        _surfaceExtraAboveCm = Math.Max(0, surfaceExtraAboveCm);
 
         var hash = SignatureHash.Begin();
         hash = SignatureHash.Mix(hash, seed);
@@ -72,6 +86,9 @@ public sealed class TerrainHeightModel
         hash = SignatureHash.Mix(hash, profile.SoilDepth);
         hash = SignatureHash.Mix(hash, profile.HeightScale);
         hash = SignatureHash.Mix(hash, profile.HeightOffset);
+        hash = SignatureHash.Mix(hash, _surfaceExtraAboveCm);
+        if (biomes is not null)
+            hash = SignatureHash.Mix(hash, biomes.Signature);
         Signature = hash;
     }
 
@@ -81,13 +98,37 @@ public sealed class TerrainHeightModel
 
     public int UnitsPerMeter => _constants.UnitsPerMeter;
 
-    /// <summary>公式签名：seed + 全部地形常量 + 单位；参数不变则签名不变。</summary>
+    /// <summary>是否接入群系场（未接入时 <see cref="SampleBiome"/> 返回 default）。</summary>
+    public bool HasBiomes => _biomes is not null;
+
+    /// <summary>群系数量（未接入为 0）。</summary>
+    public int BiomeCount => _biomes?.Biomes.Count ?? 0;
+
+    /// <summary>在 (x,z) 处采样群系（世界坐标；未接入群系时返回 default）。</summary>
+    public BiomeSample SampleBiome(int x, int z) => _biomes?.Sample(x, z) ?? default;
+
+    /// <summary>公式签名：seed + 全部地形常量 + 单位 + 群系场；参数不变则签名不变。</summary>
     public long Signature { get; }
 
-    /// <summary>高度（cm，未取整）：与 GPU <c>HeightOffset + ComputeHeight(x,z) * HeightScale</c> 同式同序。</summary>
-    public float HeightCm(int x, int z) =>
-        _constants.HeightOffsetCm
-        + TerrainNoise.ComputeHeight(x, z, _seed, _constants.UnitsPerMeter) * _constants.HeightScaleCm;
+    /// <summary>
+    /// 高度（cm，未取整）：基线高度噪声 × 群系幅度 + 群系偏移。
+    /// <para>未注入群系时与 GPU <c>HeightOffset + ComputeHeight(x,z) * HeightScale</c> 同式同序。</para>
+    /// </summary>
+    public float HeightCm(int x, int z)
+    {
+        float noise = TerrainNoise.ComputeHeight(x, z, _seed, _constants.UnitsPerMeter);
+        if (_biomes is null)
+            return _constants.HeightOffsetCm + noise * _constants.HeightScaleCm;
+
+        var sample = _biomes.Sample(x, z);
+        var biomes = _biomes.Biomes;
+        float amplitude = biomes[sample.Primary].HeightAmplitude * sample.PrimaryWeight
+            + biomes[sample.Secondary].HeightAmplitude * (1f - sample.PrimaryWeight);
+        float bias = biomes[sample.Primary].HeightBiasCm * sample.PrimaryWeight
+            + biomes[sample.Secondary].HeightBiasCm * (1f - sample.PrimaryWeight);
+
+        return _constants.HeightOffsetCm + bias + noise * _constants.HeightScaleCm * amplitude;
+    }
 
     /// <summary>地表 Y（cm，四舍六入五取偶，与 GPU RoundEven 对齐）。</summary>
     public int GroundYCm(int x, int z) => (int)MathF.Round(HeightCm(x, z));
@@ -158,6 +199,8 @@ public sealed class TerrainHeightModel
         // 水体带：ground < SeaLevel 的列会在 (ground, SeaLevel] 生成 Water，其顶面必须进入候选。
         if (ground.MinY < _constants.SeaLevelCm)
             maxY = Math.Max(maxY, _constants.SeaLevelCm);
+        // 地表以上还有树冠等可见内容（由世界生成器注入的保守上界）。
+        maxY += _surfaceExtraAboveCm;
 
         return marginCm > 0 ? new HeightSpan(minY, maxY).Expand(marginCm) : new HeightSpan(minY, maxY);
     }

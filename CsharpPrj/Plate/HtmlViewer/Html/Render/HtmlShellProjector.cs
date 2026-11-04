@@ -1,6 +1,9 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
 
@@ -109,7 +112,8 @@ public static class HtmlShellProjector
         string composerHtml,
         string? pollAttrs = null,
         string? overlayHtml = null,
-        string? refreshTitle = null)
+        string? refreshTitle = null,
+        string? viewKey = null)
     {
         var bubbleHtml = new System.Text.StringBuilder();
         if (bubbles is { Count: > 0 })
@@ -122,8 +126,93 @@ public static class HtmlShellProjector
                    + "<div class=\"region\" data-name=\"" + RegionNamePrefix + "bubbles\">" + bubbleHtml + "</div>"
                    + "<div class=\"region\" data-name=\"" + RegionNamePrefix + "composer\">" + composerHtml + "</div>"
                    + "</div>";
-        return RenderShellWithMain(templates, selectorHtml, title, subtitle, treeHtml, main, pollAttrs, overlayHtml, refreshTitle);
+        return RenderViewRoot(RenderShellWithMain(templates, selectorHtml, title, subtitle, treeHtml, main, pollAttrs, overlayHtml, refreshTitle), viewKey);
     }
+
+    /// <summary>视图根包装（null/空视图键 ⇒ 原样返回，迁移期零回归）：根携带 <c>data-view-root</c> + 稳定键。</summary>
+    public static string RenderViewRoot(string shellHtml, string? viewKey)
+        => string.IsNullOrWhiteSpace(viewKey) ? shellHtml : UiViewSkeleton.Wrap(viewKey!, shellHtml);
+
+    /// <summary>
+    /// 声明驱动的容器壳（视图作用域）：容器集来自视图程序（<c>containers[]</c>），内容按容器键供给；
+    /// 未声明的容器不产出（结构上不存在 ⇒ 无需清理）。
+    /// <para>框架只认结构位（<c>main</c> 为内容壳；<c>seg/head/subhead/aside/overlay</c> 为壳槽），零领域视图词。</para>
+    /// </summary>
+    public static string RenderContainerShell(
+        IReadOnlyDictionary<string, string> templates,
+        IReadOnlyList<UiViewContainer> containers,
+        string selectorHtml,
+        string title,
+        string subtitle,
+        string treeHtml,
+        IReadOnlyDictionary<string, string> contents,
+        IReadOnlyList<(string Key, string Html)> bubbles,
+        string composerHtml,
+        string overlayHtml,
+        string? pollAttrs = null,
+        string? refreshTitle = null,
+        string? viewKey = null)
+    {
+        var present = new HashSet<string>(containers.Select(static c => c.Key), StringComparer.Ordinal);
+        var streamKeys = new HashSet<string>(
+            containers.Where(static c => c.IsStream).Select(static c => c.Key), StringComparer.Ordinal);
+
+        string Slot(string suffix) => RegionNamePrefix + suffix;
+        string Html(string key) => contents.TryGetValue(key, out var value) ? value : string.Empty;
+
+        var bubbleHtml = new StringBuilder();
+        foreach (var section in bubbles ?? Array.Empty<(string Key, string Html)>()) bubbleHtml.Append(section.Html);
+
+        var mainInner = new StringBuilder();
+        foreach (var container in containers)
+        {
+            var key = container.Key;
+            var suffix = key.StartsWith(RegionNamePrefix, StringComparison.Ordinal)
+                ? key.Substring(RegionNamePrefix.Length)
+                : key;
+            if (suffix is "main" or "seg" or "head" or "subhead" or "aside" or "overlay") continue;
+
+            var body = streamKeys.Contains(key) ? Html(key) + bubbleHtml : Html(key);
+            mainInner.Append("<div class=\"region").Append(container.IsStream ? " stream" : string.Empty)
+                .Append("\" data-name=\"").Append(key).Append("\">").Append(body).Append("</div>");
+        }
+
+        var main = "<div class=\"region\" data-name=\"" + Slot("main") + "\">" + mainInner + "</div>";
+        var selectorRegion = present.Contains(Slot("seg"))
+            ? "<div class=\"seg region\" data-name=\"" + Slot("seg") + "\">" + selectorHtml + "</div>"
+            : string.Empty;
+        var titleRegion = present.Contains(Slot("head"))
+            ? "<span data-name=\"" + Slot("head") + "\">" + title + "</span>"
+            : title;
+        var subtitleRegion = present.Contains(Slot("subhead"))
+            ? "<span data-name=\"" + Slot("subhead") + "\">" + subtitle + "</span>"
+            : subtitle;
+        var treeRegion = present.Contains(Slot("aside"))
+            ? "<div class=\"region\" data-name=\"" + Slot("aside") + "\">" + treeHtml + "</div>"
+            : string.Empty;
+        var overlayRegion = present.Contains(Slot("overlay"))
+            ? "<div class=\"region\" data-name=\"" + Slot("overlay") + "\">" + overlayHtml + "</div>"
+            : string.Empty;
+
+        var html = HtmlTemplateEngine.Render(templates, "layoutShell",
+            new Dictionary<string, object?>
+            {
+                ["selector"] = selectorRegion,
+                ["title"] = titleRegion,
+                ["subtitle"] = subtitleRegion,
+                ["tree"] = treeRegion,
+                ["history"] = main,
+                ["overlay"] = overlayRegion,
+                ["pollAttrs"] = pollAttrs ?? string.Empty,
+                ["refreshTitle"] = refreshTitle ?? string.Empty,
+            });
+
+        return RenderViewRoot(html, viewKey);
+    }
+
+    /// <summary>页面视图宿主（<c>data-name=ui-root</c>）：唯一挂载点；整页首挂载包一层，视图切换只投影其子集。</summary>
+    public static string RenderViewHost(string viewRootHtml)
+        => "<div class=\"view-host\" data-name=\"" + UiViewSkeleton.DefaultRootName + "\">" + viewRootHtml + "</div>";
 
     /// <summary>气泡段包裹（单源）：段根带稳定 <c>data-key</c> ⇒ 流原语可按段键定点更新/追加。</summary>
     public static string WrapStreamSection(string key, string html)

@@ -20,10 +20,10 @@ public enum MetricId
     /// <summary>当前驻留（已流式）区块数。</summary>
     ChunkResident = 4,
 
-    /// <summary>当前帧流式提交区块数。</summary>
-    ChunkStream = 5,
+    /// <summary>当前帧 ECS 区块实体数（可见集合投影，不等于“本帧提交数”）。</summary>
+    ChunkEntities = 5,
 
-    /// <summary>单块网格构建耗时（<c>ChunkMeshStreamer.TryBuildAndSubmit</c>）。</summary>
+    /// <summary>真正发生构建的网格耗时（缓存命中不计入；命中记在 <see cref="MeshLookup"/>）。</summary>
     MeshBuild = 6,
 
     /// <summary>网格预算用尽导致本帧提前收手的次数。</summary>
@@ -52,6 +52,9 @@ public enum MetricId
 
     /// <summary>帧阶段：Mesh 上屏渲染。</summary>
     FrameRender = 15,
+
+    /// <summary>网格构建函数的缓存命中次数（未真正构建）。</summary>
+    MeshLookup = 16,
 }
 
 /// <summary>指标类型：决定写入 cell 的方式（Counter 累加 / Gauge 水位置 / Histogram 分位）。</summary>
@@ -67,7 +70,7 @@ public enum MetricKind
 /// </summary>
 public static class MetricCatalog
 {
-    public const int Count = 16;
+    public const int Count = 17;
 
     private static readonly string[] Names =
     {
@@ -76,7 +79,7 @@ public static class MetricCatalog
         "sim.tick",
         "chunk.visible",
         "chunk.resident",
-        "chunk.stream",
+        "chunk.entities",
         "mesh.build",
         "mesh.budgetHit",
         "chunk.cacheHit",
@@ -87,6 +90,7 @@ public static class MetricCatalog
         "frame.systems",
         "frame.state",
         "frame.render",
+        "mesh.lookup",
     };
 
     private static readonly MetricKind[] Kinds =
@@ -107,6 +111,7 @@ public static class MetricCatalog
         MetricKind.Histogram,
         MetricKind.Histogram,
         MetricKind.Histogram,
+        MetricKind.Counter,
     };
 
     public static string NameOf(MetricId id)

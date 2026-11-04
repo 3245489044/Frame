@@ -7,8 +7,9 @@
     C1 `SetView(` 零残留（过渡方案 B 的视图生命周期入口已下线）
     C2 `_pendingStreamClear` 零残留
     C3 `UiStreamTrim(0)` / `Trim(...,0)` 零命中（DOM 侧 keep<=0 是 no-op，不能表达清空）
-    C4 空串清空目标零命中（`new UiWriteTarget(..., string.Empty)`）
+    C4 空串清空目标零命中（收窄：`new UiWriteTarget(..., string.Empty)` 且同行含清空语义标记 `clear`）
     C5 负对照：合成清空写点必须被 C3/C4 判据捕获
+    C6 流全集替换原语单点使用（`Replace:true` 仅允许出现在流水线与载荷定义处）
     扫描面 = Frame 写通道/流水线 + Agent.Ui。纯扫描（只读、0 写入）。
 #>
 [CmdletBinding()]
@@ -37,9 +38,12 @@ function Get-SourceFiles {
 }
 
 function Test-ClearWriteText([string]$text) {
-    if ($text -match 'new\s+UiWriteTarget\s*\([^)]*,\s*string\.Empty\s*\)') { return $true }
     if ($text -match 'UiStreamTrim\s*\(\s*0\s*\)') { return $true }
     if ($text -match 'UiWritePlan\.Trim\s*\([^)]*,\s*0\s*\)') { return $true }
+    # C4 收窄：容器键 + 空串 + 清空语义标记（同行）——「显式空内容」写不误报。
+    foreach ($line in ($text -split "`n")) {
+        if ($line -match 'new\s+UiWriteTarget\s*\([^)]*,\s*string\.Empty\s*\)' -and $line -match '\bclears?\b') { return $true }
+    }
     return $false
 }
 
@@ -61,6 +65,14 @@ $rules = @(
     [pscustomobject]@{ Id = 'C3-C4'; Title = '无 Trim(0)/空串清空目标'
         Ok = {
             $hits = @(Get-SourceFiles | Where-Object { Test-ClearWriteText ([System.IO.File]::ReadAllText($_.FullName)) })
+            return ($hits.Count -eq 0)
+        } }
+    [pscustomobject]@{ Id = 'C6'; Title = '流全集替换原语单点使用'
+        Ok = {
+            $hits = @(Get-SourceFiles | Where-Object {
+                $_.Name -notin @('RegionRenderPipeline.cs', 'UiWritePlan.cs') -and
+                ([System.IO.File]::ReadAllText($_.FullName)) -match 'Replace\s*[:=]\s*true'
+            })
             return ($hits.Count -eq 0)
         } }
 )

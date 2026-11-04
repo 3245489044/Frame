@@ -89,14 +89,4 @@ public sealed class UiViewHost
         _current = _pending;
         _pending = null;
     }
-
-    /// <summary>放弃待定切换（渲染/装配失败）：旧视图保持挂载状态。</summary>
-    public void Reject() => _pending = null;
-
-    /// <summary>显式卸载（离开视图）：只清宿主状态；DOM 由下一次根投影表达（不产删除/清空动词）。</summary>
-    public void Leave(string? viewKey)
-    {
-        if (viewKey is null) return;
-        if (string.Equals(_current, viewKey.Trim(), StringComparison.Ordinal)) _current = null;
-    }
 }

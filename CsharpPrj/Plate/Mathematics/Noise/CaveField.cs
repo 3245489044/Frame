@@ -16,8 +16,8 @@ public readonly record struct CaveSettings(
     int SurfaceGuardMeters,
     int SeedSalt)
 {
-    /// <summary>默认：6 m 以下开洞，隧道宽 0.10，深部大洞厅阈值 0.62；海床下 5 m 内留保护层。</summary>
-    public static CaveSettings Default => new(6, 160, 9, 0.10f, 30, 0.62f, 5, 0x2B7E1);
+    /// <summary>默认：6 m 以下开洞，隧道宽 0.03，深部大洞厅阈值 0.76；海床下 5 m 内留保护层。</summary>
+    public static CaveSettings Default => new(6, 160, 9, 0.03f, 30, 0.76f, 5, 0x2B7E1);
 }
 
 /// <summary>

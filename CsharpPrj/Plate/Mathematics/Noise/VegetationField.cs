@@ -171,6 +171,19 @@ public sealed class VegetationField
         return tree;
     }
 
+    /// <summary>
+    /// 诊断/自检用：取出某植被网格单元里的树（不存在返回 false）。
+    /// <para>与生成路径同一纯函数，仅暴露只读结果，不改变生成行为。</para>
+    /// </summary>
+    public bool TryGetTree(int cellX, int cellZ, out TreePlacement tree)
+    {
+        tree = Placement(cellX, cellZ);
+        return tree.Exists;
+    }
+
+    /// <summary>植被网格边长（cm）与单元坐标口径，便于自检遍历。</summary>
+    public int CellSizeCm => _cellCm;
+
     private TreePlacement ComputePlacement(int cellX, int cellZ)
     {
         int span = _cellCm - 2 * _marginCm;
@@ -207,10 +220,15 @@ public sealed class VegetationField
     private float Random01(int cellX, int cellZ, int channel) =>
         NoisePrimitives.HashToFloat(NoisePrimitives.Hash2D(cellX, cellZ, _seed + channel * 7919));
 
-    private static int FloorDiv(int value, int divisor) =>
-        (int)MathF.Floor(value / (float)divisor);
+    private static int FloorDiv(int value, int divisor)
+    {
+        int quotient = value / divisor;
+        if (value % divisor != 0 && (value < 0) != (divisor < 0))
+            quotient--;
+        return quotient;
+    }
 
-    private readonly record struct TreePlacement(
+    public readonly record struct TreePlacement(
         bool Exists,
         int CenterX,
         int CenterZ,

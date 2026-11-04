@@ -74,64 +74,14 @@ public static class HtmlShellProjector
     /// <summary>区域容器属性前缀（服务端注入；与 DomOps.Patch name 对齐，供区域化写回命中）。</summary>
     public const string RegionNamePrefix = "region-";
 
-    /// <summary>渲染布局壳（layoutShell 模板）：左 tree + 右 content + 独立浮层区 overlay，顶部 selector。
-    /// <para>P2 区域化（I5）：把左侧树 / 右侧内容各包一层具名区域容器（<c>data-name=region-aside|region-main</c>），
-    /// 使写回层可按区域 patch（<c>DomOps.Patch name=region-*</c>）而非整体替换；首挂载后壳稳定（I6），区域容器不随内容重建。</para>
-    /// <para>E-8 外壳区域化：选区 / 标题 / 副标题亦为独立可写区域（<c>region-seg|region-head|region-subhead</c>），
-    /// 三者互不嵌套、互不覆盖（均与 region-aside/main 平级或独立），使显式视图切换可回归区域计划（不再依赖整页刷新）；
-    /// 刷新按钮 <c>data-poll-refresh</c> 留在区域外，避免被区域写覆盖丢失。</para>
-    /// <para>P-A 浮层建模（I1/I6）：浮层为**独立可写区域** <c>region-overlay</c>（固定位置、与 region-main 平级），
-    /// 使对话区重渲染不再回收浮层节点；插槽恒在（空内容即收起），壳稳定。</para></summary>
-    public static string RenderShell(
-        IReadOnlyDictionary<string, string> templates,
-        string selectorHtml,
-        string title,
-        string subtitle,
-        string treeHtml,
-        string contentHtml,
-        string? pollAttrs = null,
-        string? overlayHtml = null,
-        string? refreshTitle = null)
-        => RenderShellWithMain(templates, selectorHtml, title, subtitle, treeHtml,
-            MainRegion(contentHtml), pollAttrs, overlayHtml, refreshTitle);
-
-    /// <summary>
-    /// 分层布局壳（B3）：主区 <c>region-main</c> 降为**壳容器**，内含三个具名子容器
-    /// <c>region-nodes</c>（树/面板/操作面）/ <c>region-bubbles</c>（气泡流，仅流段）/ <c>region-composer</c>（输入区）。
-    /// 子容器即稳态写目标 ⇒ 消息变化只动气泡流，不重建主区。
-    /// </summary>
-    /// <param name="bubbles">气泡流段（已按 <see cref="WrapStreamSection"/> 包裹并带稳定段键，调用方与区域路径共用同一份）。</param>
-    public static string RenderSplitShell(
-        IReadOnlyDictionary<string, string> templates,
-        string selectorHtml,
-        string title,
-        string subtitle,
-        string treeHtml,
-        string nodesHtml,
-        IReadOnlyList<(string Key, string Html)> bubbles,
-        string composerHtml,
-        string? pollAttrs = null,
-        string? overlayHtml = null,
-        string? refreshTitle = null,
-        string? viewKey = null)
+    /// <summary>视图根包装：根携带 <c>data-view-root</c> + 稳定键（视图键缺失 ⇒ 抛，禁止无根降级）。</summary>
+    public static string RenderViewRoot(string shellHtml, string? viewKey)
     {
-        var bubbleHtml = new System.Text.StringBuilder();
-        if (bubbles is { Count: > 0 })
-        {
-            foreach (var section in bubbles) bubbleHtml.Append(section.Html);
-        }
-
-        var main = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "main\">"
-                   + "<div class=\"region\" data-name=\"" + RegionNamePrefix + "nodes\">" + nodesHtml + "</div>"
-                   + "<div class=\"region\" data-name=\"" + RegionNamePrefix + "bubbles\">" + bubbleHtml + "</div>"
-                   + "<div class=\"region\" data-name=\"" + RegionNamePrefix + "composer\">" + composerHtml + "</div>"
-                   + "</div>";
-        return RenderViewRoot(RenderShellWithMain(templates, selectorHtml, title, subtitle, treeHtml, main, pollAttrs, overlayHtml, refreshTitle), viewKey);
+        if (string.IsNullOrWhiteSpace(viewKey))
+            throw new ArgumentException("视图根必须携带视图键（无根降级已下线）", nameof(viewKey));
+        return UiViewSkeleton.Wrap(viewKey!.Trim(), shellHtml);
     }
 
-    /// <summary>视图根包装（null/空视图键 ⇒ 原样返回，迁移期零回归）：根携带 <c>data-view-root</c> + 稳定键。</summary>
-    public static string RenderViewRoot(string shellHtml, string? viewKey)
-        => string.IsNullOrWhiteSpace(viewKey) ? shellHtml : UiViewSkeleton.Wrap(viewKey!, shellHtml);
 
     /// <summary>
     /// 声明驱动的容器壳（视图作用域）：容器集来自视图程序（<c>containers[]</c>），内容按容器键供给；
@@ -154,8 +104,6 @@ public static class HtmlShellProjector
         string? viewKey = null)
     {
         var present = new HashSet<string>(containers.Select(static c => c.Key), StringComparer.Ordinal);
-        var streamKeys = new HashSet<string>(
-            containers.Where(static c => c.IsStream).Select(static c => c.Key), StringComparer.Ordinal);
 
         string Slot(string suffix) => RegionNamePrefix + suffix;
         string Html(string key) => contents.TryGetValue(key, out var value) ? value : string.Empty;
@@ -166,15 +114,12 @@ public static class HtmlShellProjector
         var mainInner = new StringBuilder();
         foreach (var container in containers)
         {
-            var key = container.Key;
-            var suffix = key.StartsWith(RegionNamePrefix, StringComparison.Ordinal)
-                ? key.Substring(RegionNamePrefix.Length)
-                : key;
-            if (suffix is "main" or "seg" or "head" or "subhead" or "aside" or "overlay") continue;
+            var slot = UiViewContainerSlots.Classify(container);
+            if (slot == UiViewContainerSlot.Main || UiViewContainerSlots.IsShellSlot(slot)) continue;
 
-            var body = streamKeys.Contains(key) ? Html(key) + bubbleHtml : Html(key);
+            var body = slot == UiViewContainerSlot.Stream ? Html(container.Key) + bubbleHtml : Html(container.Key);
             mainInner.Append("<div class=\"region").Append(container.IsStream ? " stream" : string.Empty)
-                .Append("\" data-name=\"").Append(key).Append("\">").Append(body).Append("</div>");
+                .Append("\" data-name=\"").Append(container.Key).Append("\">").Append(body).Append("</div>");
         }
 
         var main = "<div class=\"region\" data-name=\"" + Slot("main") + "\">" + mainInner + "</div>";
@@ -218,40 +163,39 @@ public static class HtmlShellProjector
     public static string WrapStreamSection(string key, string html)
         => "<div class=\"stream-item\" data-key=\"" + key + "\">" + html + "</div>";
 
-    /// <summary>主区壳（单内容形态）。</summary>
-    private static string MainRegion(string contentHtml)
-        => "<div class=\"region\" data-name=\"" + RegionNamePrefix + "main\">" + contentHtml + "</div>";
-
-    /// <summary>整页壳渲染核心（单一拼接点）：区域容器 + 模板投影。</summary>
-    private static string RenderShellWithMain(
-        IReadOnlyDictionary<string, string> templates,
-        string selectorHtml,
-        string title,
-        string subtitle,
-        string treeHtml,
-        string mainRegionHtml,
-        string? pollAttrs,
-        string? overlayHtml,
-        string? refreshTitle)
+    /// <summary>
+    /// 容器内容装配（框架件，单一映射实现）：<c>containers[] × 壳槽 × 按容器键内容 ⇒ 容器键 → 片段</c>。
+    /// <para>结构槽知识只在本类 + <see cref="UiViewContainerSlots"/>（域侧不再写 suffix <c>switch</c>）：
+    /// 壳槽（seg/head/subhead/aside/composer/overlay）取 <paramref name="shellSlots"/>；
+    /// 内容容器取 <paramref name="containerContents"/>；<c>main</c> 为结构包裹（非容器，不产）；
+    /// 流容器由流原语承载（不产区域目标）。</para>
+    /// <para>缺内容 ⇒ 产空串（与既有「空即空态/收起」口径一致，写目标仍由键控对齐消费）。</para>
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> ComposeContents(
+        IReadOnlyList<UiViewContainer> containers,
+        IReadOnlyDictionary<string, string> shellSlots,
+        IReadOnlyDictionary<string, string> containerContents)
     {
-        var treeRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "aside\">" + treeHtml + "</div>";
-        // E-8：外壳动态位（选区/标题/副标题）各为独立区域元素（区域元素即 patch 目标，其内容 = 该位 HTML/文本）。
-        var selectorRegion = "<div class=\"seg region\" data-name=\"" + RegionNamePrefix + "seg\">" + selectorHtml + "</div>";
-        var titleRegion = "<span data-name=\"" + RegionNamePrefix + "head\">" + title + "</span>";
-        var subtitleRegion = "<span data-name=\"" + RegionNamePrefix + "subhead\">" + subtitle + "</span>";
-        // P-A：浮层独立区域（恒在；空内容 = 收起）。与 region-main 平级 ⇒ 对话区对齐不回收浮层。
-        var overlayRegion = "<div class=\"region\" data-name=\"" + RegionNamePrefix + "overlay\">" + (overlayHtml ?? string.Empty) + "</div>";
-        return HtmlTemplateEngine.Render(templates, "layoutShell",
-            new Dictionary<string, object?>
-            {
-                ["selector"] = selectorRegion,
-                ["title"] = titleRegion,
-                ["subtitle"] = subtitleRegion,
-                ["tree"] = treeRegion,
-                ["history"] = mainRegionHtml,
-                ["overlay"] = overlayRegion,
-                ["pollAttrs"] = pollAttrs ?? string.Empty,
-                ["refreshTitle"] = refreshTitle ?? string.Empty,
-            });
+        ArgumentNullException.ThrowIfNull(containers);
+        var slots = shellSlots ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        var contents = containerContents ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        var composed = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var container in containers)
+        {
+            var slot = UiViewContainerSlots.Classify(container);
+            if (slot is UiViewContainerSlot.Main or UiViewContainerSlot.Stream) continue;
+
+            var suffix = UiViewContainerSlots.Suffix(container.Key);
+            var key = UiViewContainerSlots.IsShellSlot(slot) || slot == UiViewContainerSlot.Composer
+                ? suffix
+                : container.Key;
+
+            if (slots.TryGetValue(key, out var slotHtml)) composed[container.Key] = slotHtml;
+            else if (contents.TryGetValue(container.Key, out var contentHtml)) composed[container.Key] = contentHtml;
+            else composed[container.Key] = string.Empty;
+        }
+
+        return composed;
     }
 }

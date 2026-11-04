@@ -24,6 +24,8 @@ Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\Gate
 
 $repo = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 $generated = Join-Path $repo 'Projects\Plug\Agent\Config\ui\view-programs.generated.json'
+$declaration = Join-Path $repo 'Projects\Plug\Agent\Config\ui\ui-regions.json'
+$generator = Join-Path $repo 'Frame\PowerShellScript\Share\Ui\Generate-ViewPrograms.ps1'
 $frameRoots = @(
     (Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer'),
     (Join-Path $repo 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge')
@@ -54,6 +56,15 @@ function Get-OwnershipViolations([object[]]$views) {
     return $violations
 }
 
+function Get-Canonical([object]$value) {
+    if ($null -eq $value) { return 'null' }
+    if ($value -is [string]) { return ($value | ConvertTo-Json -Compress) }
+    if ($value -is [bool] -or $value -is [int] -or $value -is [long] -or $value -is [double]) { return ($value | ConvertTo-Json -Compress) }
+    if ($value -is [System.Array]) { return '[' + (($value | ForEach-Object { Get-Canonical $_ }) -join ',') + ']' }
+    $names = @($value.PSObject.Properties.Name) | Sort-Object
+    return '{' + (($names | ForEach-Object { '"' + $_ + '":' + (Get-Canonical $value.$_) }) -join ',') + '}'
+}
+
 $rules = @(
     [pscustomobject]@{ Id = 'C1-C4'; Title = '所有权/唯一性/流容器'
         Ok = { (Get-OwnershipViolations (Get-Views)).Count -eq 0 } }
@@ -68,6 +79,12 @@ $rules = @(
                     Measure-Object -Sum).Sum
             }
             return ($hits -eq 0)
+        } }
+    [pscustomobject]@{ Id = 'C6'; Title = '判据单源：产物 ≡ 生成器复算'
+        Ok = {
+            $declared = Get-Canonical (Get-Content -LiteralPath $generated -Raw | ConvertFrom-Json)
+            $rebuilt = Get-Canonical ((& $generator -Regions $declaration -Stdout | Out-String) | ConvertFrom-Json)
+            return ($declared -eq $rebuilt)
         } }
 )
 

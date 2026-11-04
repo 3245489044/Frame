@@ -45,11 +45,23 @@ public enum UiStreamDirection
 }
 
 /// <summary>流追加载荷：<paramref name="Items"/> 按「新→旧」序；<paramref name="Cap"/> 为流长度上限（null/≤0 = 不裁）；
-/// <paramref name="Direction"/> 决定插入端与裁剪端（缺省 NewestFirst = 日志语义，零回归）。</summary>
+/// <paramref name="Direction"/> 决定插入端与裁剪端（缺省 NewestFirst = 日志语义，零回归）。
+/// <para><paramref name="Replace"/>=true 表示「本拍该流的**全集**就是这些段」：DOM 侧按 key 集合对齐后
+/// 删除未声明的既有段（全集替换，非清空动词；集合为空 = 该流无段）。</para></summary>
 public sealed record UiStreamAppend(
     IReadOnlyList<UiStreamItem> Items,
     int? Cap = null,
-    UiStreamDirection Direction = UiStreamDirection.NewestFirst);
+    UiStreamDirection Direction = UiStreamDirection.NewestFirst,
+    bool Replace = false)
+{
+    /// <summary>全集替换载荷（单一构造点：流通道的「N↔0」唯一表达；不用 Trim(0)/空串清空）。</summary>
+    public static UiStreamAppend Set(
+        IReadOnlyList<UiStreamItem> items, UiStreamDirection direction = UiStreamDirection.OldestFirst)
+    {
+        if (items is null) throw new ArgumentNullException(nameof(items));
+        return new UiStreamAppend(items, null, direction, Replace: true);
+    }
+}
 
 /// <summary>流裁剪载荷：保留流首 <paramref name="Keep"/> 项（≤0 = 不裁）。</summary>
 public sealed record UiStreamTrim(int Keep);
@@ -118,11 +130,13 @@ public sealed record UiWritePlan(
     public static UiWritePlan Leaves(IReadOnlyList<UiWriteTarget> leaves, UiInteractionSnapshot? interaction = null, string? traceId = null, UiWriteSource source = UiWriteSource.Mount)
         => new(UiWriteKind.Leaf, leaves, null, interaction, traceId, source);
 
-    /// <summary>流追加计划（append-only 面单点落地；<paramref name="items"/> 按「新→旧」序）。</summary>
+    /// <summary>流追加计划（append-only 面单点落地；<paramref name="items"/> 按「新→旧」序）。
+    /// <paramref name="replace"/>=true ⇒ 全集替换（同 <see cref="UiStreamAppend.Set"/> 语义）。</summary>
     public static UiWritePlan Append(
         string stream, IReadOnlyList<UiStreamItem> items, int? cap = null,
-        UiStreamDirection direction = UiStreamDirection.NewestFirst, UiWriteSource source = UiWriteSource.Mount)
-        => new(UiWriteKind.Append, new[] { new UiWriteTarget(stream, new UiStreamAppend(items, cap, direction)) }, null, null, null, source);
+        UiStreamDirection direction = UiStreamDirection.NewestFirst, UiWriteSource source = UiWriteSource.Mount,
+        bool replace = false)
+        => new(UiWriteKind.Append, new[] { new UiWriteTarget(stream, new UiStreamAppend(items, cap, direction, replace)) }, null, null, null, source);
 
     /// <summary>多流追加计划（每目标 `Name`=流名、payload=<see cref="UiStreamAppend"/>）。</summary>
     public static UiWritePlan AppendMany(IReadOnlyList<UiWriteTarget> streams, string? traceId = null, UiWriteSource source = UiWriteSource.Mount)

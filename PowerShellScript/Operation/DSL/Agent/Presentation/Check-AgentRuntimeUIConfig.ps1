@@ -564,25 +564,30 @@ foreach ($name in $eventTargetClickFn.Keys) {
     }
 }
 
-# ---- 检查8：区域声明闭合（shell 产出 ⊆ 页面 regions 声明；F-7/I-5） ----
-$shellProjectorPath = Join-Path $Root 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Render\HtmlShellProjector.cs'
+# ---- 检查8：容器声明闭合（生成物容器集 ⊆ 页面 regions 声明；壳槽恒在） ----
+$viewProgramsPath = Join-Path $Root 'Projects\Plug\Agent\Config\ui\view-programs.generated.json'
 $shellRegionKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-if (Test-Path -LiteralPath $shellProjectorPath) {
-    $shellSrc = [System.IO.File]::ReadAllText($shellProjectorPath)
-    foreach ($m in [regex]::Matches($shellSrc, 'RegionNamePrefix[ ]*[+][ ]*')) {
-        $rest = $shellSrc.Substring($m.Index + $m.Length)
-        $q = $rest.IndexOf([char]34)
-        if ($q -lt 0) { continue }
-        $end = $rest.IndexOf([char]34, $q + 1)
-        if ($end -le $q) { continue }
-        $key = $rest.Substring($q + 1, $end - $q - 1).TrimEnd([char]92)
-        if ($key -match '^[a-z0-9-]+$') { [void]$shellRegionKeys.Add('region-' + $key) }
-    }
-    if ($shellRegionKeys.Count -lt 8) {
-        Add-Error "检查8 判据不可判：从 HtmlShellProjector 仅解析到 $($shellRegionKeys.Count) 个区域键（应 >= 8）"
+if (Test-Path -LiteralPath $viewProgramsPath) {
+    $viewPrograms = $null
+    try { $viewPrograms = Get-Content -LiteralPath $viewProgramsPath -Raw | ConvertFrom-Json }
+    catch { Add-Error '检查8 判据不可判：view-programs.generated.json 解析失败' }
+    if ($viewPrograms) {
+        $shellSlots = @('region-seg', 'region-head', 'region-subhead')
+        foreach ($view in @($viewPrograms.views)) {
+            $viewKey = [string]$view.viewKey
+            $keys = @($view.containers | ForEach-Object { [string]$_.key })
+            if ($keys.Count -eq 0) { Add-Error "检查8 视图 '$viewKey' 无容器声明"; continue }
+            foreach ($slot in $shellSlots) {
+                if ($keys -notcontains $slot) { Add-Error "检查8 视图 '$viewKey' 缺壳槽 $slot" }
+            }
+            foreach ($k in $keys) { [void]$shellRegionKeys.Add($k) }
+        }
+        if ($shellRegionKeys.Count -lt 8) {
+            Add-Error "检查8 判据不可判：生成物容器集仅 $($shellRegionKeys.Count) 个（应 >= 8）"
+        }
     }
 }
-else { Add-Warning "检查8 判据不可判：缺件 $shellProjectorPath" }
+else { Add-Error "检查8 判据不可判：缺件 $viewProgramsPath" }
 
 function Collect-DeclaredRegions($node, $out) {
     if ($null -eq $node) { return }

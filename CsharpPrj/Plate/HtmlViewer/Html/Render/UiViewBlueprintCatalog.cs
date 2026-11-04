@@ -20,12 +20,11 @@ public sealed class UiViewBlueprintCatalog
     private readonly Dictionary<string, UiViewBlueprint> _byKey;
 
     private UiViewBlueprintCatalog(
-        string rootName, string fingerprint, IReadOnlyDictionary<string, UiViewBlueprint> views, string? diagnostic)
+        string rootName, string fingerprint, IReadOnlyDictionary<string, UiViewBlueprint> views)
     {
         RootName = rootName;
         Fingerprint = fingerprint;
         _byKey = new Dictionary<string, UiViewBlueprint>(views, StringComparer.OrdinalIgnoreCase);
-        Diagnostic = diagnostic;
     }
 
     /// <summary>页面视图宿主名（根子集投影的写目标）。</summary>
@@ -34,19 +33,21 @@ public sealed class UiViewBlueprintCatalog
     /// <summary>产物指纹（并入稳定指纹：改视图程序即刷新）。</summary>
     public string Fingerprint { get; }
 
-    /// <summary>装配诊断（null = 正常）。</summary>
-    public string? Diagnostic { get; }
-
-    /// <summary>全部视图键（声明序）。</summary>
-    public IReadOnlyList<string> ViewKeys => _byKey.Keys.ToArray();
-
     /// <summary>视图数。</summary>
     public int Count => _byKey.Count;
 
-    /// <summary>空目录（产物缺失/非法；<see cref="Require"/> 必抛，禁静默兜底）。</summary>
-    public static UiViewBlueprintCatalog Empty(string diagnostic)
-        => new(UiViewSkeleton.DefaultRootName, string.Empty,
-            new Dictionary<string, UiViewBlueprint>(StringComparer.OrdinalIgnoreCase), diagnostic);
+    /// <summary>
+    /// 就绪断言（fail-fast）：产物缺失/非法/空视图集 ⇒ 抛。
+    /// <para>禁止 fail-open（空目录 ⇒ 不建 ViewHost ⇒ 切视图残留且无显式失败）；
+    /// 装配期调用一次，让「产物坏」在启动面可见。</para>
+    /// </summary>
+    public void EnsureReady(string sourceName = "view-programs")
+    {
+        if (_byKey.Count == 0)
+            throw new InvalidOperationException($"{sourceName}: 视图程序目录为空（产物缺失或非法，禁静默兜底）");
+        if (string.IsNullOrWhiteSpace(RootName))
+            throw new InvalidOperationException($"{sourceName}: 根宿主名缺失");
+    }
 
     /// <summary>解析产物 JSON（结构非法 ⇒ 抛：判据不可判时不得放行）。</summary>
     public static UiViewBlueprintCatalog FromJson(string json, string sourceName = "view-programs")
@@ -105,10 +106,13 @@ public sealed class UiViewBlueprintCatalog
             }
         }
 
+        if (views.Count == 0)
+            throw new InvalidOperationException($"{sourceName}: 视图集为空（view-programs 未产出任何视图）");
+
         var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json))).ToLowerInvariant();
-        var diagnostic = views.Count == 0 ? "view-programs.empty" : null;
-        var catalog = new UiViewBlueprintCatalog(rootName!.Trim(), fingerprint, views, diagnostic);
+        var catalog = new UiViewBlueprintCatalog(rootName!.Trim(), fingerprint, views);
         catalog.Validate(sourceName);
+        catalog.EnsureReady(sourceName);
         return catalog;
     }
 
@@ -132,8 +136,10 @@ public sealed class UiViewBlueprintCatalog
     }
 
     /// <summary>
-    /// 结构校验：容器键在视图内唯一、所有者与视图一致、至多一个流容器、迁移键 ⊆ 容器键。
-    /// 违反 ⇒ 抛（判据载体 = 声明结构事实，非执行者叙述）。
+    /// 结构校验（运行期镜像）：容器键在视图内唯一、所有者与视图一致、至多一个流容器、迁移键 ⊆ 容器键。
+    /// <para>判据单源 = <c>Frame\PowerShellScript\Share\Ui\Generate-ViewPrograms.ps1</c>（G1–G4）；
+    /// 本方法是同一判据的运行期镜像（产物被门禁逐键比对 ⇒ 抵达此处的产物必已通过生成器）。
+    /// 违反 ⇒ 抛（判据载体 = 声明结构事实，非执行者叙述）。</para>
     /// </summary>
     public void Validate(string sourceName = "view-programs")
     {

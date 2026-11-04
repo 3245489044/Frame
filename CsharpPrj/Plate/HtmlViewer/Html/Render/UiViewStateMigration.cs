@@ -10,12 +10,11 @@ namespace UiBackend.Html;
 /// <summary>状态迁移结果：迁移后的交互态 + 被丢弃项（结构事实，供诊断/门禁复算）。</summary>
 public sealed record UiViewStateMigrationResult(
     UiInteractionSnapshot? Migrated,
-    IReadOnlyList<string> Carried,
     IReadOnlyList<string> Dropped)
 {
     /// <summary>无交互态/无迁移声明。</summary>
     public static UiViewStateMigrationResult None { get; } =
-        new(null, Array.Empty<string>(), Array.Empty<string>());
+        new(null, Array.Empty<string>());
 }
 
 /// <summary>
@@ -43,7 +42,6 @@ public static class UiViewStateMigrationPolicy
             .GroupBy(static m => m.Kind, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(static g => g.Key, static g => g.Select(m => m.Key).ToHashSet(StringComparer.Ordinal), StringComparer.OrdinalIgnoreCase);
 
-        var carried = new List<string>();
         var dropped = new List<string>();
 
         IReadOnlyDictionary<string, string?>? inputs = null;
@@ -56,7 +54,6 @@ public static class UiViewStateMigrationPolicy
                 if (allowed is not null && allowed.Contains(pair.Key))
                 {
                     kept[pair.Key] = pair.Value;
-                    carried.Add(KindInput + ":" + pair.Key);
                 }
                 else
                 {
@@ -72,13 +69,12 @@ public static class UiViewStateMigrationPolicy
         {
             var kept = new List<UiScrollState>(sourceScroll.Count);
             var allowed = declared.TryGetValue(KindScroll, out var scrollKeys) ? scrollKeys : null;
-            // 滚动键 = 容器键或 data-key（两者皆按声明集合判定）；未声明 ⇒ 丢弃（切视图后锚点不存在属结构性丢弃）。
+            // 滚动键 = 容器键（精确匹配）；未声明 ⇒ 丢弃（切视图后锚点不存在属结构性丢弃）。
             foreach (var state in sourceScroll)
             {
-                if (allowed is not null && (allowed.Contains(state.Key) || allowed.Any(k => state.Key.Contains(k, StringComparison.Ordinal))))
+                if (allowed is not null && allowed.Contains(state.Key))
                 {
                     kept.Add(state);
-                    carried.Add(KindScroll + ":" + state.Key);
                 }
                 else
                 {
@@ -93,10 +89,10 @@ public static class UiViewStateMigrationPolicy
         if (!string.IsNullOrWhiteSpace(interaction.Focus))
         {
             var allowed = declared.TryGetValue(KindFocus, out var focusKeys) ? focusKeys : null;
-            if (allowed is null || allowed.Count == 0 || allowed.Any(k => interaction.Focus!.Contains(k, StringComparison.Ordinal)))
+            // 焦点判据 = 元素键精确等值（禁子串：data-key/id 形态与容器键不同域，子串判定恒不命中）。
+            if (allowed is null || allowed.Count == 0 || allowed.Contains(interaction.Focus!))
             {
                 focus = interaction.Focus;
-                carried.Add(KindFocus + ":" + interaction.Focus);
             }
             else
             {
@@ -105,6 +101,6 @@ public static class UiViewStateMigrationPolicy
         }
 
         var migrated = new UiInteractionSnapshot(focus, scroll, inputs);
-        return new UiViewStateMigrationResult(migrated, carried, dropped);
+        return new UiViewStateMigrationResult(migrated, dropped);
     }
 }

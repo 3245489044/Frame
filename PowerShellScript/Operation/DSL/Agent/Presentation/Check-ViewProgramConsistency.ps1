@@ -26,6 +26,7 @@ $declaration = Join-Path $repo 'Projects\Plug\Agent\Config\ui\ui-regions.json'
 $generated = Join-Path $repo 'Projects\Plug\Agent\Config\ui\view-programs.generated.json'
 $generator = Join-Path $repo 'Frame\PowerShellScript\Share\Ui\Generate-ViewPrograms.ps1'
 $catalogPath = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Declaration\UiRegionCatalog.cs'
+$hostLayoutPath = Join-Path $repo 'Projects\Information\DrivenConfig\JsonConfig\AgentRuntimeUI.json'
 
 function Get-Canonical([object]$value) {
     if ($null -eq $value) { return 'null' }
@@ -57,7 +58,24 @@ $rules = @(
     [pscustomobject]@{ Id = 'C3'; Title = '读取面闭合（嵌入产物单源）'
         Ok = {
             $text = Get-Content -LiteralPath $catalogPath -Raw
-            return ($text -match 'Agent\.Ui\.view-programs\.generated\.json') -and ($text -match 'UiViewBlueprintCatalog')
+            return ($text -match 'Agent\.Ui\.view-programs\.generated\.json') -and
+                   ($text -match 'UiViewBlueprintCatalog\.FromJson') -and
+                   ($text -match 'Blueprints')
+        } }
+    [pscustomobject]@{ Id = 'C5'; Title = '宿主布局 ⊇ 生成物容器集（第三源不漂移）'
+        Ok = {
+            if (-not (Test-Path -LiteralPath $hostLayoutPath)) { return $false }
+            $hostLayout = Get-Content -LiteralPath $hostLayoutPath -Raw
+            $declared = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            foreach ($m in [regex]::Matches($hostLayout, '"key"\s*:\s*"(region-[a-z0-9-]+)"')) { [void]$declared.Add($m.Groups[1].Value) }
+            if ($declared.Count -eq 0) { return $false }
+            $program = Get-Content -LiteralPath $generated -Raw | ConvertFrom-Json
+            foreach ($view in @($program.views)) {
+                foreach ($container in @($view.containers)) {
+                    if (-not $declared.Contains([string]$container.key)) { return $false }
+                }
+            }
+            return $true
         } }
 )
 

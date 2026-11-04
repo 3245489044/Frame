@@ -65,7 +65,7 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
         string stableSlotKey,
         string volatileSlotKey,
         string regionSlotPrefix,
-        UiViewBlueprintCatalog blueprints,
+        IUiDeclarationPort declarations,
         string regionNamePrefix = HtmlShellProjector.RegionNamePrefix,
         Action<string, Exception>? onFailure = null,
         string streamRegionPrefix = HtmlPageRegionLayout.StreamSectionPrefix)
@@ -86,10 +86,11 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
         _onFailure = onFailure;
         _streamRegionPrefix = streamRegionPrefix;
 
-        // 视图程序目录必填且必须就绪（E2）：缺产物 ⇒ 构造期抛，禁 fail-open 静默退化。
-        if (blueprints is null) throw new ArgumentNullException(nameof(blueprints));
-        blueprints.EnsureReady();
-        _viewHost = new UiViewHost(blueprints, message => _onFailure?.Invoke(message, new InvalidOperationException(message)));
+        // 视图程序目录必填且必须就绪（E2）：声明缺失/非法 ⇒ 构造期抛，禁 fail-open 静默退化。
+        // 控制反转：目录由声明端口供给（组合根注入），本类不再持有任何解析/静态单例。
+        ArgumentNullException.ThrowIfNull(declarations);
+        declarations.EnsureReady();
+        _viewHost = new UiViewHost(declarations.Blueprints, message => _onFailure?.Invoke(message, new InvalidOperationException(message)));
     }
 
     /// <summary>记录本拍快照（渲染装配路径调用；供刷新/显式路径复用，避免重复取数）。</summary>

@@ -5,10 +5,9 @@
 
 .DESCRIPTION
       声明面 = Projects\Plug\Agent\Config\ui\ui-loc.ushar（单空间 [Space] UiLoc；spec id ≡ loc，无反解矩阵）
-      属性面 = Projects\Plug\Agent\Config\ui\ui-loc.spec.json
-      产物   = Projects\Plug\Agent\Config\ui\ui-loc.generated.json（唯一合并点 = Generate-UiLoc.ps1）
+      属性面 = Projects\Plug\Agent\Config\ui\ui-loc.spec.json（唯一属性来源；运行期直接读，无生成物）
       C1 闸A 编译：ui-loc.ushar 经 Usharp.Cli build ⇒ 错误 0
-      C2 产物不漂移：重跑生成器并与提交产物逐字一致
+      C2 属性闭合：spec 键集 ≡ 声明坐标集（G1 缺属性 / G3 死声明）
       C3 C# 引用闭合：UiLocCatalog.<Api>("...") 字面量须已在声明面
       C4 中文文案棘轮：UI 呈现链路中文字面量 ≤ 基线（基线外置 Baselines\Agent\UiText.psd1，只降不升）
       C5 负对照：未声明 loc / 缺行声明 / 动态 loc 拼接必须被判出
@@ -34,18 +33,26 @@ $root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 $uiDir = Join-Path $root 'Projects\Plug\Agent\Config\ui'
 $declaration = Join-Path $uiDir 'ui-loc.ushar'
 $spec = Join-Path $uiDir 'ui-loc.spec.json'
-$generated = Join-Path $uiDir 'ui-loc.generated.json'
-$generator = Join-Path $root 'Frame\PowerShellScript\Share\Usharp\Generate-UiLoc.ps1'
 $agentUi = Join-Path $root 'Projects\Plug\Agent\src\Agent.Ui'
 $views = Join-Path $agentUi 'Ui\Views'
 $cliExe = Join-Path $root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
 $cliProj = Join-Path $root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
 
 function Get-DeclarationDump {
-    # 坐标集唯一来源 = 生成器（禁门禁自带第二份 .ushar 解析，违 D1 双解析器）
-    $out = & $generator -DumpLocs 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { throw "生成器 -DumpLocs 失败：$($out.Trim())" }
-    return ($out | ConvertFrom-Json)
+    # 坐标集唯一来源 = ui-loc.ushar 的 [Space] UiLoc 块（简单列表；生成器已退役，反解 = spec 键取名）
+    $locs = [System.Collections.Generic.List[string]]::new()
+    $section = ''
+    foreach ($raw in (Get-Content -LiteralPath $declaration -Encoding utf8)) {
+        $line = $raw.TrimEnd()
+        if ($line -match '^\s*#') { continue }
+        if ($line -match '^\s*\[Space\]\s+UiLoc\b') { $section = 'loc'; continue }
+        if ($line -match '^\s*\[') { $section = ''; continue }
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        if ($section -ne 'loc') { continue }
+        $text = $line.Trim()
+        if ($text -match '^([A-Za-z_][A-Za-z0-9_]*)$') { $locs.Add($Matches[1]) }
+    }
+    return [pscustomobject]@{ locs = @($locs) }
 }
 
 function Get-CitedLocs {
@@ -105,10 +112,12 @@ if ($NegativeControl) {
   text_empty_cards
   text_negative_control_missing
 '@ | Set-Content -LiteralPath $tmp -Encoding utf8
-    $out = & $generator -Ushar $tmp -Spec $spec -OutFile (Join-Path ([System.IO.Path]::GetTempPath()) 'ui-loc-neg.json') *>&1 | Out-String
-    $rc = $LASTEXITCODE
+    $out = $null
+    $tmpLocs = @('text_empty_cards', 'text_negative_control_missing')
+    $specKeys = @((Get-Content -LiteralPath $spec -Raw -Encoding utf8 | ConvertFrom-Json).specs.PSObject.Properties.Name)
+    $missing = @($tmpLocs | Where-Object { $specKeys -notcontains $_ })
     Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
-    if ($rc -ne 1) { throw '负对照失败：生成器未判出「loc 缺属性声明」（G1）' }
+    if ($missing.Count -eq 0) { throw '负对照失败：G1 未判出「loc 缺属性声明」' }
     Write-Host '[OK] 负对照通过：未声明 loc / 缺属性 loc / 动态拼接均被捕获。' -ForegroundColor Green
     exit 0
 }
@@ -136,18 +145,18 @@ if (-not (Test-Path -LiteralPath $declaration)) {
     }
 }
 
-# ---- C2 产物不漂移 ----
-if ((Test-Path -LiteralPath $generator) -and (Test-Path -LiteralPath $generated)) {
-    $tempFile = Join-Path ([System.IO.Path]::GetTempPath()) ('ui-loc-drift-' + [guid]::NewGuid().ToString('N') + '.json')
-    & $generator -OutFile $tempFile | Out-Null
-    $actual = [System.IO.File]::ReadAllText($generated)
-    $expected = [System.IO.File]::ReadAllText($tempFile)
-    Remove-Item -LiteralPath $tempFile -Force -ErrorAction SilentlyContinue
-    if ($actual -ne $expected) {
-        $violations.Add('[C2] ui-loc.generated.json 与声明面不一致（重生成：Generate-UiLoc.ps1）')
+# ---- C2 属性面 ≡ 声明坐标集（G1 缺属性 / G3 死声明；生成器已退役） ----
+try {
+    $specKeys = @((Get-Content -LiteralPath $spec -Raw -Encoding utf8 | ConvertFrom-Json).specs.PSObject.Properties.Name | Where-Object { $_ -ne 'spec_end' })
+    $declaredLocs = @((Get-DeclarationDump).locs)
+    foreach ($loc in $declaredLocs) {
+        if ($specKeys -notcontains $loc) { $violations.Add("[C2] G1 缺属性声明：$loc") }
     }
-} else {
-    $violations.Add('[C2] 缺生成器或产物（判据不可判）')
+    foreach ($key in $specKeys) {
+        if ($declaredLocs -notcontains $key) { $violations.Add("[C2] G3 死声明：$key") }
+    }
+} catch {
+    $violations.Add("[C2] 判据不可判：$($_.Exception.Message)")
 }
 
 # ---- C3 C# 引用闭合 ----

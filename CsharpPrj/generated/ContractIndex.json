@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-03T13:12:52.5400164Z",
+  "builtAt": "2026-11-04T17:31:11.4054412Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -29,13 +29,13 @@
       "kind": "KeyFamily",
       "pattern": "checkpoint.",
       "note": "checkpoint 键族前缀",
-      "total": 29,
+      "total": 34,
       "truncated": false,
       "byRole": {
         "Gate": 1,
         "Test": 3,
         "Declaration": 0,
-        "Code": 18,
+        "Code": 23,
         "Doc": 6,
         "Other": 1
       },
@@ -155,16 +155,51 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/UniversalReference/StorageFramework/Core/InMemoryCheckpointStore.cs",
-          "line": 52,
+          "line": 55,
           "role": "Code",
-          "text": "checkpoint.CheckpointId = id;"
+          "text": "ThreadId = checkpoint.ThreadId,"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/UniversalReference/StorageFramework/Core/InMemoryCheckpointStore.cs",
-          "line": 53,
+          "line": 56,
           "role": "Code",
-          "text": "_store[PersistenceHelper.CheckpointKey(checkpoint.ThreadId, checkpoint.CheckpointNs, id)] = new Entry(checkpoint, Interlocked.Increment(ref _seq));"
+          "text": "CheckpointNs = checkpoint.CheckpointNs,"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Share/Frameworks/UniversalReference/StorageFramework/Core/InMemoryCheckpointStore.cs",
+          "line": 58,
+          "role": "Code",
+          "text": "ParentCheckpointId = checkpoint.ParentCheckpointId,"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Share/Frameworks/UniversalReference/StorageFramework/Core/InMemoryCheckpointStore.cs",
+          "line": 59,
+          "role": "Code",
+          "text": "ChannelJson = checkpoint.ChannelJson,"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Share/Frameworks/UniversalReference/StorageFramework/Core/InMemoryCheckpointStore.cs",
+          "line": 60,
+          "role": "Code",
+          "text": "VersionsJson = checkpoint.VersionsJson,"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Share/Frameworks/UniversalReference/StorageFramework/Core/InMemoryCheckpointStore.cs",
+          "line": 61,
+          "role": "Code",
+          "text": "Step = checkpoint.Step,"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Share/Frameworks/UniversalReference/StorageFramework/Core/InMemoryCheckpointStore.cs",
+          "line": 62,
+          "role": "Code",
+          "text": "MetadataJson = checkpoint.MetadataJson"
         },
         {
           "repo": "Frame",
@@ -278,7 +313,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/Validation/Validators/StyleValidator.cs",
-          "line": 144,
+          "line": 145,
           "role": "Code",
           "text": "$\"MergedStyleComponent.{fieldName} = \\\"{color}\\\" 不是有效的颜色格式（应为 #RRGGBB、#RGB 或已知颜色名）\","
         },
@@ -1473,10 +1508,10 @@
       "truncated": true,
       "byRole": {
         "Gate": 5,
-        "Test": 43,
+        "Test": 40,
         "Declaration": 1,
         "Code": 18,
-        "Doc": 258,
+        "Doc": 261,
         "Other": 75
       },
       "hits": [
@@ -1574,7 +1609,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/Nodes/Execution/StepExecution/NodeStepExecutionService.cs",
-          "line": 247,
+          "line": 250,
           "role": "Code",
           "text": "/// 追加「附加输入源」到整包（P4-2 机制②）：把非 ur_nodes 事实（如过程域 <c>proc.*</c>）并入 <c>nodes.*</c>。"
         },
@@ -3470,10 +3505,31 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.3/2026-11-03-节点任务历史关系-工作流化与数据流化-通用框架重构设计与施工单.md",
+          "line": 243,
+          "role": "Doc",
+          "text": "| **过程节点** | `proc.{task}.r1.tool.1` / `obs.{task}` | task | ❌ 单任务 | 某次执行的观测/过程帧，共享即错挂 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/11/11.3/2026-11-03-Agent.Contract快速重构与数据流图构建-分析与施工单.md",
           "line": 137,
           "role": "Doc",
           "text": "- `StartsWith(\"…\")` 13 处 / 11 文件（多为 `axis.` / `proc.` / `resource:` 前缀判定）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.4/2026-11-04-AgentCore-重复冗余错误逻辑分析.md",
+          "line": 13,
+          "role": "Doc",
+          "text": "4. 另有一处**跨工程契约缺陷**（归属 `Agent.Contract`，Agent.Core 无补偿）：`ProcessKeys.UnifiedIdentityKey` 现在直接转发到 `PositionKey`，而后者按 `domain.process/Display` 渲染出带 `proc.` 前缀的键；其自身注释、调用方 `AgentHistoryKeyGrammar` 的“统一身份键"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.4/2026-11-04-AgentCore-重复冗余错误逻辑分析.md",
+          "line": 386,
+          "role": "Doc",
+          "text": "- 建议：在 Agent.Contract 恢复“身份键 = 位置键去族前缀”的语义（例如基于 `SingleKeyFamily.IdentityKey` / identity 模板渲染），并保留 `PositionKey` 的 `proc.` 形态；Agent.Core 不要在本侧“补前缀/去前缀”，否则形成第二套键文法。"
         },
         {
           "repo": "Main",
@@ -4258,27 +4314,6 @@
           "line": 113,
           "role": "Test",
           "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.noroundstep\", out var singleKey, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 116,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task-a.r1.\", out _, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 118,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.step\", out _, out _, out _, out _),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 120,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.rX.tool-call.1\", out _, out _, out _, out _), \"轮次非数字（不猜）\");"
         }
       ]
     },
@@ -4420,56 +4455,56 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/ContainerReferenceGrounding.cs",
-          "line": 70,
+          "line": 71,
           "role": "Code",
           "text": "if (!_relations.UsesGather)"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/ContainerReferenceGrounding.cs",
-          "line": 75,
+          "line": 76,
           "role": "Code",
           "text": "var result = await _relations.AttachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/ContainerReferenceGrounding.cs",
-          "line": 82,
+          "line": 83,
           "role": "Code",
           "text": "var result = await _relations.DetachTaskAsync(historyId, taskKey, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/ContainerReferenceGrounding.cs",
-          "line": 91,
+          "line": 92,
           "role": "Code",
           "text": "var result = await _relations.DeriveHistoryTasksAsync(historyId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/SessionReferenceGrounding.cs",
-          "line": 49,
+          "line": 50,
           "role": "Code",
           "text": "var result = await _relations.AttachNodeAsync(sessionName, nodeKey, workflowId, ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/TaskReferenceGrounding.cs",
-          "line": 86,
+          "line": 87,
           "role": "Code",
           "text": "if (!_relations.UsesGather)"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/TaskReferenceGrounding.cs",
-          "line": 126,
+          "line": 127,
           "role": "Code",
           "text": "if (!_relations.UsesGather)"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/TaskReferenceGrounding.cs",
-          "line": 240,
+          "line": 218,
           "role": "Code",
           "text": "var result = await _relations.EnumerateSubTasksAsync(taskKey, ct).ConfigureAwait(false);"
         },
@@ -4497,7 +4532,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Applier/WinFormApplier.cs",
-          "line": 278,
+          "line": 275,
           "role": "Code",
           "text": "result.RelationsProcessed = relations.Count;"
         },
@@ -4665,7 +4700,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/UniversalReference/StorageFramework/Core/PersistenceHelper.cs",
-          "line": 141,
+          "line": 133,
           "role": "Code",
           "text": "/// <summary>⑥ 关系声明集合（LiteDB 图库集合 ur_relations：关系声明真源，USharp [Record]；_id = SQL NodeKey <c>relations.{workflowId}.{relationId}</c>）。</summary>"
         },
@@ -4714,14 +4749,14 @@
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Node/Check-RelationPlan.ps1",
-          "line": 97,
+          "line": 79,
           "role": "Gate",
           "text": "if ($relations.Count -eq 0) { $problems.Add('E1 relation-ops.ushar 无 [Relation] 声明'); return $problems }"
         },
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/Node/Check-RelationPlan.ps1",
-          "line": 147,
+          "line": 131,
           "role": "Gate",
           "text": "$details.Add(\"E1 [Relation]=$($relations.Count) / [Edge]=$($edgeNames.Count) / contains=$($containsEdges.Count)\")"
         },
@@ -5309,7 +5344,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/Declaration/AgentGraphComposition.cs",
-          "line": 167,
+          "line": 238,
           "role": "Code",
           "text": "skipped = relations.SkippedRelations.ToArray(),"
         },
@@ -5543,8 +5578,8 @@
         "Gate": 8,
         "Test": 0,
         "Declaration": 11,
-        "Code": 168,
-        "Doc": 210,
+        "Code": 156,
+        "Doc": 222,
         "Other": 3
       },
       "hits": [
@@ -6265,7 +6300,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/DataStoreDriven/Domains/Hierarchy/SessionReferenceGrounding.cs",
-          "line": 32,
+          "line": 33,
           "role": "Code",
           "text": "/// <summary>会话根端点：幂等建 session.{name} 端点镜像。</summary>"
         },
@@ -6338,13 +6373,6 @@
           "line": 214,
           "role": "Code",
           "text": "await _sessions.DeleteAsync(session.Key, ct).ConfigureAwait(false);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/LoopFoldMethod/Reference/Model/ReferenceTypes.cs",
-          "line": 22,
-          "role": "Code",
-          "text": "/// <summary>会话归属边：session.{name} → 会话消息/产出节点（会话图子图挂载）。</summary>"
         },
         {
           "repo": "Frame",
@@ -6446,6 +6474,41 @@
         },
         {
           "repo": "Frame",
+          "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStepSkeleton.cs",
+          "line": 60,
+          "role": "Code",
+          "text": "session.MarkNodeSkipped(nodeKey, GetSkipReason(context));"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStepSkeleton.cs",
+          "line": 135,
+          "role": "Code",
+          "text": "session.GetOrCreateNodeState(nodeKey).Start();"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStepSkeleton.cs",
+          "line": 136,
+          "role": "Code",
+          "text": "session.MarkNodeCompleted(nodeKey);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStepSkeleton.cs",
+          "line": 141,
+          "role": "Code",
+          "text": "session.GetOrCreateNodeState(nodeKey).Start();"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Execution/NodeExecutionStepSkeleton.cs",
+          "line": 142,
+          "role": "Code",
+          "text": "session.MarkNodeFailed(nodeKey, error);"
+        },
+        {
+          "repo": "Frame",
           "file": "CsharpPrj/Operation/WorkFlowMethod/NodeProcess/Graph/GraphChainUpdateStage.cs",
           "line": 86,
           "role": "Code",
@@ -6531,7 +6594,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/WorkFlowMethod/Orchestration/State/Stages/ExecutionStage.cs",
-          "line": 51,
+          "line": 57,
           "role": "Code",
           "text": "var executionId = session.SessionId;"
         },
@@ -6541,118 +6604,6 @@
           "line": 57,
           "role": "Code",
           "text": "var executionId = session.SessionId;"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 56,
-          "role": "Code",
-          "text": "session.MarkRunning();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 58,
-          "role": "Code",
-          "text": "var cts = _ctsManager.Register(session.SessionId, cancellationToken);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 62,
-          "role": "Code",
-          "text": "new { workflowId = workflow.Id, workflowName = workflow.Name, sessionId = session.SessionId });"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 73,
-          "role": "Code",
-          "text": "session.MarkCompleted();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 79,
-          "role": "Code",
-          "text": "session.MarkFailed(result.ErrorMessage, result.Exception);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 88,
-          "role": "Code",
-          "text": "session.MarkCancelled();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 94,
-          "role": "Code",
-          "text": "session.MarkFailed(ex.Message, ex);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 101,
-          "role": "Code",
-          "text": "_ctsManager.TryRemove(session.SessionId);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 110,
-          "role": "Code",
-          "text": "if (session.Status == ExecutionFrameworkStatus.Running || session.Status == ExecutionFrameworkStatus.Paused)"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 112,
-          "role": "Code",
-          "text": "_ctsManager.Cancel(session.SessionId);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 123,
-          "role": "Code",
-          "text": "if (session.Status == ExecutionFrameworkStatus.Running)"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 125,
-          "role": "Code",
-          "text": "session.MarkPaused();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 126,
-          "role": "Code",
-          "text": "WorkFlowMethodLog.Log(\"WorkflowEngine_SessionPaused\", new { workflowId, sessionId = session.SessionId });"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 137,
-          "role": "Code",
-          "text": "if (session.Status == ExecutionFrameworkStatus.Paused)"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 139,
-          "role": "Code",
-          "text": "session.MarkResumed();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Engine/WorkflowEngine.cs",
-          "line": 140,
-          "role": "Code",
-          "text": "WorkFlowMethodLog.Log(\"WorkflowEngine_SessionResumed\", new { workflowId, sessionId = session.SessionId });"
         },
         {
           "repo": "Frame",
@@ -6734,7 +6685,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/WorkFlowMethod/WorkflowExecution/Execution/Engine/ExecutionManager.cs",
-          "line": 29,
+          "line": 28,
           "role": "Code",
           "text": "_sessions[session.SessionId] = session;"
         },
@@ -7685,6 +7636,62 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.4/2026-11-04-WorkFlowMethod-重复冗余错误逻辑分析.md",
+          "line": 237,
+          "role": "Doc",
+          "text": "- 位置：`NodeProcess\\Lifecycle\\NodeMetricsStage.cs:53-56`（写 `session.Data`）与 `:62-65`（同一批指标再写 `input.SetData(\"Metrics_*\")`），`:58-60` 与 `:67-69` 两条 Info 日志内容重叠。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.4/2026-11-04-WorkFlowMethod-重复冗余错误逻辑分析.md",
+          "line": 238,
+          "role": "Doc",
+          "text": "- 影响面：指标有两个读源（`session.Data` / 管线 SharedData），下游取哪个都可能读到旧值；日志重复放大噪声。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.4/2026-11-04-WorkFlowMethod-重复冗余错误逻辑分析.md",
+          "line": 240,
+          "role": "Doc",
+          "text": "- 验证：同一轮执行后比对 `Metrics_CompletedNodes` 与 `session.Data[\"CompletedNodes\"]`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.4/2026-11-04-WorkFlowMethod-重复冗余错误逻辑分析.md",
+          "line": 304,
+          "role": "Doc",
+          "text": "- 验证：单节点执行后断言 `session.CompletedCount == 1`；失败用例断言 `FailedCount == 1`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.4/2026-11-04-WorkFlowMethod-重复冗余错误逻辑分析.md",
+          "line": 398,
+          "role": "Doc",
+          "text": "- 位置：`NodeProcess\\Execution\\NodeParameterHydrator.cs:46-56`（`executionId = context.WorkflowId`）vs `NodeProcess\\Execution\\NodeExecutionStage.cs:171`、`:199-201`（`executionId` 来自 `session.SessionId`）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.4/2026-11-04-WorkFlowMethod-重复冗余错误逻辑分析.md",
+          "line": 401,
+          "role": "Doc",
+          "text": "- 建议：统一使用 `session.SessionId`（或在无会话时直接跳过水化并告警），并把 `WorkflowId` 的别名关系写成断言。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.4/2026-11-04-WorkFlowMethod-重复冗余错误逻辑分析.md",
+          "line": 417,
+          "role": "Doc",
+          "text": "- 验证：恢复场景断言 `input.Snapshot.SnapshotId == session.Snapshot.SnapshotId`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.4/2026-11-04-WorkFlowMethod-重复冗余错误逻辑分析.md",
+          "line": 487,
+          "role": "Doc",
+          "text": "- 位置：`WorkFlowPipeline\\Pipeline\\WorkflowContext.cs:176-189`（`GetSessionId` 用反射读 `session.SessionId`，`:189` 与 `:220`、`:344`、`:388` 每次调用都反射）、`:245-262`（`Items` 每次写日志）"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/6/6.10/WdUI_Json逻辑迁移到FileDriven方案.md",
           "line": 186,
           "role": "Doc",
@@ -8347,6 +8354,34 @@
           "line": 171,
           "role": "Doc",
           "text": "| **P1** | ERR-2 | 批 **A2-fix** | ✅ **已修复（2026-09-27，路线① 声明驱动）**：`conversation.json` 补 `archive-raw-legacy`（`key=cline.session.{container}.round.{round}`、`state:\"legacy\"`、`writer-archive-legacy`）；`pla"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
+          "line": 184,
+          "role": "Doc",
+          "text": "- **ERR-2 已闭合**（见上表 P1 行）；**ERR-1 补回归**：既有 `ClineArchiveRoundPolicyTests` 的 L-C/L-B 线格式断言已随批更新为统一键形（`cline.session.work.round.7.stage.1` / `session.work.r7.tool.1`）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 34,
+          "role": "Doc",
+          "text": "| `archive-raw` | `cline.session.{container}.round.{round}` | `cline.session.{container}.round.{round}.{kind}.{ordinal}` | ✅（本域**唯一**写目标） | **F1 必改**：不带 `{kind}.{ordinal}` ⇒ 多身份塌成同一位置键 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 35,
+          "role": "Doc",
+          "text": "| `session-view` | `session.{container}.r{round}` | `session.{container}.r{round}.{kind}.{ordinal}` | ❌ | W4 转为内容面写目标（当前写侧仅经 `message` 域） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 49,
+          "role": "Doc",
+          "text": "| `session-message` | `session.{container}.r{round}.msg.{seq}` | `session.{container}.r{round}.{kind}.{ordinal}` | ✅ | 该位置 **W4 退役**（D2）⇒ 本批键变更只为兼容期 |"
         }
       ]
     },
@@ -10455,14 +10490,14 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/HtmlStreamRendererTests.cs",
-          "line": 318,
+          "line": 319,
           "role": "Test",
           "text": "[\"tool-call\"] = new(\"tool-call\", FrameRoleIds.Call, null),"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/HtmlStreamRendererTests.cs",
-          "line": 325,
+          "line": 326,
           "role": "Test",
           "text": "new ConversationRenderItem(ConversationRole.Tool, \"tool-call\", null, \"read_files\", 1),"
         },
@@ -11460,14 +11495,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/WorkflowFunction/GeneratedDeclaredContracts.g.cs",
-          "line": 446,
+          "line": 455,
           "role": "Code",
           "text": "[\"Loc\"] = [\"agent_round\"],"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/WorkflowFunction/GeneratedDeclaredContracts.g.cs",
-          "line": 447,
+          "line": 456,
           "role": "Code",
           "text": "[\"LocPlacement\"] = [\"agent_round\", \"archive_node\", \"archive_raw\", \"archive_raw_legacy\", \"legacy_history\", \"observability_node\", \"process_node\", \"raw_node\", \"resource_node\", \"segment_context\", \"segment"
         }
@@ -11781,13 +11816,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1656.0,
+    "hitCount": 1661.0,
     "byRole": {
       "Gate": 42,
-      "Test": 200,
+      "Test": 197,
       "Declaration": 104,
-      "Code": 352,
-      "Doc": 869,
+      "Code": 345,
+      "Doc": 884,
       "Other": 89
     },
     "truncatedFacts": [
@@ -11797,15 +11832,15 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 484
+        "lines": 477
       },
       {
         "repo": "Projects",
-        "lines": 293
+        "lines": 331
       },
       {
         "repo": "Main",
-        "lines": 1341
+        "lines": 1355
       }
     ]
   }

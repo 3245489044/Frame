@@ -564,30 +564,30 @@ foreach ($name in $eventTargetClickFn.Keys) {
     }
 }
 
-# ---- 检查8：容器声明闭合（生成物容器集 ⊆ 页面 regions 声明；壳槽恒在） ----
-$viewProgramsPath = Join-Path $Root 'Projects\Plug\Agent\Config\ui\view-programs.generated.json'
+# ---- 检查8：容器声明闭合（ui-regions.json 派生容器集 ⊆ 页面 regions 声明；壳槽恒在） ----
+$uiRegionsPath = Join-Path $Root 'Projects\Plug\Agent\Config\ui\ui-regions.json'
 $shellRegionKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-if (Test-Path -LiteralPath $viewProgramsPath) {
-    $viewPrograms = $null
-    try { $viewPrograms = Get-Content -LiteralPath $viewProgramsPath -Raw | ConvertFrom-Json }
-    catch { Add-Error '检查8 判据不可判：view-programs.generated.json 解析失败' }
-    if ($viewPrograms) {
-        $shellSlots = @('region-seg', 'region-head', 'region-subhead')
-        foreach ($view in @($viewPrograms.views)) {
-            $viewKey = [string]$view.viewKey
-            $keys = @($view.containers | ForEach-Object { [string]$_.key })
-            if ($keys.Count -eq 0) { Add-Error "检查8 视图 '$viewKey' 无容器声明"; continue }
-            foreach ($slot in $shellSlots) {
-                if ($keys -notcontains $slot) { Add-Error "检查8 视图 '$viewKey' 缺壳槽 $slot" }
-            }
-            foreach ($k in $keys) { [void]$shellRegionKeys.Add($k) }
+$shellSlots = @('region-seg', 'region-head', 'region-subhead')
+if (Test-Path -LiteralPath $uiRegionsPath) {
+    $uiRegions = $null
+    try { $uiRegions = Get-Content -LiteralPath $uiRegionsPath -Raw | ConvertFrom-Json }
+    catch { Add-Error '检查8 判据不可判：ui-regions.json 解析失败' }
+    if ($uiRegions) {
+        $declaredKeys = @(@($uiRegions.regions) | ForEach-Object { [string]$_.key } | Where-Object { $_ })
+        foreach ($slot in $shellSlots) {
+            if ($declaredKeys -notcontains $slot) { [void]$shellRegionKeys.Add($slot) }
+            [void]$shellRegionKeys.Add($slot)
+        }
+        foreach ($k in $declaredKeys) { [void]$shellRegionKeys.Add($k) }
+        foreach ($slot in $shellSlots) {
+            if ($shellRegionKeys -notcontains $slot) { Add-Error "检查8 缺壳槽 $slot" }
         }
         if ($shellRegionKeys.Count -lt 8) {
-            Add-Error "检查8 判据不可判：生成物容器集仅 $($shellRegionKeys.Count) 个（应 >= 8）"
+            Add-Error "检查8 判据不可判：派生容器集仅 $($shellRegionKeys.Count) 个（应 >= 8）"
         }
     }
 }
-else { Add-Error "检查8 判据不可判：缺件 $viewProgramsPath" }
+else { Add-Error "检查8 判据不可判：缺件 $uiRegionsPath" }
 
 function Collect-DeclaredRegions($node, $out) {
     if ($null -eq $node) { return }

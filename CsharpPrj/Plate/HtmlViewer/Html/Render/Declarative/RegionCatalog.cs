@@ -14,7 +14,8 @@ namespace UiBackend.Html;
 /// </summary>
 public sealed class RegionCatalog
 {
-    public const string Prefix = "region:";
+    /// <summary>区域写回目标前缀（转发 <see cref="UiViewNames.RegionTargetPrefix"/>）。</summary>
+    public const string Prefix = UiViewNames.RegionTargetPrefix;
 
     private readonly Dictionary<string, HtmlPageRegionDeclaration> _regions;
 

@@ -9,6 +9,6 @@ namespace UiBackend.Html;
 /// </summary>
 public static class HtmlPageRegionLayout
 {
-    /// <summary>流段键前缀（气泡段：<c>bubbles:r{round}</c>）：差分键，不是 DOM 名。</summary>
-    public const string StreamSectionPrefix = "bubbles:";
+    /// <summary>流段键前缀（转发 <see cref="UiViewNames.StreamSectionPrefix"/>：气泡段差分键，非 DOM 名）。</summary>
+    public const string StreamSectionPrefix = UiViewNames.StreamSectionPrefix;
 }

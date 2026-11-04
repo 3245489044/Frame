@@ -15,8 +15,8 @@ namespace UiBackend.Html;
 /// </summary>
 public static class UiViewSkeleton
 {
-    /// <summary>页面视图宿主（<c>data-name</c>）默认名：唯一挂载点，单写者写其子集。</summary>
-    public const string DefaultRootName = "ui-root";
+    /// <summary>页面视图宿主（<c>data-name</c>）默认名（转发 <see cref="UiViewNames.RootName"/>）。</summary>
+    public const string DefaultRootName = UiViewNames.RootName;
 
     /// <summary>视图根节点标记属性（DOM 断言口径：<c>[data-view-root=history]</c>）。</summary>
     public const string ViewRootAttribute = "data-view-root";

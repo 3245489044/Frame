@@ -27,13 +27,12 @@ public enum UiViewContainerSlot
 
 /// <summary>
 /// 容器槽分类器（框架件，单一实现）：「键后缀 → 结构槽」只在此处判定。
-/// <para>消费者：壳渲染（<see cref="HtmlShellProjector.RenderContainerShell"/>）与区域节点装配
-/// （<see cref="HtmlShellProjector.ComposeContents"/>）。新增结构槽/改前缀只改本类。</para>
+/// <para>消费者：壳渲染与区域节点装配（Composition 层）。新增结构槽/改前缀只改本类。</para>
 /// </summary>
 public static class UiViewContainerSlots
 {
-    /// <summary>容器键前缀（与 <see cref="HtmlShellProjector.RegionNamePrefix"/> 同值）。</summary>
-    public const string Prefix = HtmlShellProjector.RegionNamePrefix;
+    /// <summary>容器键前缀（单一来源：<see cref="UiViewNames.RegionNamePrefix"/>）。</summary>
+    public const string Prefix = UiViewNames.RegionNamePrefix;
 
     /// <summary>容器键 → 槽后缀（无前缀 ⇒ 原样返回）。</summary>
     public static string Suffix(string? containerKey)

@@ -17,6 +17,14 @@ public sealed class FixedStepClock
     public const float MaxFrameDeltaSeconds = 0.1f;
 
     /// <summary>
+    /// 把原始帧时长钳到 [0, <see cref="MaxFrameDeltaSeconds"/>]。
+    /// <para>帧级钳制的唯一口径；引擎入口（Standalone / Host）都调这里，不要各写一份 Math.Min。
+    /// 它与 <see cref="Advance"/> 内的逐帧钳制等价，后者只是最后一道防线。</para>
+    /// </summary>
+    public static float ClampFrameDelta(float deltaTime) =>
+        deltaTime <= 0f ? 0f : Math.Min(deltaTime, MaxFrameDeltaSeconds);
+
+    /// <summary>
     /// 步边界容差（单位：步）。只用于判断「累加时间是否已到达整数步」，
     /// 吸收 float32 帧时长在长时间累加后的系统性偏差（例如 144 FPS 的 <c>1/144f</c>
     /// 每帧比真值偏大 ~5e-11 s，432 帧后在 3.0 s 边界差 ~2e-8 s ≈ 1.3e-6 步）。

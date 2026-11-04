@@ -563,7 +563,7 @@
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = 'UI 位置反解（loc 反转）：C1 闸A 编译 0 错 / C2 产物无漂移（Generate-UiLoc 重跑逐字对拍）/ C3 C# 引用 loc 闭合 / C4 Views 中文字面量棘轮只降不升；负对照=未声明 loc 与缺行声明必红'
+        Note   = 'UI 位置反解（loc 反转）：C1 闸A 编译 0 错 / C2 spec 键集 ≡ 声明坐标集（G1/G3，无生成物）/ C3 C# 引用 loc 闭合 / C4 Views 中文字面量棘轮只降不升；负对照=未声明 loc 与缺行声明必红'
     }
 
     FallbackInventoryRate = @{

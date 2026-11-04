@@ -21,7 +21,7 @@ while ($repo -and $repo -ne (Split-Path $repo -Parent)) {
     $repo = Split-Path $repo -Parent
 }
 
-$writerPath = Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Render\UiFragmentWriter.cs'
+$writerPath = Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Render\Composition\UiFragmentWriter.cs'
 $bridgeDir = Join-Path $repo 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge'
 $pipelinePath = Join-Path $bridgeDir 'RegionRenderPipeline.cs'
 $pageRendererPath = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Rendering\ConversationPageRenderer.cs'

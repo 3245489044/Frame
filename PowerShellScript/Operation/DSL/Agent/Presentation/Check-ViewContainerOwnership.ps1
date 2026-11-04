@@ -9,7 +9,8 @@
     C3 容器键唯一：同一视图内容器键不重复
     C4 流容器至多一个（append-only 面单实例）
     C5 框架零领域词：Frame\Plate\HtmlViewer 与 Operation\FrontEndDriven\HtmlViewerBridge 源码不得出现 UiRegionKind
-    C6 负对照：合成「同容器两 owner」必须被判红
+    C6 单源：ui-regions.json 为唯一视图声明面（禁 view-programs.generated.json 回流）
+    C7 负对照：合成「同容器两 owner」必须被判红
     纯扫描（只读、0 写入）。
 #>
 [CmdletBinding()]
@@ -23,17 +24,39 @@ if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时�
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
 $repo = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-$generated = Join-Path $repo 'Projects\Plug\Agent\Config\ui\view-programs.generated.json'
 $declaration = Join-Path $repo 'Projects\Plug\Agent\Config\ui\ui-regions.json'
-$generator = Join-Path $repo 'Frame\PowerShellScript\Share\Ui\Generate-ViewPrograms.ps1'
+$retiredGenerated = Join-Path $repo 'Projects\Plug\Agent\Config\ui\view-programs.generated.json'
 $frameRoots = @(
     (Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer'),
     (Join-Path $repo 'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge')
 )
 
 function Get-Views {
-    $program = Get-Content -LiteralPath $generated -Raw | ConvertFrom-Json
-    return @($program.views)
+    $decl = Get-Content -LiteralPath $declaration -Raw | ConvertFrom-Json
+    $defs = @{}
+    foreach ($r in @($decl.regions)) {
+        if ($null -eq $r) { continue }
+        $defs[[string]$r.kind] = [pscustomobject]@{ Key = [string]$r.key; Stream = ([string]$r.role -eq 'stream') }
+    }
+    $views = [System.Collections.Generic.List[object]]::new()
+    foreach ($v in @($decl.views)) {
+        if ($null -eq $v) { continue }
+        $viewKey = [string]$v.view
+        $containers = [System.Collections.Generic.List[object]]::new()
+        $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($chrome in @('region-seg', 'region-head', 'region-subhead')) {
+            if ($seen.Add($chrome)) { $containers.Add([pscustomobject]@{ key = $chrome; ownerView = $viewKey; role = 'region' }) }
+        }
+        foreach ($kind in @($v.regions)) {
+            $kindText = [string]$kind
+            if (-not $defs.ContainsKey($kindText)) { throw "视图 '$viewKey' 引用未声明区域：$kindText" }
+            $def = $defs[$kindText]
+            if (-not $seen.Add($def.Key)) { continue }
+            $containers.Add([pscustomobject]@{ key = $def.Key; ownerView = $viewKey; role = $(if ($def.Stream) { 'stream' } else { 'region' }) })
+        }
+        $views.Add([pscustomobject]@{ viewKey = $viewKey; containers = $containers.ToArray() })
+    }
+    return $views.ToArray()
 }
 
 function Get-OwnershipViolations([object[]]$views) {
@@ -56,36 +79,23 @@ function Get-OwnershipViolations([object[]]$views) {
     return $violations
 }
 
-function Get-Canonical([object]$value) {
-    if ($null -eq $value) { return 'null' }
-    if ($value -is [string]) { return ($value | ConvertTo-Json -Compress) }
-    if ($value -is [bool] -or $value -is [int] -or $value -is [long] -or $value -is [double]) { return ($value | ConvertTo-Json -Compress) }
-    if ($value -is [System.Array]) { return '[' + (($value | ForEach-Object { Get-Canonical $_ }) -join ',') + ']' }
-    $names = @($value.PSObject.Properties.Name) | Sort-Object
-    return '{' + (($names | ForEach-Object { '"' + $_ + '":' + (Get-Canonical $value.$_) }) -join ',') + '}'
-}
-
 $rules = @(
     [pscustomobject]@{ Id = 'C1-C4'; Title = '所有权/唯一性/流容器'
         Ok = { (Get-OwnershipViolations (Get-Views)).Count -eq 0 } }
     [pscustomobject]@{ Id = 'C5'; Title = '框架源码零领域区域词'
         Ok = {
             $hits = 0
-            foreach ($root in $frameRoots) {
-                if (-not (Test-Path -LiteralPath $root)) { continue }
-                $hits += @(Get-ChildItem -LiteralPath $root -Recurse -File -Filter *.cs |
+            foreach ($rootDir in $frameRoots) {
+                if (-not (Test-Path -LiteralPath $rootDir)) { continue }
+                $hits += @(Get-ChildItem -LiteralPath $rootDir -Recurse -File -Filter *.cs |
                     Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' } |
                     ForEach-Object { ([System.IO.File]::ReadAllText($_.FullName) -split "`n" | Where-Object { $_ -match '\bUiRegionKind\b' }).Count } |
                     Measure-Object -Sum).Sum
             }
             return ($hits -eq 0)
         } }
-    [pscustomobject]@{ Id = 'C6'; Title = '判据单源：产物 ≡ 生成器复算'
-        Ok = {
-            $declared = Get-Canonical (Get-Content -LiteralPath $generated -Raw | ConvertFrom-Json)
-            $rebuilt = Get-Canonical ((& $generator -Regions $declaration -Stdout | Out-String) | ConvertFrom-Json)
-            return ($declared -eq $rebuilt)
-        } }
+    [pscustomobject]@{ Id = 'C6'; Title = '声明单源（禁生成物回流）'
+        Ok = { -not (Test-Path -LiteralPath $retiredGenerated) } }
 )
 
 if ($NegativeControl) {

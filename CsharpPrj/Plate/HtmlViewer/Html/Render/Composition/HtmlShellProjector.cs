@@ -70,8 +70,8 @@ public static class HtmlShellProjector
                 ["history"] = secondaryHtml,
             });
 
-    /// <summary>区域容器属性前缀（服务端注入；与 DomOps.Patch name 对齐，供区域化写回命中）。</summary>
-    public const string RegionNamePrefix = "region-";
+    /// <summary>区域容器属性前缀（转发 <see cref="UiViewNames.RegionNamePrefix"/>：公开别名，桥/宿主仍需引用）。</summary>
+    public const string RegionNamePrefix = UiViewNames.RegionNamePrefix;
 
     /// <summary>视图根包装：根携带 <c>data-view-root</c> + 稳定键（视图键缺失 ⇒ 抛，禁止无根降级）。</summary>
     public static string RenderViewRoot(string shellHtml, string? viewKey)

@@ -57,6 +57,11 @@ namespace UniversalWorkflowFramework.Core.Diagnostics
             Warnings.AddRange(other.Warnings);
             Info.AddRange(other.Info);
             TotalItems += other.TotalItems;
+            // 引用类计数此前漏并：合并后报告会低估引用总数/孤立/未使用/循环数量。
+            TotalReferences += other.TotalReferences;
+            OrphanedReferences += other.OrphanedReferences;
+            UnusedReferences += other.UnusedReferences;
+            CircularReferences += other.CircularReferences;
             if (other.HasIssues) HasIssues = true;
         }
 

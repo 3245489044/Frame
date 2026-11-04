@@ -59,14 +59,6 @@ public static class PersistenceHelper
         catch { return new Dictionary<string, object>(); }
     }
 
-    /// <summary>
-    /// 引用键归一：Id 为空（含空串，<see cref="ResourceIdentifier"/> 默认 Id=""）时回退到资源唯一键
-    /// <see cref="ResourceIdentifier.GetUniqueKey"/>，保证引用键与资源键一致，避免"空串 id"导致的引用写入/查询落空。
-    /// 收敛 Sqlite/LiteDB 资源引用存储重复的 RefKey 实现（SingleImplementation）。
-    /// </summary>
-    public static string ResourceRefKey(ResourceIdentifier r)
-        => string.IsNullOrEmpty(r.Id) ? r.GetUniqueKey() : r.Id;
-
     /// <summary>表前缀归一：空值即未配置（默认由 AgentConfig 统一提供），fail-fast 而非静默回退 <c>ur_</c>。</summary>
     public static string ResolveTablePrefix(string? tablePrefix)
     {

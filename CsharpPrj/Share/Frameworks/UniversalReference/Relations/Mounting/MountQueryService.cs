@@ -58,21 +58,32 @@ public sealed class MountQueryService : IMountQuery
             return result;
         }
 
-        var keys = scopes
+        // 按 Namespace 分组批量读：此前只取第一个非空 ns 就把全部 scope 交给它，跨命名空间的容器会被读空。
+        var groups = scopes
             .Where(s => s is not null && !string.IsNullOrWhiteSpace(s.ContainerKey))
-            .Select(s => s.ContainerKey)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        var ns = scopes.Select(s => s?.Namespace).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+            .GroupBy(s => string.IsNullOrWhiteSpace(s.Namespace) ? null : s.Namespace, StringComparer.Ordinal);
 
-        var map = await reader(keys, ns, ct).ConfigureAwait(false);
-        foreach (var key in keys)
+        foreach (var group in groups)
         {
-            var found = map.TryGetValue(key, out var members) && members is not null
-                ? members
-                : Array.Empty<string>();
-            result[key] = new MountSet(found, found.Count == 0 ? new[] { "no-member" } : Array.Empty<string>(),
-                mountId, Fingerprint(mountId, found, Array.Empty<string>()));
+            var keys = group.Select(s => s.ContainerKey).Distinct(StringComparer.Ordinal).ToList();
+            var map = await reader(keys, group.Key, ct).ConfigureAwait(false);
+
+            foreach (var key in keys)
+            {
+                var found = map.TryGetValue(key, out var members) && members is not null
+                    ? members
+                    : Array.Empty<string>();
+
+                if (result.TryGetValue(key, out var existing))
+                {
+                    // 同一 ContainerKey 跨命名空间出现：并集，不后写覆盖前写。
+                    found = existing.Keys.Concat(found).Distinct(StringComparer.Ordinal).ToArray();
+                }
+
+                result[key] = new MountSet(found,
+                    found.Count == 0 ? new[] { "no-member" } : Array.Empty<string>(),
+                    mountId, Fingerprint(mountId, found, Array.Empty<string>()));
+            }
         }
 
         return result;

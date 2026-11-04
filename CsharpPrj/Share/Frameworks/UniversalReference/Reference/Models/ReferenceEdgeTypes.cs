@@ -60,5 +60,45 @@ namespace UniversalWorkflowFramework.Reference.Models
 
         /// <summary>KeyMapping ↔ 节点边（映射属于某节点 / 映射到节点端口）。</summary>
         public const string KeyMappingToNode = "keymapping_to_node";
+
+        /// <summary>
+        /// 边词汇 → <see cref="ReferenceType"/> 的唯一映射（读写两端共用，避免 Enum.TryParse 失败后静默退化 Other）。
+        /// </summary>
+        public static ReferenceType ToReferenceType(string? edgeType)
+        {
+            if (string.IsNullOrWhiteSpace(edgeType))
+                return ReferenceType.Other;
+
+            return edgeType switch
+            {
+                DependsOn => ReferenceType.Dependency,
+                Owns => ReferenceType.Includes,
+                Exports => ReferenceType.Includes,
+                SessionOwns => ReferenceType.Includes,
+                TaskOwnsTask => ReferenceType.Includes,
+                HistoryOwnsTask => ReferenceType.Includes,
+                HistoryOwnsWindow => ReferenceType.Includes,
+                KeyMappingToNode => ReferenceType.Includes,
+                Inherits => ReferenceType.Extends,
+                Implements => ReferenceType.Extends,
+                Calls => ReferenceType.Uses,
+                NodeToNode => ReferenceType.Uses,
+                CrossDbLink => ReferenceType.Requires,
+                _ => Enum.TryParse<ReferenceType>(edgeType, ignoreCase: true, out var parsed)
+                    ? parsed
+                    : ReferenceType.Other,
+            };
+        }
+
+        /// <summary>反向映射：仅用于需要把抽象枚举还原成规范边名的场景。</summary>
+        public static string ToEdgeType(ReferenceType referenceType) => referenceType switch
+        {
+            ReferenceType.Dependency => DependsOn,
+            ReferenceType.Includes => Owns,
+            ReferenceType.Extends => Inherits,
+            ReferenceType.Uses => Calls,
+            ReferenceType.Requires => CrossDbLink,
+            _ => string.Empty,
+        };
     }
 }

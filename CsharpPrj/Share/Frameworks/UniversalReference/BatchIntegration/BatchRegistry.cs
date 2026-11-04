@@ -19,12 +19,14 @@ namespace UniversalWorkflowFramework.BatchIntegration
             _refManager = refManager ?? throw new ArgumentNullException(nameof(refManager));
         }
 
-        public async Task RegisterBatchAsync(BatchMetadata metadata)
+        /// <summary>注册批次并同步为 UR 资源；重复批次返回 false（不重复写资源、不重启上下文）。</summary>
+        public async Task<bool> RegisterBatchAsync(BatchMetadata metadata)
         {
             if (metadata == null)
                 throw new ArgumentNullException(nameof(metadata));
 
-            BatchManager.Instance.RegisterBatch(metadata.BatchId, metadata);
+            if (!BatchManager.Instance.RegisterBatch(metadata.BatchId, metadata))
+                return false;
 
             var resourceId = new Core.Models.ResourceIdentifier
             {
@@ -34,7 +36,7 @@ namespace UniversalWorkflowFramework.BatchIntegration
             };
 
             await _refManager.AddResourceAsync(resourceId, ConvertToMetadataDict(metadata));
-
+            return true;
         }
 
         public async Task UpdateBatchAsync(BatchMetadata metadata)

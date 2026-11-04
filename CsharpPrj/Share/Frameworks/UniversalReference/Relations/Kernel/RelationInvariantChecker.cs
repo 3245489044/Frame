@@ -32,7 +32,12 @@ public sealed class RelationInvariantChecker
             "acyclic" => await AcyclicAsync(invariant, source, target, ct),
             "target_exists" => await TargetExistsAsync(invariant, target, probe, ct),
             "many_to_many" => await ManyToManyAsync(invariant, source, target, ct),
-            _ => Array.Empty<RelationViolation>(),
+            // 未知 kind 属声明缺口：必须显式不可判定（原实现返回空集＝静默放行）。
+            _ => new[]
+            {
+                new RelationViolation(invariant.Id, RelationViolationKind.Indeterminate,
+                    $"未实现的不变量 kind '{invariant.Kind}'（声明缺口，拒绝写入）"),
+            },
         };
     }
 
@@ -191,7 +196,18 @@ public sealed class RelationInvariantChecker
     private static async Task<IReadOnlyList<RelationViolation>> TargetExistsAsync(
         RelationInvariant invariant, ResourceIdentifier target, IEntityExistenceProbe probe, CancellationToken ct)
     {
-        var exists = await probe.ExistsAsync(target.ResourceType ?? string.Empty, target.Id ?? string.Empty, ct);
+        // 未映射实体类型 ⇒ 不可判定，与「已映射但不存在」必须区分（原实现把两者都报成 MissingEndpoint）。
+        if (!probe.IsMapped(target.ResourceType ?? string.Empty))
+        {
+            return new[]
+            {
+                new RelationViolation(invariant.Id, RelationViolationKind.Indeterminate,
+                    $"目标端点类型 '{target.ResourceType}' 未映射存在性谓词，无法判定是否存在（target_exists）"),
+            };
+        }
+
+        var exists = await probe.ExistsAsync(target.ResourceType ?? string.Empty, target.Id ?? string.Empty, ct)
+            .ConfigureAwait(false);
         return exists
             ? Array.Empty<RelationViolation>()
             : new[]

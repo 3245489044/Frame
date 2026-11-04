@@ -23,9 +23,6 @@ using System.Threading.Tasks;
 using Plate.JsonMethod.Serialization;
 using Plate.JsonMethod.Utilities;
 using UniversalGraphStorage;
-using UniversalModuleFramework.Core;
-using UniversalModuleFramework.Repositories;
-using UniversalModuleFramework.UnitOfWork;
 
 namespace ReferenceManagement
 {
@@ -138,6 +135,9 @@ namespace ReferenceManagement
         {
             if (Equals(newValue, _currentKey)) return;
             if (newValue == null) return;
+            // 目标键已存在时不得静默覆盖（会丢失另一条键值）。
+            if (_dict.Contains(newValue))
+                throw new InvalidOperationException($"字典键改写冲突：目标键 '{newValue}' 已存在");
             var value = _dict[_currentKey];
             _dict.Remove(_currentKey);
             _currentKey = newValue;
@@ -332,7 +332,8 @@ namespace ReferenceManagement
         private readonly object _lock = new();
         private readonly bool _processDictionaryKeys;
         private readonly bool _processSimpleValuesInCollections;
-        private readonly Dictionary<Type, IReadOnlyList<ReferenceDefinition>> _typeDefinitionsCache = new();
+        // 引擎可被多线程共享；普通 Dictionary 并发读写会损坏桶链。
+        private readonly ConcurrentDictionary<Type, IReadOnlyList<ReferenceDefinition>> _typeDefinitionsCache = new();
 
         public FullCollectionTraverser(bool processDictionaryKeys = true, bool processSimpleValuesInCollections = true)
         {
@@ -744,6 +745,13 @@ namespace ReferenceManagement
             if (_cache.TryGetValue(type, out var cached))
                 return cached;
 
+            var built = BuildDefinitions(type);
+            // 无定义的类型不写入缓存（ConcurrentDictionary 不接受 null 值），避免并发工厂抛异常。
+            return built is null ? null : _cache.GetOrAdd(type, built);
+        }
+
+        private static Dictionary<string, ReferenceDefinition>? BuildDefinitions(Type type)
+        {
             var definitions = new Dictionary<string, ReferenceDefinition>();
             var properties = type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             var fields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
@@ -769,7 +777,6 @@ namespace ReferenceManagement
             if (definitions.Count == 0)
                 return null;
 
-            _cache[type] = definitions;
             return definitions;
         }
 

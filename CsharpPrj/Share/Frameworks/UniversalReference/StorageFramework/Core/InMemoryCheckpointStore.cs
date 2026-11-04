@@ -49,8 +49,20 @@ public sealed class InMemoryCheckpointStore : ICheckpointStore
     {
         ArgumentNullException.ThrowIfNull(checkpoint);
         var id = PersistenceHelper.ResolveCheckpointId(checkpoint.CheckpointId);
-        checkpoint.CheckpointId = id;
-        _store[PersistenceHelper.CheckpointKey(checkpoint.ThreadId, checkpoint.CheckpointNs, id)] = new Entry(checkpoint, Interlocked.Increment(ref _seq));
+        // 不改写调用方对象，也不保存活动引用：入参后续被修改/复用不得影响已落库快照。
+        var stored = new Checkpoint
+        {
+            ThreadId = checkpoint.ThreadId,
+            CheckpointNs = checkpoint.CheckpointNs,
+            CheckpointId = id,
+            ParentCheckpointId = checkpoint.ParentCheckpointId,
+            ChannelJson = checkpoint.ChannelJson,
+            VersionsJson = checkpoint.VersionsJson,
+            Step = checkpoint.Step,
+            MetadataJson = checkpoint.MetadataJson
+        };
+        _store[PersistenceHelper.CheckpointKey(stored.ThreadId, stored.CheckpointNs, id)] =
+            new Entry(stored, Interlocked.Increment(ref _seq));
         return Task.FromResult(id);
     }
 

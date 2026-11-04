@@ -19,9 +19,6 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using UniversalGraphStorage;
-using UniversalModuleFramework.Core;
-using UniversalModuleFramework.Repositories;
-using UniversalModuleFramework.UnitOfWork;
 using RefModels = UniversalWorkflowFramework.Reference.Models;
 
 namespace ReferenceFrame.GraphStorage
@@ -29,27 +26,33 @@ namespace ReferenceFrame.GraphStorage
     /// <summary>领域关系类型 <-> 统一引用类型(ReferenceType) 的映射，以及关系 id 的 RELID 编码/解码。</summary>
     public static class RelationshipCodec
     {
+        /// <summary>领域关系类型 ↔ 统一引用类型 的唯一映射表（双向派生，禁维护两张表）。</summary>
+        private static readonly (RefModels.ReferenceType Domain, ReferenceType Storage)[] TypePairs =
+        {
+            (RefModels.ReferenceType.Dependency, ReferenceType.DependsOn),
+            (RefModels.ReferenceType.Includes, ReferenceType.Includes),
+            (RefModels.ReferenceType.Extends, ReferenceType.InheritsFrom),
+            (RefModels.ReferenceType.Uses, ReferenceType.Calls),
+            (RefModels.ReferenceType.Requires, ReferenceType.References),
+            (RefModels.ReferenceType.Other, ReferenceType.Other)
+        };
+
         public static ReferenceType MapRelationshipType(RefModels.ReferenceType relationshipType)
         {
-            return relationshipType switch
+            foreach (var pair in TypePairs)
             {
-                RefModels.ReferenceType.Dependency => ReferenceType.DependsOn,
-                RefModels.ReferenceType.Includes => ReferenceType.Includes,
-                RefModels.ReferenceType.Extends => ReferenceType.InheritsFrom,
-                _ => ReferenceType.Other
-            };
+                if (pair.Domain == relationshipType) return pair.Storage;
+            }
+            return ReferenceType.Other;
         }
 
         public static RefModels.ReferenceType MapReferenceTypeToRelationship(ReferenceType referenceType)
         {
-            return referenceType switch
+            foreach (var pair in TypePairs)
             {
-                ReferenceType.DependsOn => RefModels.ReferenceType.Dependency,
-                ReferenceType.Includes => RefModels.ReferenceType.Includes,
-                ReferenceType.InheritsFrom => RefModels.ReferenceType.Extends,
-                ReferenceType.Other => RefModels.ReferenceType.Other,
-                _ => RefModels.ReferenceType.Other
-            };
+                if (pair.Storage == referenceType) return pair.Domain;
+            }
+            return RefModels.ReferenceType.Other;
         }
 
         public static string BuildRelationshipId(string sourceId, string targetId, ReferenceType type)

@@ -57,7 +57,7 @@ namespace UniversalWorkflowFramework.Core.Graph
             var detector = new DefaultCycleDetector<string>();
             return detector.FindCycles(
                 graph.GetAllNodeKeys().ToList(),
-                key => graph.GetOutgoingEdges(key).Select(e => e.Target.ToString() ?? string.Empty));
+                key => graph.GetOutgoingEdges(key).Select(e => e.Target.ToString()));
         }
 
         /// <summary>BFS 最短路径。</summary>
@@ -68,7 +68,7 @@ namespace UniversalWorkflowFramework.Core.Graph
             return finder.FindShortestPath(
                 startKey,
                 endKey,
-                key => graph.GetOutgoingEdges(key).Select(e => e.Target.ToString() ?? string.Empty));
+                key => graph.GetOutgoingEdges(key).Select(e => e.Target.ToString()));
         }
 
         private async Task<ICoreGraph<string, Resource, object>> BuildGraphAsync()

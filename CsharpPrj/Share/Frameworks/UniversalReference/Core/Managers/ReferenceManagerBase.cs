@@ -59,7 +59,7 @@ namespace UniversalWorkflowFramework.Core.Managers
             return Task.CompletedTask;
         }
 
-        public Task<Resource?> GetResourceAsync(Core.Models.ResourceIdentifier resourceId)
+        public virtual Task<Resource?> GetResourceAsync(Core.Models.ResourceIdentifier resourceId)
         {
             lock (_lock)
             {
@@ -86,9 +86,7 @@ namespace UniversalWorkflowFramework.Core.Managers
             {
                 var key = GetResourceKey(resourceId);
                 _resources.Remove(key);
-                _references.RemoveAll(r =>
-                    (r.SourceType == resourceId.ResourceType && r.SourceId == resourceId.Id) ||
-                    (r.TargetType == resourceId.ResourceType && r.TargetId == resourceId.Id));
+                _references.RemoveAll(r => SourceKey(r) == key || TargetKey(r) == key);
             }
             return Task.CompletedTask;
         }
@@ -100,8 +98,10 @@ namespace UniversalWorkflowFramework.Core.Managers
                 var record = new ReferenceRecord
                 {
                     SourceType = sourceResourceId.ResourceType,
+                    SourceLocation = sourceResourceId.Location,
                     SourceId = sourceResourceId.Id,
                     TargetType = targetResourceId.ResourceType,
+                    TargetLocation = targetResourceId.Location,
                     TargetId = targetResourceId.Id,
                     RelationshipType = referenceType.ToString(),
                     Location = location,
@@ -117,8 +117,9 @@ namespace UniversalWorkflowFramework.Core.Managers
         {
             lock (_lock)
             {
-                _references.RemoveAll(r => r.SourceType == sourceResourceId.ResourceType && r.SourceId == sourceResourceId.Id &&
-                                           r.TargetType == targetResourceId.ResourceType && r.TargetId == targetResourceId.Id &&
+                var sourceKey = GetResourceKey(sourceResourceId);
+                var targetKey = GetResourceKey(targetResourceId);
+                _references.RemoveAll(r => SourceKey(r) == sourceKey && TargetKey(r) == targetKey &&
                                            r.RelationshipType == referenceType.ToString());
             }
             return Task.CompletedTask;
@@ -127,8 +128,8 @@ namespace UniversalWorkflowFramework.Core.Managers
         private static (Core.Models.ResourceIdentifier Source, Core.Models.ResourceIdentifier Target, ReferenceType Type, string? Location, string? Description, double Strength, bool IsIncoming) BuildReferenceTuple(ReferenceRecord r, bool isIncoming)
         {
             return (
-                new Core.Models.ResourceIdentifier { ResourceType = r.SourceType, Id = r.SourceId },
-                new Core.Models.ResourceIdentifier { ResourceType = r.TargetType, Id = r.TargetId },
+                new Core.Models.ResourceIdentifier { ResourceType = r.SourceType, Id = r.SourceId, Location = r.SourceLocation },
+                new Core.Models.ResourceIdentifier { ResourceType = r.TargetType, Id = r.TargetId, Location = r.TargetLocation },
                 Enum.TryParse<ReferenceType>(r.RelationshipType, out var type) ? type : ReferenceType.Other,
                 r.Location,
                 r.Description,
@@ -143,13 +144,15 @@ namespace UniversalWorkflowFramework.Core.Managers
             {
                 var result = new List<(Core.Models.ResourceIdentifier Source, Core.Models.ResourceIdentifier Target, ReferenceType Type, string? Location, string? Description, double Strength, bool IsIncoming)>();
 
+                var key = GetResourceKey(resourceId);
                 foreach (var r in _references)
                 {
-                    if (r.SourceType == resourceId.ResourceType && r.SourceId == resourceId.Id)
+                    // 自环同时满足出/入两支：只登记一次（否则同一记录会被重复计入）。
+                    if (SourceKey(r) == key)
                     {
                         result.Add(BuildReferenceTuple(r, isIncoming: false));
                     }
-                    if (includeIncoming && r.TargetType == resourceId.ResourceType && r.TargetId == resourceId.Id)
+                    else if (includeIncoming && TargetKey(r) == key)
                     {
                         result.Add(BuildReferenceTuple(r, isIncoming: true));
                     }
@@ -158,7 +161,7 @@ namespace UniversalWorkflowFramework.Core.Managers
             }
         }
 
-        public Task<List<Core.Models.ResourceIdentifier>> GetDependenciesAsync(Core.Models.ResourceIdentifier resourceId, int maxDepth = 5)
+        public virtual Task<List<Core.Models.ResourceIdentifier>> GetDependenciesAsync(Core.Models.ResourceIdentifier resourceId, int maxDepth = 5)
         {
             lock (_lock)
             {
@@ -169,7 +172,7 @@ namespace UniversalWorkflowFramework.Core.Managers
             }
         }
 
-        public Task<List<Core.Models.ResourceIdentifier>> GetDependentsAsync(Core.Models.ResourceIdentifier resourceId, int maxDepth = 5)
+        public virtual Task<List<Core.Models.ResourceIdentifier>> GetDependentsAsync(Core.Models.ResourceIdentifier resourceId, int maxDepth = 5)
         {
             lock (_lock)
             {
@@ -180,7 +183,7 @@ namespace UniversalWorkflowFramework.Core.Managers
             }
         }
 
-        public Task<List<List<Core.Models.ResourceIdentifier>>> FindPathsAsync(Core.Models.ResourceIdentifier startResourceId, Core.Models.ResourceIdentifier endResourceId, int maxDepth = 10)
+        public virtual Task<List<List<Core.Models.ResourceIdentifier>>> FindPathsAsync(Core.Models.ResourceIdentifier startResourceId, Core.Models.ResourceIdentifier endResourceId, int maxDepth = 10)
         {
             lock (_lock)
             {
@@ -192,7 +195,7 @@ namespace UniversalWorkflowFramework.Core.Managers
             }
         }
 
-        public Task<List<Core.Models.ResourceIdentifier>> FindShortestPathAsync(Core.Models.ResourceIdentifier startResourceId, Core.Models.ResourceIdentifier endResourceId)
+        public virtual Task<List<Core.Models.ResourceIdentifier>> FindShortestPathAsync(Core.Models.ResourceIdentifier startResourceId, Core.Models.ResourceIdentifier endResourceId)
         {
             lock (_lock)
             {
@@ -204,7 +207,7 @@ namespace UniversalWorkflowFramework.Core.Managers
             }
         }
 
-        public Task<List<Resource>> GetResourcesByTypeAsync(string resourceType)
+        public virtual Task<List<Resource>> GetResourcesByTypeAsync(string resourceType)
         {
             lock (_lock)
             {
@@ -233,7 +236,7 @@ namespace UniversalWorkflowFramework.Core.Managers
         }
 
 
-        public bool ContainsResource(Core.Models.ResourceIdentifier resourceId)
+        public virtual bool ContainsResource(Core.Models.ResourceIdentifier resourceId)
         {
             lock (_lock)
             {
@@ -258,12 +261,14 @@ namespace UniversalWorkflowFramework.Core.Managers
 
             foreach (var r in _references)
             {
-                if (r.SourceType == resourceId.ResourceType && r.SourceId == resourceId.Id)
-                {
-                    var targetId = new Core.Models.ResourceIdentifier { ResourceType = r.TargetType, Id = r.TargetId };
-                    result.Add(targetId);
-                    GetDependenciesRecursive(targetId, depth - 1, visited, result);
-                }
+                if (SourceKey(r) != key) continue;
+
+                var targetId = new Core.Models.ResourceIdentifier { ResourceType = r.TargetType, Id = r.TargetId, Location = r.TargetLocation };
+                // 先判重再加入结果：同一节点经多条路径可达时不得重复计入（原实现会重复）。
+                if (visited.Contains(targetId.GetUniqueKey())) continue;
+
+                result.Add(targetId);
+                GetDependenciesRecursive(targetId, depth - 1, visited, result);
             }
         }
 
@@ -275,12 +280,13 @@ namespace UniversalWorkflowFramework.Core.Managers
 
             foreach (var r in _references)
             {
-                if (r.TargetType == resourceId.ResourceType && r.TargetId == resourceId.Id)
-                {
-                    var sourceId = new Core.Models.ResourceIdentifier { ResourceType = r.SourceType, Id = r.SourceId };
-                    result.Add(sourceId);
-                    GetDependentsRecursive(sourceId, depth - 1, visited, result);
-                }
+                if (TargetKey(r) != key) continue;
+
+                var sourceId = new Core.Models.ResourceIdentifier { ResourceType = r.SourceType, Id = r.SourceId, Location = r.SourceLocation };
+                if (visited.Contains(sourceId.GetUniqueKey())) continue;
+
+                result.Add(sourceId);
+                GetDependentsRecursive(sourceId, depth - 1, visited, result);
             }
         }
 
@@ -288,38 +294,50 @@ namespace UniversalWorkflowFramework.Core.Managers
 
         #region 辅助方法
 
-        protected static string GetResourceKey(Core.Models.ResourceIdentifier resourceId) => BuildKey(resourceId.ResourceType, resourceId.Id);
+        protected static string GetResourceKey(Core.Models.ResourceIdentifier resourceId) => resourceId.GetUniqueKey();
 
-        private static string BuildKey(string? type, string? id) => $"{type ?? "?"}{ResourceIdentifier.UniqueKeySeparator}{id ?? "?"}";
+        private static string BuildKey(string? type, string? location, string? id) => $"{type ?? "?"}{ResourceIdentifier.UniqueKeySeparator}{location ?? string.Empty}{ResourceIdentifier.UniqueKeySeparator}{id ?? "?"}";
+
+        private static string SourceKey(ReferenceRecord r) => BuildKey(r.SourceType, r.SourceLocation, r.SourceId);
+
+        private static string TargetKey(ReferenceRecord r) => BuildKey(r.TargetType, r.TargetLocation, r.TargetId);
 
         /// <summary>供 GraphProcessing 查找器使用的出边邻居键枚举（基于引用表）。</summary>
         private IEnumerable<string> GetOutgoingKeys(string key)
         {
             foreach (var r in _references)
             {
-                if (BuildKey(r.SourceType, r.SourceId) == key)
-                    yield return BuildKey(r.TargetType, r.TargetId);
+                if (SourceKey(r) == key)
+                    yield return TargetKey(r);
             }
         }
 
-        /// <summary>将图键（ResourceType:Id）映射回 <see cref="Core.Models.ResourceIdentifier"/>。</summary>
-        private static Core.Models.ResourceIdentifier KeyToResourceIdentifier(string key)
+        /// <summary>将图键（ResourceType:Location:Id）映射回 <see cref="Core.Models.ResourceIdentifier"/>。</summary>
+        protected static Core.Models.ResourceIdentifier KeyToResourceIdentifier(string key)
         {
-            var sepIndex = key.IndexOf(ResourceIdentifier.UniqueKeySeparator, StringComparison.Ordinal);
-            if (sepIndex < 0)
+            var first = key.IndexOf(ResourceIdentifier.UniqueKeySeparator, StringComparison.Ordinal);
+            if (first < 0)
                 return new Core.Models.ResourceIdentifier { ResourceType = key, Id = string.Empty };
+
+            var second = key.IndexOf(ResourceIdentifier.UniqueKeySeparator, first + 1, StringComparison.Ordinal);
+            if (second < 0)
+                return new Core.Models.ResourceIdentifier { ResourceType = key.Substring(0, first), Id = key.Substring(first + 1) };
+
             return new Core.Models.ResourceIdentifier
             {
-                ResourceType = key.Substring(0, sepIndex),
-                Id = key.Substring(sepIndex + 1)
+                ResourceType = key.Substring(0, first),
+                Location = key.Substring(first + 1, second - first - 1),
+                Id = key.Substring(second + 1)
             };
         }
 
         protected class ReferenceRecord
         {
             public string SourceType { get; set; } = string.Empty;
+            public string? SourceLocation { get; set; }
             public string SourceId { get; set; } = string.Empty;
             public string TargetType { get; set; } = string.Empty;
+            public string? TargetLocation { get; set; }
             public string TargetId { get; set; } = string.Empty;
             public string RelationshipType { get; set; } = string.Empty;
             public string? Location { get; set; }

@@ -42,40 +42,32 @@ namespace UniversalWorkflowFramework.BatchIntegration
         public bool RegisterBatch(string batchId, string name, string source,
             string? workflowId = null, string? description = null)
         {
-            if (string.IsNullOrWhiteSpace(batchId))
-                throw new ArgumentException("BatchId 不能为空", nameof(batchId));
-
             var metadata = new BatchMetadata
             {
-                BatchId = batchId,
                 Name = name,
-                StartTime = DateTime.Now,
                 Source = source,
                 WorkflowId = workflowId,
-                Status = BatchStatus.Running,
                 Description = description
             };
-
-            if (_batches.TryAdd(batchId, metadata))
-            {
-                _contextManager.Set(batchId);
-                BatchEntered?.Invoke(batchId);
-                return true;
-            }
-            return false;
+            return RegisterBatch(batchId, metadata);
         }
 
-        internal void RegisterBatch(string batchId, BatchMetadata metadata)
+        /// <summary>唯一注册实现：公共重载与 <see cref="BatchRegistry"/> 共用；重复注册返回 false 且不重启上下文。</summary>
+        public bool RegisterBatch(string batchId, BatchMetadata metadata)
         {
             if (string.IsNullOrWhiteSpace(batchId))
                 throw new ArgumentException("BatchId 不能为空", nameof(batchId));
+            ArgumentNullException.ThrowIfNull(metadata);
 
             metadata.BatchId = batchId;
-            if (_batches.TryAdd(batchId, metadata))
-            {
-                _contextManager.Set(batchId);
-                BatchEntered?.Invoke(batchId);
-            }
+            metadata.StartTime = DateTime.Now;
+            metadata.Status = BatchStatus.Running;
+            if (!_batches.TryAdd(batchId, metadata))
+                return false;
+
+            _contextManager.Set(batchId);
+            BatchEntered?.Invoke(batchId);
+            return true;
         }
 
 
@@ -107,6 +99,12 @@ namespace UniversalWorkflowFramework.BatchIntegration
             {
                 metadata.Status = BatchStatus.Completed;
                 metadata.EndTime = DateTime.Now;
+                // 批次结束即退出上下文：残留当前批次会让后续日志仍挂到已完结批次上。
+                if (string.Equals(_contextManager.Current, batchId, StringComparison.Ordinal))
+                {
+                    _contextManager.Clear();
+                    BatchExited?.Invoke(batchId);
+                }
             }
         }
 

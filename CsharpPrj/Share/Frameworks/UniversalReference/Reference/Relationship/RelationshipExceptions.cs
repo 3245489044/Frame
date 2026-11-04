@@ -19,9 +19,6 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using UniversalGraphStorage;
-using UniversalModuleFramework.Core;
-using UniversalModuleFramework.Repositories;
-using UniversalModuleFramework.UnitOfWork;
 
 namespace RelationshipManagement.Exceptions
 {

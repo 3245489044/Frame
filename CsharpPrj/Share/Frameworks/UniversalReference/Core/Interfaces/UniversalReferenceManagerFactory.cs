@@ -9,9 +9,10 @@ namespace UniversalWorkflowFramework.Core.Interfaces
     {
         private static string? _dataDirectory;
 
-        public static void SetDataDirectory(string directory)
+        /// <summary>设置默认落盘目录；传 null/空串即重置回内存实现（原实现无重置入口，全局态不可撤销）。</summary>
+        public static void SetDataDirectory(string? directory)
         {
-            _dataDirectory = directory;
+            _dataDirectory = string.IsNullOrWhiteSpace(directory) ? null : directory;
         }
 
         public static IUniversalReferenceManager Create()

@@ -88,10 +88,6 @@ public abstract class RelationSurfaceAdapter
     protected Task<RelationResult> RemoveByEdgeAsync(string edge, RelationRequest request, CancellationToken ct)
         => Ports.Commands.RemoveAsync(ResolveEdge(edge, remove: true).Id, request, ct);
 
-    /// <summary>失败可见化统一口径：NotFound 可选容忍，其余抛。</summary>
-    protected static void ThrowIfFailed(RelationResult result, bool allowNotFound = false)
-        => RelationResultGuard.ThrowIfFailed(result, allowNotFound);
-
     private RelationOperation RequireDeclared(string operation, bool remove)
     {
         var declared = Ports.Operations.Resolve(operation)

@@ -32,12 +32,15 @@ namespace UniversalWorkflowFramework.BatchIntegration
             IEnumerable<T> batchB,
             Func<T, T, bool>? isModified = null)
         {
-            var report = CompareBatches(batchA, batchB, isModified);
+            // 单次枚举：IEnumerable 可能不可重放（流式/生成器），二次 Count() 会得到不一致计数或额外副作用。
+            var listA = batchA?.ToList() ?? new List<T>();
+            var listB = batchB?.ToList() ?? new List<T>();
+            var report = CompareBatches(listA, listB, isModified);
 
             return new BatchDiffSummary
             {
-                BatchACount = batchA?.Count() ?? 0,
-                BatchBCount = batchB?.Count() ?? 0,
+                BatchACount = listA.Count,
+                BatchBCount = listB.Count,
                 Added = report.Summary.Added,
                 Removed = report.Summary.Removed,
                 Modified = report.Summary.Modified,

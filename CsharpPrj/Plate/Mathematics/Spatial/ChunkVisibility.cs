@@ -111,7 +111,7 @@ public static class ChunkVisibility
         }
 
         // 保守渲染域 = 候选范围并集（不因朝向裁掉射线可能进入的 chunk）。
-        return new ChunkStreamSnapshot(visibleChunks, streamBounds, candidateCount, visibleBounds, visibleCenters);
+        return new ChunkStreamSnapshot(visibleChunks, streamBounds, candidateCount, visibleBounds, visibleCenters, frustum);
     }
 
     private static Aabb Union(in Aabb a, in Aabb b) => new(

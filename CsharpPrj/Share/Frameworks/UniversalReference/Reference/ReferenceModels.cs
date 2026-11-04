@@ -131,23 +131,5 @@ namespace UniversalWorkflowFramework.Reference
                 }
             };
         }
-
-        public static void AddNodeType(Models.NodeType nodeType, ReferenceConfiguration? config = null)
-        {
-            var cfg = config ?? GenerateConfiguration();
-            cfg.Schema.NodeTypes.Add(nodeType);
-        }
-
-        public static void AddEdgeType(Models.EdgeType edgeType, ReferenceConfiguration? config = null)
-        {
-            var cfg = config ?? GenerateConfiguration();
-            cfg.Schema.EdgeTypes.Add(edgeType);
-        }
-
-        public static void AddValidationRule(Models.ValidationRule rule, ReferenceConfiguration? config = null)
-        {
-            var cfg = config ?? GenerateConfiguration();
-            cfg.Validation.Rules.Add(rule);
-        }
     }
 }

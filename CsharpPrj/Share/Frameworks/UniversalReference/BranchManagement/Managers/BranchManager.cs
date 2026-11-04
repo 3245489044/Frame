@@ -294,6 +294,24 @@ namespace UniversalWorkflowFramework.BranchManagement.Managers
                     Edges = new List<BranchEdge>()
                 };
 
+                // 按图库引用重建节点/边（原实现固定空集合，取回的分支必然校验失败且数据丢失）。
+                var references = await _referenceManager.GetReferencesAsync(branchResourceId, includeIncoming: false);
+                foreach (var (_, target, _, _, description, _, _) in references)
+                {
+                    if (description == RelationshipContainsNode && target.ResourceType == ResourceTypeNode)
+                    {
+                        var nodeResource = await _referenceManager.GetResourceAsync(target);
+                        if (nodeResource != null)
+                            branchGraph.Nodes.Add(BuildNode(target.Id, nodeResource.Metadata));
+                    }
+                    else if (description == RelationshipContainsEdge && target.ResourceType == ResourceTypeEdge)
+                    {
+                        var edgeResource = await _referenceManager.GetResourceAsync(target);
+                        if (edgeResource != null)
+                            branchGraph.Edges.Add(BuildEdge(target.Id, edgeResource.Metadata));
+                    }
+                }
+
                 UniversalWorkflowFrameworkDiagnosticContext.Record(DiagnosticEvents.Branch.RetrieveSuccess, new { message = $"从图数据库检索分支成功: {branchId}", branchId });
                 return branchGraph;
             }
@@ -330,6 +348,38 @@ namespace UniversalWorkflowFramework.BranchManagement.Managers
             }
         }
 
+        private static BranchNode BuildNode(string nodeId, Dictionary<string, object> metadata)
+        {
+            var node = new BranchNode { NodeId = nodeId };
+            if (metadata.TryGetValue("type", out var typeValue) && typeValue is not null)
+            {
+                if (Enum.TryParse<BranchNodeType>(typeValue.ToString(), out var parsedNodeType))
+                    node.Type = parsedNodeType;
+            }
+            if (metadata.TryGetValue("name", out var nameValue) && nameValue is not null)
+                node.Name = nameValue.ToString() ?? string.Empty;
+            if (metadata.TryGetValue("properties", out var propsValue) && propsValue is Dictionary<string, object> props)
+                node.Data = props;
+            return node;
+        }
+
+        private static BranchEdge BuildEdge(string edgeId, Dictionary<string, object> metadata)
+        {
+            var edge = new BranchEdge { EdgeId = edgeId };
+            if (metadata.TryGetValue("sourceNodeId", out var sourceValue) && sourceValue is not null)
+                edge.SourceNodeId = sourceValue.ToString() ?? string.Empty;
+            if (metadata.TryGetValue("targetNodeId", out var targetValue) && targetValue is not null)
+                edge.TargetNodeId = targetValue.ToString() ?? string.Empty;
+            if (metadata.TryGetValue("type", out var typeValue) && typeValue is not null)
+            {
+                if (Enum.TryParse<BranchEdgeType>(typeValue.ToString(), out var parsedEdgeType))
+                    edge.Type = parsedEdgeType;
+            }
+            if (metadata.TryGetValue("condition", out var conditionValue) && conditionValue is not null)
+                edge.Data["condition"] = conditionValue;
+            return edge;
+        }
+
         private async Task<ValidationResult> ValidateBranchInGraphDatabaseAsync(string branchId)
         {
             try
@@ -355,6 +405,18 @@ namespace UniversalWorkflowFramework.BranchManagement.Managers
                     {
                         IsValid = false,
                         Message = "分支在图数据库中缺少节点"
+                    };
+                }
+
+                // 计数必须与实际可重建的节点/边一致；此前 edgeCount 完全未参与校验。
+                var restored = await RetrieveBranchFromGraphDatabaseAsync(branchId);
+                if (restored == null || restored.Nodes.Count != nodeCount || restored.Edges.Count != edgeCount)
+                {
+                    return new ValidationResult
+                    {
+                        IsValid = false,
+                        Message = $"分支图库结构不一致（声明 节点 {nodeCount}/边 {edgeCount}，"
+                                  + $"实际 节点 {restored?.Nodes.Count ?? 0}/边 {restored?.Edges.Count ?? 0}）"
                     };
                 }
 

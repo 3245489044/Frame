@@ -10,7 +10,9 @@ namespace UniversalWorkflowFramework.Core
         public int GetSubscriberCount<TEvent>()
         {
             var eventType = typeof(TEvent);
-            return _handlers.TryGetValue(eventType, out var handlers) ? handlers.Count : 0;
+            if (!_handlers.TryGetValue(eventType, out var handlers))
+                return 0;
+            lock (handlers) return handlers.Count;
         }
 
         public IEnumerable<Type> RegisteredEventTypes => _handlers.Keys;
@@ -18,15 +20,11 @@ namespace UniversalWorkflowFramework.Core
         public void Subscribe<TEvent>(Func<TEvent, Task> handler)
         {
             var eventType = typeof(TEvent);
-            _handlers.AddOrUpdate(
-                eventType,
-                _ => new List<Delegate> { handler },
-                (_, handlers) =>
-                {
-                    handlers.Add(handler);
-                    return handlers;
-                }
-            );
+            var handlers = _handlers.GetOrAdd(eventType, _ => new List<Delegate>());
+            lock (handlers)
+            {
+                handlers.Add(handler);
+            }
         }
 
         public void SubscribeSync<TEvent>(Action<TEvent> handler)
@@ -45,10 +43,11 @@ namespace UniversalWorkflowFramework.Core
             var eventType = typeof(TEvent);
             if (_handlers.TryGetValue(eventType, out var handlers))
             {
-                handlers.Remove(handler);
-                if (handlers.Count == 0)
+                lock (handlers)
                 {
-                    _handlers.TryRemove(eventType, out _);
+                    handlers.Remove(handler);
+                    if (handlers.Count == 0)
+                        _handlers.TryRemove(eventType, out _);
                 }
             }
         }
@@ -56,28 +55,36 @@ namespace UniversalWorkflowFramework.Core
         public async Task PublishAsync<TEvent>(TEvent @event)
         {
             var eventType = typeof(TEvent);
-            if (_handlers.TryGetValue(eventType, out var handlers) && handlers.Count > 0)
+            Delegate[] snapshot;
+            if (!_handlers.TryGetValue(eventType, out var handlers))
+                return;
+            // 快照后派发：回调内 Subscribe/Unsubscribe 不得改变本次遍历（原实现直接遍历可变 List）。
+            lock (handlers) snapshot = handlers.ToArray();
+
+            if (snapshot.Length == 0)
+                return;
+
+            var tasks = new List<Task>(snapshot.Length);
+            foreach (var handler in snapshot)
             {
-                var tasks = new List<Task>(handlers.Count);
-                foreach (var handler in handlers)
-                {
-                    var typedHandler = (Func<TEvent, Task>)handler;
-                    tasks.Add(typedHandler(@event));
-                }
-                await Task.WhenAll(tasks);
+                var typedHandler = (Func<TEvent, Task>)handler;
+                tasks.Add(typedHandler(@event));
             }
+            await Task.WhenAll(tasks);
         }
 
         public async Task PublishSequentialAsync<TEvent>(TEvent @event)
         {
             var eventType = typeof(TEvent);
-            if (_handlers.TryGetValue(eventType, out var handlers))
+            Delegate[] snapshot;
+            if (!_handlers.TryGetValue(eventType, out var handlers))
+                return;
+            lock (handlers) snapshot = handlers.ToArray();
+
+            foreach (var handler in snapshot)
             {
-                foreach (var handler in handlers)
-                {
-                    var typedHandler = (Func<TEvent, Task>)handler;
-                    await typedHandler(@event);
-                }
+                var typedHandler = (Func<TEvent, Task>)handler;
+                await typedHandler(@event);
             }
         }
 

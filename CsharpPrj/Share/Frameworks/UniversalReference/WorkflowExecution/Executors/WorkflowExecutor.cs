@@ -108,10 +108,12 @@ namespace UniversalWorkflowFramework.WorkflowExecution.Executors
             {
                 await Task.Delay(SimulationDelayMs * 2);
 
+                // 分支执行未接入真实分支执行器：不得伪造 Success（原实现返回空成功，调用方无法区分）。
                 var branchResult = new ExecutionResult
                 {
-                    Status = ExecutionStatus.Success,
+                    Status = ExecutionStatus.Failed,
                     Output = new Dictionary<string, object>(ctx.Parameters ?? new Dictionary<string, object>()),
+                    Error = $"分支执行尚未接入真实执行器，未执行分支: {ctx.BranchId}",
                     ExecutionTime = TimeSpan.FromMilliseconds(DefaultExecutionTimeMs * 2)
                 };
                 branchResult.Output["branchId"] = ctx.BranchId;
@@ -195,7 +197,8 @@ namespace UniversalWorkflowFramework.WorkflowExecution.Executors
 
                     foreach (var key in firstOutput.Keys)
                     {
-                        if (!currentOutput.ContainsKey(key) || !firstOutput[key].Equals(currentOutput[key]))
+                        // 静态 object.Equals 处理 null（原实现 value 为 null 时 .Equals 抛 NRE）。
+                        if (!currentOutput.ContainsKey(key) || !object.Equals(firstOutput[key], currentOutput[key]))
                         {
                             SetInconsistentResult(ctx, workflowId);
                             return;
@@ -244,7 +247,9 @@ namespace UniversalWorkflowFramework.WorkflowExecution.Executors
                     onBefore: ctx => UniversalWorkflowFrameworkDiagnosticContext.Record(DiagnosticEvents.Executor.Before, new { message = $"执行操作: {ctx.DisplayName}", displayName = ctx.DisplayName }),
                     onAfter: ctx => UniversalWorkflowFrameworkDiagnosticContext.Record(DiagnosticEvents.Executor.After, new { message = $"执行操作完成: {ctx.DisplayName}", displayName = ctx.DisplayName }),
                     onError: ex => UniversalWorkflowFrameworkDiagnosticContext.Record(DiagnosticEvents.Executor.Error, new { message = "执行操作失败", error = ex.Message }))
-                .WithRetryPolicy(maxRetries: 1);
+                // 仅对瞬时性基础设施异常重试；业务失败已由 ExecuteCore 落为 Failed，不应被重试掩盖。
+                .WithRetryPolicy(maxRetries: 1,
+                    shouldRetry: (ex, _) => ex is TimeoutException or System.IO.IOException or OperationCanceledException);
         }
 
         private IPipeline<WorkflowContext, WorkflowContext> BuildValidatePipeline()

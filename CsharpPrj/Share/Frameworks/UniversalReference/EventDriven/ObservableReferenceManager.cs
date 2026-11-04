@@ -22,6 +22,15 @@ namespace UniversalWorkflowFramework.EventDriven
 
         public event EventHandler<ReferenceChangeEventArgs>? OnResourceRemoved;
 
+        public event EventHandler<ReferenceChangeEventArgs>? OnReferenceCreated;
+
+        public event EventHandler<ReferenceChangeEventArgs>? OnReferenceRemoved;
+
+        private void ThrowIfDisposed()
+        {
+            if (_disposed) throw new ObjectDisposedException(nameof(ObservableReferenceManager));
+        }
+
         public ObservableReferenceManager(IUniversalReferenceManager innerManager)
         {
             _innerManager = innerManager ?? throw new ArgumentNullException(nameof(innerManager));
@@ -34,6 +43,7 @@ namespace UniversalWorkflowFramework.EventDriven
 
         public async Task AddResourceAsync(ResourceIdentifier resourceId, Dictionary<string, object>? metadata = null, string? symbol = null)
         {
+            ThrowIfDisposed();
             await _innerManager.AddResourceAsync(resourceId, metadata, symbol);
             OnResourceAdded?.Invoke(this, new ReferenceChangeEventArgs(
                 resourceId,
@@ -44,6 +54,7 @@ namespace UniversalWorkflowFramework.EventDriven
 
         public async Task UpdateResourceAsync(ResourceIdentifier resourceId, Dictionary<string, object>? metadata = null, string? symbol = null)
         {
+            ThrowIfDisposed();
             await _innerManager.UpdateResourceAsync(resourceId, metadata, symbol);
             OnResourceUpdated?.Invoke(this, new ReferenceChangeEventArgs(
                 resourceId,
@@ -64,20 +75,29 @@ namespace UniversalWorkflowFramework.EventDriven
 
         public async Task RemoveResourceAsync(ResourceIdentifier resourceId)
         {
+            ThrowIfDisposed();
             await _innerManager.RemoveResourceAsync(resourceId);
             OnResourceRemoved?.Invoke(this, new ReferenceChangeEventArgs(
                 resourceId,
                 Reference.Models.ReferenceChangeType.Removed));
         }
 
-        public Task AddReferenceAsync(ResourceIdentifier sourceResourceId, ResourceIdentifier targetResourceId, ReferenceType referenceType, string? location = null, string? description = null, double strength = 1.0)
+        public async Task AddReferenceAsync(ResourceIdentifier sourceResourceId, ResourceIdentifier targetResourceId, ReferenceType referenceType, string? location = null, string? description = null, double strength = 1.0)
         {
-            return _innerManager.AddReferenceAsync(sourceResourceId, targetResourceId, referenceType, location, description, strength);
+            ThrowIfDisposed();
+            await _innerManager.AddReferenceAsync(sourceResourceId, targetResourceId, referenceType, location, description, strength);
+            OnReferenceCreated?.Invoke(this, new ReferenceChangeEventArgs(
+                sourceResourceId, Reference.Models.ReferenceChangeType.Added,
+                relationshipType: referenceType.ToString(), relatedResource: targetResourceId));
         }
 
-        public Task RemoveReferenceAsync(ResourceIdentifier sourceResourceId, ResourceIdentifier targetResourceId, ReferenceType referenceType)
+        public async Task RemoveReferenceAsync(ResourceIdentifier sourceResourceId, ResourceIdentifier targetResourceId, ReferenceType referenceType)
         {
-            return _innerManager.RemoveReferenceAsync(sourceResourceId, targetResourceId, referenceType);
+            ThrowIfDisposed();
+            await _innerManager.RemoveReferenceAsync(sourceResourceId, targetResourceId, referenceType);
+            OnReferenceRemoved?.Invoke(this, new ReferenceChangeEventArgs(
+                sourceResourceId, Reference.Models.ReferenceChangeType.Removed,
+                relationshipType: referenceType.ToString(), relatedResource: targetResourceId));
         }
 
         public Task<List<(ResourceIdentifier Source, ResourceIdentifier Target, ReferenceType Type, string? Location, string? Description, double Strength, bool IsIncoming)>> GetReferencesAsync(ResourceIdentifier resourceId, bool includeIncoming = true)
@@ -128,6 +148,8 @@ namespace UniversalWorkflowFramework.EventDriven
             OnResourceAdded = null;
             OnResourceUpdated = null;
             OnResourceRemoved = null;
+            OnReferenceCreated = null;
+            OnReferenceRemoved = null;
 
             if (_innerManager is IDisposable disposable)
             {

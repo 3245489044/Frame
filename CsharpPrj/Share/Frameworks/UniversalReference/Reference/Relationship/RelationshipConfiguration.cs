@@ -20,9 +20,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Plate.JsonMethod.Serialization;
 using UniversalGraphStorage;
-using UniversalModuleFramework.Core;
-using UniversalModuleFramework.Repositories;
-using UniversalModuleFramework.UnitOfWork;
 
 namespace RelationshipManagement.Configuration
 {
@@ -66,8 +63,7 @@ namespace RelationshipManagement.Configuration
                     ruleConfig.Id,
                     ruleConfig.Priority,
                     ruleConfig.Condition,
-                    ruleConfig.TargetId,
-                    ruleConfig.Parameters);
+                    ruleConfig.TargetId);
                 ruleSet.AddOrUpdateRule(rule);
             }
         }
@@ -75,7 +71,7 @@ namespace RelationshipManagement.Configuration
 
     public class FileWatcherRuleSet : IRuleSet, IDisposable
     {
-        private readonly InMemoryRuleSet _inner = new();
+        private InMemoryRuleSet _inner = new();
         private readonly JsonRuleSetLoader _loader = new();
         private readonly string _filePath;
         private FileSystemWatcher? _watcher;
@@ -92,17 +88,8 @@ namespace RelationshipManagement.Configuration
 
         private void Reload()
         {
-            try
-            {
-                var config = _loader.Load(_filePath);
-                _inner.Clear();
-                _loader.PopulateRuleSet(config, _inner);
-            }
-            catch (Exception ex)
-            {
-                OnReloadError?.Invoke(ex);
-                throw;
-            }
+            var config = _loader.Load(_filePath);
+            Swap(config);
         }
 
         private async Task ReloadAsync()
@@ -112,17 +99,25 @@ namespace RelationshipManagement.Configuration
             {
                 await Task.Delay(100).ConfigureAwait(false);
                 var config = await _loader.LoadAsync(_filePath).ConfigureAwait(false);
-                _inner.Clear();
-                _loader.PopulateRuleSet(config, _inner);
+                Swap(config);
             }
             catch (Exception ex)
             {
+                // 加载/解析失败保留上一版规则（原实现先 Clear 再解析，解析失败会清空全部规则）。
                 OnReloadError?.Invoke(ex);
             }
             finally
             {
                 _reloadLock.Release();
             }
+        }
+
+        /// <summary>先构建新规则集再整体替换，避免热重载期间 Clear→Populate 的空窗与半成品可见。</summary>
+        private void Swap(RuleSetConfiguration config)
+        {
+            var next = new InMemoryRuleSet();
+            _loader.PopulateRuleSet(config, next);
+            _inner = next;
         }
 
         private void StartWatching()

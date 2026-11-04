@@ -452,6 +452,9 @@ public enum RelationViolationKind
     SingleParent = 2,
     SingleTarget = 3,
     MissingEndpoint = 4,
+
+    /// <summary>不可判定（声明缺口/类型未映射/未知 kind）：按拒绝处理，禁止当作「无违反」放行。</summary>
+    Indeterminate = 5,
 }
 
 /// <summary>一条不变量违反（不变量 id + 种类 + 结构事实理由）。</summary>

@@ -39,7 +39,9 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
         var operation = ResolveOperation(request, intent);
         if (operation is null)
             return RelationResults.Rejected(string.Empty, null,
-                $"未解析到唯一 operation（edge+intent={intent}；须在 [Relation] 声明）");
+                string.IsNullOrWhiteSpace(request.Operation)
+                    ? $"未提供 operation（edge+intent={intent}；须在 [Relation] 声明，或用 InvokeByEdgeAsync）"
+                    : $"operation '{request.Operation}' 与 intent={intent} 不匹配（声明面为 remove 时只能用于 Remove）");
 
         return await InvokeCoreAsync(intent, operation, request, ct).ConfigureAwait(false);
     }
@@ -75,31 +77,45 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
         if (plan is null)
             return RelationResults.Rejected(operation, null, $"operation '{operation}' 未在 [Relation] 声明");
 
+        var diagnostics = new List<string>();
         // provision 只在写入方向发生（删除方向补建端点会复活镜像，语义相反）。
         if (intent == RelationIntent.Ensure)
-            await EnsureProvisionedAsync(plan, request, ct).ConfigureAwait(false);
+        {
+            var provision = await EnsureProvisionedAsync(plan, request, diagnostics, ct).ConfigureAwait(false);
+            if (!provision.ok)
+                return new RelationResult(false, operation, plan.Edge, 0, diagnostics, RelationOutcome.Rejected);
+        }
 
-        return intent == RelationIntent.Remove
+        var result = intent == RelationIntent.Remove
             ? await _commands.RemoveAsync(operation, request, ct).ConfigureAwait(false)
             : await _commands.EnsureAsync(operation, request, ct).ConfigureAwait(false);
+
+        // provision 诊断一并回传：未注册实体/适配器异常不得只写进旁路诊断而丢失。
+        return diagnostics.Count == 0
+            ? result
+            : result with { Diagnostics = result.Diagnostics.Concat(diagnostics).ToArray() };
     }
 
     /// <summary>
     /// 端点 provision（谁建实体谁建镜像）：声明面 <c>provision=</c> 给定实体集（缺省 = src+tgt）；
     /// 未注册 ⇒ 跳过并记诊断（不静默）。同一 (实体,键) 只镜像一次。
     /// </summary>
-    private async Task EnsureProvisionedAsync(RelationOperation plan, RelationRequest request, CancellationToken ct)
+    private async Task<(bool ok, List<string> diagnostics)> EnsureProvisionedAsync(
+        RelationOperation plan, RelationRequest request, List<string> diagnostics, CancellationToken ct)
     {
         var entities = string.IsNullOrWhiteSpace(plan.Provision)
             ? new[] { plan.Source, plan.Target }
             : plan.Provision.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+        var ok = true;
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entity in entities)
         {
             var provision = _adapters.TryGet(entity);
             if (provision is null)
             {
+                var detail = $"provision-unregistered：实体 '{entity}' 未注册 provision 适配器（{plan.Edge}）";
+                diagnostics.Add(detail);
                 _diagnostics?.RelationWriteUnavailable(
                     plan.Id, plan.Edge, "provision-unregistered", entity,
                     string.Equals(entity, plan.Target, StringComparison.Ordinal) && request.Targets().Count > 0
@@ -111,9 +127,21 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
             foreach (var key in KeysOf(entity, plan, request))
             {
                 if (!seen.Add(entity + "|" + key)) continue;
-                await provision(key, ct).ConfigureAwait(false);
+                try
+                {
+                    await provision(key, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // provision 失败必须终止写入（否则会写出指向未创建实体的悬挂边），并带出原始异常信息。
+                    diagnostics.Add($"provision-failed：{entity}:{key}｜{ex.GetType().Name}: {ex.Message}");
+                    _diagnostics?.RelationWriteUnavailable(plan.Id, plan.Edge, "provision-failed", entity, key);
+                    ok = false;
+                }
             }
         }
+
+        return (ok, diagnostics);
     }
 
     /// <summary>该端点实体在本请求中对应的键集（批量 arity=many 逐键 provision）。</summary>
@@ -135,7 +163,13 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
 
     private string? ResolveOperation(RelationRequest request, RelationIntent intent)
     {
-        if (!string.IsNullOrWhiteSpace(request.Operation)) return request.Operation;
-        return null;
+        if (string.IsNullOrWhiteSpace(request.Operation)) return null;
+
+        // intent 必须与声明面方向一致：用 ensure 入口执行 remove operation 会反向删边并额外 provision。
+        var plan = _catalog.Resolve(request.Operation);
+        if (plan is null) return request.Operation; // 交给 InvokeCore 报「未声明」
+
+        var declaredRemove = plan.IsRemove();
+        return declaredRemove == (intent == RelationIntent.Remove) ? request.Operation : null;
     }
 }

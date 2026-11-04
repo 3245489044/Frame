@@ -32,6 +32,29 @@ public sealed partial class DeclaredRelationKernel
 
         var diagnostics = new List<string>();
         var attached = new List<string>();
+        var newlyAttached = new List<string>();
+        var preExistingAtTo = new HashSet<string>(StringComparer.Ordinal);
+        var preExistingAtFrom = new HashSet<string>(StringComparer.Ordinal);
+
+        // 记录执行前逐边状态：补偿只能撤销「本次新增」/恢复「本次删除」，不得误删原本就存在的边。
+        var locationRequest = new RelationRequest(request.ToSourceKey, Namespace: request.Namespace);
+        var toLocation = ResolveLocation(ensurePlan, locationRequest);
+        var fromLocation = ResolveLocation(removePlan, locationRequest);
+        var toSource = RelationEndpoints.Create(ensurePlan.Source, request.ToSourceKey, toLocation);
+        var fromSource = RelationEndpoints.Create(removePlan.Source, request.FromSourceKey, fromLocation);
+
+        foreach (var target in targets)
+        {
+            if (await EdgeExistsAsync(
+                    toSource, RelationEndpoints.Create(ensurePlan.Target, target, toLocation),
+                    ensurePlan.Edge, ct).ConfigureAwait(false))
+                preExistingAtTo.Add(target);
+
+            if (await EdgeExistsAsync(
+                    fromSource, RelationEndpoints.Create(removePlan.Target, target, fromLocation),
+                    removePlan.Edge, ct).ConfigureAwait(false))
+                preExistingAtFrom.Add(target);
+        }
 
         foreach (var target in targets)
         {
@@ -43,7 +66,7 @@ public sealed partial class DeclaredRelationKernel
 
             if (!attach.Ok)
             {
-                diagnostics.AddRange(await CompensateAttachAsync(removePlan.Id, request, attached, ct)
+                diagnostics.AddRange(await CompensateAttachAsync(removePlan.Id, request, newlyAttached, ct)
                     .ConfigureAwait(false));
                 diagnostics.Add($"compensate:merge｜attach-failed@{target}｜{attach.Outcome}");
                 return new RelationResult(false, request.Operation, ensurePlan.Edge, 0, diagnostics,
@@ -51,6 +74,8 @@ public sealed partial class DeclaredRelationKernel
             }
 
             attached.Add(target);
+            if (!preExistingAtTo.Contains(target))
+                newlyAttached.Add(target);
         }
 
         var detached = new List<string>();
@@ -65,7 +90,8 @@ public sealed partial class DeclaredRelationKernel
             if (!detach.Ok)
             {
                 diagnostics.AddRange(await CompensateMergeAsync(
-                    ensurePlan.Id, removePlan.Id, request, attached, detached, ct).ConfigureAwait(false));
+                    ensurePlan.Id, removePlan.Id, request, newlyAttached,
+                    detached.Where(preExistingAtFrom.Contains), ct).ConfigureAwait(false));
                 diagnostics.Add($"compensate:merge｜detach-failed@{target}｜{detach.Outcome}");
                 return new RelationResult(false, request.Operation, ensurePlan.Edge, 0, diagnostics,
                     RelationOutcome.Skipped);

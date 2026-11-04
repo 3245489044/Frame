@@ -88,8 +88,13 @@ public sealed partial class RelationDerivationEngine : IRelationQueryPort, IRela
                 }
             }
 
-            level = next.Distinct(StringComparer.Ordinal).ToList();
-            currentType = string.IsNullOrWhiteSpace(edge.Target) ? currentType : edge.Target;
+            var nextType = string.IsNullOrWhiteSpace(edge.Target) ? currentType : edge.Target;
+            // 每跳都按下一跳端点类型归一键：复合键 node:xxx@loc 若带到下一跳会被当作裸 Id，边就查不到。
+            level = next
+                .Select(key => NormalizeForType(nextType, key))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            currentType = nextType;
 
             if (level.Count == 0)
                 return RelationQueryResults.Empty(derivation.Empty.Count > 0 ? derivation.Empty[0] : "no-edge");
@@ -124,4 +129,9 @@ public sealed partial class RelationDerivationEngine : IRelationQueryPort, IRela
         if (colon >= 0) value = value[(colon + 1)..];
         return value.Trim();
     }
+
+    private static string NormalizeForType(string entityType, string key)
+        => string.Equals(entityType, RelationEndpoints.NodeType, StringComparison.Ordinal)
+            ? NormalizeNodeKey(key)
+            : key;
 }

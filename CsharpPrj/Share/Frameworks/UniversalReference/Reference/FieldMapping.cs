@@ -19,9 +19,6 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using UniversalGraphStorage;
-using UniversalModuleFramework.Core;
-using UniversalModuleFramework.Repositories;
-using UniversalModuleFramework.UnitOfWork;
 using UniversalWorkflowFramework.Diagnostics;
 
 namespace ReferenceManagement.FieldMapping
@@ -257,7 +254,7 @@ namespace ReferenceManagement.FieldMapping
     {
         private readonly Func<string, object?> _findByIdentifier;
         private readonly ConcurrentDictionary<string, string[]> _pathCache = new();
-        private readonly ConcurrentDictionary<(Type Type, string Property), PropertyInfo> _propertyCache = new();
+        private readonly ConcurrentDictionary<(Type Type, string Property), PropertySlot> _propertyCache = new();
 
         public NodeConfigLookup(Func<string, object?> findByIdentifier)
         {
@@ -289,15 +286,28 @@ namespace ReferenceManagement.FieldMapping
                     throw new InvalidOperationException($"Cannot navigate property path '{propertyPath}': intermediate object is null at '{part}'.");
 
                 var cacheKey = (current.GetType(), part);
-                var prop = _propertyCache.GetOrAdd(cacheKey, k =>
-                    k.Type.GetProperty(k.Property, BindingFlags.Public | BindingFlags.Instance));
+                // GetOrAdd 的工厂不得返回 null（否则抛 ArgumentNullException 且后续判空不可达）：
+                // 用槽对象承载「未找到」，使 null 结果也能被缓存。
+                var slot = _propertyCache.GetOrAdd(cacheKey, k =>
+                    new PropertySlot(k.Type.GetProperty(k.Property, BindingFlags.Public | BindingFlags.Instance)));
 
-                if (prop == null)
+                if (slot.Property == null)
                     throw new InvalidOperationException($"Property '{part}' not found on type '{current.GetType().FullName}' in path '{propertyPath}'.");
-                current = prop.GetValue(current);
+                current = slot.Property.GetValue(current);
             }
 
             return current;
+        }
+
+        /// <summary>承载可空的属性查找结果，使「成员不存在」也能进入缓存而不让 GetOrAdd 抛异常。</summary>
+        private sealed class PropertySlot
+        {
+            public PropertySlot(PropertyInfo? property)
+            {
+                Property = property;
+            }
+
+            public PropertyInfo? Property { get; }
         }
     }
 

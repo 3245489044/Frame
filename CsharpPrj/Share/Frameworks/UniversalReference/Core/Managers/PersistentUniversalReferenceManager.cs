@@ -15,7 +15,9 @@ namespace UniversalWorkflowFramework.Core.Managers
         private readonly string _dataDirectory;
         private static readonly string ResourcesFileName = "resources.json";
         private static readonly string ReferencesFileName = "references.json";
-        private bool _initialized = false;
+        private readonly object _initLock = new();
+        private readonly SemaphoreSlim _saveGate = new(1, 1);
+        private volatile bool _initialized = false;
 
         // 持久化文件保持历史落盘契约（PascalCase 属性名 / 缩进 / 保留 null / 默认转义），
         // 故不套用 JsonSerializerFactory 的 camelCase 上下文；仅借用平台层
@@ -37,15 +39,20 @@ namespace UniversalWorkflowFramework.Core.Managers
 
         public override async Task InitializeAsync()
         {
-            Directory.CreateDirectory(_dataDirectory);
-            await LoadFromDiskAsync();
-            _initialized = true;
+            await Task.Yield();
+            EnsureInitialized();
         }
 
         private void EnsureInitialized()
         {
-            if (!_initialized)
+            if (_initialized)
+                return;
+
+            lock (_initLock)
             {
+                if (_initialized)
+                    return;
+
                 Directory.CreateDirectory(_dataDirectory);
                 LoadFromDiskSync();
                 _initialized = true;
@@ -98,52 +105,58 @@ namespace UniversalWorkflowFramework.Core.Managers
         {
             EnsureInitialized();
 
-            List<ResourceSnapshot> resourcesData;
-            List<ReferenceRecord> referencesSnapshot;
-
-            lock (_lock)
+            // 串行化落盘：并发 Save 若同时写同一文件会互相截断/交错（原实现无任何互斥）。
+            await _saveGate.WaitAsync().ConfigureAwait(false);
+            try
             {
-                resourcesData = new List<ResourceSnapshot>(_resources.Count);
-                foreach (var kvp in _resources)
+                List<ResourceSnapshot> resourcesData;
+                List<ReferenceRecord> referencesSnapshot;
+
+                lock (_lock)
                 {
-                    resourcesData.Add(new ResourceSnapshot
+                    resourcesData = new List<ResourceSnapshot>(_resources.Count);
+                    foreach (var kvp in _resources)
                     {
-                        Key = kvp.Key,
-                        ResourceType = kvp.Value.Identifier.ResourceType,
-                        Id = kvp.Value.Identifier.Id,
-                        Name = kvp.Value.Identifier.Name,
-                        Symbol = kvp.Value.Symbol,
-                        Metadata = kvp.Value.Metadata
-                    });
+                        resourcesData.Add(new ResourceSnapshot
+                        {
+                            Key = kvp.Key,
+                            ResourceType = kvp.Value.Identifier.ResourceType,
+                            Location = kvp.Value.Identifier.Location,
+                            Id = kvp.Value.Identifier.Id,
+                            Name = kvp.Value.Identifier.Name,
+                            Symbol = kvp.Value.Symbol,
+                            // 深拷贝：快照在锁外序列化，共享字典可能被 UpdateResourceAsync 并发改写。
+                            Metadata = new Dictionary<string, object>(kvp.Value.Metadata)
+                        });
+                    }
+
+                    referencesSnapshot = new List<ReferenceRecord>(_references);
                 }
 
-                referencesSnapshot = new List<ReferenceRecord>(_references);
+                await WriteAtomicallyAsync(Path.Combine(_dataDirectory, ResourcesFileName), resourcesData).ConfigureAwait(false);
+                await WriteAtomicallyAsync(Path.Combine(_dataDirectory, ReferencesFileName), referencesSnapshot).ConfigureAwait(false);
             }
-
-            var resourcesPath = Path.Combine(_dataDirectory, ResourcesFileName);
-            var referencesPath = Path.Combine(_dataDirectory, ReferencesFileName);
-
-            await JsonSerializationService.Instance
-                .SerializeToFileAsync(resourcesPath, resourcesData, PersistenceOptions).ConfigureAwait(false);
-            await JsonSerializationService.Instance
-                .SerializeToFileAsync(referencesPath, referencesSnapshot, PersistenceOptions).ConfigureAwait(false);
+            finally
+            {
+                _saveGate.Release();
+            }
         }
 
-        private async Task LoadFromDiskAsync()
+        /// <summary>先写临时文件再原子替换，避免进程中断/并发读看到半截 JSON。</summary>
+        private static async Task WriteAtomicallyAsync(string path, object data)
         {
-            var resourcesPath = Path.Combine(_dataDirectory, ResourcesFileName);
-            var referencesPath = Path.Combine(_dataDirectory, ReferencesFileName);
-
-            string? resourcesJson = null;
-            string? referencesJson = null;
-
-            if (File.Exists(resourcesPath))
-                resourcesJson = await File.ReadAllTextAsync(resourcesPath).ConfigureAwait(false);
-
-            if (File.Exists(referencesPath))
-                referencesJson = await File.ReadAllTextAsync(referencesPath).ConfigureAwait(false);
-
-            ApplyLoadedFiles(resourcesJson, referencesJson);
+            var tempPath = $"{path}.tmp-{Guid.NewGuid():N}";
+            try
+            {
+                await JsonSerializationService.Instance
+                    .SerializeToFileAsync(tempPath, data, PersistenceOptions).ConfigureAwait(false);
+                File.Move(tempPath, path, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
         }
 
         private void LoadFromDiskSync()
@@ -184,18 +197,21 @@ namespace UniversalWorkflowFramework.Core.Managers
                 {
                     foreach (var snap in resourcesData)
                     {
+                        var identifier = new Core.Models.ResourceIdentifier
+                        {
+                            ResourceType = snap.ResourceType,
+                            Location = snap.Location,
+                            Id = snap.Id,
+                            Name = snap.Name
+                        };
                         var resource = new Resource
                         {
-                            Identifier = new Core.Models.ResourceIdentifier
-                            {
-                                ResourceType = snap.ResourceType,
-                                Id = snap.Id,
-                                Name = snap.Name
-                            },
+                            Identifier = identifier,
                             Metadata = snap.Metadata ?? new Dictionary<string, object>(),
                             Symbol = snap.Symbol
                         };
-                        _resources[snap.Key] = resource;
+                        // 以当前键算法重算（兼容旧文件里 2 段式 Key）：
+                        _resources[identifier.GetUniqueKey()] = resource;
                     }
                 }
             }
@@ -215,6 +231,7 @@ namespace UniversalWorkflowFramework.Core.Managers
         {
             public string Key { get; set; } = string.Empty;
             public string? ResourceType { get; set; }
+            public string? Location { get; set; }
             public string? Id { get; set; }
             public string? Name { get; set; }
             public string? Symbol { get; set; }

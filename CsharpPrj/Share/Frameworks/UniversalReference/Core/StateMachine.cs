@@ -23,31 +23,48 @@ namespace UniversalWorkflowFramework.Core
 
         public bool TryTransitionTo(string id, TState newState)
         {
-            if (_states.TryGetValue(id, out var currentState))
+            // 读改写加锁：ConcurrentDictionary 只保证单次操作原子，条件迁移仍会 TOCTOU 覆盖他线程结果。
+            lock (_states)
             {
+                if (!_states.TryGetValue(id, out var currentState))
+                    return false;
+
                 var oldState = currentState;
                 _states[id] = newState;
                 OnStateChanged?.Invoke(id, oldState, newState);
                 return true;
             }
-            return false;
         }
 
         public bool TryTransitionTo(string id, TState newState, Func<TState, bool> condition)
         {
-            if (_states.TryGetValue(id, out var currentState) && condition(currentState))
+            lock (_states)
             {
+                if (!_states.TryGetValue(id, out var currentState) || !condition(currentState))
+                    return false;
+
                 var oldState = currentState;
                 _states[id] = newState;
                 OnStateChanged?.Invoke(id, oldState, newState);
                 return true;
             }
-            return false;
         }
 
         public void SetState(string id, TState state)
         {
-            _states[id] = state;
+            // 统一走状态迁移语义：SetState 用于强制迁移，但仍应触发 OnStateChanged（原实现静默写入）。
+            lock (_states)
+            {
+                if (_states.TryGetValue(id, out var oldState))
+                {
+                    _states[id] = state;
+                    OnStateChanged?.Invoke(id, oldState, state);
+                }
+                else
+                {
+                    _states[id] = state;
+                }
+            }
         }
 
         public bool Remove(string id)

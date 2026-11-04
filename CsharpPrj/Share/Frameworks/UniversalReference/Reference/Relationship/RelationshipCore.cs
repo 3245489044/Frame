@@ -19,9 +19,6 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using UniversalGraphStorage;
-using UniversalModuleFramework.Core;
-using UniversalModuleFramework.Repositories;
-using UniversalModuleFramework.UnitOfWork;
 
 namespace RelationshipManagement.Core
 {
@@ -112,7 +109,6 @@ namespace RelationshipManagement.Core
         int Priority { get; }
         string Condition { get; }
         string TargetId { get; }
-        IReadOnlyDictionary<string, string> TargetParameters { get; }
         bool Evaluate(IRoutingContext context);
     }
 
@@ -124,16 +120,13 @@ namespace RelationshipManagement.Core
         public int Priority { get; }
         public string Condition { get; }
         public string TargetId { get; }
-        public IReadOnlyDictionary<string, string> TargetParameters { get; }
 
-        public ExpressionRule(string id, int priority, string condition, string targetId,
-                            IReadOnlyDictionary<string, string>? parameters = null)
+        public ExpressionRule(string id, int priority, string condition, string targetId)
         {
             Id = id ?? throw new ArgumentNullException(nameof(id));
             Priority = priority;
             Condition = condition ?? throw new ArgumentNullException(nameof(condition));
             TargetId = targetId ?? throw new ArgumentNullException(nameof(targetId));
-            TargetParameters = parameters ?? new Dictionary<string, string>();
 
             _compiledPredicate = CompileCondition(condition);
         }
@@ -259,6 +252,10 @@ namespace RelationshipManagement.Core
             private Expression ParseValue()
             {
                 SkipWhitespace();
+                // 表达式以运算符/空白结尾时 _index 已越过末尾：先给可读异常，不做越界访问。
+                if (_index >= _expression.Length)
+                    throw new FormatException("表达式意外结束：缺少右操作数");
+
                 if (char.IsDigit(_expression[_index]) || (_expression[_index] == '-' && _index + 1 < _expression.Length && char.IsDigit(_expression[_index + 1])))
                 {
                     var start = _index;
@@ -276,6 +273,8 @@ namespace RelationshipManagement.Core
                         if (_expression[_index] == '\\' && _index + 1 < _expression.Length) _index++;
                         _index++;
                     }
+                    if (_index >= _expression.Length)
+                        throw new FormatException("字符串字面量缺少结束引号");
                     var str = _expression.Substring(start, _index - start).Replace("\\\"", "\"").Replace("\\\\", "\\");
                     _index++;
                     return Expression.Constant(str);
@@ -289,21 +288,23 @@ namespace RelationshipManagement.Core
                         if (_expression[_index] == '\\' && _index + 1 < _expression.Length) _index++;
                         _index++;
                     }
+                    if (_index >= _expression.Length)
+                        throw new FormatException("字符字面量缺少结束引号");
                     var str = _expression.Substring(start, _index - start).Replace("\\'", "'").Replace("\\\\", "\\");
                     _index++;
                     return Expression.Constant(str);
                 }
-                else if (Peek(4) == "true" && !char.IsLetterOrDigit(_expression[_index + 4]))
+                else if (Peek(4) == "true" && (_index + 4 >= _expression.Length || !char.IsLetterOrDigit(_expression[_index + 4])))
                 {
                     Consume(4);
                     return Expression.Constant(true);
                 }
-                else if (Peek(5) == "false" && !char.IsLetterOrDigit(_expression[_index + 5]))
+                else if (Peek(5) == "false" && (_index + 5 >= _expression.Length || !char.IsLetterOrDigit(_expression[_index + 5])))
                 {
                     Consume(5);
                     return Expression.Constant(false);
                 }
-                else if (Peek(4) == "null" && !char.IsLetterOrDigit(_expression[_index + 4]))
+                else if (Peek(4) == "null" && (_index + 4 >= _expression.Length || !char.IsLetterOrDigit(_expression[_index + 4])))
                 {
                     Consume(4);
                     return Expression.Constant(null, typeof(object));
@@ -321,13 +322,16 @@ namespace RelationshipManagement.Core
                     _index++;
                 var identifier = _expression.Substring(start, _index - start);
 
-                if (identifier.StartsWith("Tags"))
+                if (identifier == "Tags")
                 {
                     SkipWhitespace();
                     if (_index < _expression.Length && _expression[_index] == '[')
                     {
                         _index++;
                         SkipWhitespace();
+                        // Tags 索引器空键/缺引号：可读异常而非越界。
+                        if (_index >= _expression.Length)
+                            throw new FormatException("Tags 索引器缺少字符串键");
                         char quote = _expression[_index];
                         if (quote != '"' && quote != '\'') throw new FormatException("Tags 索引器需要字符串键");
                         _index++;
@@ -356,16 +360,26 @@ namespace RelationshipManagement.Core
                 {
                     return Expression.Property(_contextParam, nameof(IRoutingContext.PrimaryKey));
                 }
-                else if (identifier.StartsWith("Payload"))
+                else if (identifier == "Payload" || identifier.StartsWith("Payload.", StringComparison.Ordinal))
                 {
                     var payloadProp = Expression.Property(_contextParam, nameof(IRoutingContext.Payload));
                     var path = identifier.Substring("Payload".Length).TrimStart('.');
                     if (string.IsNullOrEmpty(path)) return payloadProp;
+                    // Payload 声明为 object：对非结构类型反射会抛 ArgumentException，转为可读异常。
+                    if (payloadProp.Type == typeof(object) || payloadProp.Type.IsValueType)
+                        throw new FormatException($"Payload 为 {payloadProp.Type.Name}，不支持成员访问 '{identifier}'");
                     Expression expr = payloadProp;
                     foreach (var part in path.Split('.'))
                     {
                         if (string.IsNullOrEmpty(part)) continue;
-                        expr = Expression.PropertyOrField(expr, part);
+                        try
+                        {
+                            expr = Expression.PropertyOrField(expr, part);
+                        }
+                        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+                        {
+                            throw new FormatException($"Payload 不支持成员 '{part}'（{expr.Type.Name}）", ex);
+                        }
                     }
                     return expr;
                 }

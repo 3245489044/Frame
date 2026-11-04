@@ -51,6 +51,8 @@ namespace UniversalWorkflowFramework.ActionMapping.Mappers
 
         public async Task<TOutput> MapAsync(TInput input)
         {
+            if (string.IsNullOrWhiteSpace(input.ActionType))
+                throw new ArgumentException("input.ActionType 不能为空（空类型会命中空键资源并映射到错误目标）", nameof(input));
             try
             {
                 var mapping = await GetMappingAsync(input.ActionType);
@@ -72,6 +74,10 @@ namespace UniversalWorkflowFramework.ActionMapping.Mappers
 
         public async Task AddMappingAsync(string inputType, string outputType, Dictionary<string, string>? parameterMap = null)
         {
+            if (string.IsNullOrWhiteSpace(inputType))
+                throw new ArgumentException("inputType 不能为空", nameof(inputType));
+            if (string.IsNullOrWhiteSpace(outputType))
+                throw new ArgumentException("outputType 不能为空", nameof(outputType));
             try
             {
                 var inputResourceId = new ResourceIdentifier { ResourceType = ResourceTypeInput, Id = inputType };
@@ -104,23 +110,7 @@ namespace UniversalWorkflowFramework.ActionMapping.Mappers
 
                 foreach (var resource in resources)
                 {
-                    var mapping = new UniversalWorkflowFramework.ActionMapping.Interfaces.ActionMapping
-                    {
-                        InputActionType = resource.Identifier.Id
-                    };
-
-                    if (resource.Metadata.TryGetValue(MetadataKeyOutputActionType, out var outputActionTypeObj))
-                    {
-                        mapping.OutputActionType = outputActionTypeObj.ToString();
-                    }
-
-                    if (resource.Metadata.TryGetValue(MetadataKeyParameterMap, out var parameterMapObj) &&
-                        TryBuildParameterMap(parameterMapObj, out var parameterMap))
-                    {
-                        mapping.ParameterMap = parameterMap;
-                    }
-
-                    mappings.Add(mapping);
+                    mappings.Add(ProjectMapping(resource));
                 }
 
                 UniversalWorkflowFrameworkDiagnosticContext.Record(DiagnosticEvents.Mapper.ListSuccess, new { message = $"获取操作映射成功，共 {mappings.Count} 个映射", count = mappings.Count });
@@ -135,9 +125,19 @@ namespace UniversalWorkflowFramework.ActionMapping.Mappers
 
         public async Task RemoveMappingAsync(string inputType)
         {
+            if (string.IsNullOrWhiteSpace(inputType))
+                throw new ArgumentException("inputType 不能为空", nameof(inputType));
             try
             {
                 var inputResourceId = new ResourceIdentifier { ResourceType = ResourceTypeInput, Id = inputType };
+                // 先确认存在：不存在时不得记「删除成功」掩盖空操作。
+                var existing = await _referenceManager.GetResourceAsync(inputResourceId);
+                if (existing == null)
+                {
+                    UniversalWorkflowFrameworkDiagnosticContext.Record(DiagnosticEvents.Mapper.RemoveError, new { message = $"删除操作映射未命中: {inputType}", inputType });
+                    return;
+                }
+
                 await _referenceManager.RemoveResourceAsync(inputResourceId);
                 UniversalWorkflowFrameworkDiagnosticContext.Record(DiagnosticEvents.Mapper.RemoveSuccess, new { message = $"删除操作映射成功: {inputType}", inputType });
             }
@@ -152,20 +152,21 @@ namespace UniversalWorkflowFramework.ActionMapping.Mappers
         {
             var inputResourceId = new ResourceIdentifier { ResourceType = ResourceTypeInput, Id = inputType };
             var resource = await _referenceManager.GetResourceAsync(inputResourceId);
+            return resource == null ? null : ProjectMapping(resource);
+        }
 
-            if (resource == null)
-            {
-                return null;
-            }
-
+        /// <summary>资源 → 映射投影的唯一实现（GetAllMappingsAsync / GetMappingAsync 共用）。</summary>
+        private static UniversalWorkflowFramework.ActionMapping.Interfaces.ActionMapping ProjectMapping(Resource resource)
+        {
             var mapping = new UniversalWorkflowFramework.ActionMapping.Interfaces.ActionMapping
             {
-                InputActionType = inputType
+                InputActionType = resource.Identifier.Id
             };
 
-            if (resource.Metadata.TryGetValue(MetadataKeyOutputActionType, out var outputActionTypeObj))
+            if (resource.Metadata.TryGetValue(MetadataKeyOutputActionType, out var outputActionTypeObj) &&
+                outputActionTypeObj is not null)
             {
-                mapping.OutputActionType = outputActionTypeObj.ToString();
+                mapping.OutputActionType = outputActionTypeObj.ToString() ?? string.Empty;
             }
 
             if (resource.Metadata.TryGetValue(MetadataKeyParameterMap, out var parameterMapObj) &&
@@ -205,7 +206,7 @@ namespace UniversalWorkflowFramework.ActionMapping.Mappers
                 parameterMap = new Dictionary<string, string>();
                 foreach (var kvp in objectMap)
                 {
-                    parameterMap[kvp.Key] = kvp.Value.ToString();
+                    parameterMap[kvp.Key] = kvp.Value?.ToString() ?? string.Empty;
                 }
                 return true;
             }

@@ -28,28 +28,21 @@ namespace UniversalWorkflowFramework.Core.Graph
                 graph.AddNode(key, resource, resource.Symbol);
             }
 
-            var seenEdges = new HashSet<string>();
             foreach (var reference in references)
             {
                 if (!graph.ContainsNode(reference.SourceKey) || !graph.ContainsNode(reference.TargetKey))
                     continue;
 
-                var edgeId = BuildEdgeId(reference);
-                if (!seenEdges.Add(edgeId))
-                    continue;
-
-                graph.AddEdge(edgeId, reference.SourceKey, reference.TargetKey,
+                graph.AddEdge(BuildEdgeId(reference), reference.SourceKey, reference.TargetKey,
                     isDirected: true, data: reference.Data, weight: reference.Strength);
             }
 
             return graph;
         }
 
+        /// <summary>确定性边 id（禁 <c>GetHashCode</c>：跨进程不稳定会让图快照差异抖动）。</summary>
         private static string BuildEdgeId(ReferenceEdge reference)
-        {
-            var seed = $"{reference.SourceKey}->{reference.TargetKey}[{reference.ReferenceType}]{reference.Description}";
-            return seed.GetHashCode().ToString("x");
-        }
+            => $"{reference.SourceKey}->{reference.TargetKey}[{reference.ReferenceType}]{reference.Description}";
     }
 
     /// <summary>适配桥边投影（Source/Target 键 + 边数据）。</summary>

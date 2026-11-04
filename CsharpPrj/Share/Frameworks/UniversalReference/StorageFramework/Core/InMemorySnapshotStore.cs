@@ -13,21 +13,25 @@ namespace UniversalWorkflowFramework.StorageFramework.Core;
 /// </summary>
 public sealed class InMemorySnapshotStore : ISnapshotStore
 {
-    private sealed record Entry(string ThreadId, string Json, string CreatedAt);
+    private sealed record Entry(string ThreadId, string Json, string CreatedAt, long Seq);
 
     private readonly ConcurrentDictionary<string, Entry> _store = new(StringComparer.Ordinal);
+
+    private long _seq;
 
     public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
 
     public Task SaveAsync(string threadId, string? sessionId, string snapshotJson, CancellationToken ct = default)
     {
-        _store[PersistenceHelper.SnapshotKey(threadId, sessionId)] = new Entry(threadId, snapshotJson, PersistenceHelper.NowIso());
+        _store[PersistenceHelper.SnapshotKey(threadId, sessionId)] =
+            new Entry(threadId, snapshotJson, PersistenceHelper.NowIso(), Interlocked.Increment(ref _seq));
         return Task.CompletedTask;
     }
 
     public Task<string?> LoadAsync(string threadId, string? sessionId, CancellationToken ct = default)
     {
-        // 与 Sqlite/LiteDB 后端一致：有 sessionId → 精确读取；无 sessionId → 取该 ThreadId 最新快照（按落库时间 CreatedAt 倒序，ISO-8601 字典序即时间序）。
+        // 与 Sqlite/LiteDB 后端一致：有 sessionId → 精确读取；无 sessionId → 取该 ThreadId 最新快照。
+        // 同毫秒写入时 CreatedAt 无法分先后，用单调写入序号 Seq 兜底，保证"最新"稳定。
         if (!string.IsNullOrWhiteSpace(sessionId))
         {
             _store.TryGetValue(PersistenceHelper.SnapshotKey(threadId, sessionId), out var exact);
@@ -38,8 +42,14 @@ public sealed class InMemorySnapshotStore : ISnapshotStore
         foreach (var e in _store.Values)
         {
             if (!string.Equals(e.ThreadId, threadId, StringComparison.Ordinal)) continue;
-            if (latest is null || string.CompareOrdinal(e.CreatedAt, latest.CreatedAt) > 0) latest = e;
+            if (latest is null || Compare(e, latest) > 0) latest = e;
         }
         return Task.FromResult(latest?.Json);
+
+        static int Compare(Entry a, Entry b)
+        {
+            var byTime = string.CompareOrdinal(a.CreatedAt, b.CreatedAt);
+            return byTime != 0 ? byTime : a.Seq.CompareTo(b.Seq);
+        }
     }
 }

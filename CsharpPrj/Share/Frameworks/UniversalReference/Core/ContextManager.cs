@@ -5,20 +5,34 @@ namespace UniversalWorkflowFramework.Core
 {
     public class ContextManager<T> where T : class
     {
-        private readonly AsyncLocal<T?> _context = new();
+        private sealed class Scope
+        {
+            public Scope(T? value, Scope? previous)
+            {
+                Value = value;
+                Previous = previous;
+            }
 
-        public T? Current => _context.Value;
+            public T? Value { get; }
 
-        public bool IsSet => _context.Value != null;
+            public Scope? Previous { get; }
+        }
+
+        // 栈式存储：Enter/Set 压栈，Exit/Clear 弹栈，嵌套时自动恢复上一层（原实现直接覆盖，内层退出会丢外层值）。
+        private readonly AsyncLocal<Scope?> _context = new();
+
+        public T? Current => _context.Value?.Value;
+
+        public bool IsSet => _context.Value?.Value != null;
 
         public void Set(T value)
         {
-            _context.Value = value ?? throw new ArgumentNullException(nameof(value));
+            _context.Value = new Scope(value ?? throw new ArgumentNullException(nameof(value)), _context.Value);
         }
 
         public void Clear()
         {
-            _context.Value = null;
+            _context.Value = _context.Value?.Previous;
         }
 
         public void Enter(T value)
@@ -36,7 +50,7 @@ namespace UniversalWorkflowFramework.Core
             var previous = _context.Value;
             try
             {
-                _context.Value = value;
+                _context.Value = new Scope(value, previous);
                 action();
             }
             finally
@@ -50,7 +64,7 @@ namespace UniversalWorkflowFramework.Core
             var previous = _context.Value;
             try
             {
-                _context.Value = value;
+                _context.Value = new Scope(value, previous);
                 return func();
             }
             finally
@@ -64,7 +78,7 @@ namespace UniversalWorkflowFramework.Core
             var previous = _context.Value;
             try
             {
-                _context.Value = value;
+                _context.Value = new Scope(value, previous);
                 await asyncAction();
             }
             finally
@@ -78,7 +92,7 @@ namespace UniversalWorkflowFramework.Core
             var previous = _context.Value;
             try
             {
-                _context.Value = value;
+                _context.Value = new Scope(value, previous);
                 return await asyncFunc();
             }
             finally

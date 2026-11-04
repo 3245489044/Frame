@@ -1,4 +1,5 @@
 using TConfig.GameMath;
+using MathematicalAlgorithms.Culling;
 
 namespace MathematicalAlgorithms.Spatial;
 
@@ -193,12 +194,14 @@ public readonly record struct ChunkStreamOptions(
 /// <summary>一帧的分块可见性快照：视锥剔除后的可见分块（近→远）+ 保守渲染域包围盒。</summary>
 /// <param name="VisibleBounds">与 <paramref name="VisibleChunks"/> 同序的 cm 包围盒；规划时已算出，消费侧直接复用。</param>
 /// <param name="VisibleCenters">与 <paramref name="VisibleChunks"/> 同序的中心点（cm），避免消费侧重复求中。</param>
+/// <param name="ViewFrustum">本帧规划所用视锥；绘制端直接复用，避免同一帧再按姿态构造一次。</param>
 public readonly record struct ChunkStreamSnapshot(
     IReadOnlyList<ChunkCoord> VisibleChunks,
     Aabb Bounds,
     int CandidateChunks,
     IReadOnlyList<Aabb>? VisibleBounds = null,
-    IReadOnlyList<Vec3>? VisibleCenters = null);
+    IReadOnlyList<Vec3>? VisibleCenters = null,
+    Frustum ViewFrustum = default);
 
 /// <summary>脏分块（编辑改动的更新调度单元，版本号用于消费侧判断是否需要重建）。</summary>
 public readonly record struct DirtyChunk(ChunkCoord Coord, long Version);

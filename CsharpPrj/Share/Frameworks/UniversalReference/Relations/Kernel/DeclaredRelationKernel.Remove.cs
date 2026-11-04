@@ -28,16 +28,18 @@ public sealed partial class DeclaredRelationKernel
         foreach (var targetKey in targets)
         {
             var target = RelationEndpoints.Create(plan.Target, targetKey, location);
+            // 先确认边确实存在：部分存储实现在未命中时仍返回 Ok，直接以 Ok 计数会虚报删除条数。
+            var existed = await EdgeExistsAsync(source, target, plan.Edge, ct).ConfigureAwait(false);
             var outcome = await _store.RemoveReferenceResultAsync(
                 source, target, plan.Edge, role, ct).ConfigureAwait(false);
-            if (outcome.Status == ReferenceDeleteStatus.Ok)
+            if (outcome.Status == ReferenceDeleteStatus.Ok && existed)
             {
                 removed++;
                 continue;
             }
 
             diagnostics.Add($"未命中：{RelationEndpoints.KeyOf(source)} → {RelationEndpoints.KeyOf(target)} @ {plan.Edge}"
-                            + $"（{outcome.Status}：{outcome.Message}）");
+                            + $"（{outcome.Status}：{outcome.Message}{(existed ? string.Empty : "；删除前该边不存在")}）");
         }
 
         return removed > 0

@@ -24,7 +24,7 @@ public static class ChunkVisibility
         var eyeChunk = ChunkCoord.Of(eye, chunkSize);
 
         int maxVisible = options.MaxVisibleChunks > 0 ? options.MaxVisibleChunks : int.MaxValue;
-        var visible = new List<(ChunkCoord Coord, float Distance)>();
+        var visible = new List<(ChunkCoord Coord, float Distance, Aabb Bounds, Vec3 Center)>();
         int candidateCount = 0;
         Aabb streamBounds = default;
         bool hasBounds = false;
@@ -85,7 +85,7 @@ public static class ChunkVisibility
                 if (distance > options.MaxDistance)
                     continue;
 
-                visible.Add((new ChunkCoord(cx, cy, cz), distance));
+                visible.Add((new ChunkCoord(cx, cy, cz), distance, chunkBounds, center));
                 if (!quotaFilled && visible.Count >= maxVisible)
                 {
                     quotaFilled = true;
@@ -101,11 +101,17 @@ public static class ChunkVisibility
 
         int take = Math.Min(visible.Count, maxVisible);
         var visibleChunks = new List<ChunkCoord>(take);
+        var visibleBounds = new List<Aabb>(take);
+        var visibleCenters = new List<Vec3>(take);
         for (int i = 0; i < take; i++)
+        {
             visibleChunks.Add(visible[i].Coord);
+            visibleBounds.Add(visible[i].Bounds);
+            visibleCenters.Add(visible[i].Center);
+        }
 
         // 保守渲染域 = 候选范围并集（不因朝向裁掉射线可能进入的 chunk）。
-        return new ChunkStreamSnapshot(visibleChunks, streamBounds, candidateCount);
+        return new ChunkStreamSnapshot(visibleChunks, streamBounds, candidateCount, visibleBounds, visibleCenters);
     }
 
     private static Aabb Union(in Aabb a, in Aabb b) => new(

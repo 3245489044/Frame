@@ -143,9 +143,9 @@ public sealed class TerrainHeightModel
     }
 
     /// <summary>
-    /// 水平 footprint 内「地表附近可产生可见面」的高度带：地表 ~ 地表向下 SoilDepth（土层）。
-    /// <para>不含深层岩石（一直到底，但看不见）与水体（内部无面，只会挤占可见配额），
-    /// 因此它是「实心表面」而非「所有非空气内容」。</para>
+    /// 水平 footprint 内「可能产生可见面」的高度带：地表 ~ 地表向下 SoilDepth（土层），
+    /// 且当 footprint 内存在低于海平面的列时，上界抬到海平面（水面是有可见顶面的液体块）。
+    /// <para>不含深层岩石（一直到底，但看不见），因此它是「可见内容」而非「所有非空气内容」。</para>
     /// <paramref name="marginCm"/> 覆盖采样步长内的插值起伏；逐 chunk 查询时传 0，避免把上方空气块带进候选。
     /// </summary>
     public HeightSpan SurfaceSpan(int minX, int minZ, int maxX, int maxZ, int marginCm = 0)
@@ -155,6 +155,10 @@ public sealed class TerrainHeightModel
 
         int minY = ground.MinY - _constants.SoilDepthCm;
         int maxY = ground.MaxY;
+        // 水体带：ground < SeaLevel 的列会在 (ground, SeaLevel] 生成 Water，其顶面必须进入候选。
+        if (ground.MinY < _constants.SeaLevelCm)
+            maxY = Math.Max(maxY, _constants.SeaLevelCm);
+
         return marginCm > 0 ? new HeightSpan(minY, maxY).Expand(marginCm) : new HeightSpan(minY, maxY);
     }
 }

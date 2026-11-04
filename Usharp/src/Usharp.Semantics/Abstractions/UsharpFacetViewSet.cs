@@ -75,6 +75,12 @@ public abstract class UsharpFacetViewSet : IUsharpFacetReader
     /// <summary><c>[ReadModel]</c> 读模型声明（空表 = 本编译无读模型声明面）。</summary>
     public IReadOnlyList<UsharpReadModelDecl> ReadModels => View<UsharpReadModelDecl>();
 
+    /// <summary><c>[Product]</c> 产品声明（空表 = 本编译无产品声明面）。</summary>
+    public IReadOnlyList<UsharpProductDecl> Products => View<UsharpProductDecl>();
+
+    /// <summary><c>[Face]</c> 面声明（空表 = 本编译无面声明面；有面即肯定式白名单生效）。</summary>
+    public IReadOnlyList<UsharpFaceDecl> Faces => View<UsharpFaceDecl>();
+
     /// <summary><c>[Relation]</c> 关系操作声明（空表 = 无关系操作声明面）。</summary>
     public IReadOnlyList<UsharpRelationDecl> Relations => View<UsharpRelationDecl>();
 

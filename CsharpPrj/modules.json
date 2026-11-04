@@ -120,6 +120,7 @@
     "PowerShellHost": "Plate\\PowerShellHost\\PowerShellHost.csproj",
     "MarkdownViewer": "Plate\\MarkdownViewer\\MarkdownViewer.csproj",
     "Mathematics": "Plate\\Mathematics\\Mathematics.csproj",
+    "FormulaFit": "Plate\\Mathematics.Tools\\FormulaFit\\FormulaFit.csproj",
     "Plate": "Plate\\Plate.csproj",
     "ClearCSharpComments": "Plate\\RoslynMethod.Tools\\ClearCSharpComments\\ClearCSharpComments.csproj",
     "CallChainExtract": "Plate\\RoslynMethod.Tools\\CallChainExtract\\CallChainExtract.csproj",

@@ -44,6 +44,7 @@ public sealed class UsharpDomainPack : IDomainPack<UsharpGateModel>, IUsharpGram
         new ConstGateRule(),
         new RelationGateRule(),
         new MountGateRule(),
+        new ProductGateRule(),
         new KeyIdentityGateRule(),
     };
 

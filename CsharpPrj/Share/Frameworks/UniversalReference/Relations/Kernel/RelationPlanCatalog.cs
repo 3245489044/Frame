@@ -31,7 +31,59 @@ public sealed class RelationPlanCatalog
 
         foreach (var invariant in plan.Invariants)
         {
-            if (invariant.HasGuard()) _guardsByEdge.TryAdd(invariant.Edge, invariant);
+            if (!invariant.HasGuard()) continue;
+            if (_guardsByEdge.ContainsKey(invariant.Edge))
+            {
+                throw new InvalidOperationException(
+                    $"guard-duplicated：边 '{invariant.Edge}' 存在多条带 guard.pre/post 的 [Invariant]"
+                    + $"（{_guardsByEdge[invariant.Edge].Id} / {invariant.Id}）；禁静默取首条（DUP-14）");
+            }
+
+            _guardsByEdge.Add(invariant.Edge, invariant);
+        }
+
+        EnsureNoDoubleEvaluation(plan.Invariants);
+        GuardPredicates = CollectGuardPredicates(plan.Invariants);
+    }
+
+    /// <summary>声明面 guard.pre/post 引用的全部谓词 id（装配期谓词预检的唯一输入）。</summary>
+    public IReadOnlyCollection<string> GuardPredicates { get; }
+
+    private static IReadOnlyCollection<string> CollectGuardPredicates(IReadOnlyList<RelationInvariant> invariants)
+    {
+        var ids = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var invariant in invariants)
+        {
+            foreach (var predicate in invariant.Pre ?? Array.Empty<string>()) ids.Add(predicate);
+            foreach (var predicate in invariant.Post ?? Array.Empty<string>()) ids.Add(predicate);
+        }
+
+        return ids;
+    }
+
+    /// <summary>
+    /// 同义双声明检测（DUP-13）：同一约束既以 <c>kind=</c> 又以 <c>guard.pre/post=</c> 表达 ⇒ 写路径双次求值、两份诊断。
+    /// 装配期拒绝（声明面保留其一；guard 只承担不变量表达不了的结构谓词）。
+    /// </summary>
+    private static void EnsureNoDoubleEvaluation(IReadOnlyList<RelationInvariant> invariants)
+    {
+        foreach (var invariant in invariants)
+        {
+            var predicates = (invariant.Pre ?? Array.Empty<string>())
+                .Concat(invariant.Post ?? Array.Empty<string>());
+
+            foreach (var predicate in predicates)
+            {
+                var duplicated = invariants.Any(other =>
+                    string.Equals(other.Edge, invariant.Edge, StringComparison.Ordinal)
+                    && string.Equals(other.Kind, predicate, StringComparison.Ordinal));
+
+                if (!duplicated) continue;
+
+                throw new InvalidOperationException(
+                    $"guard-duplicated-expression：边 '{invariant.Edge}' 的约束 '{predicate}' 同时以 kind= 与 guard.pre/post= 声明"
+                    + "（同义双求值）；声明面保留其一（DUP-13）");
+            }
         }
     }
 

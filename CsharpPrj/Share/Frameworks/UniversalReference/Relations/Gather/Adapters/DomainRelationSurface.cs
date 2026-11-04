@@ -55,6 +55,27 @@ public abstract class RelationSurfaceAdapter
     protected Task<RelationQueryResult> DeriveAsync(string deriveId, RelationScope scope, CancellationToken ct)
         => Ports.Queries.DeriveAsync(deriveId, scope, ct);
 
+    /// <summary>
+    /// 批量派生读（一次图枚举分组，禁 N+1）：具备批量能力 ⇒ 单次求值；否则逐 scope 求值（语义一致）。
+    /// 键 = <see cref="RelationScope.SourceKey"/>。
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, RelationQueryResult>> DeriveManyAsync(
+        string deriveId, IReadOnlyCollection<RelationScope> scopes, CancellationToken ct)
+    {
+        if (Ports.Queries is IRelationBatchQueryPort batch)
+            return await batch.DeriveManyAsync(deriveId, scopes, ct).ConfigureAwait(false);
+
+        var result = new Dictionary<string, RelationQueryResult>(StringComparer.Ordinal);
+        foreach (var scope in scopes ?? Array.Empty<RelationScope>())
+        {
+            if (scope is null || string.IsNullOrWhiteSpace(scope.SourceKey)) continue;
+            if (result.ContainsKey(scope.SourceKey)) continue;
+            result[scope.SourceKey] = await DeriveAsync(deriveId, scope, ct).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
     /// <summary>按边枚举（空集带空因）。</summary>
     protected Task<RelationQueryResult> EnumerateAsync(string edge, RelationScope scope, CancellationToken ct)
         => Ports.Queries.EnumerateAsync(edge, scope, ct);
@@ -104,6 +125,7 @@ public static class RelationOperationIds
     public const string DeriveTaskNodes = "TaskNodes";
     public const string DeriveHistoryNodes = "HistoryNodes";
     public const string DeriveHistoryTasks = "HistoryTasks";
+    public const string DeriveHistoryWindows = "HistoryWindows";
 }
 
 /// <summary>归属边名（与声明面 <c>[Relation].edge</c> 逐字一致）。</summary>
@@ -193,6 +215,9 @@ public sealed class ContainerRelationSurface : RelationSurfaceAdapter
             RelationOperationIds.DeriveHistoryNodes,
             new RelationScope(historyId, string.IsNullOrWhiteSpace(workflowId) ? null : workflowId),
             ct);
+
+    public Task<RelationQueryResult> DeriveHistoryWindowsAsync(string historyId, CancellationToken ct = default)
+        => DeriveAsync(RelationOperationIds.DeriveHistoryWindows, new RelationScope(historyId), ct);
 
     public Task<RelationQueryResult> EnumerateTasksAsync(string historyId, CancellationToken ct = default)
         => EnumerateAsync(RelationEdgeNames.HistoryOwnsTask, new RelationScope(historyId), ct);

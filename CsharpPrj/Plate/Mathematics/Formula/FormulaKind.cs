@@ -28,6 +28,7 @@ public enum FormulaShape
     CubicOffset,
     PowerLaw,
     RationalSaturation,
+    ExponentialSaturation,
     ResidentTiles,
     QuotaMin,
     Piecewise,

@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 // port-surface-types: RelationOrigin,RelationOutcome,RelationRequest,RelationScope,RelationResult,RelationQueryResult,
-//   IRelationCommandPort,IRelationQueryPort,RelationQueryVocabulary,RelationQuerySpec,IRelationSpecQueryPort,
+//   IRelationCommandPort,IRelationQueryPort,IRelationBatchQueryPort,RelationQueryVocabulary,RelationQuerySpec,IRelationSpecQueryPort,
 //   RelationMoveRequest,RelationMergeRequest,RelationGcRequest,IRelationMaintenancePort,
 //   RelationGuardPostures,RelationGuardPredicates,RelationGuard,RelationGuardContext,RelationGuardResult,IRelationGuardEvaluator,
 //   IRelationPorts,IRelationPortsProvider,IRelationOperationResolver,
@@ -86,6 +86,17 @@ public interface IRelationQueryPort
     Task<RelationQueryResult> EnumerateAsync(string edgeOrDerive, RelationScope scope, CancellationToken ct = default);
 
     Task<RelationQueryResult> DeriveAsync(string deriveId, RelationScope scope, CancellationToken ct = default);
+}
+
+/// <summary>
+/// 批量派生读端口（F3 扩展面）：一次图枚举分组求值，替代「逐 scope 循环 DeriveAsync」的 N+1 形态。
+/// <para>语义与 <see cref="IRelationQueryPort.DeriveAsync"/> 逐字一致（同一 <c>[Derive]</c> 声明），
+/// 仅作用域集合化；空集仍须带空因（禁静默省略）。键 = <see cref="RelationScope.SourceKey"/>。</para>
+/// </summary>
+public interface IRelationBatchQueryPort
+{
+    Task<IReadOnlyDictionary<string, RelationQueryResult>> DeriveManyAsync(
+        string deriveId, IReadOnlyCollection<RelationScope> scopes, CancellationToken ct = default);
 }
 
 /// <summary>关系查询轴取值（单源；禁在查询构造/声明编译/门禁各处手写字面量）。</summary>
@@ -195,23 +206,31 @@ public sealed record RelationGuard(
     string Posture = RelationGuardPostures.Require,
     string OnViolation = "reject");
 
-/// <summary>守卫求值上下文（调用方在 step 前/后用已有结构事实装配；框架不自行遍历存储）。</summary>
+/// <summary>
+/// 守卫求值上下文（调用方在 step 前/后用已有结构事实装配；框架不自行遍历存储）。
+/// <para>三态纪律：<c>null</c> = 该结构事实**不可判定**（能力缺失 / 未装配 / 预算超限），
+/// 求值器一律按「不可判定 ⇒ 拒绝」处置（禁以默认值冒充确定值，权威 <c>AX.NoSilentOutlet</c>）。</para>
+/// </summary>
 public sealed record RelationGuardContext(
     string SourceKey,
     string TargetKey,
-    bool SourceExists = true,
-    bool TargetExists = true,
-    bool CreatesCycle = false,
+    bool? SourceExists = null,
+    bool? TargetExists = null,
+    bool? CreatesCycle = null,
     bool EdgeExists = false,
-    int ExistingTargetParents = 0,
-    int ExistingSourceTargets = 0);
+    int? ExistingTargetParents = null,
+    int? ExistingSourceTargets = null);
 
 /// <summary>守卫求值结果（违反项逐条可见；不可判定与违反共用出口但原因可辨）。</summary>
 public sealed record RelationGuardResult(
     bool Satisfied,
     bool Blocks,
     IReadOnlyList<string> Violations,
-    string Posture);
+    string Posture)
+{
+    /// <summary>是否存在不可判定谓词（已按 fail-closed 计入 <see cref="Blocks"/>）。</summary>
+    public bool Undecidable { get; init; }
+}
 
 /// <summary>守卫求值端口（纯函数；无 IO / 无状态）。</summary>
 public interface IRelationGuardEvaluator

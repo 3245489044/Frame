@@ -283,6 +283,37 @@ public static class UsharpDiagnosticCatalog
     /// <summary>[Const] 续行无法解析为 <c>Name = Expr</c>。</summary>
     public const string ConstLineUnparsed = "US8208";
 
+    // ── US83xx 产品图声明面（[Product] / [Face]）─────────────────────────
+    /// <summary>[Product] 产品键重复声明。</summary>
+    public const string ProductDuplicate = "US8301";
+
+    /// <summary>[Product] 必填字段缺失或非法（level/role/out/idempotency）。</summary>
+    public const string ProductFieldInvalid = "US8302";
+
+    /// <summary>[Product] level= 指向未声明的 [Space] 层。</summary>
+    public const string ProductLevelUndeclared = "US8303";
+
+    /// <summary>[Product]/[Face] 声明行含无法解析的续行。</summary>
+    public const string ProductLineUnparsed = "US8304";
+
+    /// <summary>[Product] accepts= 形态非法（须 <c>owner:…,channel:…</c>）。</summary>
+    public const string ProductAcceptsInvalid = "US8305";
+
+    /// <summary>[Face] 面键重复声明。</summary>
+    public const string FaceDuplicate = "US8306";
+
+    /// <summary>[Face] product= 指向未声明的 [Product]。</summary>
+    public const string FaceProductUndeclared = "US8307";
+
+    /// <summary>[Face] fields= 不是产品出字段的子集。</summary>
+    public const string FaceFieldNotSubset = "US8308";
+
+    /// <summary>[Face] 声明了 fields= 但解析后为空。</summary>
+    public const string FaceFieldsEmpty = "US8309";
+
+    /// <summary>产品图不可产出（无任何 [Product]/[Face] 声明）。</summary>
+    public const string ProductGraphNotProducible = "US8310";
+
     /// <summary>全量码表（声明序；序用于 README 生成与唯一性断言）。</summary>
     public static readonly IReadOnlyList<UsharpCodeSpec> All = new[]
     {
@@ -462,6 +493,16 @@ public static class UsharpDiagnosticCatalog
         E(MountFieldInvalid, "Mount", UsharpSeverity.Error, "[Mount] stage/family/coalesce/posture/order 非法或出现禁用字段", "mount, field"),
         E(MountRelationUnbound, "Mount", UsharpSeverity.Error, "ensure 关系操作缺少 [Mount] 绑定", "relation"),
         E(InvariantGuardInvalid, "Invariant", UsharpSeverity.Error, "[Invariant] guard.pre/guard.post/posture 非法", "invariant, field"),
+        E(ProductDuplicate, "Product", UsharpSeverity.Error, "[Product] 产品键重复声明", "product"),
+        E(ProductFieldInvalid, "Product", UsharpSeverity.Error, "[Product] 必填字段缺失或非法（level/role/out/idempotency）", "product, field"),
+        E(ProductLevelUndeclared, "Product", UsharpSeverity.Error, "[Product] level= 指向未声明层", "product, level"),
+        E(ProductLineUnparsed, "Product", UsharpSeverity.Error, "[Product]/[Face] 续行不可解析", "decl, line"),
+        E(ProductAcceptsInvalid, "Product", UsharpSeverity.Error, "[Product] accepts= 形态非法（须 owner:…,channel:…）", "product, accepts"),
+        E(FaceDuplicate, "Face", UsharpSeverity.Error, "[Face] 面键重复声明", "face"),
+        E(FaceProductUndeclared, "Face", UsharpSeverity.Error, "[Face] product= 未在 [Product] 声明", "face, product"),
+        E(FaceFieldNotSubset, "Face", UsharpSeverity.Error, "[Face] fields= 不是产品出字段子集", "face, field"),
+        E(FaceFieldsEmpty, "Face", UsharpSeverity.Error, "[Face] fields= 解析后为空", "face"),
+        E(ProductGraphNotProducible, "ProductEmit", UsharpSeverity.Error, "产品图不可产出（无 [Product]/[Face]）", "reason"),
         E(IdentityEntityInvalid, "Entity", UsharpSeverity.Error, "[Entity] scope/container/cardinality/role/authority 缺失或非法", "entity, field"),
         E(IdentityAuthorityNotSingle, "Entity", UsharpSeverity.Error, "每个 [Entity] 在 family 表中的 authority=true 权威面须恰一个", "entity, count"),
         E(IdentityLexiconOverlap, "KeyLexicon", UsharpSeverity.Error, "[KeyLexicon] 词表互斥被破坏（同一词条出现在两个词表）", "lexicon, value"),

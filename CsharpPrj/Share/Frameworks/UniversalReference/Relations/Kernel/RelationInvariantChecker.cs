@@ -130,9 +130,16 @@ public sealed class RelationInvariantChecker
             };
     }
 
-    private async Task<IReadOnlyList<RelationViolation>> AcyclicAsync(
-        RelationInvariant invariant, ResourceIdentifier source, ResourceIdentifier target, CancellationToken ct)
+    /// <summary>
+    /// 环检测（结构事实三态，唯一实现）：<c>true</c> = 加入该边将成环；<c>false</c> = 不成环；
+    /// <c>null</c> = 超出遍历预算（不可判定，禁按「成环」拒写，亦禁按「不成环」放行）。
+    /// <para>守卫（<c>guard.pre=acyclic</c>）与不变量（<c>kind=acyclic</c>）共用本 BFS（禁第二套图算法）。</para>
+    /// </summary>
+    public async Task<bool?> DetectCycleAsync(
+        string edge, ResourceIdentifier source, ResourceIdentifier target, CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(edge);
+
         var queue = new Queue<ResourceIdentifier>();
         var seen = new HashSet<string>(StringComparer.Ordinal) { RelationEndpoints.KeyOf(target) };
         queue.Enqueue(target);
@@ -140,32 +147,45 @@ public sealed class RelationInvariantChecker
 
         while (queue.Count > 0)
         {
-            if (++steps > TraversalBudget)
-                return new[]
-                {
-                    new RelationViolation(invariant.Id, RelationViolationKind.BudgetExceeded,
-                        $"环检测超出遍历预算 {TraversalBudget}（目标 '{RelationEndpoints.KeyOf(target)}' 起的 '{invariant.Edge}' 子图过大）"),
-                };
+            if (++steps > TraversalBudget) return null;
 
             var current = queue.Dequeue();
-            if (RelationEndpoints.SameEntity(current, source))
-                return new[]
-                {
-                    new RelationViolation(invariant.Id, RelationViolationKind.Cycle,
-                        $"加入 '{RelationEndpoints.KeyOf(source)}' → '{RelationEndpoints.KeyOf(target)}' 将形成 '{invariant.Edge}' 环"),
-                };
+            if (RelationEndpoints.SameEntity(current, source)) return true;
 
             var outgoing = await _reader.GetReferencesAsync(current, includeIncoming: false, ct);
             foreach (var next in outgoing)
             {
                 if (next.IsIncoming) continue;
-                if (!string.Equals(next.RefType, invariant.Edge, StringComparison.Ordinal)) continue;
+                if (!string.Equals(next.RefType, edge, StringComparison.Ordinal)) continue;
                 if (!seen.Add(RelationEndpoints.KeyOf(next.Target))) continue;
                 queue.Enqueue(next.Target);
             }
         }
 
-        return Array.Empty<RelationViolation>();
+        return false;
+    }
+
+    private async Task<IReadOnlyList<RelationViolation>> AcyclicAsync(
+        RelationInvariant invariant, ResourceIdentifier source, ResourceIdentifier target, CancellationToken ct)
+    {
+        var cycle = await DetectCycleAsync(invariant.Edge, source, target, ct).ConfigureAwait(false);
+
+        if (cycle is null)
+        {
+            return new[]
+            {
+                new RelationViolation(invariant.Id, RelationViolationKind.BudgetExceeded,
+                    $"环检测超出遍历预算 {TraversalBudget}（目标 '{RelationEndpoints.KeyOf(target)}' 起的 '{invariant.Edge}' 子图过大）"),
+            };
+        }
+
+        return cycle.Value
+            ? new[]
+            {
+                new RelationViolation(invariant.Id, RelationViolationKind.Cycle,
+                    $"加入 '{RelationEndpoints.KeyOf(source)}' → '{RelationEndpoints.KeyOf(target)}' 将形成 '{invariant.Edge}' 环"),
+            }
+            : Array.Empty<RelationViolation>();
     }
 
     private static async Task<IReadOnlyList<RelationViolation>> TargetExistsAsync(

@@ -93,57 +93,55 @@ public sealed class ContainerReferenceGrounding
         return result.Keys;
     }
 
-    /// <summary>批量成员集（单源 = [Derive] HistoryTasks；逐作用域求值，禁本类手写图投影）。</summary>
+    /// <summary>批量成员集（单源 = [Derive] HistoryTasks；一次批量求值，禁 N+1 逐 id 循环）。</summary>
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetHistoryTasksManyAsync(
         IReadOnlyCollection<string> historyIds, CancellationToken ct)
     {
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         if (historyIds is null) return result;
 
-        foreach (var id in historyIds
-                     .Where(static id => !string.IsNullOrWhiteSpace(id))
-                     .Select(static id => id.Trim())
-                     .Distinct(StringComparer.Ordinal))
-        {
-            var derived = await _relations.DeriveHistoryTasksAsync(id, ct).ConfigureAwait(false);
-            result[id] = derived.Keys;
-        }
+        var scopes = historyIds
+            .Where(static id => !string.IsNullOrWhiteSpace(id))
+            .Select(static id => id.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .Select(static id => new RelationScope(id))
+            .ToList();
+
+        if (scopes.Count == 0) return result;
+
+        var derived = await _relations
+            .DeriveManyAsync(RelationOperationIds.DeriveHistoryTasks, scopes, ct)
+            .ConfigureAwait(false);
+
+        foreach (var scope in scopes)
+            result[scope.SourceKey] = derived.TryGetValue(scope.SourceKey, out var one) ? one.Keys : Array.Empty<string>();
 
         return result;
     }
 
-    /// <summary>批量窗口集（一次持锁读多个历史的开窗出边；窗口键自描述）。</summary>
+    /// <summary>批量窗口集（单源 = [Derive] HistoryWindows；一次批量求值，禁 N+1 逐 id 循环）。</summary>
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetHistoryWindowsManyAsync(
         IReadOnlyCollection<string> historyIds, CancellationToken ct)
     {
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         if (historyIds is null) return result;
-        var ids = historyIds
+
+        var scopes = historyIds
             .Where(static id => !string.IsNullOrWhiteSpace(id))
             .Select(static id => id.Trim())
             .Distinct(StringComparer.Ordinal)
+            .Select(static id => new RelationScope(id))
             .ToList();
-        if (ids.Count == 0) return result;
 
-        var resources = ids
-            .Select(id => (ContainerId: id, Resource: new ResourceIdentifier
-            {
-                ResourceType = NodeResourceTypes.History,
-                Id = HistoryNodeId(id),
-            }))
-            .ToList();
-        var refsByKey = await _graph
-            .GetReferencesManyAsync(resources.Select(static r => r.Resource).ToList(), includeIncoming: false, ct)
+        if (scopes.Count == 0) return result;
+
+        var derived = await _relations
+            .DeriveManyAsync(RelationOperationIds.DeriveHistoryWindows, scopes, ct)
             .ConfigureAwait(false);
 
-        foreach (var (historyId, resource) in resources)
-        {
-            if (refsByKey.TryGetValue(_graph.Keys.Endpoint(resource), out var refs))
-                result[historyId] = GraphEdgeWriter.ProjectOutgoingTargetIds(
-                    refs, CrossDbReferenceTypes.HistoryOwnsWindow, static r => r.RefType, static r => r.Target?.Id);
-            else
-                result[historyId] = Array.Empty<string>();
-        }
+        foreach (var scope in scopes)
+            result[scope.SourceKey] = derived.TryGetValue(scope.SourceKey, out var one) ? one.Keys : Array.Empty<string>();
+
         return result;
     }
 

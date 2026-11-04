@@ -32,6 +32,55 @@ public static class UsharpLanguage
     /// <summary>读模型声明前缀（模型 id → 源键/版本源/投影器/参数名表；<c>[ReadModel]</c>）。</summary>
     public const string ReadModelPrefix = "[ReadModel]";
 
+    // ---- 产品图声明语言单元（[Product] / [Face]）----
+    // 产品 = 层内唯一键 + 角色 + 字段契约 + 幂等键（声明源 → DeclaredGraph）；
+    // 面 = 产品可见性（owner/channel 肯定式白名单），是「哪些行出现在哪一面」的唯一声明点。
+
+    /// <summary>产品声明前缀（<c>[Product]</c>：产品键 → 层/角色/入出字段/幂等键）。</summary>
+    public const string ProductPrefix = "[Product]";
+
+    /// <summary>面声明前缀（<c>[Face]</c>：面键 → 产品引用 + owner/channel 白名单）。</summary>
+    public const string FacePrefix = "[Face]";
+
+    /// <summary>产品所属层（<c>level=</c>；须为已声明 <c>[Space]</c> 的层 Id）。</summary>
+    public const string ProductFieldLevel = "level";
+
+    /// <summary>产品角色（<c>role=</c>：source / derive / view / entity …；开放受控词）。</summary>
+    public const string ProductFieldRole = "role";
+
+    /// <summary>产品入字段契约（<c>in=</c>：逗号分隔；source 角色可空）。</summary>
+    public const string ProductFieldIn = "in";
+
+    /// <summary>产品出字段契约（<c>out=</c>：逗号分隔；恒非空，对外承诺）。</summary>
+    public const string ProductFieldOut = "out";
+
+    /// <summary>产品幂等键表达式（<c>idempotency=</c>：结构事实；禁易变时间/序号分量）。</summary>
+    public const string ProductFieldIdempotency = "idempotency";
+
+    /// <summary>产品版本（<c>version=</c>：正整数，单调不减）。</summary>
+    public const string ProductFieldVersion = "version";
+
+    /// <summary>产品阶段（<c>stage=</c>；null = 未声明）。</summary>
+    public const string ProductFieldStage = "stage";
+
+    /// <summary>上游产品引用（<c>depends_on=</c>：逗号分隔）。</summary>
+    public const string ProductFieldDependsOn = "depends_on";
+
+    /// <summary>产品接受面（<c>accepts=</c>：<c>owner:…,channel:…</c> 形态；面可见性的声明来源）。</summary>
+    public const string ProductFieldAccepts = "accepts";
+
+    /// <summary>面引用的产品键（<c>product=</c>；须已声明 <c>[Product]</c>）。</summary>
+    public const string FaceFieldProduct = "product";
+
+    /// <summary>面允许的 owner 集（<c>owner=</c>：逗号分隔；空 = 不限）。</summary>
+    public const string FaceFieldOwner = "owner";
+
+    /// <summary>面允许的 channel 集（<c>channel=</c>：逗号分隔；空 = 不限）。</summary>
+    public const string FaceFieldChannel = "channel";
+
+    /// <summary>面渲染字段（<c>fields=</c>：产品出字段子集；空 = 全部出字段）。</summary>
+    public const string FaceFieldFields = "fields";
+
     /// <summary>提示词段声明前缀（段键 → 组/序/适用性/需求量/别名/开关/字段名/字段类型；<c>[Segment]</c>）。</summary>
     public const string SegmentPrefix = "[Segment]";
 

@@ -17,6 +17,12 @@ public enum FitKind
 
     /// <summary><c>a*x/(b+x) + c</c>。</summary>
     RationalSaturation,
+
+    /// <summary><c>a*(1 - exp(-b*x)) + c</c>。</summary>
+    ExponentialSaturation,
+
+    /// <summary><c>a*φ(x)</c>，单参数标定。</summary>
+    Calibration,
 }
 
 /// <summary>有序系数项；顺序由拟合器声明，签名侧按名称再排序。</summary>

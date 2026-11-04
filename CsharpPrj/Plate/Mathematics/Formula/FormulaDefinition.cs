@@ -150,23 +150,29 @@ public sealed record FormulaDefinition
 
             case FormulaShape.Linear:
                 RequireKind(FormulaKind.Calibrated);
-                RequireInput("x");
+                RequireSingleInput();
                 RequireCoefficients("a", "b");
                 break;
 
             case FormulaShape.CubicOffset:
                 RequireKind(FormulaKind.Calibrated);
-                RequireInput("x");
+                RequireSingleInput();
                 RequireCoefficients("a", "b");
                 break;
 
             case FormulaShape.PowerLaw:
                 RequireKind(FormulaKind.Calibrated);
-                RequireInput("x");
+                RequireSingleInput();
                 RequireCoefficients("a", "b");
                 break;
 
             case FormulaShape.RationalSaturation:
+                RequireKind(FormulaKind.Calibrated);
+                RequireSingleInput();
+                RequireCoefficients("a", "b", "c");
+                break;
+
+            case FormulaShape.ExponentialSaturation:
                 RequireKind(FormulaKind.Calibrated);
                 RequireInput("x");
                 RequireCoefficients("a", "b", "c");
@@ -187,7 +193,7 @@ public sealed record FormulaDefinition
 
             case FormulaShape.Piecewise:
                 RequireKind(FormulaKind.Piecewise);
-                RequireInput("x");
+                RequireSingleInput();
                 if (Segments.Count == 0)
                     throw new ArgumentException($"分段公式 {Id} 至少需要一个分段。", nameof(Segments));
                 break;
@@ -221,6 +227,12 @@ public sealed record FormulaDefinition
     {
         if (!Inputs.Any(i => string.Equals(i.Name, name, StringComparison.Ordinal)))
             throw new ArgumentException($"公式 {Id} 缺少输入 {name}。", nameof(Inputs));
+    }
+
+    private void RequireSingleInput()
+    {
+        if (Inputs.Count != 1)
+            throw new ArgumentException($"公式 {Id} 的单变量形状必须恰好有一个输入。", nameof(Inputs));
     }
 
     private void RequireCoefficients(params string[] names)

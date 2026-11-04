@@ -44,6 +44,7 @@ public static class FormulaEvaluator
             FormulaShape.CubicOffset => EvaluateCubicOffset(definition, inputs),
             FormulaShape.PowerLaw => EvaluatePowerLaw(definition, inputs),
             FormulaShape.RationalSaturation => EvaluateRationalSaturation(definition, inputs),
+            FormulaShape.ExponentialSaturation => EvaluateExponentialSaturation(definition, inputs),
             FormulaShape.ResidentTiles => EvaluateResidentTiles(inputs),
             FormulaShape.QuotaMin => Math.Min(Coefficient(definition, "quota"), Input(inputs, "eligible")),
             FormulaShape.Piecewise => EvaluatePiecewise(definition, inputs),
@@ -56,7 +57,7 @@ public static class FormulaEvaluator
     {
         double a = Coefficient(definition, "a");
         double b = Coefficient(definition, "b");
-        double x = Input(inputs, "x");
+        double x = Input(inputs, UnivariateInputName(definition));
         return a * x + b;
     }
 
@@ -66,7 +67,7 @@ public static class FormulaEvaluator
     {
         double a = Coefficient(definition, "a");
         double b = Coefficient(definition, "b");
-        double x = Input(inputs, "x");
+        double x = Input(inputs, UnivariateInputName(definition));
         return a * x * x * x + b;
     }
 
@@ -76,9 +77,9 @@ public static class FormulaEvaluator
     {
         double a = Coefficient(definition, "a");
         double b = Coefficient(definition, "b");
-        double x = Input(inputs, "x");
+        double x = Input(inputs, UnivariateInputName(definition));
         if (x <= 0)
-            throw new FormulaEvaluationException("幂律要求 x>0。", "x");
+            throw new FormulaEvaluationException("幂律要求 x>0。", UnivariateInputName(definition));
 
         return a * Math.Pow(x, b);
     }
@@ -90,12 +91,27 @@ public static class FormulaEvaluator
         double a = Coefficient(definition, "a");
         double b = Coefficient(definition, "b");
         double c = Coefficient(definition, "c");
-        double x = Input(inputs, "x");
+        string inputName = UnivariateInputName(definition);
+        double x = Input(inputs, inputName);
         double denominator = b + x;
         if (Math.Abs(denominator) <= 1e-15)
-            throw new FormulaEvaluationException("有理饱和分母接近零。", "x");
+            throw new FormulaEvaluationException("有理饱和分母接近零。", inputName);
 
         return a * x / denominator + c;
+    }
+
+    private static double EvaluateExponentialSaturation(
+        FormulaDefinition definition,
+        IReadOnlyDictionary<string, double> inputs)
+    {
+        double a = Coefficient(definition, "a");
+        double b = Coefficient(definition, "b");
+        double c = Coefficient(definition, "c");
+        double x = Input(inputs, "x");
+        if (!(b > 0))
+            throw new FormulaEvaluationException("指数饱和要求 b>0。", "x");
+
+        return a * (1.0 - Math.Exp(-b * x)) + c;
     }
 
     private static double EvaluateResidentTiles(IReadOnlyDictionary<string, double> inputs)
@@ -116,14 +132,23 @@ public static class FormulaEvaluator
         FormulaDefinition definition,
         IReadOnlyDictionary<string, double> inputs)
     {
-        double x = Input(inputs, "x");
+        string inputName = UnivariateInputName(definition);
+        double x = Input(inputs, inputName);
         foreach (FormulaSegment segment in definition.Segments.OrderBy(static s => s.MinX))
         {
             if (x >= segment.MinX && x <= segment.MaxX)
                 return segment.Slope * x + segment.Intercept;
         }
 
-        throw new FormulaEvaluationException("x 不在任何分段内。", "x");
+        throw new FormulaEvaluationException("x 不在任何分段内。", inputName);
+    }
+
+    private static string UnivariateInputName(FormulaDefinition definition)
+    {
+        if (definition.Inputs.Count != 1)
+            throw new FormulaEvaluationException("单变量公式必须恰好有一个输入。", "inputs");
+
+        return definition.Inputs[0].Name;
     }
 
     private static double Input(IReadOnlyDictionary<string, double> inputs, string name)

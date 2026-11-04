@@ -112,6 +112,18 @@ public static class UsharpCodes
     public const string ConstValueExpressionInvalid = UsharpDiagnosticCatalog.ConstValueExpressionInvalid;
     public const string ConstLineUnparsed = UsharpDiagnosticCatalog.ConstLineUnparsed;
 
+    // 产品图声明面（[Product] / [Face]）闸A
+    public const string ProductDuplicate = UsharpDiagnosticCatalog.ProductDuplicate;
+    public const string ProductFieldInvalid = UsharpDiagnosticCatalog.ProductFieldInvalid;
+    public const string ProductLevelUndeclared = UsharpDiagnosticCatalog.ProductLevelUndeclared;
+    public const string ProductLineUnparsed = UsharpDiagnosticCatalog.ProductLineUnparsed;
+    public const string ProductAcceptsInvalid = UsharpDiagnosticCatalog.ProductAcceptsInvalid;
+    public const string FaceDuplicate = UsharpDiagnosticCatalog.FaceDuplicate;
+    public const string FaceProductUndeclared = UsharpDiagnosticCatalog.FaceProductUndeclared;
+    public const string FaceFieldNotSubset = UsharpDiagnosticCatalog.FaceFieldNotSubset;
+    public const string FaceFieldsEmpty = UsharpDiagnosticCatalog.FaceFieldsEmpty;
+    public const string ProductGraphNotProducible = UsharpDiagnosticCatalog.ProductGraphNotProducible;
+
     /// <summary><c>[Rule] enabled=</c> 非法布尔值（禁止静默变 null）。</summary>
     public const string RuleEnabledInvalid = UsharpDiagnosticCatalog.RuleEnabledInvalid;
 

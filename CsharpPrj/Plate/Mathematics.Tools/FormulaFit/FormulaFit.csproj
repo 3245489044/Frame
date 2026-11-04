@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ============================================================
+       FormulaFit —— 通用公式拟合离线框架（非运行时面）。
+       定位：读 sweep/plan JSON → 调用 Plate.Mathematics 的通用拟合器 → 写公式集。
+       纪律：
+         · 不进 Plate 伞聚合、不进 MainProj.sln；自有输出目录，避免被 CentralTest
+           通配清单注入全体测试工程。
+         · 领域无关：工具内不出现产品/指标类型名；指标名只作为数据字符串。
+         · 只做离线拟合；不接运行时热路径，不做在线滚动拟合。
+       ============================================================ -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>FormulaFit</AssemblyName>
+    <RootNamespace>MathematicalAlgorithms.FormulaFit.Cli</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- 离线工具自有输出目录：不进 CsharpPrj 权威烘焙目录。 -->
+    <OutputPath>$(MSBuildProjectDirectory)\BuildOutput\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用公式拟合离线 CLI（FormulaFit）</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>通用公式拟合框架（Plate\Mathematics\FormulaFit）的 CLI 外壳：读取 gameeditor-sweep-v1 sweep 与 formula-fit-plan-v1 计划，调用 Mathematics.dll 中的 FormulaFitRunner，产出 metric-formula-v1 公式集；带参数解析、退出码、确定性输出。核心算法与数据模型不在本工程内重复实现。</ModuleRule_Description>
+    <ModuleRule_Keywords>公式拟合;离线工具;sweep;JSON Pointer;最小二乘;幂律;有理饱和;确定性;FormulaFit</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="离线工具工程：只在离线流程 / CI / 守卫内运行，不被运行时面引用（禁进伞聚合与产品解决方案）" />
+    <ModuleRule_Rule Include="领域无关：工具内不出现产品/指标类型名；指标名只作为数据字符串" />
+    <ModuleRule_Rule Include="不重复实现拟合/签名：统一调用 Plate.Mathematics 的 Fitting/Formula" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Mathematics)" />
+  </ItemGroup>
+
+</Project>

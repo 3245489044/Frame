@@ -43,6 +43,9 @@ public enum DslSymbolKind
     Command,
     // 读模型声明语言单元（[ReadModel]）：模型 id → 源键/版本源/投影器/参数名表（生成物 = ui-commands-v2.readModels）。
     ReadModel,
+    // 产品图声明语言单元（[Product] / [Face]）：产品键/层/角色/字段契约（声明源 → DeclaredGraph）
+    // + 面（owner/channel 可见性；肯定式白名单的唯一声明点）。
+    Product, Face,
     // 关系声明语言单元（[Relation] / [Invariant] / [Derive]）：关系操作 / 关系不变量 / 派生成员集
     // （唯一声明面 → relation.plan.generated.json → Frame 关系内核；见 2026-10-28 节点任务历史重构方案 §3）。
     Relation, Invariant, Derive,

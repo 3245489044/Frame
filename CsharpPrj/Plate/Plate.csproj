@@ -38,6 +38,8 @@
     <Compile Remove="XmlMethod\**\*.cs" />
     <!-- ★ 同族独立子项目（Mathematics/RoslynMethod）：聚合项目经 ProjectReference 引用，须排除其源码避免类型在 Plate.dll 重复编译（CS0433） -->
     <Compile Remove="Mathematics\**\*.cs" />
+    <!-- ★ 通用公式拟合离线框架（Mathematics.Tools）：独立 Exe，不进伞聚合；只排除源码，不引用 -->
+    <Compile Remove="Mathematics.Tools\**\*.cs" />
     <Compile Remove="RoslynMethod\**\*.cs" />
     <!-- ★ WinFormsValueContract：物理位于 Plate 下但不可纳入聚合（依赖 ParameterResolver→Plate 导致循环），仅排除源码避免 Plate.dll 重复编译 -->
     <Compile Remove="WinFormsValueContract\**\*.cs" />

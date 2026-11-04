@@ -287,6 +287,14 @@ public static class UsharpSyntaxProjector
     public static IReadOnlyList<UsharpReadModelDecl> ReadModels(DslDocument doc)
         => Project(doc, DslSymbolKind.ReadModel, UsharpReadModelDecl.From);
 
+    /// <summary><c>[Product]</c> 产品声明（产品键 → 层/角色/字段契约/幂等键）。</summary>
+    public static IReadOnlyList<UsharpProductDecl> Products(DslDocument doc)
+        => Project(doc, DslSymbolKind.Product, UsharpProductDecl.From);
+
+    /// <summary><c>[Face]</c> 面声明（面键 → 产品引用 + owner/channel 白名单）。</summary>
+    public static IReadOnlyList<UsharpFaceDecl> Faces(DslDocument doc)
+        => Project(doc, DslSymbolKind.Face, UsharpFaceDecl.From);
+
     /// <summary><c>[Relation]</c> 关系操作声明（唯一写入口 operation）。</summary>
     public static IReadOnlyList<UsharpRelationDecl> Relations(DslDocument doc)
         => Project(doc, DslSymbolKind.Relation, UsharpRelationDecl.From);

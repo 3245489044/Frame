@@ -159,23 +159,28 @@ public sealed class TaskReferenceGrounding
         return result.Keys;
     }
 
-    /// <summary>批量 task 节点键集（单源 = [Derive] TaskNodes；逐作用域求值，禁本类手写图投影）。</summary>
+    /// <summary>批量 task 节点键集（单源 = [Derive] TaskNodes；一次批量求值，禁 N+1 逐 id 循环）。</summary>
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetMemberNodeKeysManyAsync(
         IReadOnlyCollection<string> taskKeys, string workflowId, CancellationToken ct = default)
     {
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         if (taskKeys is null) return result;
 
-        foreach (var taskKey in taskKeys
-                     .Where(static key => !string.IsNullOrWhiteSpace(key))
-                     .Select(static key => key.Trim())
-                     .Distinct(StringComparer.Ordinal))
-        {
-            var derived = await _relations
-                .DeriveTaskNodesAsync(taskKey, workflowId, ct)
-                .ConfigureAwait(false);
-            result[taskKey] = derived.Keys;
-        }
+        var scopes = taskKeys
+            .Where(static key => !string.IsNullOrWhiteSpace(key))
+            .Select(static key => key.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .Select(key => new RelationScope(key, string.IsNullOrWhiteSpace(workflowId) ? null : workflowId))
+            .ToList();
+
+        if (scopes.Count == 0) return result;
+
+        var derived = await _relations
+            .DeriveManyAsync(RelationOperationIds.DeriveTaskNodes, scopes, ct)
+            .ConfigureAwait(false);
+
+        foreach (var scope in scopes)
+            result[scope.SourceKey] = derived.TryGetValue(scope.SourceKey, out var one) ? one.Keys : Array.Empty<string>();
 
         return result;
     }

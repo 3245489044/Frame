@@ -42,6 +42,9 @@ public static class UsharpPrefixes
         new(UsharpLanguage.CommandPrefix, DslSymbolKind.Command, "Command"),
         // 读模型声明语言单元（[ReadModel]）：模型 id → 源键/版本源/投影器/参数名表
         new(UsharpLanguage.ReadModelPrefix, DslSymbolKind.ReadModel, "ReadModel"),
+        // 产品图声明语言单元（[Product]/[Face]）：产品键 → 层/角色/字段契约；面 → owner/channel 白名单
+        new(UsharpLanguage.ProductPrefix,   DslSymbolKind.Product,   "Product"),
+        new(UsharpLanguage.FacePrefix,      DslSymbolKind.Face,      "Face"),
         // 关系声明语言单元（[Relation]/[Invariant]/[Derive]）：关系操作 / 关系不变量 / 派生成员集
         new(UsharpLanguage.RelationPrefix,  DslSymbolKind.Relation,  "Relation"),
         new(UsharpLanguage.InvariantPrefix, DslSymbolKind.Invariant, "Invariant"),

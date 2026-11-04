@@ -159,6 +159,15 @@ public static class UsharpLanguage
     /// <summary>不变量违反处置受控词表。</summary>
     public static readonly string[] InvariantOnViolations = { "reject", "report" };
 
+    /// <summary>写前守卫谓词字段（<c>guard.pre=</c>；逗号分隔，合取）。</summary>
+    public const string FieldGuardPre = "guard.pre";
+
+    /// <summary>写后守卫谓词字段（<c>guard.post=</c>；逗号分隔，合取）。</summary>
+    public const string FieldGuardPost = "guard.post";
+
+    /// <summary>守卫姿态受控词表（与 [Mount] 的 posture 同词表，语义不同：守卫姿态只影响阻断）。</summary>
+    public static readonly string[] GuardPostures = { "require", "reduced", "best-effort" };
+
     /// <summary>派生运算受控词（当前仅 chain）。</summary>
     public const string DeriveOpChain = "chain";
     public static readonly string[] DeriveOps = { DeriveOpChain };

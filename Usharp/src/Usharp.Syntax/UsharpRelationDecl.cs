@@ -75,7 +75,10 @@ public sealed record UsharpInvariantDecl(
     string? Scope,
     IReadOnlyList<string> UnparsedLines,
     string SourceFile,
-    int LineNumber)
+    int LineNumber,
+    IReadOnlyList<string>? Pre = null,
+    IReadOnlyList<string>? Post = null,
+    string Posture = "")
 {
     /// <summary>投影单条 <c>[Invariant]</c>（无名 ⇒ null）。</summary>
     public static UsharpInvariantDecl? From(DslDeclaration d)
@@ -91,7 +94,10 @@ public sealed record UsharpInvariantDecl(
             UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.FieldScope)),
             UsharpRelationDecl.Unparsed(d),
             d.SourceFile,
-            d.LineNumber);
+            d.LineNumber,
+            UsharpLineReader.SplitList(d.Field(UsharpLanguage.FieldGuardPre), ',', ';'),
+            UsharpLineReader.SplitList(d.Field(UsharpLanguage.FieldGuardPost), ',', ';'),
+            (d.Field(UsharpLanguage.FieldPosture) ?? string.Empty).Trim());
     }
 }
 

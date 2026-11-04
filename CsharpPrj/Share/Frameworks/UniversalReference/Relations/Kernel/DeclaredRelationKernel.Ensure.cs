@@ -39,6 +39,9 @@ public sealed partial class DeclaredRelationKernel
                 is { } containerReason)
                 return Fail(operation, plan.Edge, containerReason);
 
+            if (await EvaluateGuardPreAsync(plan, source, target, ct).ConfigureAwait(false) is { } guardReason)
+                return Fail(operation, plan.Edge, guardReason);
+
             var violation = await FirstRejectingViolationAsync(plan, source, target, diagnostics, ct).ConfigureAwait(false);
             if (violation is not null)
                 return Fail(operation, plan.Edge, violation);
@@ -81,6 +84,7 @@ public sealed partial class DeclaredRelationKernel
             }
 
             written++;
+            diagnostics.AddRange(await EvaluateGuardPostAsync(plan, source, target, ct).ConfigureAwait(false));
         }
 
         return new RelationResult(true, operation, plan.Edge, written, diagnostics, RelationOutcome.Applied)

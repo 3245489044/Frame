@@ -266,6 +266,18 @@ internal sealed class RelationGateRule : IGateRule<UsharpGateModel>
                     $"[Invariant] '{invariant.InvariantId}'：scope='{scope}' 未在 [Node] 声明",
                     invariant.SourceFile, invariant.LineNumber));
 
+            // 守卫：姿态受控词 + 「声明姿态必有谓词」（禁空守卫放行）。
+            var hasGuard = (invariant.Pre?.Count ?? 0) > 0 || (invariant.Post?.Count ?? 0) > 0;
+            if (invariant.Posture is { Length: > 0 } posture
+                && !UsharpLanguage.GuardPostures.Contains(posture, StringComparer.Ordinal))
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.InvariantGuardInvalid,
+                    $"[Invariant] '{invariant.InvariantId}'：posture='{posture}' 非法（须 require|reduced|best-effort）",
+                    invariant.SourceFile, invariant.LineNumber));
+            if (invariant.Posture is { Length: > 0 } && !hasGuard)
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.InvariantGuardInvalid,
+                    $"[Invariant] '{invariant.InvariantId}'：声明了 posture 但无 guard.pre/guard.post 谓词",
+                    invariant.SourceFile, invariant.LineNumber));
+
             var shape = $"{invariant.Edge}|{invariant.Kind}|{invariant.Scope ?? string.Empty}";
             if (!shapes.Add(shape))
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.InvariantDuplicateShape,

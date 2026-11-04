@@ -77,6 +77,9 @@ public static class UsharpRelationPlanEmitter
             };
             if (invariant.Display is { Length: > 0 } display) item["display"] = display;
             if (invariant.Scope is { Length: > 0 } scope) item["scope"] = scope;
+            if (invariant.Pre is { Count: > 0 } pre) item["pre"] = UsharpJson.Array(pre);
+            if (invariant.Post is { Count: > 0 } post) item["post"] = UsharpJson.Array(post);
+            if (invariant.Posture is { Length: > 0 } posture) item["posture"] = posture;
             invariants.Add(item);
         }
 

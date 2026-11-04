@@ -17,6 +17,7 @@ public sealed partial class DeclaredRelationKernel : IRelationCommandPort
     private readonly RelationInvariantChecker _invariants;
     private readonly IRelationDiagnostics? _diagnostics;
     private readonly IRelationContainerResolver? _containers;
+    private readonly IRelationGuardEvaluator? _guards;
 
     public DeclaredRelationKernel(
         IResourceReferenceStore store,
@@ -25,7 +26,8 @@ public sealed partial class DeclaredRelationKernel : IRelationCommandPort
         IWorkflowNamespace namespaces,
         IEntityExistenceProbe? probe = null,
         IRelationDiagnostics? diagnostics = null,
-        IRelationContainerResolver? containers = null)
+        IRelationContainerResolver? containers = null,
+        IRelationGuardEvaluator? guards = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
@@ -35,6 +37,7 @@ public sealed partial class DeclaredRelationKernel : IRelationCommandPort
         _probe = probe ?? UnassembledEntityExistenceProbe.Instance;
         _diagnostics = diagnostics;
         _containers = containers;
+        _guards = guards;
         _invariants = new RelationInvariantChecker(store);
     }
 

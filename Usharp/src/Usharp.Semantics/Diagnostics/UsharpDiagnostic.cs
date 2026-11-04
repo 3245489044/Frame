@@ -364,6 +364,7 @@ public static class UsharpCodes
     public const string InvariantOnViolationInvalid = UsharpDiagnosticCatalog.InvariantOnViolationInvalid;
     public const string InvariantScopeUndeclared = UsharpDiagnosticCatalog.InvariantScopeUndeclared;
     public const string InvariantDuplicateShape = UsharpDiagnosticCatalog.InvariantDuplicateShape;
+    public const string InvariantGuardInvalid = UsharpDiagnosticCatalog.InvariantGuardInvalid;
     public const string DeriveDuplicate = UsharpDiagnosticCatalog.DeriveDuplicate;
     public const string DeriveEndpointUndeclared = UsharpDiagnosticCatalog.DeriveEndpointUndeclared;
     public const string DeriveEdgeUndeclared = UsharpDiagnosticCatalog.DeriveEdgeUndeclared;

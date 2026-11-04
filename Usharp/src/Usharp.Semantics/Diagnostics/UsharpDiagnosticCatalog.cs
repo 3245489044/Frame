@@ -255,6 +255,9 @@ public static class UsharpDiagnosticCatalog
     public const string MountFieldInvalid = "US8126";
     public const string MountRelationUnbound = "US8127";
 
+    /// <summary>[Invariant] guard.pre/guard.post/posture 非法（姿态不在受控词域或声明了姿态却无谓词）。</summary>
+    public const string InvariantGuardInvalid = "US8128";
+
     // ── US82xx 成员级声明（[Const]）闸A ─────────────────────────────────
     /// <summary>[Const] target 形态非法（须「命名空间.类型」，至少两段）。</summary>
     public const string ConstTargetInvalid = "US8201";
@@ -458,6 +461,7 @@ public static class UsharpDiagnosticCatalog
         E(MountTriggerUnknown, "Mount", UsharpSeverity.Error, "[Mount] trigger= 未声明事件或不在内置触发集", "mount, trigger"),
         E(MountFieldInvalid, "Mount", UsharpSeverity.Error, "[Mount] stage/family/coalesce/posture/order 非法或出现禁用字段", "mount, field"),
         E(MountRelationUnbound, "Mount", UsharpSeverity.Error, "ensure 关系操作缺少 [Mount] 绑定", "relation"),
+        E(InvariantGuardInvalid, "Invariant", UsharpSeverity.Error, "[Invariant] guard.pre/guard.post/posture 非法", "invariant, field"),
         E(IdentityEntityInvalid, "Entity", UsharpSeverity.Error, "[Entity] scope/container/cardinality/role/authority 缺失或非法", "entity, field"),
         E(IdentityAuthorityNotSingle, "Entity", UsharpSeverity.Error, "每个 [Entity] 在 family 表中的 authority=true 权威面须恰一个", "entity, count"),
         E(IdentityLexiconOverlap, "KeyLexicon", UsharpSeverity.Error, "[KeyLexicon] 词表互斥被破坏（同一词条出现在两个词表）", "lexicon, value"),

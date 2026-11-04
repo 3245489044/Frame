@@ -211,6 +211,14 @@
         Note   = '关系声明面单源：E1 [Relation] 存在 / E2 edge ⊆ [Edge] / E3 归属边恰一 ensure / E4 hierarchy contains 对账 / E5 负对照 / E6 intent+exists 显式 / E7 C# 归属边字面量 ≤ 基线（负对照）'
     }
 
+    GraphPortSurface = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '对外端口单文件：PS1 端口命名空间文件外 public = 0（白名单对账）/ PS2 文件内无方法体·new·IO / PS3 Agent.* 不引用实现类 / PS4 变更分类 + 迁移说明 / PS5 类型名无域词 / PS6 子命名空间受限 / PS7 负对照'
+    }
+
     WriteSurface = @{
         Domain = 'Node'
         Args   = @{ Check = $true; NegativeControl = $true }

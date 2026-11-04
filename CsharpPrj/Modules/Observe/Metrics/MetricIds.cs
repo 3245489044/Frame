@@ -22,6 +22,36 @@ public enum MetricId
 
     /// <summary>当前帧流式提交区块数。</summary>
     ChunkStream = 5,
+
+    /// <summary>单块网格构建耗时（<c>ChunkMeshStreamer.TryBuildAndSubmit</c>）。</summary>
+    MeshBuild = 6,
+
+    /// <summary>网格预算用尽导致本帧提前收手的次数。</summary>
+    MeshBudgetHit = 7,
+
+    /// <summary>分块负载缓存命中次数。</summary>
+    ChunkCacheHit = 8,
+
+    /// <summary>分块负载缓存未命中次数。</summary>
+    ChunkCacheMiss = 9,
+
+    /// <summary>帧阶段：输入解析与视口尺寸。</summary>
+    FrameInput = 10,
+
+    /// <summary>帧阶段：可见性 + 网格流式提交（<c>ChunkMeshStreamer.Update</c>）。</summary>
+    FrameStream = 11,
+
+    /// <summary>帧阶段：ECS chunk 投影（<c>SyncVoxelChunks</c>）。</summary>
+    FrameSync = 12,
+
+    /// <summary>帧阶段：ECS 系统更新。</summary>
+    FrameSystems = 13,
+
+    /// <summary>帧阶段：帧级状态写入。</summary>
+    FrameState = 14,
+
+    /// <summary>帧阶段：Mesh 上屏渲染。</summary>
+    FrameRender = 15,
 }
 
 /// <summary>指标类型：决定写入 cell 的方式（Counter 累加 / Gauge 水位置 / Histogram 分位）。</summary>
@@ -37,7 +67,7 @@ public enum MetricKind
 /// </summary>
 public static class MetricCatalog
 {
-    public const int Count = 6;
+    public const int Count = 16;
 
     private static readonly string[] Names =
     {
@@ -47,6 +77,16 @@ public static class MetricCatalog
         "chunk.visible",
         "chunk.resident",
         "chunk.stream",
+        "mesh.build",
+        "mesh.budgetHit",
+        "chunk.cacheHit",
+        "chunk.cacheMiss",
+        "frame.input",
+        "frame.stream",
+        "frame.sync",
+        "frame.systems",
+        "frame.state",
+        "frame.render",
     };
 
     private static readonly MetricKind[] Kinds =
@@ -57,6 +97,16 @@ public static class MetricCatalog
         MetricKind.Gauge,
         MetricKind.Gauge,
         MetricKind.Gauge,
+        MetricKind.Histogram,
+        MetricKind.Counter,
+        MetricKind.Counter,
+        MetricKind.Counter,
+        MetricKind.Histogram,
+        MetricKind.Histogram,
+        MetricKind.Histogram,
+        MetricKind.Histogram,
+        MetricKind.Histogram,
+        MetricKind.Histogram,
     };
 
     public static string NameOf(MetricId id)

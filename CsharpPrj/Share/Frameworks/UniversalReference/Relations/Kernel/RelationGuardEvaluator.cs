@@ -9,8 +9,20 @@ namespace UniversalWorkflowFramework.Relations.Kernel;
 /// </summary>
 public sealed class RelationGuardEvaluator : IRelationGuardEvaluator
 {
-    /// <summary>进程级默认实例（无状态，可安全共享）。</summary>
+    private readonly IReadOnlyDictionary<string, Func<RelationGuardContext, bool?>> _extensions;
+
+    /// <summary>默认实例（无域谓词扩展；未登记谓词仍不可判定）。</summary>
     public static RelationGuardEvaluator Instance { get; } = new();
+
+    /// <summary>默认构造（无扩展谓词）。</summary>
+    public RelationGuardEvaluator() : this(null)
+    {
+    }
+
+    /// <summary>装配实例：<paramref name="extensions"/> 为域侧注入的结构事实谓词（禁域词进框架）。</summary>
+    public RelationGuardEvaluator(
+        IReadOnlyDictionary<string, Func<RelationGuardContext, bool?>>? extensions)
+        => _extensions = extensions ?? new Dictionary<string, Func<RelationGuardContext, bool?>>(StringComparer.Ordinal);
 
     /// <inheritdoc />
     public RelationGuardResult EvaluatePre(RelationGuard guard, RelationGuardContext context)
@@ -26,7 +38,7 @@ public sealed class RelationGuardEvaluator : IRelationGuardEvaluator
         return Evaluate(guard, guard.Post, context);
     }
 
-    private static RelationGuardResult Evaluate(
+    private RelationGuardResult Evaluate(
         RelationGuard guard, IReadOnlyList<string>? predicates, RelationGuardContext? context)
     {
         if (context is null) throw new ArgumentNullException(nameof(context));
@@ -64,6 +76,22 @@ public sealed class RelationGuardEvaluator : IRelationGuardEvaluator
                     // 共享合法：无违规；共享计数由 RelationInvariantChecker.CountParentsAsync 单独提供。
                     break;
                 default:
+                    if (_extensions.TryGetValue(predicate, out var extension))
+                    {
+                        var satisfied = extension(context);
+                        if (satisfied is null)
+                        {
+                            undecidable = true;
+                            violations.Add($"predicate_undecidable: '{predicate}' 域谓词无法判定（禁放行）");
+                        }
+                        else if (!satisfied.Value)
+                        {
+                            violations.Add($"{predicate}: 结构事实不满足（{context.SourceKey} → {context.TargetKey}）");
+                        }
+
+                        break;
+                    }
+
                     undecidable = true;
                     violations.Add($"predicate_undeclared: '{predicate}' 未登记（不可判定，禁放行）");
                     break;

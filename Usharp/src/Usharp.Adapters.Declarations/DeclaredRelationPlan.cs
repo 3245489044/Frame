@@ -23,7 +23,9 @@ public static class DeclaredRelationPlan
             .ToList();
 
         var invariants = compilation.Invariants
-            .Select(i => new RelationInvariant(i.InvariantId, i.Kind, i.Edge, i.OnViolation, i.Scope))
+            .Select(i => new RelationInvariant(
+                i.InvariantId, i.Kind, i.Edge, i.OnViolation, i.Scope, i.Pre, i.Post,
+                string.IsNullOrWhiteSpace(i.Posture) ? RelationGuardPostures.Require : i.Posture))
             .ToList();
 
         var derivations = compilation.Derivations

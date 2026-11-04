@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Globalization;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -113,14 +114,6 @@ public static class HtmlStateBadgeProjector
     }
 
     /// <summary>已运行时长 → 紧凑文本（如 12s / 3m05s / 1h02m）；空 / 负 → 空串（模板判空隐藏）。</summary>
-    public static string FormatElapsed(long? elapsedMs)
-    {
-        if (elapsedMs is not > 0) return string.Empty;
-        var ts = System.TimeSpan.FromMilliseconds(elapsedMs.Value);
-        return ts.TotalHours >= 1
-            ? $"{(int)ts.TotalHours}h{ts.Minutes:00}m"
-            : ts.TotalMinutes >= 1
-                ? $"{ts.Minutes}m{ts.Seconds:00}s"
-                : $"{System.Math.Max(1, (int)ts.TotalSeconds)}s";
-    }
+    /// <remarks>实现单源 = <see cref="MarkupValue.Duration(long?)"/>（与 <c>UiComponentCatalog</c> 的 duration 格式化同源）。</remarks>
+    public static string FormatElapsed(long? elapsedMs) => MarkupValue.Duration(elapsedMs);
 }

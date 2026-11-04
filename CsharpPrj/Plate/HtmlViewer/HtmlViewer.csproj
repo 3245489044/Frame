@@ -28,6 +28,9 @@
     <ProjectReference Include="$(Proj_GraphFoundation)" />
     <!-- D6/D7 单一实现：模板目录 + key=value 解析（与 ScriptRunner 共用 Modules.Parsing） -->
     <ProjectReference Include="$(Proj_Parsing)" />
+    <!-- 挂载租约/每拍写判定原语（Modules.DeclarativeDataflow.Lease，BCL-only 零传递依赖）：
+         Phase 状态机 + 单槽 + TickDecision 单源；UI 侧只做薄适配（UiViewHost / RegionRenderPipeline） -->
+    <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
     <!-- ★ 2026-09 依赖倒置（DIP）：Observe.csproj / Share.Conversation.csproj 两个上游引用已移除——
          收敛写（ObservedHtmlChannel/WebView2Transport）与会话渲染（HtmlStreamRenderer）迁移至 FrontEndDriven/HtmlViewerBridge，
          plate 回归「纯渲染基础设施」定位。 -->

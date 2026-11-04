@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Modules.Parsing.Markup;
 using TConfig;
 
 namespace UiBackend.Html;
@@ -147,23 +148,13 @@ public sealed class UiComponentCatalog : IUiExpressionResources
 
     private static string? FormatDuration(object? value)
     {
-        if (value is TimeSpan span) return FormatDuration(span);
+        if (value is TimeSpan span) return MarkupValue.Duration(span);
         if (!TryNumber(value, out var ms) || ms < 0) return null;
-        return FormatDuration(TimeSpan.FromMilliseconds(ms));
+        return MarkupValue.Duration(TimeSpan.FromMilliseconds(ms));
     }
 
-    private static string FormatDuration(TimeSpan span)
-        => span.TotalHours >= 1
-            ? $"{(int)span.TotalHours}h{span.Minutes:00}m"
-            : span.TotalMinutes >= 1
-                ? $"{span.Minutes}m{span.Seconds:00}s"
-                : $"{Math.Max(1, (int)span.TotalSeconds)}s";
-
-    /// <summary>字节量格式化（B / KB / MB；供产物尺寸声明式展示）。</summary>
-    private static string FormatSize(double bytes) =>
-        bytes >= 1024 * 1024 ? $"{bytes / 1024d / 1024d:0.#}MB"
-        : bytes >= 1024 ? $"{bytes / 1024d:0.#}KB"
-        : $"{bytes:0}B";
+    /// <summary>字节量格式化（B / KB / MB；供产物尺寸声明式展示）。实现单源 = <see cref="MarkupValue.Size"/>。</summary>
+    private static string FormatSize(double bytes) => MarkupValue.Size(bytes);
 
     private static bool TryNumber(object? value, out double number)
     {

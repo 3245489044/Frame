@@ -2,6 +2,7 @@
 
 using System;
 using System.Text;
+using Modules.Parsing.Markup;
 using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
@@ -25,8 +26,12 @@ public static class UiViewSkeleton
     {
         if (string.IsNullOrWhiteSpace(viewKey)) throw new ArgumentException("视图键不可为空。", nameof(viewKey));
         var key = viewKey.Trim();
-        return "<section class=\"view-root\" data-view=\"" + key + "\" " + ViewRootAttribute + "=\"" + key
-               + "\" data-key=\"view:" + key + "\">" + inner + "</section>";
+        var attrs = new MarkupAttrBatch()
+            .Class("view-root", "view-root")
+            .Add("data-view", key)
+            .Add(ViewRootAttribute, key)
+            .Key("view:" + key);
+        return MarkupTag.Element("section", attrs, inner);
     }
 
     /// <summary>按视图程序产出「根 + 空容器」骨架（无壳；用于无壳渲染器的兜底与断言）。</summary>
@@ -35,11 +40,12 @@ public static class UiViewSkeleton
         ArgumentNullException.ThrowIfNull(blueprint);
         var builder = new StringBuilder(256);
         foreach (var container in blueprint.Containers)
-        {
-            builder.Append("<div class=\"region");
-            if (container.IsStream) builder.Append(" stream");
-            builder.Append("\" data-name=\"").Append(container.Key).Append("\"></div>");
-        }
+            builder.Append(MarkupBlock.Render(
+                "div",
+                container.IsStream ? "region stream" : "region",
+                "region",
+                container.Key,
+                null));
 
         return Wrap(blueprint.ViewKey, builder.ToString());
     }

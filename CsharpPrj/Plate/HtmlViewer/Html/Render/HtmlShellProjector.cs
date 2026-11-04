@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Modules.Parsing.Markup;
 using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
@@ -118,25 +119,29 @@ public static class HtmlShellProjector
             if (slot == UiViewContainerSlot.Main || UiViewContainerSlots.IsShellSlot(slot)) continue;
 
             var body = slot == UiViewContainerSlot.Stream ? Html(container.Key) + bubbleHtml : Html(container.Key);
-            mainInner.Append("<div class=\"region").Append(container.IsStream ? " stream" : string.Empty)
-                .Append("\" data-name=\"").Append(container.Key).Append("\">").Append(body).Append("</div>");
+            mainInner.Append(MarkupBlock.Render(
+                "div",
+                container.IsStream ? "region stream" : "region",
+                "region",
+                container.Key,
+                body));
         }
 
-        var main = "<div class=\"region\" data-name=\"" + Slot("main") + "\">" + mainInner + "</div>";
+        var main = MarkupBlock.Render("div", "region", "region", Slot("main"), mainInner.ToString());
         var selectorRegion = present.Contains(Slot("seg"))
-            ? "<div class=\"seg region\" data-name=\"" + Slot("seg") + "\">" + selectorHtml + "</div>"
+            ? MarkupBlock.Render("div", "seg region", "region", Slot("seg"), selectorHtml)
             : string.Empty;
         var titleRegion = present.Contains(Slot("head"))
-            ? "<span data-name=\"" + Slot("head") + "\">" + title + "</span>"
+            ? MarkupPresets.LabelledSpan(Slot("head"), title)
             : title;
         var subtitleRegion = present.Contains(Slot("subhead"))
-            ? "<span data-name=\"" + Slot("subhead") + "\">" + subtitle + "</span>"
+            ? MarkupPresets.LabelledSpan(Slot("subhead"), subtitle)
             : subtitle;
         var treeRegion = present.Contains(Slot("aside"))
-            ? "<div class=\"region\" data-name=\"" + Slot("aside") + "\">" + treeHtml + "</div>"
+            ? MarkupBlock.Render("div", "region", "region", Slot("aside"), treeHtml)
             : string.Empty;
         var overlayRegion = present.Contains(Slot("overlay"))
-            ? "<div class=\"region\" data-name=\"" + Slot("overlay") + "\">" + overlayHtml + "</div>"
+            ? MarkupBlock.Render("div", "region", "region", Slot("overlay"), overlayHtml)
             : string.Empty;
 
         var html = HtmlTemplateEngine.Render(templates, "layoutShell",
@@ -157,11 +162,14 @@ public static class HtmlShellProjector
 
     /// <summary>页面视图宿主（<c>data-name=ui-root</c>）：唯一挂载点；整页首挂载包一层，视图切换只投影其子集。</summary>
     public static string RenderViewHost(string viewRootHtml)
-        => "<div class=\"view-host\" data-name=\"" + UiViewSkeleton.DefaultRootName + "\">" + viewRootHtml + "</div>";
+        => MarkupTag.Element(
+            "div",
+            new MarkupAttrBatch().Class("view-host", "view-host").Name(UiViewSkeleton.DefaultRootName),
+            viewRootHtml);
 
     /// <summary>气泡段包裹（单源）：段根带稳定 <c>data-key</c> ⇒ 流原语可按段键定点更新/追加。</summary>
     public static string WrapStreamSection(string key, string html)
-        => "<div class=\"stream-item\" data-key=\"" + key + "\">" + html + "</div>";
+        => MarkupPresets.StreamItem(key, html);
 
     /// <summary>
     /// 容器内容装配（框架件，单一映射实现）：<c>containers[] × 壳槽 × 按容器键内容 ⇒ 容器键 → 片段</c>。

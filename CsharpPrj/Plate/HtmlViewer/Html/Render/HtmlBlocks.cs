@@ -38,6 +38,5 @@ public static class HtmlBlocks
         return sb.ToString();
     }
 
-    private static string Safe(string? cssClass, string fallback)
-        => string.IsNullOrWhiteSpace(cssClass) ? fallback : cssClass!;
+    private static string Safe(string? cssClass, string fallback) => TextUtil.CssClass(cssClass, fallback);
 }

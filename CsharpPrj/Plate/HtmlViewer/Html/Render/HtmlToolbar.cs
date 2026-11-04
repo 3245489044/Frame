@@ -3,8 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Text;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -119,21 +119,23 @@ public static class HtmlToolbar
         string actionsClass = "toolbar-actions",
         string buttonClass = "toolbar-btn")
     {
-        var sb = new StringBuilder();
-        sb.Append("<div class=\"").Append(Safe(cssClass, "toolbar")).Append("\">");
-        if (!string.IsNullOrEmpty(leadingText)) sb.Append(WebUtility.HtmlEncode(leadingText));
-        sb.Append("<span class=\"").Append(Safe(actionsClass, "toolbar-actions")).Append("\">");
+        var itemsHtml = new StringBuilder();
         if (items is not null)
             foreach (var item in items)
             {
                 switch (item)
                 {
-                    case HtmlActionButton b: AppendButton(sb, b, Safe(buttonClass, "toolbar-btn")); break;
-                    case HtmlActionInput i: AppendInput(sb, i); break;
+                    case HtmlActionButton b: AppendButton(itemsHtml, b, Safe(buttonClass, "toolbar-btn")); break;
+                    case HtmlActionInput i: AppendInput(itemsHtml, i); break;
                 }
             }
-        sb.Append("</span></div>");
-        return sb.ToString();
+
+        var inner = MarkupTag.Text(leadingText)
+                    + MarkupTag.Element(
+                        "span",
+                        new MarkupAttrBatch().Class(actionsClass, "toolbar-actions"),
+                        itemsHtml.ToString());
+        return MarkupTag.Element("div", new MarkupAttrBatch().Class(cssClass, "toolbar"), inner);
     }
 
     /// <summary>
@@ -147,26 +149,42 @@ public static class HtmlToolbar
         string actionsClass = "toolbar-actions",
         string buttonClass = "toolbar-btn")
     {
-        var sb = new StringBuilder();
-        sb.Append("<div class=\"").Append(Safe(cssClass, "toolbar")).Append("\">");
-        if (!string.IsNullOrEmpty(leadingText))
-            sb.Append("<span class=\"toolbar-leading\">").Append(WebUtility.HtmlEncode(leadingText)).Append("</span>");
-        sb.Append("<div class=\"").Append(Safe(actionsClass, "toolbar-actions")).Append("\">");
-
+        var actions = new StringBuilder();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        AppendGroupSequence(sb, model?.Groups, buttonClass, seen);
+        AppendGroupSequence(actions, model?.Groups, buttonClass, seen);
         if (model?.MoreGroups is { Count: > 0 })
         {
-            sb.Append("<span class=\"toolbar-sep toolbar-sep-strong\" role=\"separator\"></span>");
-            sb.Append("<details class=\"toolbar-more\" data-group=\"more\">")
-              .Append("<summary class=\"toolbar-more-summary\" aria-haspopup=\"menu\">更多</summary>")
-              .Append("<span class=\"toolbar-more-panel\">");
-            AppendGroupSequence(sb, model.MoreGroups, buttonClass, seen);
-            sb.Append("</span></details>");
+            actions.Append(MarkupTag.Element(
+                "span",
+                new MarkupAttrBatch().Class("toolbar-sep toolbar-sep-strong", "toolbar-sep").Add("role", "separator"),
+                string.Empty));
+
+            var panel = new StringBuilder();
+            AppendGroupSequence(panel, model.MoreGroups, buttonClass, seen);
+            var summary = MarkupTag.Element(
+                "summary",
+                new MarkupAttrBatch().Class("toolbar-more-summary", "toolbar-more-summary").Add("aria-haspopup", "menu"),
+                "更多");
+            actions.Append(MarkupTag.Element(
+                "details",
+                new MarkupAttrBatch().Class("toolbar-more", "toolbar-more").Add("data-group", "more"),
+                summary + MarkupTag.Element(
+                    "span",
+                    new MarkupAttrBatch().Class("toolbar-more-panel", "toolbar-more-panel"),
+                    panel.ToString())));
         }
 
-        sb.Append("</div></div>");
-        return sb.ToString();
+        var leading = string.IsNullOrEmpty(leadingText)
+            ? string.Empty
+            : MarkupTag.Element(
+                "span",
+                new MarkupAttrBatch().Class("toolbar-leading", "toolbar-leading"),
+                MarkupTag.Text(leadingText));
+        var body = MarkupTag.Element(
+            "div",
+            new MarkupAttrBatch().Class(actionsClass, "toolbar-actions"),
+            actions.ToString());
+        return MarkupTag.Element("div", new MarkupAttrBatch().Class(cssClass, "toolbar"), leading + body);
     }
 
     /// <summary>渲染有序动作组序列（供工具条/选择条/筛选条共用；组间自动分隔）。</summary>
@@ -188,18 +206,24 @@ public static class HtmlToolbar
 
             if (rendered > 0)
             {
-                sb.Append("<span class=\"toolbar-sep");
-                if (group.SeparatedBefore) sb.Append(" toolbar-sep-strong");
-                sb.Append("\" role=\"separator\"></span>");
+                sb.Append(MarkupTag.Element(
+                    "span",
+                    new MarkupAttrBatch()
+                        .Class(group.SeparatedBefore ? "toolbar-sep toolbar-sep-strong" : "toolbar-sep", "toolbar-sep")
+                        .Add("role", "separator"),
+                    string.Empty));
             }
 
-            sb.Append("<span class=\"toolbar-group\" data-group=\"")
-              .Append(WebUtility.HtmlEncode(group.Id ?? string.Empty)).Append("\">");
+            sb.Append(MarkupTag.Open(
+                "span",
+                new MarkupAttrBatch().Class("toolbar-group", "toolbar-group").Add("data-group", group.Id ?? string.Empty)));
             if (!string.IsNullOrEmpty(group.Label))
-                sb.Append("<span class=\"toolbar-group-label\">")
-                  .Append(WebUtility.HtmlEncode(group.Label!)).Append("</span>");
+                sb.Append(MarkupTag.Element(
+                    "span",
+                    new MarkupAttrBatch().Class("toolbar-group-label", "toolbar-group-label"),
+                    MarkupTag.Text(group.Label)));
             foreach (var item in items) AppendDescriptor(sb, item, buttonClass);
-            sb.Append("</span>");
+            sb.Append(MarkupTag.Close("span"));
             rendered++;
         }
     }
@@ -208,7 +232,6 @@ public static class HtmlToolbar
     internal static void AppendDescriptor(StringBuilder sb, HtmlActionDescriptor a, string buttonClass)
     {
         var cls = Safe(buttonClass, "toolbar-btn");
-        sb.Append("<button type=\"button\" class=\"").Append(cls);
         var variantClass = a.Variant switch
         {
             HtmlActionVariant.Primary => "btn-action-primary",
@@ -216,27 +239,26 @@ public static class HtmlToolbar
             HtmlActionVariant.Danger => "btn-danger",
             _ => string.Empty,
         };
-        if (variantClass.Length > 0) sb.Append(' ').Append(variantClass);
-        sb.Append("\" data-cmd=\"").Append(WebUtility.HtmlEncode(a.Cmd ?? string.Empty)).Append('"');
-        if (!string.IsNullOrEmpty(a.Name))
-            sb.Append(" data-name=\"").Append(WebUtility.HtmlEncode(a.Name!)).Append('"');
-        sb.Append(" data-action-id=\"").Append(WebUtility.HtmlEncode(a.Id ?? string.Empty)).Append('"');
-        sb.Append(" data-group=\"").Append(WebUtility.HtmlEncode(a.Group ?? string.Empty)).Append('"');
-        sb.Append(" data-variant=\"").Append(VariantName(a.Variant)).Append('"');
-        if (a.Destructive) sb.Append(" data-destructive=\"1\"");
-        if (a.Data is not null)
-            foreach (var (k, v) in a.Data)
-                if (!string.IsNullOrWhiteSpace(k))
-                    sb.Append(" data-").Append(k).Append("=\"").Append(WebUtility.HtmlEncode(v ?? string.Empty)).Append('"');
-        if (!string.IsNullOrEmpty(a.InputName))
-            sb.Append(" data-input=\"").Append(WebUtility.HtmlEncode(a.InputName!)).Append('"');
-        if (!string.IsNullOrEmpty(a.Title))
-            sb.Append(" title=\"").Append(WebUtility.HtmlEncode(a.Title!)).Append('"');
-        if (!string.IsNullOrEmpty(a.AriaLabel))
-            sb.Append(" aria-label=\"").Append(WebUtility.HtmlEncode(a.AriaLabel!)).Append('"');
-        if (a.Toggle) sb.Append(" aria-pressed=\"").Append(a.Pressed ? "true" : "false").Append('"');
-        if (!a.Enabled) sb.Append(" disabled aria-disabled=\"true\"");
-        sb.Append('>').Append(WebUtility.HtmlEncode(a.Text ?? string.Empty)).Append("</button>");
+        if (variantClass.Length > 0) cls += " " + variantClass;
+
+        var attrs = new MarkupAttrBatch()
+            .Add("type", "button")
+            .Add("class", cls)
+            .Add("data-cmd", a.Cmd ?? string.Empty)
+            .Name(a.Name)
+            .Add("data-action-id", a.Id ?? string.Empty)
+            .Add("data-group", a.Group ?? string.Empty)
+            .Add("data-variant", VariantName(a.Variant))
+            .Add("data-destructive", a.Destructive ? "1" : null)
+            .DataAll(a.Data)
+            .AddIfAny("data-input", a.InputName)
+            .AddIfAny("title", a.Title)
+            .AddIfAny("aria-label", a.AriaLabel)
+            .Add("aria-pressed", a.Toggle ? (a.Pressed ? "true" : "false") : null)
+            .Bool("disabled", !a.Enabled)
+            .Add("aria-disabled", a.Enabled ? null : "true");
+
+        sb.Append(MarkupTag.Element("button", attrs, MarkupTag.Text(a.Text)));
     }
 
     private static string VariantName(HtmlActionVariant variant) => variant switch
@@ -253,33 +275,27 @@ public static class HtmlToolbar
     /// <summary>渲染单个按钮（供详情卡等复用；<paramref name="buttonClass"/> 为样式类）。</summary>
     internal static void AppendButton(StringBuilder sb, HtmlActionButton b, string buttonClass)
     {
-        sb.Append("<button type=\"button\" class=\"").Append(buttonClass).Append("\" data-cmd=\"")
-          .Append(WebUtility.HtmlEncode(b.Cmd ?? string.Empty)).Append('"');
-        if (!string.IsNullOrEmpty(b.Name))
-            sb.Append(" data-name=\"").Append(WebUtility.HtmlEncode(b.Name!)).Append('"');
-        if (b.Data is not null)
-            foreach (var (k, v) in b.Data)
-                if (!string.IsNullOrWhiteSpace(k))
-                    sb.Append(" data-").Append(k).Append("=\"").Append(WebUtility.HtmlEncode(v ?? string.Empty)).Append('"');
-        if (!string.IsNullOrEmpty(b.InputName))
-            sb.Append(" data-input=\"").Append(WebUtility.HtmlEncode(b.InputName!)).Append('"');
-        if (!string.IsNullOrEmpty(b.Title))
-            sb.Append(" title=\"").Append(WebUtility.HtmlEncode(b.Title!)).Append('"');
-        sb.Append('>').Append(WebUtility.HtmlEncode(b.Text ?? string.Empty)).Append("</button>");
+        var attrs = new MarkupAttrBatch()
+            .Add("type", "button")
+            .Add("class", buttonClass)
+            .Add("data-cmd", b.Cmd ?? string.Empty)
+            .Name(b.Name)
+            .DataAll(b.Data)
+            .AddIfAny("data-input", b.InputName)
+            .AddIfAny("title", b.Title);
+        sb.Append(MarkupTag.Element("button", attrs, MarkupTag.Text(b.Text)));
     }
 
     internal static void AppendInput(StringBuilder sb, HtmlActionInput i)
     {
-        sb.Append("<input type=\"").Append(Safe(i.Type, "text")).Append("\" class=\"")
-          .Append(Safe(i.CssClass, "toolbar-input")).Append("\" data-name=\"")
-          .Append(WebUtility.HtmlEncode(i.DataName ?? string.Empty)).Append('"');
-        if (!string.IsNullOrEmpty(i.Placeholder))
-            sb.Append(" placeholder=\"").Append(WebUtility.HtmlEncode(i.Placeholder!)).Append('"');
-        if (i.Value is not null)
-            sb.Append(" value=\"").Append(WebUtility.HtmlEncode(i.Value)).Append('"');
-        if (!string.IsNullOrEmpty(i.AriaLabel))
-            sb.Append(" aria-label=\"").Append(WebUtility.HtmlEncode(i.AriaLabel!)).Append('"');
-        sb.Append("/>");
+        var attrs = new MarkupAttrBatch()
+            .Add("type", Safe(i.Type, "text"))
+            .Class(i.CssClass, "toolbar-input")
+            .Add("data-name", i.DataName ?? string.Empty)
+            .AddIfAny("placeholder", i.Placeholder)
+            .Add("value", i.Value)
+            .AddIfAny("aria-label", i.AriaLabel);
+        sb.Append(MarkupTag.Void("input", attrs));
     }
 
     // DUP-03：CSS 类名兜底单源 = TextUtil.CssClass（本处仅为可读别名，不再自写口径）。

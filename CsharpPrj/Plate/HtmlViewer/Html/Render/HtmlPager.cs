@@ -79,6 +79,5 @@ public static class HtmlPager
             if (action is not null) HtmlToolbar.AppendDescriptor(sb, action, buttonClass);
     }
 
-    private static string Safe(string? cssClass, string fallback)
-        => string.IsNullOrWhiteSpace(cssClass) ? fallback : cssClass!;
+    private static string Safe(string? cssClass, string fallback) => TextUtil.CssClass(cssClass, fallback);
 }

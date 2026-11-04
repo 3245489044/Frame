@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.DeclarativeDataflow.Lease;
 using Strategy.Refresh.Model;
 using Strategy.Refresh.Ports;
 using UiBackend.Abstractions;
@@ -225,7 +226,8 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
         var hasLeaves = leaves is { Count: > 0 };
 
         // 空计划 ⇒ 无任何写目标，不得推进 baseline（契约：送达且变化才 Commit）。
-        if (!hasRoots && !hasTrees && !hasStreams && !hasLeaves) return RenderOutput.Skip;
+        // 判据单源 = TickDecision（Modules，载荷无关）：禁在本类再写第二条「全空」判定。
+        if (TickDecision.IsEmpty(hasRoots, hasTrees, hasStreams, hasLeaves)) return RenderOutput.Skip;
 
         if (hasRoots)
         {
@@ -243,7 +245,7 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
             return Done(RenderOutput.Write(UiWritePlan.Trees(trees, interaction, null, traceId, source)));
         if (!hasTrees && hasStreams && !hasLeaves)
             return Done(RenderOutput.Write(UiWritePlan.AppendMany(streams, traceId, source)));
-        if (!hasTrees && !hasStreams)
+        if (TickDecision.IsHeartbeat(hasRoots, hasTrees, hasStreams, hasLeaves))
             // 仅易变叶子 ⇒ 心跳（Tick 判据载体 = 计划动词，非入口自述）。
             return Done(AsTick(UiWritePlan.Leaves(leaves!, interaction, traceId)));
 

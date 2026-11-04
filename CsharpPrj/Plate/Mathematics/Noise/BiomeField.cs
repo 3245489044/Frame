@@ -90,7 +90,7 @@ public sealed class BiomeField
         hash = SignatureHash.Mix(hash, _humiditySeed);
         foreach (var biome in _biomes)
         {
-            hash = SignatureHash.Mix(hash, biome.Name.GetHashCode(StringComparison.Ordinal));
+            hash = SignatureHash.Mix(hash, StableNameHash(biome.Name));
             hash = SignatureHash.Mix(hash, biome.Temperature);
             hash = SignatureHash.Mix(hash, biome.Humidity);
             hash = SignatureHash.Mix(hash, biome.HeightAmplitude);
@@ -145,4 +145,13 @@ public sealed class BiomeField
     }
 
     private static float Normalize(float noise) => noise * 0.5f + 0.5f;
+
+    /// <summary>跨进程稳定的名称哈希（不用 <see cref="string.GetHashCode()"/>，避免随机化盐影响签名）。</summary>
+    private static long StableNameHash(string name)
+    {
+        long hash = 0x51F3;
+        foreach (char ch in name)
+            hash = hash * 131 + ch;
+        return hash;
+    }
 }

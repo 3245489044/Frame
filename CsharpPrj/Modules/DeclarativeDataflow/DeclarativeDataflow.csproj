@@ -13,6 +13,7 @@
     <ModuleRule_Rule Include="运行态轴与层次轴正交：LevelRunState 只承载中性字段（阶段/执行体/来源），跨程序集词表映射归依赖方桥接；合并/载荷投影各只有单一实现" />
     <ModuleRule_Rule Include="框架只做只读遍历与处理编排，不写边：持久化由上层经注入端口完成（SingleImplementation / TH-12）" />
     <ModuleRule_Rule Include="不定深度必须由 ProcessBudget（节点数 + 深度）+ 环守卫三重护栏收口（信任反转：不信任子层自停）" />
+    <ModuleRule_Rule Include="Lease\ 挂载租约原语（LeaseMachine/SingleSlot/TickDecision）：与层次处理正交的第二用法，零载荷依赖；租约相位只经 LeasePhaseStages 映射回 RunStateStage，禁宿主散落阶段字面量（单一词表）" />
   </ItemGroup>
 
   <PropertyGroup>

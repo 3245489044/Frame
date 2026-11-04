@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Net;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -54,16 +54,24 @@ public static class HtmlOverlay
     public static string Build(string? bodyHtml, string title, HtmlOverlayOptions? options = null)
     {
         var o = options ?? new HtmlOverlayOptions();
-        var cls = string.IsNullOrWhiteSpace(o.CssClass) ? "floating-window" : o.CssClass!;
-        var name = string.IsNullOrWhiteSpace(o.DataName) ? "floatingWindow" : o.DataName!;
-        var safeTitle = WebUtility.HtmlEncode(title ?? string.Empty);
+        var cls = TextUtil.CssClass(o.CssClass, "floating-window");
+        var name = TextUtil.CssClass(o.DataName, "floatingWindow");
         var closeBtn = CloseButtonHtml(o);
-        return
-            "<style>" + OverlayCss(cls, o.WidthCss, o.HeightCss, o.LeftCss, o.MaxWidthCss) + "</style>"
-            + "<div class=\"" + cls + "\" data-name=\"" + name + "\">"
-            + "<div class=\"" + cls + "-title\"><span>" + safeTitle + "</span>"
-            + closeBtn + "</div>"
-            + "<div class=\"" + cls + "-body\">" + (bodyHtml ?? string.Empty) + "</div></div>";
+
+        var titleBand = MarkupTag.Element(
+            "div",
+            new MarkupAttrBatch().Class(cls + "-title", cls + "-title"),
+            MarkupTag.Element("span", null, MarkupTag.Text(title)) + closeBtn);
+        var body = MarkupTag.Element(
+            "div",
+            new MarkupAttrBatch().Class(cls + "-body", cls + "-body"),
+            bodyHtml ?? string.Empty);
+        var root = MarkupTag.Element(
+            "div",
+            new MarkupAttrBatch().Class(cls, "floating-window").Name(name),
+            titleBand + body);
+
+        return "<style>" + OverlayCss(cls, o.WidthCss, o.HeightCss, o.LeftCss, o.MaxWidthCss) + "</style>" + root;
     }
 
     /// <summary>
@@ -97,14 +105,13 @@ public static class HtmlOverlay
     private static string CloseButtonHtml(HtmlOverlayOptions o)
     {
         if (string.IsNullOrWhiteSpace(o.CloseCmd)) return string.Empty;
-        var sb = new System.Text.StringBuilder("<button type=\"button\" class=\"btn-icon\" data-cmd=\"")
-            .Append(o.CloseCmd).Append('"');
-        if (o.CloseData is not null)
-            foreach (var (k, v) in o.CloseData)
-                if (!string.IsNullOrWhiteSpace(k))
-                    sb.Append(" data-").Append(k).Append("=\"").Append(WebUtility.HtmlEncode(v ?? string.Empty)).Append('"');
-        sb.Append(" title=\"关闭\">×</button>");
-        return sb.ToString();
+        var attrs = new MarkupAttrBatch()
+            .Add("type", "button")
+            .Class("btn-icon", "btn-icon")
+            .Add("data-cmd", o.CloseCmd!)
+            .DataAll(o.CloseData)
+            .Add("title", "关闭");
+        return MarkupTag.Element("button", attrs, "×");
     }
 
     /// <summary>浮层 CSS（position:fixed 悬浮于右上，受宿主主题变量 --bg/--border/--muted/--agent-bg 控制）。

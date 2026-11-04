@@ -1,8 +1,8 @@
 #nullable enable
 
 using System.Collections.Generic;
-using System.Net;
 using System.Text;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -33,15 +33,15 @@ public static class HtmlGroupedRowList
         foreach (var g in groups)
         {
             if (g is null) continue;
-            sb.Append("<details");
-            if (g.Open) sb.Append(" open");
-            sb.Append("><summary>").Append(WebUtility.HtmlEncode(g.Label ?? string.Empty));
-            if (!string.IsNullOrEmpty(g.CountText)) sb.Append(WebUtility.HtmlEncode(g.CountText));
-            sb.Append("</summary>");
+            var rows = new StringBuilder();
             if (g.RowsHtml is not null)
                 foreach (var row in g.RowsHtml)
-                    sb.Append(row);
-            sb.Append("</details>");
+                    rows.Append(row);
+
+            sb.Append(MarkupDisclosure.Render(
+                MarkupTag.Text(g.Label ?? string.Empty) + MarkupTag.Text(g.CountText),
+                rows.ToString(),
+                open: g.Open));
         }
         return sb.ToString();
     }

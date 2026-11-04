@@ -5,9 +5,37 @@ using System.Runtime.InteropServices;
 namespace MathematicalAlgorithms.Meshing;
 
 /// <summary>
-/// 方块 traits（网格化输入的唯一内容描述）：不透明/液体 + 三面图集编号 + 发光强度。
+/// 网格化用的面剔除类别（三态 + 液体）。
+/// <para><see cref="Air"/> = 0 使 <c>default(VoxelTraits)</c> 天然不渲染，未知 ID 安全回退为「不产生面」。</para>
+/// <para><see cref="Auto"/> 仅为旧二元 traits 的兼容入口：由 <c>Opaque/Liquid</c> 推导。</para>
+/// </summary>
+public enum VoxelRenderClass
+{
+    /// <summary>空气 / 未注册 ID：任何面都不渲染。</summary>
+    Air = 0,
+
+    /// <summary>由 Opaque/Liquid 推导（旧调用点兼容）。</summary>
+    Auto = 1,
+
+    /// <summary>完全不透明：遮挡邻面。</summary>
+    Opaque = 2,
+
+    /// <summary>切图（树叶）：不遮挡邻面，与自身相邻仍渲染。</summary>
+    Cutout = 3,
+
+    /// <summary>半透明（玻璃）：只剔「同 ID」内面。</summary>
+    Translucent = 4,
+
+    /// <summary>液体（水/岩浆）：只剔「同 ID」内面。</summary>
+    Liquid = 5,
+}
+
+/// <summary>
+/// 方块 traits（网格化输入的唯一内容描述）：不透明/液体 + 三面图集编号 + 发光强度 + 剔除类别。
 /// <para>索引即方块身份（节点 ID）；空气恒为索引 0 且全部为默认值。</para>
 /// <para>本类型不编码任何游戏语义（草/土/水/硬度），只提供网格化所需的正交属性。</para>
+/// <para><see cref="RenderClass"/> 缺省为 <see cref="VoxelRenderClass.Auto"/>，旧 6 参构造行为不变：
+/// 不透明→不透明、液体→液体、其余→切图（现在会出面，此前被误判为不出面）。</para>
 /// </summary>
 public readonly record struct VoxelTraits(
     bool Opaque,
@@ -15,7 +43,19 @@ public readonly record struct VoxelTraits(
     int TopTile,
     int SideTile,
     int BottomTile,
-    int LightEmission);
+    int LightEmission,
+    VoxelRenderClass RenderClass = VoxelRenderClass.Auto)
+{
+    /// <summary>实际生效的剔除类别（Auto 时按旧二元属性推导）。</summary>
+    public VoxelRenderClass CullingClass
+        => RenderClass != VoxelRenderClass.Auto
+            ? RenderClass
+            : Opaque
+                ? VoxelRenderClass.Opaque
+                : Liquid
+                    ? VoxelRenderClass.Liquid
+                    : VoxelRenderClass.Cutout;
+}
 
 /// <summary>
 /// 网格顶点（冻结布局，48 字节 / 12 float）：POSITION / NORMAL / TEXCOORD0(uv) / TEXCOORD1(tile,light,ao,pad)。
@@ -262,13 +302,27 @@ public static class VoxelMesher
     private static VoxelTraits TraitsOf(ushort id, ReadOnlySpan<VoxelTraits> traits) =>
         id < traits.Length ? traits[id] : default;
 
+    /// <summary>
+    /// 面剔除唯一判定（与 MC 口径一致）：
+    /// 自身空气/未知 → 不渲染；邻居不透明 → 被遮挡；
+    /// 不透明/切图 → 渲染；半透明/液体 → 仅同 ID 邻居剔内面。
+    /// </summary>
     private static bool FaceVisible(ushort current, ushort neighbor, ReadOnlySpan<VoxelTraits> traits)
     {
         if (current == 0) return false;
-        var def = TraitsOf(current, traits);
-        if (def.Opaque) return !TraitsOf(neighbor, traits).Opaque;
-        if (def.Liquid) return neighbor == 0;
-        return false;
+
+        var self = TraitsOf(current, traits).CullingClass;
+        if (self == VoxelRenderClass.Air) return false;
+        if (TraitsOf(neighbor, traits).CullingClass == VoxelRenderClass.Opaque) return false;
+
+        return self switch
+        {
+            VoxelRenderClass.Opaque => true,
+            VoxelRenderClass.Cutout => true,
+            VoxelRenderClass.Translucent => neighbor != current,
+            VoxelRenderClass.Liquid => neighbor != current,
+            _ => false,
+        };
     }
 
     private static bool Liquid(ushort id, ReadOnlySpan<VoxelTraits> traits) => TraitsOf(id, traits).Liquid;

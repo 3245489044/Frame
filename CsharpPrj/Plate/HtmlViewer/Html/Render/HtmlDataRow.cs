@@ -1,8 +1,8 @@
 #nullable enable
 
 using System.Collections.Generic;
-using System.Net;
 using System.Text;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -63,68 +63,57 @@ public static class HtmlDataRowView
     /// <summary>渲染单行。</summary>
     public static string Render(HtmlDataRow row)
     {
-        var sb = new StringBuilder();
-        sb.Append("<div class=\"").Append(Safe(row.RowClass, "row")).Append("\">");
-        if (row.Check is { } chk) AppendCheckbox(sb, chk);
+        var inner = new StringBuilder();
+        if (row.Check is { } chk) inner.Append(RenderCheckbox(chk));
         if (row.Expandable)
         {
-            sb.Append("<details class=\"").Append(Safe(row.DetailsClass, "node")).Append('"');
-            if (row.Open) sb.Append(" open");
-            sb.Append("><summary class=\"").Append(Safe(row.SummaryClass, "node-sum")).Append('"');
-            AppendAttrs(sb, row.SummaryAttrs);
-            sb.Append('>');
-            AppendCells(sb, row.Cells);
-            sb.Append("</summary>");
-            if (!string.IsNullOrEmpty(row.DetailHtml)) sb.Append(row.DetailHtml);
-            sb.Append("</details>");
+            var cells = new StringBuilder();
+            AppendCells(cells, row.Cells);
+            inner.Append(MarkupDisclosure.Render(
+                cells.ToString(),
+                string.IsNullOrEmpty(row.DetailHtml) ? null : row.DetailHtml,
+                detailsClass: row.DetailsClass,
+                detailsFallback: "node",
+                summaryClass: row.SummaryClass,
+                summaryFallback: "node-sum",
+                open: row.Open,
+                summaryAttrs: attrs => AppendAttrs(attrs, row.SummaryAttrs)));
         }
         else
         {
-            AppendCells(sb, row.Cells);
-        }
-        sb.Append("</div>");
-        return sb.ToString();
-    }
-
-    private static void AppendCheckbox(StringBuilder sb, HtmlRowCheckbox c)
-    {
-        if (string.IsNullOrEmpty(c.Cmd))
-        {
-            sb.Append("<input type=\"checkbox\" data-key=\"").Append(WebUtility.HtmlEncode(c.Key ?? string.Empty)).Append('"');
-            if (c.Checked) sb.Append(" checked");
-            sb.Append("/>");
-            return;
+            AppendCells(inner, row.Cells);
         }
 
-        sb.Append("<label class=\"").Append(Safe(c.LabelClass, "row-check")).Append("\" data-cmd=\"")
-          .Append(WebUtility.HtmlEncode(c.Cmd!)).Append('"');
-        if (!string.IsNullOrEmpty(c.Session))
-            sb.Append(" data-session=\"").Append(WebUtility.HtmlEncode(c.Session!)).Append('"');
-        if (c.Domain is not null)
-            sb.Append(" data-type=\"").Append(WebUtility.HtmlEncode(c.Domain)).Append('"');
-        if (c.SourceKey is not null)
-            sb.Append(" data-source=\"").Append(WebUtility.HtmlEncode(c.SourceKey)).Append('"');
-        if (!string.IsNullOrEmpty(c.Name))
-            sb.Append(" data-name=\"").Append(WebUtility.HtmlEncode(c.Name!)).Append('"');
-        if (c.ExtraData is not null)
-            foreach (var (k, v) in c.ExtraData)
-                if (!string.IsNullOrWhiteSpace(k))
-                    sb.Append(" data-").Append(k).Append("=\"").Append(WebUtility.HtmlEncode(v ?? string.Empty)).Append('"');
-        sb.Append("><input type=\"checkbox\" data-key=\"").Append(WebUtility.HtmlEncode(c.Key ?? string.Empty)).Append('"');
-        if (c.Checked) sb.Append(" checked");
-        sb.Append("/></label>");
+        return MarkupTag.Element("div", new MarkupAttrBatch().Class(row.RowClass, "row"), inner.ToString());
     }
 
-    private static void AppendAttrs(StringBuilder sb, HtmlInteractiveAttrs? attrs)
+    private static string RenderCheckbox(HtmlRowCheckbox c)
     {
-        if (attrs is null) return;
-        sb.Append(" data-cmd=\"").Append(WebUtility.HtmlEncode(attrs.Cmd ?? string.Empty)).Append('"');
-        if (!string.IsNullOrEmpty(attrs.Name))
-            sb.Append(" data-name=\"").Append(WebUtility.HtmlEncode(attrs.Name!)).Append('"');
-        if (attrs.Data is not null)
-            foreach (var (k, v) in attrs.Data)
-                if (!string.IsNullOrWhiteSpace(k))
-                    sb.Append(" data-").Append(k).Append("=\"").Append(WebUtility.HtmlEncode(v ?? string.Empty)).Append('"');
+        var input = MarkupTag.Void("input", new MarkupAttrBatch()
+            .Add("type", "checkbox")
+            .Add("data-key", c.Key ?? string.Empty)
+            .Bool("checked", c.Checked));
+
+        if (string.IsNullOrEmpty(c.Cmd)) return input;
+
+        var label = new MarkupAttrBatch()
+            .Class(c.LabelClass, "row-check")
+            .Add("data-cmd", c.Cmd!)
+            .AddIfAny("data-session", c.Session)
+            .Add("data-type", c.Domain)
+            .Add("data-source", c.SourceKey)
+            .Name(c.Name)
+            .DataAll(c.ExtraData);
+
+        return MarkupTag.Element("label", label, input);
+    }
+
+    private static void AppendAttrs(MarkupAttrBatch attrs, HtmlInteractiveAttrs? source)
+    {
+        if (source is null) return;
+        attrs.Add("data-cmd", source.Cmd ?? string.Empty)
+             .Name(source.Name)
+             .DataAll(source.Data);
     }
 
     private static void AppendCells(StringBuilder sb, IReadOnlyList<HtmlDataCell>? cells)
@@ -132,11 +121,10 @@ public static class HtmlDataRowView
         if (cells is null) return;
         foreach (var cell in cells)
         {
-            sb.Append("<span class=\"").Append(Safe(cell.CssClass, "cell")).Append("\">")
-              .Append(WebUtility.HtmlEncode(cell.Text ?? string.Empty)).Append("</span>");
+            sb.Append(MarkupTag.Element(
+                "span",
+                new MarkupAttrBatch().Class(cell.CssClass, "cell"),
+                MarkupTag.Text(cell.Text)));
         }
     }
-
-    // DUP-03：CSS 类名兜底单源 = TextUtil.CssClass。
-    private static string Safe(string? cssClass, string fallback) => TextUtil.CssClass(cssClass, fallback);
 }

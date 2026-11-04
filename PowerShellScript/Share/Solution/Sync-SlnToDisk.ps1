@@ -27,6 +27,8 @@ param(
     [string]$SolutionPath = "",
     [switch]$Check = $false,
     [switch]$Force = $false,
+    # 伞模式：只允许根伞工程直挂 sln（叶子经伞工程 ProjectReference 引入）；sln 同目录有 modules.json 时自动启用
+    [switch]$UmbrellaOnly = $false,
     [switch]$Help = $false
 )
 
@@ -35,14 +37,37 @@ param(
 # ============================================
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$rootDir = (Get-Item $scriptDir).Parent.Parent.FullName
+# 本脚本位于 Frame\PowerShellScript\Share\Solution → 上溯三级到 Frame
+$rootDir = (Get-Item $scriptDir).Parent.Parent.Parent.FullName
 
 if ([string]::IsNullOrEmpty($SolutionPath)) {
     $SolutionPath = Join-Path $rootDir "CsharpPrj\MainProj.sln"
 }
 
-# 解决方案目录（用于计算相对路径）
-$slnDir = Split-Path -Parent (Resolve-Path $SolutionPath -ErrorAction SilentlyContinue)
+# 解决方案目录（sln 内相对路径的基准；不依赖文件存在性，缺失由后续 Test-Path 报告）
+$slnDir = Split-Path -Parent $SolutionPath
+
+# ★ 伞模式：sln 同目录存在 modules.json（CsharpPrj\MainProj.sln）⇒ 只同步根伞工程，叶子经 ProjectReference 引入。
+# 动机：本脚本按「磁盘全量枚举 + 重建 Solution Folder」工作，会把叶子直挂 sln（复发病因）；
+#       modules.json 的 roots 是伞集合单源，据此过滤即恢复「一 sln 一伞」形态。
+$umbrellaManifest = if ($slnDir) { Join-Path $slnDir 'modules.json' } else { '' }
+$umbrellaMode = $UmbrellaOnly -or (-not [string]::IsNullOrEmpty($umbrellaManifest) -and (Test-Path -LiteralPath $umbrellaManifest))
+$umbrellaSet = @{}
+if ($umbrellaMode) {
+    if (-not (Test-Path -LiteralPath $umbrellaManifest)) {
+        Write-Error "伞模式需要 modules.json（sln 同目录），未找到：$umbrellaManifest"
+        exit 1
+    }
+    Import-Module (Join-Path $PSScriptRoot "ModulePaths.Common.psm1") -Force -ErrorAction Stop
+    $manifest = Read-ModuleManifest -Path $umbrellaManifest
+    foreach ($u in (Get-UmbrellaProjects -CsharpPrjRoot $slnDir -Manifest $manifest)) {
+        $umbrellaSet[$u.FullPath.ToLowerInvariant()] = $u
+    }
+    if ($umbrellaSet.Count -eq 0) {
+        Write-Error "伞模式伞集合为空（modules.json roots 下无根伞 csproj）"
+        exit 1
+    }
+}
 
 # 项目类型 GUID 常量
 $csharpProjectTypeGuid = "{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"
@@ -52,7 +77,7 @@ $solutionFolderTypeGuid = "{2150E333-8FDC-42A3-9474-1A3956D46DE8}"
 #  加载 OutputHelpers 模块
 # ============================================
 
-$modulePath = Join-Path $PSScriptRoot "..\Modules\Core\OutputHelpers.psm1"
+$modulePath = Join-Path $PSScriptRoot "..\..\Modules\Core\OutputHelpers.psm1"
 if (-not (Get-Module -Name OutputHelpers)) {
     Import-Module $modulePath -Force -ErrorAction Stop
 }
@@ -193,6 +218,24 @@ function Parse-SolutionFile {
     $result.HeaderLines = $cleanHeaderLines
     $result.ConfigLines = $globalLines
     return $result
+}
+
+# ============================================
+#  从 .sln 的 SolutionConfigurationPlatforms 段提取配置名
+# ============================================
+
+function Get-SolutionConfigurationNames {
+    param([string[]]$ConfigLines)
+
+    $names = [System.Collections.Generic.List[string]]::new()
+    $inSlnConfig = $false
+    foreach ($line in $ConfigLines) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^GlobalSection\(SolutionConfigurationPlatforms\)') { $inSlnConfig = $true; continue }
+        if ($inSlnConfig -and $trimmed -match '^EndGlobalSection') { break }
+        if ($inSlnConfig -and $trimmed -match '^(?<name>[^=]+?)\s*=\s*[^=]+$') { $names.Add($Matches['name'].Trim()) }
+    }
+    return ,$names
 }
 
 # ============================================
@@ -384,35 +427,37 @@ function Generate-SolutionContent {
         $content += "$line`r`n"
     }
 
-    # 重新生成 NestedProjects
-    $content += "`tGlobalSection(NestedProjects) = preSolution`r`n"
+    # 重新生成 NestedProjects（无目录层级时不写空段：伞模式禁虚拟文件夹）
+    if ($sortedDirs.Count -gt 0) {
+        $content += "`tGlobalSection(NestedProjects) = preSolution`r`n"
 
-    # 目录嵌套关系
-    foreach ($dirPath in $sortedDirs) {
-        $dirInfo = $DirTree[$dirPath]
-        $childGuid = $dirInfo.Guid
-        if (-not [string]::IsNullOrEmpty($dirInfo.Parent)) {
-            $parentGuid = $DirGuidMap[$dirInfo.Parent]
-            if ($parentGuid) {
-                $content += "`t`t$childGuid = $parentGuid`r`n"
+        # 目录嵌套关系
+        foreach ($dirPath in $sortedDirs) {
+            $dirInfo = $DirTree[$dirPath]
+            $childGuid = $dirInfo.Guid
+            if (-not [string]::IsNullOrEmpty($dirInfo.Parent)) {
+                $parentGuid = $DirGuidMap[$dirInfo.Parent]
+                if ($parentGuid) {
+                    $content += "`t`t$childGuid = $parentGuid`r`n"
+                }
             }
         }
-    }
 
-    # 项目 → 顶层目录 的嵌套关系
-    foreach ($proj in $sortedProjects) {
-        if (-not [string]::IsNullOrEmpty($proj.DirPath)) {
-            # 只取顶层目录
-            $parts = $proj.DirPath -split '\\'
-            $topDir = $parts[0]
-            $parentGuid = $DirGuidMap[$topDir]
-            if ($parentGuid) {
-                $content += "`t`t$($proj.Guid) = $parentGuid`r`n"
+        # 项目 → 顶层目录 的嵌套关系
+        foreach ($proj in $sortedProjects) {
+            if (-not [string]::IsNullOrEmpty($proj.DirPath)) {
+                # 只取顶层目录
+                $parts = $proj.DirPath -split '\\'
+                $topDir = $parts[0]
+                $parentGuid = $DirGuidMap[$topDir]
+                if ($parentGuid) {
+                    $content += "`t`t$($proj.Guid) = $parentGuid`r`n"
+                }
             }
         }
-    }
 
-    $content += "`tEndGlobalSection`r`n"
+        $content += "`tEndGlobalSection`r`n"
+    }
     $content += "EndGlobal`r`n"
 
     return $content
@@ -433,20 +478,22 @@ function Show-Help {
     Write-Host "    $scriptName              交互模式（检查并提示同步）"
     Write-Host "    $scriptName -Check       仅检查差异，不修改"
     Write-Host "    $scriptName -Force       强制同步（跳过确认）"
+    Write-Host "    $scriptName -UmbrellaOnly  伞模式：只登记根伞工程（sln 同目录有 modules.json 时自动启用）"
     Write-Host "    $scriptName -Help        显示本帮助"
     Write-Host ""
     Write-Host "  参数:"
-    Write-Host "    -SolutionPath <路径>     指定 .sln 文件路径（默认: WorkFlowPrj.sln）"
+    Write-Host "    -SolutionPath <路径>     指定 .sln 文件路径（默认: CsharpPrj\MainProj.sln）"
     Write-Host "    -Check                   仅检查差异，不修改文件"
     Write-Host "    -Force                   强制同步，跳过确认提示"
+    Write-Host "    -UmbrellaOnly            伞模式：叶子工程只经伞工程 ProjectReference 引入，不入 .sln"
     Write-Host "    -Help                    显示本帮助"
     Write-Host ""
     Write-Host "  说明:"
     Write-Host "    1. 删除 .sln 中磁盘上已不存在的项目"
-    Write-Host "    2. 添加磁盘上存在但 .sln 中未包含的项目"
-    Write-Host "    3. 按磁盘目录树重建 Solution Folder（支持多级嵌套）"
+    Write-Host "    2. 添加磁盘上存在但 .sln 中未包含的项目（伞模式仅限根伞工程）"
+    Write-Host "    3. 按磁盘目录树重建 Solution Folder（伞模式不建虚拟文件夹）"
     Write-Host "    4. 保留现有项目的 GUID（git 历史稳定）"
-    Write-Host "    5. 保留所有构建配置"
+    Write-Host "    5. 保留所有构建配置（并清除未登记项目的孤儿配置）"
     Write-Host ""
 }
 
@@ -475,7 +522,10 @@ if (-not (Test-Path $SolutionPath)) {
 }
 
 Write-Info "解决方案文件" $SolutionPath
-Write-Info "项目根目录" $rootDir
+# .sln 内路径以 sln 所在目录为基准（原实现用仓库根；MainProj.sln 位于 CsharpPrj ⇒ 用仓库根会把全部路径判成不存在）
+$projectRoot = $slnDir
+Write-Info "项目根目录" $projectRoot
+if ($umbrellaMode) { Write-Info "伞模式" "启用（叶子只经伞工程 ProjectReference 引入，不入 sln）" }
 Write-Host ""
 
 # ============================================
@@ -493,30 +543,38 @@ Write-Info "嵌套关系" "$($slnData.NestedProjects.Count) 条"
 # ============================================
 Write-Header "步骤 2/4：扫描磁盘上的 .csproj 文件"
 
-$diskProjects = Scan-DiskProjects -RootDir $rootDir
+$diskProjects = Scan-DiskProjects -RootDir $projectRoot
 Write-Info "磁盘项目" "$($diskProjects.Count) 个"
+
+$candidateProjects = $diskProjects
+if ($umbrellaMode) {
+    $candidateProjects = @($diskProjects | Where-Object { $umbrellaSet.ContainsKey($_.FullPath.ToLowerInvariant()) })
+    Write-Info "可登记项目" "根伞 $($candidateProjects.Count) 个（磁盘 $($diskProjects.Count) 个，叶子 $($diskProjects.Count - $candidateProjects.Count) 个经伞引入）"
+}
 
 # ============================================
 # 步骤 3：对比差异
 # ============================================
 Write-Header "步骤 3/4：对比差异"
 
-# 找出要删除的项目（在 .sln 中但磁盘不存在）
+# 找出要删除的项目（磁盘不存在；或伞模式下非根伞/叶子直挂）
 $projectsToRemove = @()
 foreach ($proj in $slnData.Projects) {
-    $fullPath = Join-Path $rootDir $proj.Path
-    if (-not (Test-Path $fullPath)) {
+    $fullPath = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $proj.Path))
+    if (-not (Test-Path -LiteralPath $fullPath)) {
+        $projectsToRemove += $proj
+    } elseif ($umbrellaMode -and -not $umbrellaSet.ContainsKey($fullPath.ToLowerInvariant())) {
         $projectsToRemove += $proj
     }
 }
 
 # 找出要添加的项目（磁盘存在但不在 .sln 中）
 $projectsToAdd = @()
-foreach ($diskProj in $diskProjects) {
+foreach ($diskProj in $candidateProjects) {
     $found = $false
     foreach ($slnProj in $slnData.Projects) {
         # ★ 使用 Path.GetFullPath 规范化路径后再比较，避免分隔符不一致问题
-        $normalizedSlnPath = [System.IO.Path]::GetFullPath((Join-Path $rootDir $slnProj.Path))
+        $normalizedSlnPath = [System.IO.Path]::GetFullPath((Join-Path $projectRoot $slnProj.Path))
         $normalizedDiskPath = [System.IO.Path]::GetFullPath($diskProj.FullPath)
         if ($normalizedSlnPath -ieq $normalizedDiskPath) {
             $found = $true
@@ -528,8 +586,16 @@ foreach ($diskProj in $diskProjects) {
     }
 }
 
+# 伞模式：Solution Folder 与 NestedProjects 一并清除（真实目录层级由 VS 呈现，无需虚拟文件夹）
+$structureDiff = $false
+if ($umbrellaMode -and ($slnData.Folders.Count -gt 0 -or $slnData.NestedProjects.Count -gt 0)) {
+    $structureDiff = $true
+    Write-Warning "伞模式：sln 存在 Solution Folder $($slnData.Folders.Count) 个 / 嵌套 $($slnData.NestedProjects.Count) 条（将被清除）"
+    Write-Host ""
+}
+
 # 输出差异
-if ($projectsToRemove.Count -eq 0 -and $projectsToAdd.Count -eq 0) {
+if ($projectsToRemove.Count -eq 0 -and $projectsToAdd.Count -eq 0 -and -not $structureDiff) {
     Write-Success "解决方案与磁盘结构一致，无需修改"
     Write-Host ""
     Write-Info "项目总数" "$($slnData.Projects.Count) 个"
@@ -537,7 +603,7 @@ if ($projectsToRemove.Count -eq 0 -and $projectsToAdd.Count -eq 0) {
 }
 
 if ($projectsToRemove.Count -gt 0) {
-    Write-Warning "以下 $($projectsToRemove.Count) 个项目在 .sln 中但磁盘上不存在（将被删除）:"
+    Write-Warning "以下 $($projectsToRemove.Count) 个项目将移出 .sln（磁盘不存在，或伞模式下由伞工程引入/为虚拟文件夹）:"
     foreach ($proj in $projectsToRemove) {
         Write-Diff "  - $($proj.Name) ($($proj.Path))" "Red"
     }
@@ -592,8 +658,10 @@ foreach ($proj in $slnData.Projects) {
 }
 
 # 添加新项目
+$newProjectGuids = @{}   # FullPath(小写) → Guid（供补齐配置行）
 foreach ($proj in $projectsToAdd) {
     $newGuid = "{" + (New-GuidString) + "}"
+    $newProjectGuids[$proj.FullPath.ToLowerInvariant()] = $newGuid
     $newProjects += [PSCustomObject]@{
         Name     = $proj.Name
         Path     = $proj.Path
@@ -632,10 +700,52 @@ foreach ($proj in $newProjects) {
     }
 }
 
-# 构建目录树
-$dirTreeResult = Build-DirectoryTree -Projects $finalProjects
-$dirTree = $dirTreeResult.Tree
-$dirGuidMap = $dirTreeResult.GuidMap
+# --- 配置行维护：丢弃未登记项目的孤儿配置（防只删 Project 不删配置），为新项目补齐 ActiveCfg/Build.0 ---
+$validGuids = @{}
+foreach ($p in $finalProjects) { $validGuids[$p.Guid.ToUpperInvariant()] = $true }
+
+$retainedConfigLines = @($slnData.ConfigLines | Where-Object {
+        $m = [regex]::Match($_, '^\s*\{(?<g>[^}]+)\}\.')
+        if (-not $m.Success) { return $true }
+        $guid = '{' + $m.Groups['g'].Value.ToUpperInvariant() + '}'
+        return $validGuids.ContainsKey($guid)
+    })
+
+$slnConfigs = Get-SolutionConfigurationNames -ConfigLines $slnData.ConfigLines
+$newConfigLines = [System.Collections.Generic.List[string]]::new()
+foreach ($guid in $newProjectGuids.Values) {
+    foreach ($cfg in $slnConfigs) {
+        # csproj 只有 Any CPU：平台段统一落到 Any CPU（与既有 sln 的映射一致）
+        $parts = $cfg -split '\|', 2
+        $projectCfg = if ($parts.Count -eq 2) { "$($parts[0])|Any CPU" } else { $cfg }
+        $newConfigLines.Add("`t`t$guid.$cfg.ActiveCfg = $projectCfg")
+        $newConfigLines.Add("`t`t$guid.$cfg.Build.0 = $projectCfg")
+    }
+}
+
+# 插入点 = ProjectConfigurationPlatforms 段的 EndGlobalSection 之前（禁追加到文件尾部）
+$finalConfigLines = [System.Collections.Generic.List[string]]::new()
+$inProjectConfig = $false
+$inserted = $false
+foreach ($line in $retainedConfigLines) {
+    if ($line.Trim() -match '^GlobalSection\(ProjectConfigurationPlatforms\)') { $inProjectConfig = $true; $finalConfigLines.Add($line); continue }
+    if ($inProjectConfig -and -not $inserted -and $line.Trim() -match '^EndGlobalSection') {
+        foreach ($nl in $newConfigLines) { $finalConfigLines.Add($nl) }
+        $inserted = $true
+    }
+    $finalConfigLines.Add($line)
+}
+if (-not $inserted) { foreach ($nl in $newConfigLines) { $finalConfigLines.Add($nl) } }
+
+# 构建目录树（伞模式：无虚拟文件夹，禁 Solution Folder / NestedProjects）
+if ($umbrellaMode) {
+    $dirTree = @{}
+    $dirGuidMap = @{}
+} else {
+    $dirTreeResult = Build-DirectoryTree -Projects $finalProjects
+    $dirTree = $dirTreeResult.Tree
+    $dirGuidMap = $dirTreeResult.GuidMap
+}
 
 Write-Info "最终项目数" "$($finalProjects.Count) 个"
 Write-Info "目录层级" "$($dirGuidMap.Count) 个"
@@ -645,7 +755,7 @@ $newContent = Generate-SolutionContent `
     -Projects $finalProjects `
     -DirTree $dirTree `
     -DirGuidMap $dirGuidMap `
-    -ConfigLines $slnData.ConfigLines `
+    -ConfigLines $finalConfigLines `
     -HeaderLines $slnData.HeaderLines
 
 # 备份原文件
@@ -653,8 +763,11 @@ $backupPath = $SolutionPath + ".bak"
 Copy-Item $SolutionPath $backupPath -Force
 Write-Success "已备份原文件到: $backupPath"
 
-# 写入新文件
-[System.IO.File]::WriteAllText($SolutionPath, $newContent, [System.Text.UTF8Encoding]::new($false))
+# 写入新文件（保留原编码形态：有 BOM 则写 BOM）
+$hasBom = $false
+$origBytes = [System.IO.File]::ReadAllBytes($SolutionPath)
+if ($origBytes.Length -ge 3 -and $origBytes[0] -eq 0xEF -and $origBytes[1] -eq 0xBB -and $origBytes[2] -eq 0xBF) { $hasBom = $true }
+[System.IO.File]::WriteAllText($SolutionPath, $newContent, (New-Object System.Text.UTF8Encoding($hasBom)))
 Write-Success "已更新解决方案文件: $SolutionPath"
 
 # ============================================

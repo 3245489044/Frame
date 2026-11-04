@@ -1100,6 +1100,14 @@
         Note   = '生成物漂移守卫 D1–D3：产物存在 / 哨兵在位（手改即失守）/ 复算等价（跑生成器到 temp 逐字比对）；登记表 = Baselines\_generated-artifacts.psd1（含 ContractIndex 与本仓既有 2 个生成物）；新增生成物不登记 = 无人看守产物'
     }
 
+    SolutionUmbrella = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '伞工程解决方案守卫 S1–S6：伞集合由 modules.json roots 推导（根目录直属 csproj ∧ 该根无独立 sln）/ 叶子不得直挂 MainProj.sln / 禁 Solution Folder 与 NestedProjects / 悬挂与重复登记 / 配置行双向一致；含正负对照（叶子直挂与文件夹必被捕获）'
+    }
+
     PsCapabilityFileOnly = @{
         Domain = 'Meta'
         Args   = @{ Check = $true }

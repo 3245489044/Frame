@@ -38,22 +38,75 @@
 # 函数→模块映射表（IoC 核心）— 编译产物
 # 由 DSL\Tooling\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
 # 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
+# ============================================================
+# 函数→模块映射表（IoC 核心）— 编译产物
+# 由 DSL\Tooling\Build-ModuleIndex.ps1 从源 .psm1 Export-ModuleMember 扫描生成，禁止手改
+# 新增/重命名/删除函数后，重新运行：.\\DSL\\Build-ModuleIndex.ps1
 # <!-- PROTO_AUTO:functionModuleMap:BEGIN -->
 # ============================================================
 $functionModuleMap = @{
 
     # ===== Baselines =====
+    'Get-ArtifactContainmentMisses'      = 'Baselines/ArtifactFreshness.psm1'
+    'Get-ArtifactContentFingerprint'     = 'Baselines/ArtifactFreshness.psm1'
+    'Test-ArtifactFingerprintFresh'      = 'Baselines/ArtifactFreshness.psm1'
+    'Test-ArtifactFreshness'             = 'Baselines/ArtifactFreshness.psm1'
+
+    # ===== Baselines =====
+    'Get-CallActionClass'           = 'Baselines/CallGovernor.psm1'
+    'Get-CallLedgerReport'          = 'Baselines/CallGovernor.psm1'
+    'Import-CallGovernance'         = 'Baselines/CallGovernor.psm1'
+    'Open-CallLedger'               = 'Baselines/CallGovernor.psm1'
+    'Resolve-CallAdmissibility'     = 'Baselines/CallGovernor.psm1'
+    'Write-CallOutcome'             = 'Baselines/CallGovernor.psm1'
+
+    # ===== Baselines =====
+    'Get-DslFieldBag'          = 'Baselines/DeclarationBag.psm1'
+    'Get-DslShapeRequired'     = 'Baselines/DeclarationBag.psm1'
+
+    # ===== Baselines =====
     'Get-BaselineFiles'           = 'Baselines/GateBaseline.psm1'
+    'Get-BaselineIndex'           = 'Baselines/GateBaseline.psm1'
     'Get-BaselinesRoot'           = 'Baselines/GateBaseline.psm1'
     'Get-InlineBaselineRegex'     = 'Baselines/GateBaseline.psm1'
     'Import-GateBaseline'         = 'Baselines/GateBaseline.psm1'
     'Test-BaselineEntryTyped'     = 'Baselines/GateBaseline.psm1'
+    'Test-NonSingleBaseline'      = 'Baselines/GateBaseline.psm1'
+
+    # ===== Baselines =====
+    'Test-ClosureSet'     = 'Baselines/GateClosure.psm1'
+
+    # ===== Baselines =====
+    'Clear-GateFileIndexCache'      = 'Baselines/GateFileIndex.psm1'
+    'Export-GateFileIndexCache'     = 'Baselines/GateFileIndex.psm1'
+    'Find-GatePattern'              = 'Baselines/GateFileIndex.psm1'
+    'Get-GateFiles'                 = 'Baselines/GateFileIndex.psm1'
+    'Get-GateFileStats'             = 'Baselines/GateFileIndex.psm1'
+    'Resolve-GateWorktree'          = 'Baselines/GateFileIndex.psm1'
+
+    # ===== Baselines =====
+    'Assert-GateControls'         = 'Baselines/GateRuntime.psm1'
+    'Assert-GatePrerequisite'     = 'Baselines/GateRuntime.psm1'
+    'Find-GateScript'             = 'Baselines/GateRuntime.psm1'
+    'Get-GateDomains'             = 'Baselines/GateRuntime.psm1'
+    'Get-GateRepoRoot'            = 'Baselines/GateRuntime.psm1'
+    'New-GateContext'             = 'Baselines/GateRuntime.psm1'
+    'New-GateResult'              = 'Baselines/GateRuntime.psm1'
+    'Test-BaselineNoIncrease'     = 'Baselines/GateRuntime.psm1'
+    'Write-GateHeader'            = 'Baselines/GateRuntime.psm1'
+    'Write-GateVerdict'           = 'Baselines/GateRuntime.psm1'
 
     # ===== Baselines =====
     'Get-FullRunTokenEnvVar'      = 'Baselines/VerifyScope.psm1'
     'Get-VerifyScopeRegistry'     = 'Baselines/VerifyScope.psm1'
     'Resolve-FullRunGrant'        = 'Baselines/VerifyScope.psm1'
     'Test-FullRunRequired'        = 'Baselines/VerifyScope.psm1'
+
+    # ===== BasicMethod\Capability =====
+    'Get-CapabilityCatalog'     = 'BasicMethod/Capability/Catalog.psm1'
+
+    # ===== BasicMethod\Capability =====
+    'Invoke-CapabilityPlan'     = 'BasicMethod/Capability/PlanRunner.psm1'
 
     # ===== BasicMethod\Core =====
     'Get-FileEncoding'     = 'BasicMethod/Core/FileUtils.psm1'
@@ -366,6 +419,11 @@ $functionModuleMap = @{
     # ===== Modules\Md =====
     'Invoke-MarkdownLintFix'     = 'Modules/Md/MarkdownLintFix.psm1'
 
+    # ===== Modules\Parsing =====
+    'ConvertFrom-CanonCliOutput'     = 'Modules/Parsing/Invoke-CanonCli.psm1'
+    'Invoke-CanonReplay'             = 'Modules/Parsing/Invoke-CanonCli.psm1'
+    'Resolve-CanonCliPath'           = 'Modules/Parsing/Invoke-CanonCli.psm1'
+
     # ===== Modules\Path\Core =====
     'Get-EnvironmentVariable'      = 'Modules/Path/Core/PathEnvManager.psm1'
     'Get-PathEntryExists'          = 'Modules/Path/Core/PathEnvManager.psm1'
@@ -553,6 +611,20 @@ $functionModuleMap = @{
     # ===== Modules\Tools\modules =====
     'Write-Color'     = 'Modules/Tools/modules/Write-Format.psm1'
 
+    # ===== Operation\DSL\Meta =====
+    'Get-CatchBlocks'                = 'Operation/DSL/Meta/CatchOutlet.psm1'
+    'Get-CatchBlocksRoslyn'          = 'Operation/DSL/Meta/CatchOutlet.psm1'
+    'Get-CatchBodyHash'              = 'Operation/DSL/Meta/CatchOutlet.psm1'
+    'Get-CatchOutletClass'           = 'Operation/DSL/Meta/CatchOutlet.psm1'
+    'Initialize-CatchRoslyn'         = 'Operation/DSL/Meta/CatchOutlet.psm1'
+    'Test-CatchOutletClassifier'     = 'Operation/DSL/Meta/CatchOutlet.psm1'
+
+    # ===== Operation\DSL\Meta =====
+    'ConvertFrom-CommaList'     = 'Operation/DSL/Meta/TextOps.psm1'
+    'Get-RepoRelativePath'      = 'Operation/DSL/Meta/TextOps.psm1'
+    'Get-Sha256Hex'             = 'Operation/DSL/Meta/TextOps.psm1'
+    'Remove-LineComment'        = 'Operation/DSL/Meta/TextOps.psm1'
+
     # ===== PScriptManager\Core =====
     'Add-CategoryIfNotExists'      = 'PScriptManager/Core/ConfigGenerator.psm1'
     'ConvertTo-ToolEntry'          = 'PScriptManager/Core/ConfigGenerator.psm1'
@@ -601,8 +673,16 @@ $functionModuleMap = @{
     'Get-ModuleManifestPath'           = 'Share/Solution/ModulePaths.Common.psm1'
     'Get-ModulePathMap'                = 'Share/Solution/ModulePaths.Common.psm1'
     'Get-SafeModuleName'               = 'Share/Solution/ModulePaths.Common.psm1'
+    'Get-UmbrellaProjects'             = 'Share/Solution/ModulePaths.Common.psm1'
     'Get-WorkflowFrameRoot'            = 'Share/Solution/ModulePaths.Common.psm1'
     'Read-ModuleManifest'              = 'Share/Solution/ModulePaths.Common.psm1'
+
+    # ===== Share\Usharp =====
+    'Get-UsharpConstUnits'          = 'Share/Usharp/UsharpSourceScan.psm1'
+    'Get-UsharpMemberValueKind'     = 'Share/Usharp/UsharpSourceScan.psm1'
+    'Get-UsharpSourceFiles'         = 'Share/Usharp/UsharpSourceScan.psm1'
+    'Get-UsharpSourceIndex'         = 'Share/Usharp/UsharpSourceScan.psm1'
+    'Test-UsharpExcludedPath'       = 'Share/Usharp/UsharpSourceScan.psm1'
 }
 # <!-- PROTO_AUTO:functionModuleMap:END -->
 # ============================================================

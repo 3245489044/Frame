@@ -66,5 +66,39 @@ function Get-EnumeratedProjects {
         Sort-Object FullName)
 }
 
+<#
+.SYNOPSIS
+    推导「根伞工程」集合 —— MainProj.sln 唯一允许直挂的工程。
+
+.DESCRIPTION
+    规则（与 modules.json roots 同源，不设第二份清单）：
+      1 根目录直属 csproj：<root>\<root>.csproj 存在；
+      2 该根目录内无独立 *.sln（如 Protocol\Protocol.sln 自带解决方案 ⇒ 不并入 MainProj）。
+    叶子工程（如 Modules\Gather\Gather.csproj）只经伞工程 ProjectReference 引入，不入 .sln。
+    消费方 = Sync-SlnToDisk.ps1（伞模式）∧ Check-SolutionUmbrella.ps1（门禁）。
+#>
+function Get-UmbrellaProjects {
+    param(
+        [Parameter(Mandatory)][string]$CsharpPrjRoot,
+        [Parameter(Mandatory)]$Manifest
+    )
+    $out = [System.Collections.Generic.List[object]]::new()
+    foreach ($r in $Manifest.roots.PSObject.Properties) {
+        $rootDir = Join-Path $CsharpPrjRoot ([string]$r.Value.path)
+        $proj = Join-Path $rootDir ($r.Name + '.csproj')
+        if (-not (Test-Path -LiteralPath $proj)) { continue }
+        # 自带解决方案的根（Protocol）由自己的 sln 承载，禁并入 MainProj
+        $ownSln = @(Get-ChildItem -LiteralPath $rootDir -Filter '*.sln' -File -ErrorAction SilentlyContinue)
+        if ($ownSln.Count -gt 0) { continue }
+        $out.Add([PSCustomObject]@{
+            Name     = $r.Name
+            FullPath = [System.IO.Path]::GetFullPath($proj)
+            RelPath  = [System.IO.Path]::GetFullPath($proj).Substring([System.IO.Path]::GetFullPath($CsharpPrjRoot).Length).TrimStart('\', '/')
+        })
+    }
+    return ,$out
+}
+
 Export-ModuleMember -Function Get-CsharpPrjRoot, Get-WorkflowFrameRoot, Get-ModuleManifestPath,
-Get-ModuleGeneratedPropsPath, Get-SafeModuleName, Read-ModuleManifest, Get-ModulePathMap, Get-EnumeratedProjects
+Get-ModuleGeneratedPropsPath, Get-SafeModuleName, Read-ModuleManifest, Get-ModulePathMap, Get-EnumeratedProjects,
+Get-UmbrellaProjects

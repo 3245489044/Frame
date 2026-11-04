@@ -71,6 +71,7 @@ $report = [ordered]@{
     missing      = 0
     patched      = 0
     skipped      = 0
+    unreadable   = 0
     failed       = @()
     samples      = @()
     backup       = $null
@@ -105,20 +106,29 @@ try {
     $plan = @()
     foreach ($d in $col.FindAll()) {
         $report.total++
-        if (-not $d.ContainsKey('Doc') -or -not $d['Doc'].IsString) { $report.skipped++; continue }
+        if (-not $d.ContainsKey('Doc') -or -not $d['Doc'].IsString) {
+            # 不可读载荷（遗留行）⇒ 无法证明已盖章：同时计入 missing 与 unreadable（fail-closed）。
+            $report.skipped++
+            $report.missing++
+            $report.unreadable++
+            continue
+        }
 
-        try { $doc = $d['Doc'].AsString | ConvertFrom-Json }
-        catch { $report.skipped++; continue }
-        if ($null -eq $doc.__body) { $report.skipped++; continue }
+        $docText = $d['Doc'].AsString
+        $refType = ''
+        $typeMatch = [regex]::Match($docText, '(?m)^\s*refType\s*=\s*"?([^"\r\n]*)"?')
+        if ($typeMatch.Success) { $refType = $typeMatch.Groups[1].Value.Trim() }
 
-        $body = $doc.__body
-        $flow = if ($body.PSObject.Properties.Name -contains 'originFlow') { [string]$body.originFlow } else { '' }
-        if (-not [string]::IsNullOrWhiteSpace($flow)) { continue }
+        $flowMatch = [regex]::Match($docText, '(?m)^\s*originFlow\s*=\s*(.+)$')
+        if ($flowMatch.Success) {
+            $flowValue = $flowMatch.Groups[1].Value.Trim().Trim('"')
+            if (-not [string]::IsNullOrWhiteSpace($flowValue)) { continue }
+        }
 
         $report.missing++
-        $plan += [pscustomobject]@{ Id = $d['_id'].AsString; Doc = $doc; RefType = [string]$body.refType }
+        $plan += [pscustomobject]@{ Id = $d['_id'].AsString; Doc = $docText; RefType = $refType }
         if ($report.samples.Count -lt 5) {
-            $report.samples += [pscustomobject]@{ id = $d['_id'].AsString; refType = [string]$body.refType }
+            $report.samples += [pscustomobject]@{ id = $d['_id'].AsString; refType = $refType }
         }
     }
 
@@ -130,18 +140,14 @@ try {
         $seq = [long]([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
         foreach ($item in $plan) {
             try {
-                $body = $item.Doc.__body
                 $seq++
                 $step = if ([string]::IsNullOrWhiteSpace($FallbackStep)) { $item.RefType } else { $FallbackStep }
 
-                $body | Add-Member -NotePropertyName assertion -NotePropertyValue 'observed' -Force
-                $body | Add-Member -NotePropertyName createdSeq -NotePropertyValue $seq -Force
-                $body | Add-Member -NotePropertyName originFlow -NotePropertyValue $FallbackFlow -Force
-                $body | Add-Member -NotePropertyName originStep -NotePropertyValue $step -Force
-
+                # USharp 记录文本：追加字段行（键序 = 记录序；重复执行因已有 originFlow 而被跳过 ⇒ 幂等）。
+                $append = "`n  assertion = `"observed`"`n  createdSeq = $seq`n  originFlow = `"$FallbackFlow`"`n  originStep = `"$step`""
                 $updated = $col.FindById($item.Id)
                 if ($null -eq $updated) { continue }
-                $updated['Doc'] = ($item.Doc | ConvertTo-Json -Depth 20 -Compress)
+                $updated['Doc'] = ([string]$item.Doc).TrimEnd() + $append
                 $col.Update($updated)
                 $report.patched++
             } catch {

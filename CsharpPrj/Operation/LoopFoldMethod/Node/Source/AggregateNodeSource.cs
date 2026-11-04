@@ -22,7 +22,13 @@ public sealed class AggregateNodeSource<TState, TVertex> : INodeSource<TState, T
 
     /// <param name="sources">待聚合的子源（非空；顺序即合并序）。</param>
     public AggregateNodeSource(IEnumerable<INodeSource<TState, TVertex>> sources)
-        => _sources = (sources ?? throw new ArgumentNullException(nameof(sources))).ToArray();
+    {
+        var list = (sources ?? throw new ArgumentNullException(nameof(sources))).ToArray();
+        // R-03：含 null 子源会在 CollectAsync 处退化为 NullReferenceException，改为构造期显式拒绝。
+        if (list.Any(s => s is null))
+            throw new ArgumentException("子源集合不可含 null。", nameof(sources));
+        _sources = list;
+    }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<NodeItem>?> CollectAsync(
@@ -33,7 +39,8 @@ public sealed class AggregateNodeSource<TState, TVertex> : INodeSource<TState, T
         {
             ct.ThrowIfCancellationRequested();
             var items = await source.CollectAsync(state, signal, stepKey, ct).ConfigureAwait(false);
-            if (items is { Count: > 0 }) result.AddRange(items);
+            // R-03：子源返回集合内的 null 元素同样在消费端炸；在收集边界统一剔除。
+            if (items is { Count: > 0 }) result.AddRange(items.Where(i => i is not null));
         }
         return result.Count == 0 ? null : result;
     }

@@ -574,7 +574,7 @@
       "category": "General"
     },
     "RenderRequestQueue_render_unsuccessful": {
-      "template": "渲染请求未成功 — scope={scope}, kind={kind}, reason={reason}",
+      "template": "渲染请求未成功 — scope={scope}, kind={kind}, reason={reason}, error={error}",
       "level": "Warning",
       "category": "General"
     },
@@ -661,6 +661,16 @@
     "InitCommandExecutor_ok": {
       "template": "初始化命令执行完成 — scope={scope}, command={command}",
       "level": "Debug",
+      "category": "FrontEndDriven.Lifecycle"
+    },
+    "ScopeLifecycleAdapter_render_rejected": {
+      "template": "ScopeLifecycleAdapter 渲染被拒绝（未进入渲染段） — scope={scope}, config={configPath}, stage={stage}, error={error}",
+      "level": "Warning",
+      "category": "FrontEndDriven.State"
+    },
+    "ConfigurationLifecycleManager_bootstrap_failed": {
+      "template": "boot 阶段渲染失败，已中止后续阶段 — phase={phase}, scope={scope}, config={configPath}, error={error}",
+      "level": "Error",
       "category": "FrontEndDriven.Lifecycle"
     }
   }

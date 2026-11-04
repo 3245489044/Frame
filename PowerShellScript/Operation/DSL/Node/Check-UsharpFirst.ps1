@@ -33,8 +33,8 @@ Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.ps
 $baseline = Import-GateBaseline -Name UsharpFirst
 $allowedSwitches = @($baseline.RuleTableSwitch | ForEach-Object { ([string]$_.Value -replace '/', '\') })
 $allowedDictionaries = @($baseline.RuleTableDictionary | ForEach-Object { ([string]$_.Value -replace '/', '\') })
-$magicLimit = [int]$baseline.MagicNumberSites.Value
-$duplicateLimit = [int]$baseline.DuplicateConstantPairs.Value
+$magicLimit = [int]@($baseline.MagicNumberSites)[0].Value
+$duplicateLimit = [int]@($baseline.DuplicateConstantPairs)[0].Value
 
 $scanRoot = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views'
 

@@ -224,7 +224,7 @@
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '声明面漂移：GD1 产品 depends_on 闭合 + 面字段 ⊆ 产品出字段 / GD2 面须有宿主视图层 + owner·channel 双维肯定式白名单 / GD3 视图内容域须有同名 [Gather] 段（缺口仅在基线棘轮在册，只降不升）/ GD5 derives= 血缘闭合（恰 1 上游 + 字段对两端闭合）/ GD4 负对照'
+        Note   = '声明面漂移：GD1 产品 depends_on 闭合 + 面字段 ⊆ 产品出字段 / GD2 面须有宿主视图层 + owner·channel 双维肯定式白名单 / GD3 视图内容域须有同名 [Gather] 段（缺口仅在基线棘轮在册，只降不升）/ GD5 derives= 血缘闭合（≥1 上游 + 每个字段对逐对闭合）/ GD4 负对照'
     }
 
     NoRoleAttribution = @{

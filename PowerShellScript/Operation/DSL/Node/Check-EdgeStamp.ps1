@@ -48,25 +48,24 @@ function Test-StampReport($report) {
     return $problems
 }
 
+$violations = New-Object System.Collections.Generic.List[string]
+
 if ($NegativeControl) {
-    $probe = [pscustomobject]@{ schema = 'edge-stamp-report/v1'; total = 3; missing = 1; patched = 0 }
+    $probe = [pscustomobject]@{ schema = 'edge-stamp-report/v1'; total = 3; missing = 1; unreadable = 0; patched = 0 }
     $probeProblems = @(Test-StampReport $probe)
     if (-not ($probeProblems | Where-Object { $_ -like 'ES3 *' })) {
         Write-Host '[EdgeStamp][NEGATIVE-CONTROL-FAILED] 合成未盖章边未被判红（判据空转）' -ForegroundColor Red
         exit 1
     }
     Write-Host "[EdgeStamp][NEGATIVE-CONTROL-OK] 合成未盖章报告命中 $($probeProblems.Count) 项" -ForegroundColor Green
-    exit 0
 }
 
 if (-not (Test-Path -LiteralPath $ReportPath)) {
-    Write-Host "[EdgeStamp] 回填报告不存在：$ReportPath（先跑 edge-stamp-repair -DryRun -OutFile …）" -ForegroundColor Red
-    if ($Check) { exit 1 }
-    exit 0
+    $violations.Add("ES1 回填报告不存在：$ReportPath（先跑 edge-stamp-repair -OutFile …）")
+} else {
+    $report = Get-Content -LiteralPath $ReportPath -Raw | ConvertFrom-Json
+    foreach ($problem in (Test-StampReport $report)) { $violations.Add($problem) }
 }
-
-$report = Get-Content -LiteralPath $ReportPath -Raw | ConvertFrom-Json
-$violations = @(Test-StampReport $report)
 
 if ($ShowDetail) {
     Write-Host "  · total=$($report.total) missing=$($report.missing) patched=$($report.patched) apply=$($report.apply)"

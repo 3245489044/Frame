@@ -11,8 +11,6 @@ global using Modules.EventFramework.Abstractions;
 global using TConfig;
 global using TConfig.ContextFrame.Abstractions;
 
-global using WorkflowExecution.Engine;
-
 global using WorkFlowMethod.Diagnostics;
 
 global using ParameterResolver.Builder;

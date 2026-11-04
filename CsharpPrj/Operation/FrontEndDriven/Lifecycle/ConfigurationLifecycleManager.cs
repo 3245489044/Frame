@@ -4,6 +4,7 @@
 using System;
 using System.Threading.Tasks;
 using FrameworkAbstractions.ComponentRegistry;
+using FrontEndDriven.Diagnostics;
 using FrontEndDriven.Pipeline;
 using TConfig;
 
@@ -28,10 +29,20 @@ public sealed class ConfigurationLifecycleManager
         var queue = ResolveQueue();
         foreach (var phase in bootConfig.Boot)
         {
-            // F5（boot 串行就绪闸门）：await EnqueueFullLoad 的 TCS 结果契约保证——
+            // F5（boot 串行就绪闸门）：await EnqueueFullLoad 的结果契约保证——
             // 下一 phase 在上一 phase 完整渲染挂载（StateCenter 落 Loaded/Mounted）后才入队其宿主解析，
             // 杜绝「宿主未就绪即按名查找」的 boot 竞态噪音（D4）；无需额外显式调度。
-            await queue.EnqueueFullLoad(phase.Scope, phase.Load, "boot").ConfigureAwait(true);
+            var outcome = await queue.EnqueueFullLoad(phase.Scope, phase.Load, "boot").ConfigureAwait(true);
+            if (outcome.Succeeded)
+                continue;
+
+            // E-09 修复：boot 阶段失败必须中止后续阶段并向上抛出——此前丢弃 bool，
+            // 「首屏渲染全失败 + 主窗体空白」仍被装配成功掩盖（无任何可见失败）。
+            var error = outcome.Error ?? "渲染未成功（未提供原因）";
+            FrontEndDrivenLog.Log("ConfigurationLifecycleManager_bootstrap_failed",
+                new { phase = phase.Id, scope = phase.Scope, configPath = phase.Load, error });
+            throw new InvalidOperationException(
+                $"boot 阶段渲染失败：phase={phase.Id}, scope={phase.Scope}, config={phase.Load}, error={error}");
         }
     }
 

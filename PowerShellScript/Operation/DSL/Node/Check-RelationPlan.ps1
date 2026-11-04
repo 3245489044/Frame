@@ -83,10 +83,9 @@ function Test-RelationSet($relations, $edgeNames, $containsEdges) {
 
     foreach ($rel in $relations) {
         if ([string]::IsNullOrWhiteSpace($rel.Edge)) { $problems.Add("E2 $($rel.Id) 缺 edge=") ; continue }
-        # repair = admin 维护意图（edge=* 全库回填）；其余边须 ∈ [Edge] 声明。
+        # repair = admin 维护意图（edge= 为词表锚点，作用域由请求参数给出）。
         $isRepair = $rel.Intent -eq 'repair'
-        if (-not $isRepair -and -not $edgeSet.ContainsKey($rel.Edge)) { $problems.Add("E2 $($rel.Id) edge=$($rel.Edge) 未在 [Edge] 声明") }
-        if ($isRepair -and $rel.Edge -ne '*') { $problems.Add("E2 $($rel.Id) repair 意图须声明 edge=*（全库回填）") }
+        if (-not $edgeSet.ContainsKey($rel.Edge) -and $rel.Edge -ne '*') { $problems.Add("E2 $($rel.Id) edge=$($rel.Edge) 未在 [Edge] 声明") }
         if ($rel.Intent -notin @('ensure', 'remove', 'repair')) { $problems.Add("E6 $($rel.Id) intent 缺失或非法（须 ensure|remove|repair）") }
         if (-not $isRepair -and $null -eq $rel.Exists) { $problems.Add("E6 $($rel.Id) 缺 exists=（须显式声明探针范围）") }
     }

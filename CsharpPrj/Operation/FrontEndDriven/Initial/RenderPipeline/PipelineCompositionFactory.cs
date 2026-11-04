@@ -179,11 +179,13 @@ public static class PipelineCompositionFactory
                 {
                     FrontEndDrivenLog.Log("RenderRequestQueue_fullLoad_no_statecenter",
                         new { scope, configPath });
-                    return false;
+                    return RenderOutcome.Fail("IStateCenter 未注册，无法执行 LoadAsync 事务");
                 }
 
                 var result = await center.Scopes.LoadAsync(scope, configPath ?? string.Empty).ConfigureAwait(true);
-                return result.Succeeded;
+                return result.Succeeded
+                    ? RenderOutcome.Ok()
+                    : RenderOutcome.Fail(result.Error ?? "LoadAsync 未成功（未提供原因）");
             },
             incremental: scope => composition.ExecuteRenderStage(string.IsNullOrEmpty(scope) ? null : scope));
         AppServiceProvider.Register<RenderRequestQueue>(renderRequestQueue);

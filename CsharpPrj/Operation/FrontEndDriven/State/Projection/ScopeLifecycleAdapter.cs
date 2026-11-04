@@ -97,16 +97,16 @@ public sealed class ScopeLifecycleAdapter : IScopeLifecycle
         // ① 宿主解析（唯一权威链路：HostMountService → ContainerRegistry）
         var handle = _hostMount.ResolveByScope(scope);
         if (handle == null)
-            return new ScopeLoadResult(scope, false, 0, 0, $"scope '{scope}' 未绑定宿主，无法渲染");
+            return Reject(scope, configPath, "host-binding", $"scope '{scope}' 未绑定宿主，无法渲染");
 
         var host = handle.Control;
         if (host == null)
-            return new ScopeLoadResult(scope, false, 0, 0, $"宿主 '{scope}' 的控件未注册到 ControlPool，无法渲染");
+            return Reject(scope, configPath, "host-control", $"宿主 '{scope}' 的控件未注册到 ControlPool，无法渲染");
 
         // ② 配置加载
         var config = await _configLoader(configPath).ConfigureAwait(false);
         if (config == null)
-            return new ScopeLoadResult(scope, false, 0, 0, "配置加载失败");
+            return Reject(scope, configPath, "config-load", "配置加载失败");
 
         // ②·F1 渲染宿主循环防护（RenderHostCycleGuard）：状态管线渲染段唯一权威闸门。
         // 命中"配置声明了它正在渲染进入的作用域/宿主控件"→ 拒绝渲染，Succeeded=false + 校验文案，
@@ -114,7 +114,7 @@ public sealed class ScopeLifecycleAdapter : IScopeLifecycle
         // 从源头阻断"壳误载为内容"的循环宿主注入（不再触发 WinForms 循环控件引用异常）。
         var cycleGuard = RenderHostCycleGuard.Validate(config, scope, handle);
         if (!cycleGuard.Allowed)
-            return new ScopeLoadResult(scope, false, 0, 0, cycleGuard.Error);
+            return Reject(scope, configPath, "cycle-guard", cycleGuard.Error ?? "循环宿主注入已拦截");
 
         // ③ 生命周期：OnBeforeLoad 钩子（声明于 config.Lifecycle，经统一函数通道执行；
         //    失败不阻断渲染——钩子是附加行为，渲染主流程不受其影响）
@@ -209,6 +209,17 @@ public sealed class ScopeLifecycleAdapter : IScopeLifecycle
                     : !contentMounted
                         ? "内容层控件物理未挂载（ContentMounted=0，疑似配置误嵌套）"
                         : "渲染未成功");
+    }
+
+    /// <summary>
+    /// 渲染段拒绝出口（单一实现）：失败原因必须可见——早退分支此前无任何日志，
+    /// 使「首屏空白」只能靠读代码推演。统一落到 ScopeLifecycleAdapter_render_rejected。
+    /// </summary>
+    private static ScopeLoadResult Reject(string scope, string configPath, string stage, string error)
+    {
+        FrontEndDrivenLog.Log("ScopeLifecycleAdapter_render_rejected",
+            new { scope, configPath, stage, error });
+        return new ScopeLoadResult(scope, false, 0, 0, error);
     }
 
     // ── 生命周期钩子执行（安全包装：钩子失败仅记日志，不阻断加载主流程）──

@@ -8,7 +8,6 @@ using WorkFlowMethod.Diagnostics;
 namespace WorkflowExecution.Pipeline;
 
 using Abstractions;
-using Engine;
 
 public class CentralPipeline : PipelineBase<TConfig.IExecutionContext>
 {

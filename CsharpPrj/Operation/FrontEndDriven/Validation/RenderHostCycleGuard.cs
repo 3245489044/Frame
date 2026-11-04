@@ -53,6 +53,23 @@ public static class RenderHostCycleGuard
             if (!string.IsNullOrWhiteSpace(host.Id.HostKey)) cSet.Add(host.Id.HostKey);
         }
 
+        // 自身根宿主豁免：boot[].host 是壳自己的根宿主，当渲染目标恰为该 boot 阶段声明的 scope 时
+        // （合法根壳渲染），它不构成「被注入的子宿主」。缺此豁免会让
+        // MainLayout(boot.host=root) 渲染进 scope=MainLayout(hostKey=root) 自撞拦截 → 首屏空白。
+        var selfBootHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (config.Boot is { Count: > 0 })
+        {
+            foreach (var phase in config.Boot)
+            {
+                if (!string.IsNullOrWhiteSpace(phase.Host) &&
+                    !string.IsNullOrWhiteSpace(phase.Scope) &&
+                    string.Equals(phase.Scope, renderScope, StringComparison.OrdinalIgnoreCase))
+                {
+                    selfBootHosts.Add(phase.Host);
+                }
+            }
+        }
+
         var hits = new List<string>();
         foreach (var scope in declaredScopes)
         {
@@ -61,6 +78,7 @@ public static class RenderHostCycleGuard
         }
         foreach (var name in hostControlNames)
         {
+            if (selfBootHosts.Contains(name)) continue;
             if (cSet.Contains(name))
                 hits.Add($"host:{name}");
         }

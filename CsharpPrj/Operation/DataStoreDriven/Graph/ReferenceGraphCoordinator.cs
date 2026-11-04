@@ -32,7 +32,7 @@ namespace Operation.DataStoreDriven.Graph;
 ///   · 关系声明写/读一律经 ur_relations（USharp [Record]，_id = SQL NodeKey 文法），SQL 不再持有声明。
 /// 本类同时实现 <see cref="IResourceReferenceStore"/> 与 <see cref="INodeRelationStore"/> 端口，保持既有消费方（编排器/对账器）编译兼容。
 /// </summary>
-public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRelationStore, IGraphCatalogReader, IOutboxStore, IReferenceIncomingCapability, IReferenceBatchReader, IAsyncDisposable
+public sealed partial class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRelationStore, IGraphCatalogReader, IOutboxStore, IReferenceIncomingCapability, IReferenceBatchReader, IAsyncDisposable
 {
     /// <summary>能力声明（结构事实）：本实现支持真实入边读取。</summary>
     public bool SupportsIncoming => true;

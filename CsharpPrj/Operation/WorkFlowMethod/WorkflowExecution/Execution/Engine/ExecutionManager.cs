@@ -6,7 +6,6 @@ using System.Linq;
 using Share.StateManagement;
 using WorkFlowMethod.Execution.Session;
 using WorkflowExecution.Abstractions;
-using WorkflowExecution.Engine;
 #endregion
 
 namespace WorkFlowMethod.Execution.Engine

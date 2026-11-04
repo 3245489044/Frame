@@ -31,7 +31,11 @@ public static class ConfigRoleResolver
         => config != null && HasHostNode(config) ? ConfigRole.Shell : ConfigRole.Content;
 
     private static bool HasHostNode(UIConfiguration config)
-        => CollectDeclarations(config).HostNames.Count > 0;
+    {
+        var declarations = CollectDeclarations(config);
+        // 任一 StateScope 已足以判定壳（此前仅看宿主 name，StateScope 无 name 时会误判 Content）。
+        return declarations.HostNames.Count > 0 || declarations.Scopes.Count > 0;
+    }
 
     /// <summary>
     /// 唯一宿主采集器（E-17）：ConfigRole 与 RenderHostCycleGuard 共用，消除两套 walker 与宿主定义漂移。

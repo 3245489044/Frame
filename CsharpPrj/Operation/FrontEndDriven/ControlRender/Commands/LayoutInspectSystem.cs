@@ -235,8 +235,16 @@ public class LayoutInspectSystem : CommandSystemBase
             foreach (var handle in registryContainers.OrderBy(h => h.Id.HostKey, StringComparer.OrdinalIgnoreCase))
             {
                 var hostKey = handle.Id.HostKey;
-                var treeCount = containerStats
-                    .FirstOrDefault(s => string.Equals(s.Name, hostKey, StringComparison.OrdinalIgnoreCase)).DirectChildren;
+                // E-13：未命中必须显式返回 -1（不再落到默认元组的多余子树 0 —— 曾使 treeCount 恒 0 且误报 mismatch）。
+                var treeCount = -1;
+                foreach (var stat in containerStats)
+                {
+                    if (string.Equals(stat.Name, hostKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        treeCount = stat.DirectChildren;
+                        break;
+                    }
+                }
                 var ownedCount = handle.Control?.Controls.Count ?? -1;
                 var mismatch = ownedCount >= 0 && treeCount >= 0 && ownedCount != treeCount;
                 sb.AppendLine($"  [{handle.Id.Role}] {hostKey}: scope={handle.Id.ScopeId} state={handle.State}" +

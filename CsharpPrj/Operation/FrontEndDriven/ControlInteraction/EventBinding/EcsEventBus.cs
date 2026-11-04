@@ -760,7 +760,8 @@ public sealed class EcsEventBus : IInteractionEventPort
                     }
                 }
 
-                value ??= string.Empty;
+                // E-20②：此处不得把 null 提前归一为 ""——否则下方「源缺失 → 使用 DefaultValue」分支永不可达，
+                // 绑定声明的默认参数全部被空串覆盖。
             }
 
             if (value == null && p.DefaultValue != null)

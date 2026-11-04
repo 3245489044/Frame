@@ -8,7 +8,6 @@ using WorkFlowMethod.Skeletons.NodeProcess.Graph;
 using GraphFoundation.Abstractions;
 using SkeletonFlow;
 using WorkFlowMethod.Execution.Session;
-using WorkFlowMethod.GraphFramework.Pipeline;
 using WorkFlowMethod.Skeletons.NodeProcess.Lifecycle;
 #endregion
 

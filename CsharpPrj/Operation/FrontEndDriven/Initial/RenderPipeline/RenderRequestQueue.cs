@@ -38,6 +38,17 @@ public sealed record RenderRequest
 }
 
 /// <summary>
+/// 渲染请求执行结果（E-08）：成功/失败不再共用裸 bool，失败必须携带原因，
+/// 使 boot/端口调用方能区分「渲染失败」与「被新版本取代」，并把原因原样上抛。
+/// </summary>
+public readonly record struct RenderOutcome(bool Succeeded, string? Error)
+{
+    public static RenderOutcome Ok() => new(true, null);
+
+    public static RenderOutcome Fail(string? error) => new(false, error);
+}
+
+/// <summary>
 /// 渲染请求队列（M5·单入口 + 差异投影 → M3·异步化）：scope+version 串行单队列，UI 线程单消费者。
 /// 加载/函数执行/分割条/重算统一入队（Enqueue/EnqueueFullLoad），过期请求按版本号丢弃（同 scope 只执行最新）。
 /// 2026-08-06 M3 改造：同步 Drain → UI 线程异步消费（D6）——
@@ -47,21 +58,21 @@ public sealed record RenderRequest
 /// </summary>
 public sealed class RenderRequestQueue
 {
-    private sealed record PendingEntry(RenderRequest Request, TaskCompletionSource<bool> Tcs);
+    private sealed record PendingEntry(RenderRequest Request, TaskCompletionSource<RenderOutcome> Tcs);
 
     // scope+version 去重存储收敛到通用 VersionedKeyedQueue（latest-wins）。
     private readonly VersionedKeyedQueue<string, PendingEntry> _latest = new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly Func<string, string?, Task<bool>> _fullLoadRenderer;
+    private readonly Func<string, string?, Task<RenderOutcome>> _fullLoadRenderer;
     private readonly Func<string, object?> _incrementalRenderer;
     private readonly Func<IUIDispatcher?> _dispatcherResolver;
 
     /// <param name="dispatcherResolver">UI 线程调度器解析（composition 装配期 dispatcher 未注册，延迟到消费期解析；null → 退化同步 Drain）。</param>
-    /// <param name="fullLoad">FullLoad 渲染委托（scope, configPath）→ 是否成功（StateCenter.Scopes.LoadAsync 事务）。</param>
+    /// <param name="fullLoad">FullLoad 渲染委托（scope, configPath）→ 渲染结果（StateCenter.Scopes.LoadAsync 事务；失败含原因）。</param>
     /// <param name="incremental">IncrementalRender 渲染委托（scope）→ 渲染结果（ExecuteRenderStage）。</param>
     public RenderRequestQueue(
         Func<IUIDispatcher?> dispatcherResolver,
-        Func<string, string?, Task<bool>> fullLoad,
+        Func<string, string?, Task<RenderOutcome>> fullLoad,
         Func<string, object?> incremental)
     {
         _dispatcherResolver = dispatcherResolver ?? throw new ArgumentNullException(nameof(dispatcherResolver));
@@ -71,25 +82,26 @@ public sealed class RenderRequestQueue
 
     public int PendingScopeCount => _latest.Count;
 
-    /// <summary>入队增量渲染请求（同 scope 旧版本自动失效），返回消费完成 TCS（可 await 保持同步语义）。</summary>
-    public Task<bool> Enqueue(string scope, string reason)
+    /// <summary>入队增量渲染请求（同 scope 旧版本自动失效），返回是否成功（可 await 保持同步语义）。</summary>
+    public async Task<bool> Enqueue(string scope, string reason)
     {
         if (string.IsNullOrWhiteSpace(reason))
-            return Task.FromResult(false);
+            return false;
 
-        return EnqueueCore(new RenderRequest
+        var outcome = await EnqueueCore(new RenderRequest
         {
             Scope = scope ?? string.Empty,
             Kind = RenderRequestKind.IncrementalRender,
             Reason = reason
-        });
+        }).ConfigureAwait(false);
+        return outcome.Succeeded;
     }
 
-    /// <summary>入队完整加载渲染请求（LoadConfig+Render 事务），返回消费完成 TCS。</summary>
-    public Task<bool> EnqueueFullLoad(string scope, string configPath, string reason)
+    /// <summary>入队完整加载渲染请求（LoadConfig+Render 事务），返回渲染结果（成功 + 失败原因）。</summary>
+    public Task<RenderOutcome> EnqueueFullLoad(string scope, string configPath, string reason)
     {
         if (string.IsNullOrWhiteSpace(configPath))
-            return Task.FromResult(false);
+            return Task.FromResult(RenderOutcome.Fail("configPath 为空，无法加载渲染"));
 
         return EnqueueCore(new RenderRequest
         {
@@ -101,9 +113,9 @@ public sealed class RenderRequestQueue
     }
 
 
-    private Task<bool> EnqueueCore(RenderRequest request)
+    private Task<RenderOutcome> EnqueueCore(RenderRequest request)
     {
-        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs = new TaskCompletionSource<RenderOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         // 版本号由通用 VersionedKeyedQueue 唯一分配（latest-wins），请求去重比较统一经队列条目版本。
         _latest.Register(request.Scope, new PendingEntry(request, tcs));
 
@@ -142,38 +154,38 @@ public sealed class RenderRequestQueue
             {
                 try
                 {
-                    bool success = entry.Request.Kind switch
+                    RenderOutcome outcome = entry.Request.Kind switch
                     {
                         RenderRequestKind.FullLoad => await _fullLoadRenderer(scope, entry.Request.ConfigPath).ConfigureAwait(true),
                         _ => RunIncremental(scope, entry.Request)
                     };
 
-                    if (!success)
+                    if (!outcome.Succeeded)
                     {
                         FrontEndDrivenLog.Log("RenderRequestQueue_render_unsuccessful",
-                            new { scope, kind = entry.Request.Kind.ToString(), reason = entry.Request.Reason });
+                            new { scope, kind = entry.Request.Kind.ToString(), reason = entry.Request.Reason, error = outcome.Error });
                     }
 
-                    entry.Tcs.TrySetResult(success);
+                    entry.Tcs.TrySetResult(outcome);
                 }
                 catch (Exception ex)
                 {
                     FrontEndDrivenLog.Log("RenderRequestQueue_render_failed",
                         new { scope, kind = entry.Request.Kind.ToString(), reason = entry.Request.Reason, error = ex.Message });
-                    entry.Tcs.TrySetResult(false);
+                    entry.Tcs.TrySetResult(RenderOutcome.Fail(ex.Message));
                 }
 
                 return true; // 渲染队列无 break 语义，恒继续遍历
             },
-            onStale: (scope, entry) => entry.Tcs.TrySetResult(false),
+            onStale: (scope, entry) => entry.Tcs.TrySetResult(RenderOutcome.Fail("superseded：被同 scope 新版本请求取代")),
             maxPasses: QueueDrainPolicy.MaxPassesPerDrain);
     }
 
-    private bool RunIncremental(string scope, RenderRequest request)
+    private RenderOutcome RunIncremental(string scope, RenderRequest request)
     {
         var result = _incrementalRenderer(scope);
         FrontEndDrivenLog.Log("RenderRequestQueue_incremental_done",
             new { scope, reason = request.Reason, result = result?.ToString() });
-        return result != null;
+        return result != null ? RenderOutcome.Ok() : RenderOutcome.Fail("增量渲染未返回结果");
     }
 }

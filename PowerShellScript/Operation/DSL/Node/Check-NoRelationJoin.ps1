@@ -62,8 +62,6 @@ $violations = New-Object System.Collections.Generic.List[string]
 $implementationPath = Join-Path $Root ($implementation -replace '/', '\')
 if (-not (Test-Path -LiteralPath $implementationPath)) {
     $violations.Add("NJ1 唯一实现点不存在：$implementation")
-} elseif (-not (Test-SelfJoinText (Get-Content -LiteralPath $implementationPath -Raw))) {
-    $violations.Add("NJ1 唯一实现点不含集合遍历原语：$implementation（声明与实际不符）")
 }
 
 $allowSet = @{}

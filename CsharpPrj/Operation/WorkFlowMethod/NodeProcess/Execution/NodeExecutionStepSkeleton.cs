@@ -89,6 +89,8 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
 
             if (executionStage == null || executionId == null || string.IsNullOrEmpty(nodeKey))
             {
+                // 无法推进游标时终止循环，避免在同一节点上空转。
+                input.SetData("NodeLoop.StopRequested", true);
                 return;
             }
 

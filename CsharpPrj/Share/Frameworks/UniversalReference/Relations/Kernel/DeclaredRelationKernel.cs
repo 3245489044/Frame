@@ -18,6 +18,8 @@ public sealed partial class DeclaredRelationKernel : IRelationCommandPort
     private readonly IRelationDiagnostics? _diagnostics;
     private readonly IRelationContainerResolver? _containers;
     private readonly IRelationGuardEvaluator? _guards;
+    private readonly IEdgeStampRepairPort? _stampRepair;
+    private readonly bool _stampRepairAssembled;
 
     public DeclaredRelationKernel(
         IResourceReferenceStore store,
@@ -27,7 +29,8 @@ public sealed partial class DeclaredRelationKernel : IRelationCommandPort
         IEntityExistenceProbe? probe = null,
         IRelationDiagnostics? diagnostics = null,
         IRelationContainerResolver? containers = null,
-        IRelationGuardEvaluator? guards = null)
+        IRelationGuardEvaluator? guards = null,
+        IEdgeStampRepairPort? stampRepair = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
@@ -38,6 +41,8 @@ public sealed partial class DeclaredRelationKernel : IRelationCommandPort
         _diagnostics = diagnostics;
         _containers = containers;
         _guards = guards;
+        _stampRepairAssembled = stampRepair is not null;
+        _stampRepair = stampRepair;
         _invariants = new RelationInvariantChecker(store);
     }
 

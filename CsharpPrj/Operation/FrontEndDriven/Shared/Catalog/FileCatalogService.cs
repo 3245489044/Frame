@@ -87,8 +87,9 @@ public static class FileCatalogService
         var root = ResolveRoot(spec);
         if (root is null) return null;
         var clean = id.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
-        var f = Path.Combine(root, clean);
-        return File.Exists(f) ? f : null;
+        var f = Path.GetFullPath(Path.Combine(root, clean));
+        // E-15：规范化后必须仍在 root 内，否则 "../.." / 绝对路径可越根读取任意文件。
+        return IsWithin(root, f) && File.Exists(f) ? f : null;
     }
 
     /// <summary>读取文件文本（id 携带扩展名；不存在返回 null）。</summary>

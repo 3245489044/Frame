@@ -169,7 +169,8 @@ public class LayoutSystem
 
         double r;
         if (_entityManager.TryGetComponent<SplitterRatioComponent>(splitContainerEntity, out var ratio)
-            && ratio.Ratio > 0.0 && ratio.Ratio < 1.0)
+            // E-12：比例合法域为闭区间 [0,1]；0/1 是拖拽可到达的极端值，不得回退 0.5。
+            && ratio.Ratio >= 0.0 && ratio.Ratio <= 1.0)
         {
             r = ratio.Ratio;
         }

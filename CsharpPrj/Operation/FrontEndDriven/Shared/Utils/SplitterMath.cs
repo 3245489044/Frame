@@ -17,6 +17,8 @@ public static class SplitterMath
     /// <summary>由比例 + 方向 + 容器尺寸结算 SplitterDistance；尺寸 ≤ 0 返回 0。</summary>
     public static int Distance(double ratio, Orientation orientation, int width, int height)
     {
+        // E-14/E-12：NaN/Infinity 比例必须显式归零，否则 (int)Math.Round 产出异常几何。
+        if (!double.IsFinite(ratio)) return 0;
         int dimension = orientation == Orientation.Vertical ? width : height;
         return dimension > 0 ? (int)System.Math.Round(ratio * dimension) : 0;
     }

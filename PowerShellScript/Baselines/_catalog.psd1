@@ -124,6 +124,12 @@
         @{ File = 'Node\MountRead.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'MountRead'; Shape = 'FactRow'; Origins = @('Debt'); Consumer = 'Frame\PowerShellScript\Modules\Node\Check-MountRead.ps1'; DueWhen = 'R3/R4 收口后总量归零' }
         @{ File = 'Node\MountCallSites.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'MountCallSites'; Shape = 'FactRow'; Origins = @('Debt'); Consumer = 'Frame\PowerShellScript\Modules\Node\Check-MountCallSites.ps1'; DueWhen = 'R5 后调用点收敛到 1' }
         @{ File = 'Node\GraphPortSurface.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'GraphPortSurface'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Node\Check-GraphPortSurface.ps1' }
+        @{ File = 'Node\EdgeSingleWriter.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'EdgeSingleWriter'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Node\Check-EdgeSingleWriter.ps1' }
+        @{ File = 'Node\NoRelationLiteral.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'NoRelationLiteral'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Node\Check-NoRelationLiteral.ps1' }
+        @{ File = 'Node\NoRelationJoin.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'NoRelationJoin'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Node\Check-NoRelationJoin.ps1' }
+        @{ File = 'Node\UsharpFirst.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'UsharpFirst'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Node\Check-UsharpFirst.ps1' }
+        @{ File = 'Node\TopologyLineage.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'TopologyLineage'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Node\Check-TopologyLineage.ps1' }
+        @{ File = 'Node\EdgeStamp.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'EdgeStamp'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Node\Check-EdgeStamp.ps1' }
         @{ File = 'Node\MountFailurePosture.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'MountFailurePosture'; Shape = 'FactRow'; Origins = @('Debt'); Consumer = 'Frame\PowerShellScript\Modules\Node\Check-MountFailurePosture.ps1'; DueWhen = 'R6 判红：回退与镜像用量归零' }
     )
 }

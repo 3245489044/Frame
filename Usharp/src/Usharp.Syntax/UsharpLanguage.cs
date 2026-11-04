@@ -211,8 +211,11 @@ public static class UsharpLanguage
     public const string RelationIntentEnsure = "ensure";
     public const string RelationIntentRemove = "remove";
 
+    /// <summary>维护意图（一次性 admin 回填；禁启动期自动执行）。</summary>
+    public const string RelationIntentRepair = "repair";
+
     /// <summary>写意图受控词表。</summary>
-    public static readonly string[] RelationIntents = { RelationIntentEnsure, RelationIntentRemove };
+    public static readonly string[] RelationIntents = { RelationIntentEnsure, RelationIntentRemove, RelationIntentRepair };
 
     /// <summary>关系不变量种类受控词表。</summary>
     public static readonly string[] InvariantKinds =

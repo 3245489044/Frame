@@ -50,6 +50,14 @@ public static class RelationOperations
     public static bool IsRemove(this RelationOperation operation)
         => string.Equals(operation.Intent, "remove", StringComparison.Ordinal);
 
+    /// <summary>写入意图（唯一来源 = 声明面 <c>intent=</c>；与 remove/repair 互斥）。</summary>
+    public static bool IsEnsure(this RelationOperation operation)
+        => string.Equals(operation.Intent, "ensure", StringComparison.Ordinal);
+
+    /// <summary>维护意图（一次性 admin 回填；不得参与 ensure/remove 唯一性解析）。</summary>
+    public static bool IsRepair(this RelationOperation operation)
+        => string.Equals(operation.Intent, "repair", StringComparison.Ordinal);
+
     /// <summary>是否存在 <c>exists=</c> 声明；缺省 = <c>src,tgt</c>。</summary>
     public static bool Probes(this RelationOperation operation, string side)
         => operation.Exists.Count == 0 || operation.Exists.Contains(side, StringComparer.Ordinal);

@@ -47,7 +47,7 @@
     <!-- 决策域权威（LoopDecision/SnapshotDrivenLoopEngine）：Share.TaskStatusPool.Loops（唯一依赖，纯折叠无调度耦合） -->
     <ProjectReference Include="$(Proj_TaskStatusPool)" />
 
-    <!-- 算子层复用（BasicMethod.Calculus，方案 A 薄适配）：Adapters/ 三个适配器引用其算子（IEvolver/IConverger/IIntegrator）；
+    <!-- 算子层复用（BasicMethod.Calculus，方案 A 薄适配）：Adapters/ 两个适配器（EvolverFoldOperator/IntegratorFoldHead）引用其算子；
          只引算子不迁移引擎，EvolveUntilConverged 不充当 FoldEngine（引擎推进仍在 FoldEngine/SnapshotDrivenLoopEngine） -->
     <ProjectReference Include="$(Proj_Calculus)" />
 

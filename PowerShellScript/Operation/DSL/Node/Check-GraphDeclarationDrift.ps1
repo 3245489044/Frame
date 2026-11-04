@@ -193,7 +193,8 @@ function Get-FaceRegionClosureViolations($faces, $products, $viewLevels) {
     return $violations
 }
 
-# GD5：字段级血缘闭合（derives= ⇒ 恰 1 上游；源字段 ∈ 上游 out；目标字段 ∈ 本产品 out）。
+# GD5：字段级血缘闭合（derives= ⇒ ≥1 上游；每个字段对的源字段须属某一上游 out；目标字段 ∈ 本产品 out）。
+# 多上游 = 视图聚合多类事实（如看板同时依赖任务集与节点文本）；放宽的是「上游数」，收紧的是「逐对闭合」。
 function Get-LineageClosureViolations($products) {
     $violations = New-Object System.Collections.Generic.List[string]
     $declared = @{}
@@ -202,18 +203,23 @@ function Get-LineageClosureViolations($products) {
     foreach ($product in $products) {
         if ([string]::IsNullOrWhiteSpace([string]$product.Derives)) { continue }
 
-        if ($product.DependsOn.Count -ne 1) {
-            $violations.Add("GD5 血缘端点不可判定：$($product.Id) 的 depends_on 须恰 1 项（现 $($product.DependsOn.Count)）")
+        if ($product.DependsOn.Count -eq 0) {
+            $violations.Add("GD5 血缘端点不可判定：$($product.Id) 的 depends_on 为空（derives= 须有上游）")
             continue
         }
 
-        $parentKey = [string]$product.DependsOn[0]
-        if (-not $declared.ContainsKey($parentKey)) {
-            $violations.Add("GD5 血缘上游未声明：$($product.Id) → $parentKey")
-            continue
+        $parentOut = @()
+        $upstreamOk = $true
+        foreach ($parentKey in $product.DependsOn) {
+            if (-not $declared.ContainsKey([string]$parentKey)) {
+                $violations.Add("GD5 血缘上游未声明：$($product.Id) → $parentKey")
+                $upstreamOk = $false
+                continue
+            }
+            $parentOut += @($declared[[string]$parentKey].Out)
         }
+        if (-not $upstreamOk) { continue }
 
-        $parentOut = $declared[$parentKey].Out
         foreach ($pair in ([string]$product.Derives -split ';')) {
             $entry = $pair.Trim()
             if ($entry.Length -eq 0) { continue }
@@ -227,7 +233,7 @@ function Get-LineageClosureViolations($products) {
             $from = $entry.Substring(0, $index).Trim()
             $to = $entry.Substring($index + 2).Trim()
             if ($parentOut -notcontains $from) {
-                $violations.Add("GD5 血缘源字段未在上游出字段：$($product.Id).derives '$from' ∉ $parentKey.out")
+                $violations.Add("GD5 血缘源字段不在任一上游出字段：$($product.Id).derives '$from' ∉ [$($product.DependsOn -join ',')].out")
             }
             if ($product.Out -notcontains $to) {
                 $violations.Add("GD5 血缘目标字段越权：$($product.Id).derives '$to' ∉ 本产品 out")

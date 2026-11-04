@@ -115,8 +115,16 @@ public sealed class RelationPlanCatalog
     {
         if (string.IsNullOrWhiteSpace(edge)) return null;
         var matches = _operations.Values
-            .Where(o => string.Equals(o.Edge, edge, StringComparison.Ordinal) && o.IsRemove() == remove)
+            .Where(o => string.Equals(o.Edge, edge, StringComparison.Ordinal)
+                        && (remove ? o.IsRemove() : o.IsEnsure()))
             .ToList();
+        return matches.Count == 1 ? matches[0] : null;
+    }
+
+    /// <summary>取维护意图 operation（intent=repair 恰 1 条；0/多义 ⇒ null，禁隐式取首条）。</summary>
+    public RelationOperation? ResolveRepair()
+    {
+        var matches = _operations.Values.Where(o => o.IsRepair()).ToList();
         return matches.Count == 1 ? matches[0] : null;
     }
 }

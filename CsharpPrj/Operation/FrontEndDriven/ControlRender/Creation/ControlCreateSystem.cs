@@ -38,9 +38,11 @@ public class EcsCapabilityApplier
                 continue;
             }
 
+            // E-11：缺类型不是「永久丢弃」——记录 capability_dropped 并保留 Pending，待类型注册后重试。
             if (!_entityManager.TryGetComponent<ControlTypeComponent>(entity, out var typeComp))
             {
-                _entityManager.RemoveComponent<PendingCapabilityComponent>(entity);
+                FrontEndDrivenLog.Log("capability_dropped",
+                    new { entity = entity.ToString(), reason = "missing_control_type" });
                 continue;
             }
 

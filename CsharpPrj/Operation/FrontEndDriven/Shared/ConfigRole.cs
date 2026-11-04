@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using TConfig;
 
@@ -30,14 +31,26 @@ public static class ConfigRoleResolver
         => config != null && HasHostNode(config) ? ConfigRole.Shell : ConfigRole.Content;
 
     private static bool HasHostNode(UIConfiguration config)
+        => CollectDeclarations(config).HostNames.Count > 0;
+
+    /// <summary>
+    /// 唯一宿主采集器（E-17）：ConfigRole 与 RenderHostCycleGuard 共用，消除两套 walker 与宿主定义漂移。
+    /// 采集口径：boot[].host 宿主根、任意 Container.StateScope 非空节点（scope + name）、
+    /// container/splitContainer 节点 name；递归覆盖 Controls/Panel1/Panel2/Tabs/HtmlPage。
+    /// </summary>
+    public static (HashSet<string> Scopes, HashSet<string> HostNames) CollectDeclarations(UIConfiguration? config)
     {
-        // boot 宿主根声明（如 MainLayout.json boot[].host="root"）
+        var scopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var hostNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (config is null) return (scopes, hostNames);
+
+        // boot 宿主根声明（如 MainLayout.json boot[].host="root"）——此前 Guard 未采集，导致 boot-only 壳绕过拦截。
         if (config.Boot is { Count: > 0 })
         {
             foreach (var phase in config.Boot)
             {
                 if (!string.IsNullOrWhiteSpace(phase.Host))
-                    return true;
+                    hostNames.Add(phase.Host);
             }
         }
 
@@ -45,41 +58,48 @@ public static class ConfigRoleResolver
         {
             foreach (var view in config.Views)
             {
-                if (view.Controls is { Count: > 0 } && WalkHost(view.Controls))
-                    return true;
+                if (view.Controls is { Count: > 0 })
+                    WalkCollect(view.Controls, scopes, hostNames);
             }
         }
 
-        return false;
+        return (scopes, hostNames);
     }
 
-    private static bool WalkHost(List<ControlConfig> controls)
+    private static void WalkCollect(List<ControlConfig>? controls, HashSet<string> scopes, HashSet<string> hostNames)
     {
-        if (controls == null) return false;
+        if (controls == null) return;
 
         foreach (var c in controls)
         {
             if (c == null) continue;
 
-            // 宿主节点：声明了子作用域的 container
             if (c.Container is { StateScope: not null and not "" })
-                return true;
+            {
+                scopes.Add(c.Container.StateScope);
+                if (!string.IsNullOrWhiteSpace(c.Name))
+                    hostNames.Add(c.Name);
+            }
+            else if (!string.IsNullOrWhiteSpace(c.Name) && IsHostCapable(c))
+            {
+                hostNames.Add(c.Name);
+            }
 
-            if (c.Controls is { Count: > 0 } && WalkHost(c.Controls)) return true;
-            if (c.Panel1Controls is { Count: > 0 } && WalkHost(c.Panel1Controls)) return true;
-            if (c.Panel2Controls is { Count: > 0 } && WalkHost(c.Panel2Controls)) return true;
+            WalkCollect(c.Controls, scopes, hostNames);
+            WalkCollect(c.Panel1Controls, scopes, hostNames);
+            WalkCollect(c.Panel2Controls, scopes, hostNames);
 
             if (c.Tabs is { Count: > 0 })
             {
                 foreach (var tab in c.Tabs)
-                {
-                    if (tab?.Controls is { Count: > 0 } && WalkHost(tab.Controls)) return true;
-                }
+                    WalkCollect(tab?.Controls, scopes, hostNames);
             }
 
-            if (c.HtmlPage?.Controls is { Count: > 0 } && WalkHost(c.HtmlPage.Controls)) return true;
+            WalkCollect(c.HtmlPage?.Controls, scopes, hostNames);
         }
-
-        return false;
     }
+
+    private static bool IsHostCapable(ControlConfig c)
+        => string.Equals(c.Type, "container", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(c.Type, "splitContainer", StringComparison.OrdinalIgnoreCase);
 }

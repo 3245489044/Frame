@@ -87,6 +87,13 @@ namespace WorkFlowMethod.Orchestration.State
         }
     }
 
+    /// <summary>
+    /// 宿主 stage ↔ 管线 stage 的装配工厂。
+    /// </summary>
+    /// <remarks>
+    /// 【实验态·未接线】全仓无外部调用点（含 <c>GetFullStages</c>），该目录整体未接入主链路。
+    /// 接线前需先收敛 DUP-02 的两条装配入口（详见 WorkFlowMethod 审计 2026-11-04）。
+    /// </remarks>
     public static class StageBridgeFactory
     {
 

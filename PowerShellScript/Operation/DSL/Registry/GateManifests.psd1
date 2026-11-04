@@ -243,6 +243,54 @@
         Note   = '面白名单：每个 [Face] 的 product/owner/channel 齐备 + product 已声明 + fields ⊆ out；负对照缺 channel/悬空 product 必红'
     }
 
+    EdgeSingleWriter = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '边写单原语（C1）：HierarchyRef 归属边映射完备 / 每条业务边恰 1 写者 / 写者坐标可解析 / operation 与 edge 对账；负对照双写者必红'
+    }
+
+    NoRelationLiteral = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '关系边名字面量（C2）：C# 边名字面量 = 0（适配器白名单在基线 Allow）；边名集合来自 [Ref] edge= 单源；负对照必红'
+    }
+
+    NoRelationJoin = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '集合查询实现点（C3）：唯一实现点存在且第二自 join 实现点 = 0（基线 Allow 棘轮）；负对照必红'
+    }
+
+    UsharpFirst = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '声明优先（C17）：字符串规则表 switch / 规则表字典 / 判定魔数 / 同名常量异值 均在基线棘轮内（只降不升）；负对照必红'
+    }
+
+    TopologyLineage = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '拓扑血缘（C6）：derives= 字段对形态/端点闭合/边键唯一 + 生产调用点（DeclarativeTopologyLineage ∧ PlanFromField）≥1；负对照必红'
+    }
+
+    EdgeStamp = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '边盖章（C8）：回填报告 schema/计数齐备且 origin_flow 为空 = 0（报告缺失 ⇒ 判据不可判定，fail-closed）；负对照必红'
+    }
+
     WriteSurface = @{
         Domain = 'Node'
         Args   = @{ Check = $true; NegativeControl = $true }

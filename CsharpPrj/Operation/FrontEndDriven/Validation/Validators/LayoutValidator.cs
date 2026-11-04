@@ -56,7 +56,8 @@ public class LayoutValidator : IEntityValidator
 
         if (entityManager.TryGetComponent<SplitterRatioComponent>(entity, out var ratio))
         {
-            if (ratio.Ratio < 0.0 || ratio.Ratio > 1.0)
+            // E-14②：NaN 对上下界比较均为 false，需显式拒绝。
+            if (double.IsNaN(ratio.Ratio) || ratio.Ratio < 0.0 || ratio.Ratio > 1.0)
             {
                 result.AddError(new ValidationError(
                     entity, entityName, Category,
@@ -71,7 +72,8 @@ public class LayoutValidator : IEntityValidator
         Entity entity, string entityName, string fieldName, float value,
         ValidationResult result, ValidationCategory category)
     {
-        if (value < 0.0f || value > 1.0f)
+        // E-14②：NaN 对上下界比较均为 false，需显式拒绝。
+        if (float.IsNaN(value) || value < 0.0f || value > 1.0f)
         {
             result.AddError(new ValidationError(
                 entity, entityName, category,

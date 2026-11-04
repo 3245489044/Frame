@@ -55,22 +55,26 @@ internal sealed class RelationGateRule : IGateRule<UsharpGateModel>
             else
                 seen[relation.OperationId] = (relation.SourceFile, relation.LineNumber);
 
-            var hasEdge = model.Declarations.TryGetEdgeDecl(relation.Edge, out var edgeDecl);
-            if (!hasEdge)
+            // repair 是 admin 维护意图（edge=* 全库回填），不参与边/端点声明闭合（其判据 = 回填报告 + 门禁）。
+            var isRepair = string.Equals(relation.Intent, UsharpLanguage.RelationIntentRepair, StringComparison.Ordinal);
+
+            DslDeclaration? edgeDecl = null;
+            var hasEdge = !isRepair && model.Declarations.TryGetEdgeDecl(relation.Edge, out edgeDecl);
+            if (!isRepair && !hasEdge)
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RelationEdgeUndeclared,
                     $"[Relation] '{relation.OperationId}'：edge='{relation.Edge}' 未在 [Edge] 声明",
                     relation.SourceFile, relation.LineNumber));
 
-            if (!declaredEntities.Contains(relation.Source))
+            if (!isRepair && !declaredEntities.Contains(relation.Source))
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RelationEndpointMismatch,
                     $"[Relation] '{relation.OperationId}'：src='{relation.Source}' 未在 [Node] 声明",
                     relation.SourceFile, relation.LineNumber));
-            if (!declaredEntities.Contains(relation.Target))
+            if (!isRepair && !declaredEntities.Contains(relation.Target))
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RelationEndpointMismatch,
                     $"[Relation] '{relation.OperationId}'：tgt='{relation.Target}' 未在 [Node] 声明",
                     relation.SourceFile, relation.LineNumber));
 
-            if (hasEdge) CheckEdgeEndpoint(sink, relation, edgeDecl);
+            if (!isRepair && hasEdge) CheckEdgeEndpoint(sink, relation, edgeDecl!);
             CheckFlow(sink, model, relation);
             CheckNamespace(sink, relation, spaceIds);
             CheckRelationVocab(sink, relation);
@@ -182,7 +186,7 @@ internal sealed class RelationGateRule : IGateRule<UsharpGateModel>
         // 删除意图必须显式声明（唯一判据 = 声明事实；禁 operation 前缀推断）。
         if (!UsharpLanguage.RelationIntents.Contains(relation.Intent, StringComparer.Ordinal))
             sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.RelationFieldInvalid,
-                $"[Relation] '{relation.OperationId}'：intent='{relation.Intent}' 非法或缺失（须 ensure|remove）",
+                $"[Relation] '{relation.OperationId}'：intent='{relation.Intent}' 非法或缺失（须 ensure|remove|repair）",
                 relation.SourceFile, relation.LineNumber));
     }
 

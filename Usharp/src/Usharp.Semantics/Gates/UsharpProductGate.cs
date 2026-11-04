@@ -159,10 +159,10 @@ internal sealed class ProductGateRule : IGateRule<UsharpGateModel>
     {
         if (product.Derives is not { Length: > 0 } derives) return;
 
-        if (product.DependsOn.Count != 1)
+        if (product.DependsOn.Count == 0)
         {
             sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProductFieldInvalid,
-                $"[Product] {product.ProductId}: derives= 须恰有 1 个 depends_on 上游（现 {product.DependsOn.Count} 个；多上游时血缘端点不可判定）",
+                $"[Product] {product.ProductId}: derives= 须声明 ≥1 个 depends_on 上游（现 0 个；血缘端点不可判定；多上游逐对闭合由 GD5 复算）",
                 product.SourceFile, product.LineNumber));
             return;
         }

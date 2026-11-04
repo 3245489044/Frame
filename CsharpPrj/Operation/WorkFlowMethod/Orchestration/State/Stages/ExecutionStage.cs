@@ -21,6 +21,12 @@ using SMExecutionStatus = Share.StateManagement.ExecutionStatus;
 
 namespace WorkFlowMethod.Orchestration.State.Stages
 {
+    /// <summary>
+    /// 状态机版节点执行阶段（Orchestration 装配入口专用）。
+    /// </summary>
+    /// <remarks>
+    /// 【实验态·未接线】全仓无外部调用点，未接入主链路；不要为「修好」而接进主链路。
+    /// </remarks>
     public class OrchestrationExecutionStage : ExecutionStage
     {
         public OrchestrationExecutionStage(

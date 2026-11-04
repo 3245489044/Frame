@@ -546,7 +546,13 @@ public sealed class WinFormsOutputPort
     public void CreateControl(Entity entity, string controlType)
     {
         var control = ControlStrategyRegistry.Create<Control>(controlType);
-        if (control == null) return;
+        if (control == null)
+        {
+            // E-11：未注册的控件类型不得静默丢弃——留下可检索痕迹（此前创建失败后 Pending 被移除，控件永久缺失）。
+            FrontEndDriven.Diagnostics.FrontEndDrivenLog.Log("capability_dropped",
+                new { entity = entity.ToString(), reason = "control_type_not_registered", controlType });
+            return;
+        }
 
         var typeComp = _entityManager.GetComponent<ControlTypeComponent>(entity);
         var controlName = typeComp.Name ?? entity.ToString();

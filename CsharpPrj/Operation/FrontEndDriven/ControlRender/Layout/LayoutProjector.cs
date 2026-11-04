@@ -119,9 +119,12 @@ public sealed class LayoutProjector
             // E1·分割基准按方向选取（SplitterMath 单一权威）：Vertical 沿宽、Horizontal 沿高，
             // 与 Ports.CalculateSplitterDistance / LayoutSystem.TryComputeSplitterPanelLayout 一致，
             // 消除 Math.Max 对「比高还宽的横向分割/比宽还高的纵向分割」取错基准维度的缺陷。
-            int distance = SplitterMath.Distance(ratio.Ratio, sc.Orientation, cl.Width, cl.Height);
-            if (distance <= 0)
+            // E-12：distance=0 是合法极端值（比例 0），不得短路跳过；仅容器尺寸无效（≤0）时跳过，避免 Set 抛越界。
+            int dimension = sc.Orientation == Orientation.Vertical ? cl.Width : cl.Height;
+            if (dimension <= 0)
                 continue;
+
+            int distance = SplitterMath.Distance(ratio.Ratio, sc.Orientation, cl.Width, cl.Height);
             if (Math.Abs(_adapter.GetSplitterDistance(sc) - distance) <= 1)
                 continue;
 

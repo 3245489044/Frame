@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using FrameworkAbstractions.ContainerAbstractions;
+using FrontEndDriven.Shared;
 using TConfig;
 
 namespace FrontEndDriven.Validation;
@@ -37,10 +38,12 @@ public static class RenderHostCycleGuard
     /// </summary>
     public static RenderHostCycleResult Validate(UIConfiguration? config, string? renderScope, ContainerHandle? host)
     {
-        var declaredScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var hostControlNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (config != null)
-            Collect(config, declaredScopes, hostControlNames);
+        // E-17：与 ConfigRole 共用同一采集器（含 boot[].host），消除两套 walker 与宿主定义漂移。
+        if (config is null)
+            return RenderHostCycleResult.Fail(Array.Empty<string>(),
+                "配置为空：无任何宿主声明，拒绝渲染以免无法证明非循环注入。");
+
+        var (declaredScopes, hostControlNames) = ConfigRoleResolver.CollectDeclarations(config);
 
         var cSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(renderScope)) cSet.Add(renderScope);
@@ -78,58 +81,4 @@ public static class RenderHostCycleGuard
         return RenderHostCycleResult.Pass();
     }
 
-    private static void Collect(UIConfiguration config, HashSet<string> scopes, HashSet<string> hostNames)
-    {
-        if (config.Views is { Count: > 0 })
-        {
-            foreach (var view in config.Views)
-            {
-                if (view.Controls is { Count: > 0 })
-                    Walk(view.Controls, scopes, hostNames);
-            }
-        }
-    }
-
-    private static void Walk(List<ControlConfig> controls, HashSet<string> scopes, HashSet<string> hostNames)
-    {
-        if (controls == null) return;
-
-        foreach (var c in controls)
-        {
-            if (c == null) continue;
-
-            // 宿主容器：声明了子作用域 → A 集收录 StateScope、B 集收录其 name
-            if (c.Container is { StateScope: not null and not "" })
-            {
-                scopes.Add(c.Container.StateScope);
-                if (!string.IsNullOrWhiteSpace(c.Name))
-                    hostNames.Add(c.Name);
-            }
-            // container/splitContainer 节点本身即宿主控件 name 候选 → B 集收录
-            else if (!string.IsNullOrWhiteSpace(c.Name) && IsHostCapable(c))
-            {
-                hostNames.Add(c.Name);
-            }
-
-            Walk(c.Controls, scopes, hostNames);
-            Walk(c.Panel1Controls, scopes, hostNames);
-            Walk(c.Panel2Controls, scopes, hostNames);
-
-            if (c.Tabs is { Count: > 0 })
-            {
-                foreach (var tab in c.Tabs)
-                {
-                    if (tab?.Controls is { Count: > 0 })
-                        Walk(tab.Controls, scopes, hostNames);
-                }
-            }
-
-            if (c.HtmlPage?.Controls is { Count: > 0 })
-                Walk(c.HtmlPage.Controls, scopes, hostNames);
-        }
-    }
-
-    private static bool IsHostCapable(ControlConfig c)
-        => string.Equals(c.Type, "container", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(c.Type, "splitContainer", StringComparison.OrdinalIgnoreCase);
 }

@@ -114,6 +114,49 @@ public sealed partial class DeclaredRelationKernel : IRelationMaintenancePort
         return new RelationResult(false, request.Operation, ensurePlan.Edge, 0, empty, RelationOutcome.NotFound);
     }
 
+    /// <inheritdoc />
+    public async Task<RelationResult> RepairAsync(RelationRepairRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!_stampRepairAssembled || _stampRepair is null)
+            return Fail(request.Operation, request.Edge,
+                "repair-unassembled：盖章回填端口未装配（禁以声明存在冒充可执行）");
+
+        if (string.IsNullOrWhiteSpace(request.Operation))
+            return Fail(request.Operation, request.Edge, "repair 需要显式 operation（intent=repair）");
+
+        var plan = _catalog.Resolve(request.Operation);
+        if (plan is null)
+            return Fail(request.Operation, request.Edge,
+                $"operation '{request.Operation}' 未在 [Relation] 声明");
+        if (!plan.IsRepair())
+            return Fail(request.Operation, plan.Edge,
+                $"operation '{request.Operation}' 的 intent={plan.Intent}（repair 需要 intent=repair）");
+
+        if (string.IsNullOrWhiteSpace(request.FallbackFlow))
+            return Fail(request.Operation, plan.Edge, "repair 需要 fallbackFlow（禁按时间猜来源）");
+
+        var report = await _stampRepair.RepairEdgeStampsAsync(request, ct).ConfigureAwait(false);
+        var diagnostics = new List<string>
+        {
+            $"repair:total={report.Total}",
+            $"repair:missing={report.Missing}",
+            $"repair:patched={report.Patched}",
+            $"repair:skipped={report.Skipped}",
+            $"repair:applied={report.Applied}",
+        };
+
+        var settled = report.Missing == 0 || (request.Apply && report.Patched >= report.Missing);
+        return new RelationResult(
+            settled,
+            request.Operation,
+            plan.Edge,
+            report.Patched,
+            diagnostics,
+            settled ? RelationOutcome.Applied : RelationOutcome.Skipped);
+    }
+
     private RelationOperation? ResolveRemovePlan(RelationOperation ensurePlan)
         => _catalog.ResolveByEdge(ensurePlan.Edge, remove: true);
 

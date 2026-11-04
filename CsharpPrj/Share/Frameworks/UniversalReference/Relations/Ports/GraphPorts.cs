@@ -159,7 +159,35 @@ public sealed record RelationGcRequest(
     string Actor = "system",
     RelationOrigin Origin = RelationOrigin.Rebuild);
 
-/// <summary>维护操作端口（F3）：move / merge / gc 与 ensure/remove 同源。</summary>
+/// <summary>存量边盖章回填请求（<c>repair</c>；一次性 admin，禁启动期自动执行）。</summary>
+/// <param name="Operation">声明面 operation id（intent=repair）。</param>
+/// <param name="Edge">目标边（缺省 <c>*</c> = 全库已声明边集）。</param>
+/// <param name="FallbackFlow">缺失 <c>origin_flow</c> 的回填值（声明面给定，禁按时间猜）。</param>
+/// <param name="FallbackStep">缺失 <c>origin_step</c> 的回填值（null ⇒ 用边名）。</param>
+/// <param name="Apply">false = dry-run（只统计不写）。</param>
+public sealed record RelationRepairRequest(
+    string Operation,
+    string Edge = "*",
+    string FallbackFlow = "observed",
+    string? FallbackStep = null,
+    bool Apply = false,
+    RelationOrigin Origin = RelationOrigin.Admin);
+
+/// <summary>回填报告（结构事实：计数 + 是否落盘；供门禁复算）。</summary>
+public sealed record RelationRepairReport(
+    int Total,
+    int Missing,
+    int Patched,
+    int Skipped,
+    bool Applied);
+
+/// <summary>边盖章回填端口（唯一实现 = 图协调器；未装配 ⇒ 内核显式失败）。</summary>
+public interface IEdgeStampRepairPort
+{
+    Task<RelationRepairReport> RepairEdgeStampsAsync(RelationRepairRequest request, CancellationToken ct = default);
+}
+
+/// <summary>维护操作端口（F3）：move / merge / gc / repair 与 ensure/remove 同源。</summary>
 public interface IRelationMaintenancePort
 {
     Task<RelationResult> MoveAsync(RelationMoveRequest request, CancellationToken ct = default);
@@ -167,6 +195,9 @@ public interface IRelationMaintenancePort
     Task<RelationResult> MergeAsync(RelationMergeRequest request, CancellationToken ct = default);
 
     Task<RelationResult> GcAsync(RelationGcRequest request, CancellationToken ct = default);
+
+    /// <summary>存量边盖章回填（intent=repair；失败走显式可见化，禁伪成功）。</summary>
+    Task<RelationResult> RepairAsync(RelationRepairRequest request, CancellationToken ct = default);
 }
 
 /// <summary>守卫姿态（结构取值；单源，禁各处手写字面量）。</summary>
@@ -465,6 +496,7 @@ public enum RelationIntent
 {
     Ensure = 0,
     Remove = 1,
+    Repair = 2,
 }
 
 /// <summary>

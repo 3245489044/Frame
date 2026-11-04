@@ -8,7 +8,6 @@ using Operation.DataStoreDriven.Core;
 using UniversalWorkflowFramework.Relations;
 using UniversalWorkflowFramework.Relations.Gather.Adapters;
 using Operation.LoopFoldMethod.Reference.Derivation;
-using Operation.LoopFoldMethod.Reference.Model;
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
@@ -186,8 +185,10 @@ public sealed class NodeRelationGateway
 
     /// <summary>已知归属边类（端点由 operation 声明约束；未装配端口时不得裸写）。</summary>
     private static bool IsOwnershipEdge(string refType)
-        => refType is ReferenceTypes.Owns or ReferenceTypes.SessionOwns
-            or ReferenceTypes.CrossDbLink or ReferenceTypes.HistoryOwnsTask;
+        => refType is LoopFoldMethod.Reference.Model.ReferenceTypes.Owns
+            or LoopFoldMethod.Reference.Model.ReferenceTypes.SessionOwns
+            or LoopFoldMethod.Reference.Model.ReferenceTypes.CrossDbLink
+            or LoopFoldMethod.Reference.Model.ReferenceTypes.HistoryOwnsTask;
 
     /// <summary>未命中归属 operation ⇒ 仅数据流边允许写图原语（禁裸写归属边）。</summary>
     private void EnsureDataflowEdge(string refType)

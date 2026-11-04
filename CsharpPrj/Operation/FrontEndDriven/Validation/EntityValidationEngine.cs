@@ -5,6 +5,7 @@ using System.Linq;
 using ECS.Core;
 using FrontEndDriven.Shared.Utils;
 using ValidationFramework.Abstractions;
+using ValidationFramework.Factory;
 using VfContext = ValidationFramework.Abstractions.ValidationContext;
 
 namespace FrontEndDriven.Validation;
@@ -31,6 +32,10 @@ public class EntityValidationEngine
     {
         if (validator == null)
             throw new ArgumentNullException(nameof(validator));
+
+        // E-14①：重名必须在注册期失败（此前直到 Validate 才由框架抛出）。
+        if (_validators.Any(v => string.Equals(v.ValidatorName, validator.ValidatorName, StringComparison.Ordinal)))
+            throw new ArgumentException($"校验器重名：{validator.ValidatorName}", nameof(validator));
 
         _validators.Add(validator);
     }
@@ -78,7 +83,8 @@ public class EntityValidationEngine
         if (entityManager == null)
             throw new ArgumentNullException(nameof(entityManager));
 
-        var engine = new ValidationFramework.Engine.ValidationEngine(_name);
+        // E-14③：复用框架工厂（内置契约规则/选项统一），不再每轮绕过工厂直接 new 裸引擎。
+        var engine = ValidationFrameworkFactory.CreateEngine(new ValidationFrameworkOptions { Name = _name });
         engine.RegisterRules(_validators
             .Where(v => !onlyCategory.HasValue || v.Category == onlyCategory.Value)
             .Select(v => (IValidationRule)new EntityValidationRule(v)));

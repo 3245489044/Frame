@@ -68,6 +68,11 @@
             Target = '..\PowerShellScript\Share\Data\Invoke-GraphKeyNormalize.ps1'
             Map = @{ StateRoot = 'StateRoot'; DllDir = 'DllDir'; Apply = 'Apply'; Json = 'Json' }
         }
+        'edge-stamp-repair' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Data\Invoke-EdgeStampRepair.ps1'
+            Map = @{ StateRoot = 'StateRoot'; DllDir = 'DllDir'; FallbackFlow = 'FallbackFlow'; FallbackStep = 'FallbackStep'; Apply = 'Apply'; Json = 'Json'; OutFile = 'OutFile' }
+        }
         'graph-rebuild' = @{
             Kind = 'Ps'
             Target = '..\PowerShellScript\Share\Data\Invoke-GraphRebuild.ps1'

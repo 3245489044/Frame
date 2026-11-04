@@ -97,7 +97,8 @@ public class StyleValidator : IEntityValidator
                 nameof(MergedStyleComponent)));
         }
 
-        if (style.FontSize <= 0)
+        // E-14②：NaN 与任何比较都为 false，必须显式拦截（float.IsNaN）。
+        if (float.IsNaN(style.FontSize) || style.FontSize <= 0)
         {
             result.AddError(new ValidationError(
                 entity, entityName, Category,

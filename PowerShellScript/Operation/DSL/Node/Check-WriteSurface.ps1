@@ -38,7 +38,7 @@ $baselineRelative = 'Frame\PowerShellScript\Operation\DSL\Node\WriteSurface.base
 $oldWritePattern = 'AddReferenceAsync\(|AttachEdgeAsync\(|AddRelationAsync\('
 
 $writeEntryWhitelist = @(
-    'Frame/CsharpPrj/Operation/DataStoreDriven/Relations/DeclaredRelationKernel.cs',
+    'Frame/CsharpPrj/Share/Frameworks/UniversalReference/Relations/Kernel/DeclaredRelationKernel.cs',
     'Frame/CsharpPrj/Operation/DataStoreDriven/Relations/Rebuild/RelationRebuildEngine.cs',
     'Frame/CsharpPrj/Operation/DataStoreDriven/Core/Graph/GraphEdgeWriter.cs',
     'Frame/CsharpPrj/Operation/DataStoreDriven/Graph/ReferenceGraphCoordinator.cs',
@@ -178,7 +178,7 @@ foreach ($file in $productionFiles) {
 # ---- C6 operation/edge 字面量单源（生产写面文件只允许经常量/声明面）----
 $literalPattern = '"(mount_[a-z_]+|unmount_[a-z_]+|cross_db_link|history_owns_task|session_owns|task_owns_task)"'
 $literalAllowlist = @(
-    'Frame/CsharpPrj/Operation/DataStoreDriven/Relations/RelationSurfaces.cs'
+    'Frame/CsharpPrj/Share/Frameworks/UniversalReference/Relations/Gather/Adapters/DomainRelationSurface.cs'
 )
 foreach ($file in $productionFiles) {
     if ($literalAllowlist -contains $file) { continue }

@@ -39,7 +39,18 @@ public sealed class ValidationService
     {
         ArgumentNullException.ThrowIfNull(entityManager);
 
-        var result = Engine.ValidateAll(entityManager);
+        // E-14①：校验器内部异常必须隔离为日志（本入口是 audit-only，不得打断渲染阶段）。
+        ValidationResult result;
+        try
+        {
+            result = Engine.ValidateAll(entityManager);
+        }
+        catch (Exception ex)
+        {
+            FrontEndDrivenLog.Log("RenderValidationStage_validator_exception",
+                new { scope, error = ex.Message, type = ex.GetType().Name });
+            result = new ValidationResult();
+        }
 
         var report = new RenderAuditReport
         {

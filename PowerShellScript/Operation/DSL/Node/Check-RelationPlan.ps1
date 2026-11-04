@@ -9,8 +9,8 @@
     E3 归属边恰一 ensure：每条归属边恰有一个 intent=ensure 的 operation。
     E4 层级对账：hierarchy.ushar 的 contains= 边 ⊆ [Relation].edge。
     E5 负对照：合成「缺 mount」声明必须被同一判定函数命中（防恒真假绿）。
-    E6 写意图完整：每条 [Relation] 必须显式 intent=ensure|remove 且声明 exists=。
-    E7 C# 归属边字面量（报告态，迁移期不判红）。
+    E6 写意图完整：每条 [Relation] 必须显式 intent=ensure|remove|repair 且声明 exists=。
+    E7 已并入 NoRelationLiteral（同判据门禁数 = 1；DUP-11）。
 
 .PARAMETER Check
     校验模式：存在违规 → 退出码 1。
@@ -29,11 +29,7 @@ if (-not $Root) {
     $Root = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')
 }
 
-# 基线单源 = Baselines\Node\RelationPlan.psd1（禁内联数值基线）
-Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
-$e7Baseline = Import-GateBaseline -Name RelationPlan
-$e7Max = [int]$e7Baseline.E7MaxLiteralFiles.Value
-
+# C# 归属边字面量判据已并入 NoRelationLiteral（DUP-11：同判据门禁数 = 1）。
 $violations = New-Object System.Collections.Generic.List[string]
 $details = New-Object System.Collections.Generic.List[string]
 
@@ -76,20 +72,6 @@ function Get-ContainsEdges([string]$text) {
     return $names
 }
 
-# 归属边字面量检测（判据载体 = 源码静态计数；禁执行者叙述）：返回命中文件数。
-function Get-OwnershipLiteralFileCount([string[]]$Roots) {
-    $files = 0
-    foreach ($src in $Roots) {
-        if ([string]::IsNullOrWhiteSpace($src) -or -not (Test-Path -LiteralPath $src)) { continue }
-        $hits = Get-ChildItem -LiteralPath $src -Recurse -Filter '*.cs' -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '\\Tests\\' -and $_.Name -notlike '*Tests.cs' -and $_.Name -notlike '*.generated.*' } |
-            Select-String -Pattern '"(cross_db_link|history_owns_task|session_owns|task_owns_task)"' -ErrorAction SilentlyContinue
-        $files += @($hits | ForEach-Object { $_.Path } | Sort-Object -Unique).Count
-    }
-    return $files
-}
-
-
 $ownershipEdges = @('cross_db_link', 'history_owns_task', 'session_owns', 'task_owns_task')
 
 function Test-RelationSet($relations, $edgeNames, $containsEdges) {
@@ -101,9 +83,12 @@ function Test-RelationSet($relations, $edgeNames, $containsEdges) {
 
     foreach ($rel in $relations) {
         if ([string]::IsNullOrWhiteSpace($rel.Edge)) { $problems.Add("E2 $($rel.Id) 缺 edge=") ; continue }
-        if (-not $edgeSet.ContainsKey($rel.Edge)) { $problems.Add("E2 $($rel.Id) edge=$($rel.Edge) 未在 [Edge] 声明") }
-        if ($rel.Intent -notin @('ensure', 'remove')) { $problems.Add("E6 $($rel.Id) intent 缺失或非法（须 ensure|remove）") }
-        if ($null -eq $rel.Exists) { $problems.Add("E6 $($rel.Id) 缺 exists=（须显式声明探针范围）") }
+        # repair = admin 维护意图（edge=* 全库回填）；其余边须 ∈ [Edge] 声明。
+        $isRepair = $rel.Intent -eq 'repair'
+        if (-not $isRepair -and -not $edgeSet.ContainsKey($rel.Edge)) { $problems.Add("E2 $($rel.Id) edge=$($rel.Edge) 未在 [Edge] 声明") }
+        if ($isRepair -and $rel.Edge -ne '*') { $problems.Add("E2 $($rel.Id) repair 意图须声明 edge=*（全库回填）") }
+        if ($rel.Intent -notin @('ensure', 'remove', 'repair')) { $problems.Add("E6 $($rel.Id) intent 缺失或非法（须 ensure|remove|repair）") }
+        if (-not $isRepair -and $null -eq $rel.Exists) { $problems.Add("E6 $($rel.Id) 缺 exists=（须显式声明探针范围）") }
     }
 
     foreach ($edge in $ownershipEdges) {
@@ -165,31 +150,6 @@ if ($violations.Count -eq 0) {
         $violations.Add('E8 负对照失效（缺 container= 未被判红）')
     } elseif ($ShowDetail) { $details.Add('E8 负对照命中 OK') }
 
-    # E7 判红：C# 归属边字面量文件数 ≤ 基线（只降不升；与 WriteSurface C4 分工：E7 管声明侧字面量，C4 管写入口）
-    $literalFiles = Get-OwnershipLiteralFileCount @(
-        (Join-Path $Root 'Frame\CsharpPrj'),
-        (Join-Path $Root 'Projects\Plug\Agent\src'))
-    $e7Limit = [int]$e7Max
-    if ($literalFiles -gt $e7Limit) {
-        $violations.Add("E7 C# 归属边字面量文件=$literalFiles > 基线 $e7Limit（禁新增；清理后同批下调基线）")
-    } elseif ($ShowDetail) {
-        $details.Add("E7 C# 归属边字面量文件=$literalFiles（基线 $e7Limit）OK")
-    }
-
-    if ($NegativeControl) {
-        $probeDir = Join-Path ([IO.Path]::GetTempPath()) ('relationplan-negative-' + [guid]::NewGuid().ToString('N'))
-        try {
-            New-Item -ItemType Directory -Path $probeDir -Force | Out-Null
-            Set-Content -LiteralPath (Join-Path $probeDir 'Probe.cs') `
-                -Value 'internal static class P { public const string E = "cross_db_link"; }' -Encoding UTF8
-            if ((Get-OwnershipLiteralFileCount @($probeDir)) -ne 1) {
-                $violations.Add('E7 负对照失效：合成归属字面量文件未被检出')
-            } elseif ($ShowDetail) { $details.Add('E7 负对照命中 OK') }
-        }
-        finally {
-            Remove-Item -LiteralPath $probeDir -Recurse -Force -ErrorAction SilentlyContinue
-        }
-    }
 }
 
 if ($ShowDetail) { foreach ($line in $details) { Write-Host "  $line" } }

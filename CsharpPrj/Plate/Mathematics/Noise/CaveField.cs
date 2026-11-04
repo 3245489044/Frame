@@ -59,9 +59,30 @@ public sealed class CaveField
         _tunnelSeed = seed ^ settings.SeedSalt;
         _cheeseSeed = seed ^ (settings.SeedSalt + 0x1471);
         _blendSeed = seed ^ (settings.SeedSalt + 0x39A5);
+
+        var hash = SignatureHash.Begin();
+        hash = SignatureHash.Mix(hash, seed);
+        hash = SignatureHash.Mix(hash, settings.MinDepthMeters);
+        hash = SignatureHash.Mix(hash, settings.MaxDepthMeters);
+        hash = SignatureHash.Mix(hash, settings.TunnelCellMeters);
+        hash = SignatureHash.Mix(hash, settings.TunnelWidth);
+        hash = SignatureHash.Mix(hash, settings.CheeseCellMeters);
+        hash = SignatureHash.Mix(hash, settings.CheeseThreshold);
+        hash = SignatureHash.Mix(hash, settings.SurfaceGuardMeters);
+        hash = SignatureHash.Mix(hash, settings.SeedSalt);
+        Signature = hash;
     }
 
     public CaveSettings Settings => _settings;
+
+    /// <summary>洞穴起始深度（cm，相对地表）。</summary>
+    public int MinDepthCm => _minDepthCm;
+
+    /// <summary>洞穴最大深度（cm，相对地表）。</summary>
+    public int MaxDepthCm => _maxDepthCm;
+
+    /// <summary>参数签名（seed + 全部洞穴标量）。</summary>
+    public long Signature { get; }
 
     /// <summary>该格是否被洞穴刻蚀成空气（调用方负责只在实心带询问）。</summary>
     public bool IsCarved(int x, int y, int z, int groundYCm)

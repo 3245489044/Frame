@@ -109,14 +109,7 @@ public sealed class UiComponentCatalog : IUiExpressionResources
         return FormatBuiltin(name, value);
     }
 
-    private static object? ToModelValue(object? value) => value switch
-    {
-        null => null,
-        bool b => b ? "1" : string.Empty,
-        string s => s,
-        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-        _ => value
-    };
+    private static object? ToModelValue(object? value) => UiModel.ToModelValue(value);
 
     private static string? FormatBuiltin(string name, object? value)
     {

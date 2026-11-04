@@ -36,6 +36,12 @@ public sealed record HtmlOverlayOptions
 
     /// <summary>安全左边界对应的最大宽度 CSS（默认由 <see cref="LeftCss"/> 自动派生 <c>calc(100vw - left - 14px)</c>）。</summary>
     public string? MaxWidthCss { get; init; }
+
+    /// <summary>关闭按钮无障碍标签（默认「关闭」；文案由宿主注入）。</summary>
+    public string CloseLabel { get; init; } = "关闭";
+
+    /// <summary>默认选项（单例；浮层默认值唯一来源）。</summary>
+    public static HtmlOverlayOptions Default { get; } = new();
 }
 
 /// <summary>
@@ -53,7 +59,7 @@ public static class HtmlOverlay
     /// <param name="options">浮层选项（类名/关闭语义/尺寸）；缺省浮层默认值。</param>
     public static string Build(string? bodyHtml, string title, HtmlOverlayOptions? options = null)
     {
-        var o = options ?? new HtmlOverlayOptions();
+        var o = options ?? HtmlOverlayOptions.Default;
         var cls = TextUtil.CssClass(o.CssClass, "floating-window");
         var name = TextUtil.CssClass(o.DataName, "floatingWindow");
         var closeBtn = CloseButtonHtml(o);
@@ -110,8 +116,8 @@ public static class HtmlOverlay
             .Class("btn-icon", "btn-icon")
             .Add("data-cmd", o.CloseCmd!)
             .DataAll(o.CloseData)
-            .Add("title", "关闭");
-        return MarkupTag.Element("button", attrs, "×");
+            .AddIfAny("title", o.CloseLabel);
+        return MarkupTag.Element("button", attrs, MarkupTag.Text("×"));
     }
 
     /// <summary>浮层 CSS（position:fixed 悬浮于右上，受宿主主题变量 --bg/--border/--muted/--agent-bg 控制）。

@@ -1,5 +1,7 @@
+
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace MathematicalAlgorithms.Meshing;
@@ -34,8 +36,8 @@ public enum VoxelRenderClass
 /// 方块 traits（网格化输入的唯一内容描述）：不透明/液体 + 三面图集编号 + 发光强度 + 剔除类别。
 /// <para>索引即方块身份（节点 ID）；空气恒为索引 0 且全部为默认值。</para>
 /// <para>本类型不编码任何游戏语义（草/土/水/硬度），只提供网格化所需的正交属性。</para>
-/// <para><see cref="RenderClass"/> 缺省为 <see cref="VoxelRenderClass.Auto"/>，旧 6 参构造行为不变：
-/// 不透明→不透明、液体→液体、其余→切图（现在会出面，此前被误判为不出面）。</para>
+/// <para><see cref="RenderClass"/> 缺省为 <see cref="VoxelRenderClass.Auto"/>；6 参构造签名保持不变（二进制兼容），
+/// 旧行为：不透明→不透明、液体→液体、其余→切图（现在会出面，此前被误判为不出面）。</para>
 /// </summary>
 public readonly record struct VoxelTraits(
     bool Opaque,
@@ -43,9 +45,20 @@ public readonly record struct VoxelTraits(
     int TopTile,
     int SideTile,
     int BottomTile,
-    int LightEmission,
-    VoxelRenderClass RenderClass = VoxelRenderClass.Auto)
+    int LightEmission)
 {
+    /// <summary>剔除类别；旧 6 参构造时为 Auto（按 <c>Opaque/Liquid</c> 推导）。</summary>
+    public VoxelRenderClass RenderClass { get; init; } = VoxelRenderClass.Auto;
+
+    /// <summary>显式指定剔除类别（7 参便利构造，保留原 6 参构造的 IL 签名）。</summary>
+    public VoxelTraits(
+        bool opaque, bool liquid, int topTile, int sideTile, int bottomTile, int lightEmission,
+        VoxelRenderClass renderClass)
+        : this(opaque, liquid, topTile, sideTile, bottomTile, lightEmission)
+    {
+        RenderClass = renderClass;
+    }
+
     /// <summary>实际生效的剔除类别（Auto 时按旧二元属性推导）。</summary>
     public VoxelRenderClass CullingClass
         => RenderClass != VoxelRenderClass.Auto
@@ -115,6 +128,8 @@ public sealed class VoxelMeshData
 /// <para>输入必须是 (chunkSize+2)³ 的 padded 快照：方块身份数组、光照数组、traits 表。</para>
 /// <para>输出确定性：迭代顺序固定，不遍历字典；同一输入两次输出逐字节一致。</para>
 /// <para>算法不含世界状态、不引用引擎类型；世界坐标原点由调用方给出。</para>
+/// <para>实现要点：进入三轴循环前把 traits 预折叠为 <c>cullClass</c> / <c>isOpaque</c> 两张
+/// per-voxel 扁平表，内层循环只做字节数组随机访问与纯算术；面内不再分配任何托管对象。</para>
 /// </summary>
 public static class VoxelMesher
 {
@@ -122,8 +137,9 @@ public static class VoxelMesher
     public const int MaxLightLevel = 15;
 
     private const int NegativeFlag = 0x10000;
-    private static readonly int[] CornerU = { 0, 1, 1, 0 };
-    private static readonly int[] CornerV = { 0, 0, 1, 1 };
+
+    /// <summary>相邻 greedy 矩形尺寸不同会产生 T-junction 裂缝；向外扩 0.02 个世界单位覆盖裂缝。</summary>
+    private const float SeamEpsilon = 0.02f;
 
     public static VoxelMeshData Mesh(
         int chunkSize, long version,
@@ -139,156 +155,198 @@ public static class VoxelMesher
         if (paddedLight.Length < volume)
             throw new ArgumentException("light 数组不足 (chunkSize+2)^3", nameof(paddedLight));
 
-        var opaqueVertices = new List<VoxelVertex>(chunkSize * chunkSize);
-        var opaqueIndices = new List<uint>(chunkSize * chunkSize * 6);
-        var waterVertices = new List<VoxelVertex>(chunkSize * chunkSize);
-        var waterIndices = new List<uint>(chunkSize * chunkSize * 6);
+        // ---- 预计算：每格剔除类别（供 FaceVisible 用）与不透明标记（供 AO 用）----
+        // 内层循环不再访问 traits，避免重复查表 + CullingClass 三元推导。
+        var cullClass = new byte[volume];
+        var isOpaque = new byte[volume];
+        int traitCount = traits.Length;
+        for (int idx = 0; idx < volume; idx++)
+        {
+            var t = TraitsOf(paddedBlocks[idx], traits);
+            cullClass[idx] = (byte)t.CullingClass;
+            isOpaque[idx] = (byte)(t.Opaque ? 1 : 0);
+        }
 
+        var opaqueVertices = new List<VoxelVertex>(chunkSize * chunkSize * 2);
+        var opaqueIndices = new List<uint>(chunkSize * chunkSize * 3);
+        var waterVertices = new List<VoxelVertex>(chunkSize * chunkSize);
+        var waterIndices = new List<uint>(chunkSize * chunkSize * 3);
+
+        int[] stride = { 1, dim, dim * dim };
         int[] origin = { originX, originY, originZ };
-        int[] pos = new int[3];
-        int[] neighbor = new int[3];
+        int planeCells = chunkSize * chunkSize;
 
         for (int d = 0; d < 3; d++)
         {
             int u = (d + 1) % 3;
             int v = (d + 2) % 3;
-            var mask = new int[chunkSize * chunkSize];
-            var used = new bool[chunkSize * chunkSize];
+            int sD = stride[d], sU = stride[u], sV = stride[v];
+            int od = origin[d], ou = origin[u], ov = origin[v];
+
+            var mask = new int[planeCells];
+            var used = new bool[planeCells];
 
             for (int plane = 0; plane <= chunkSize; plane++)
             {
-                Array.Clear(mask, 0, mask.Length);
-                Array.Clear(used, 0, used.Length);
+                Array.Clear(mask, 0, planeCells);
+                Array.Clear(used, 0, planeCells);
 
+                int planeOffset = plane * sD;
+                bool isFirst = plane == 0;
+                bool isLast = plane == chunkSize;
+
+                // ---- 1) 填 mask：走增量索引，内层只有加法 ----
                 for (int j = 0; j < chunkSize; j++)
-                for (int i = 0; i < chunkSize; i++)
                 {
-                    pos[d] = plane;
-                    pos[u] = i + 1;
-                    pos[v] = j + 1;
-                    ushort a = paddedBlocks[Index(pos, dim)];
-
-                    pos[d] = plane + 1;
-                    ushort b = paddedBlocks[Index(pos, dim)];
-
-                    int cell = j * chunkSize + i;
-                    if (plane == 0)
+                    int rowBase = planeOffset + (j + 1) * sV;
+                    int cellRow = j * chunkSize;
+                    int idxA = rowBase + sU; // i = 0 → (i+1) = 1
+                    for (int i = 0; i < chunkSize; i++, idxA += sU)
                     {
-                        // a 属邻块，b 是本块 local 0：只允许 b 的 -d 面。
-                        if (FaceVisible(b, a, traits))
-                            mask[cell] = b | NegativeFlag;
-                    }
-                    else if (plane == chunkSize)
-                    {
-                        // a 是本块 local chunkSize-1，b 属邻块：只允许 a 的 +d 面。
-                        if (FaceVisible(a, b, traits))
+                        int idxB = idxA + sD;
+                        ushort a = paddedBlocks[idxA];
+                        ushort b = paddedBlocks[idxB];
+                        int cell = cellRow + i;
+
+                        if (isFirst)
+                        {
+                            // a 属邻块，b 是本块 local 0：只允许 b 的 -d 面。
+                            if (FaceVisible(cullClass[idxB], b, cullClass[idxA], a))
+                                mask[cell] = b | NegativeFlag;
+                        }
+                        else if (isLast)
+                        {
+                            // a 是本块 local chunkSize-1，b 属邻块：只允许 a 的 +d 面。
+                            if (FaceVisible(cullClass[idxA], a, cullClass[idxB], b))
+                                mask[cell] = a;
+                        }
+                        else if (FaceVisible(cullClass[idxA], a, cullClass[idxB], b))
+                        {
                             mask[cell] = a;
-                    }
-                    else if (FaceVisible(a, b, traits))
-                    {
-                        mask[cell] = a;
-                    }
-                    else if (FaceVisible(b, a, traits))
-                    {
-                        mask[cell] = b | NegativeFlag;
+                        }
+                        else if (FaceVisible(cullClass[idxB], b, cullClass[idxA], a))
+                        {
+                            mask[cell] = b | NegativeFlag;
+                        }
                     }
                 }
 
+                // ---- 2) greedy 合并 + 出顶点 ----
                 for (int j = 0; j < chunkSize; j++)
-                for (int i = 0; i < chunkSize; i++)
                 {
-                    int cell = j * chunkSize + i;
-                    int value = mask[cell];
-                    if (value == 0 || used[cell]) continue;
-
-                    int width = 1;
-                    while (i + width < chunkSize)
+                    int cellRow = j * chunkSize;
+                    for (int i = 0; i < chunkSize; i++)
                     {
-                        int next = cell + width;
-                        if (mask[next] != value || used[next]) break;
-                        width++;
-                    }
+                        int cell = cellRow + i;
+                        int value = mask[cell];
+                        if (value == 0 || used[cell]) continue;
 
-                    int height = 1;
-                    while (j + height < chunkSize)
-                    {
-                        int row = (j + height) * chunkSize + i;
-                        bool rowMatches = true;
-                        for (int k = 0; k < width; k++)
+                        int width = 1;
+                        while (i + width < chunkSize)
                         {
-                            if (mask[row + k] != value || used[row + k]) { rowMatches = false; break; }
+                            int next = cell + width;
+                            if (mask[next] != value || used[next]) break;
+                            width++;
                         }
-                        if (!rowMatches) break;
-                        height++;
+
+                        int height = 1;
+                        while (j + height < chunkSize)
+                        {
+                            int row = (j + height) * chunkSize + i;
+                            bool rowMatches = true;
+                            for (int k = 0; k < width; k++)
+                            {
+                                int idx = row + k;
+                                if (mask[idx] != value || used[idx]) { rowMatches = false; break; }
+                            }
+                            if (!rowMatches) break;
+                            height++;
+                        }
+
+                        for (int hh = 0; hh < height; hh++)
+                        {
+                            int rowStart = (j + hh) * chunkSize + i;
+                            for (int ww = 0; ww < width; ww++)
+                                used[rowStart + ww] = true;
+                        }
+
+                        bool negative = (value & NegativeFlag) != 0;
+                        ushort id = (ushort)(value & 0xFFFF);
+
+                        // tile / liquid 每面只查一次 traits（id 通常 < traitCount；越界回退 default）。
+                        bool liquid = false;
+                        float tile = 0f;
+                        if (id < traitCount)
+                        {
+                            var t = traits[id];
+                            liquid = t.Liquid;
+                            int faceKind = d == 1 ? (negative ? 2 : 0) : 1;
+                            tile = faceKind == 0 ? t.TopTile
+                                 : faceKind == 2 ? t.BottomTile
+                                 : t.SideTile;
+                        }
+
+                        // 面外侧（neighbor）位置偏移：AO 与光照采样共用。
+                        int nD = negative ? plane : plane + 1;
+                        int nU = i + 1;
+                        int nV = j + 1;
+                        int nOffset = nD * sD + nU * sU + nV * sV;
+
+                        float lightLevel = paddedLight[nOffset] / (float)MaxLightLevel;
+
+                        float nX = d == 0 ? (negative ? -1f : 1f) : 0f;
+                        float nY = d == 1 ? (negative ? -1f : 1f) : 0f;
+                        float nZ = d == 2 ? (negative ? -1f : 1f) : 0f;
+
+                        int wD = od + plane;
+                        float eU0 = (ou + i) - SeamEpsilon;
+                        float eU1 = (ou + i + width) + SeamEpsilon;
+                        float eV0 = (ov + j) - SeamEpsilon;
+                        float eV1 = (ov + j + height) + SeamEpsilon;
+
+                        // 四角按周长顺序 (cu,cv) = (0,0),(1,0),(1,1),(0,1)。
+                        float c0x = 0, c0y = 0, c0z = 0;
+                        SetComp(ref c0x, ref c0y, ref c0z, d, wD);
+                        SetComp(ref c0x, ref c0y, ref c0z, u, eU0);
+                        SetComp(ref c0x, ref c0y, ref c0z, v, eV0);
+
+                        float c1x = 0, c1y = 0, c1z = 0;
+                        SetComp(ref c1x, ref c1y, ref c1z, d, wD);
+                        SetComp(ref c1x, ref c1y, ref c1z, u, eU1);
+                        SetComp(ref c1x, ref c1y, ref c1z, v, eV0);
+
+                        float c2x = 0, c2y = 0, c2z = 0;
+                        SetComp(ref c2x, ref c2y, ref c2z, d, wD);
+                        SetComp(ref c2x, ref c2y, ref c2z, u, eU1);
+                        SetComp(ref c2x, ref c2y, ref c2z, v, eV1);
+
+                        float c3x = 0, c3y = 0, c3z = 0;
+                        SetComp(ref c3x, ref c3y, ref c3z, d, wD);
+                        SetComp(ref c3x, ref c3y, ref c3z, u, eU0);
+                        SetComp(ref c3x, ref c3y, ref c3z, v, eV1);
+
+                        // AO：每面 4 次标量采样，无数组分配。
+                        float ao0 = ComputeAo(isOpaque, nOffset, -1, -1, sU, sV) / 3f;
+                        float ao1 = ComputeAo(isOpaque, nOffset, +1, -1, sU, sV) / 3f;
+                        float ao2 = ComputeAo(isOpaque, nOffset, +1, +1, sU, sV) / 3f;
+                        float ao3 = ComputeAo(isOpaque, nOffset, -1, +1, sU, sV) / 3f;
+
+                        var verts = liquid ? waterVertices : opaqueVertices;
+                        var inds = liquid ? waterIndices : opaqueIndices;
+                        uint baseIndex = (uint)verts.Count;
+
+                        verts.Add(new VoxelVertex(c0x, c0y, c0z, nX, nY, nZ, 0f, 0f, tile, lightLevel, ao0));
+                        verts.Add(new VoxelVertex(c1x, c1y, c1z, nX, nY, nZ, width, 0f, tile, lightLevel, ao1));
+                        verts.Add(new VoxelVertex(c2x, c2y, c2z, nX, nY, nZ, width, height, tile, lightLevel, ao2));
+                        verts.Add(new VoxelVertex(c3x, c3y, c3z, nX, nY, nZ, 0f, height, tile, lightLevel, ao3));
+
+                        inds.Add(baseIndex + 0);
+                        inds.Add(baseIndex + 1);
+                        inds.Add(baseIndex + 2);
+                        inds.Add(baseIndex + 0);
+                        inds.Add(baseIndex + 2);
+                        inds.Add(baseIndex + 3);
                     }
-
-                    for (int hh = 0; hh < height; hh++)
-                    for (int ww = 0; ww < width; ww++)
-                        used[(j + hh) * chunkSize + i + ww] = true;
-
-                    bool negative = (value & NegativeFlag) != 0;
-                    ushort id = (ushort)(value & 0xFFFF);
-                    bool liquid = Liquid(id, traits);
-
-                    neighbor[d] = negative ? plane : plane + 1;
-                    neighbor[u] = i + 1;
-                    neighbor[v] = j + 1;
-
-                    int planeWorld = origin[d] + plane;
-                    // 相邻 greedy 矩形尺寸不同会产生 T-junction 裂缝；向外扩 0.02 个世界单位覆盖裂缝。
-                    float seamEpsilon = 0.02f;
-                    int u0 = origin[u] + i;
-                    int u1 = u0 + width;
-                    int v0 = origin[v] + j;
-                    int v1 = v0 + height;
-
-                    int faceKind = d == 1 ? (negative ? 2 : 0) : 1;
-                    float tile = TileFor(id, faceKind, traits);
-                    float lightLevel = paddedLight[Index(neighbor, dim)] / (float)MaxLightLevel;
-
-                    float[] ax = new float[4];
-                    float[] ay = new float[4];
-                    float[] az = new float[4];
-                    float[] au = new float[4];
-                    float[] av = new float[4];
-                    float[] ao = new float[4];
-
-                    // 四角按周长顺序（不是 Z 序），否则两个三角形会沿错误对角线分裂，产生三角空洞。
-                    int ci = 0;
-                    for (int k = 0; k < 4; k++)
-                    {
-                        int cu = CornerU[k];
-                        int cv = CornerV[k];
-                        float[] p3 = { 0f, 0f, 0f };
-                        p3[d] = planeWorld;
-                        p3[u] = cu == 0 ? u0 - seamEpsilon : u1 + seamEpsilon;
-                        p3[v] = cv == 0 ? v0 - seamEpsilon : v1 + seamEpsilon;
-                        ax[ci] = p3[0]; ay[ci] = p3[1]; az[ci] = p3[2];
-                        au[ci] = cu * width; av[ci] = cv * height;
-                        ao[ci] = ComputeAo(paddedBlocks, traits, neighbor, u, v,
-                            cu == 0 ? -1 : 1, cv == 0 ? -1 : 1, dim);
-                        ci++;
-                    }
-
-                    float nx = d == 0 ? (negative ? -1f : 1f) : 0f;
-                    float ny = d == 1 ? (negative ? -1f : 1f) : 0f;
-                    float nz = d == 2 ? (negative ? -1f : 1f) : 0f;
-
-                    var verts = liquid ? waterVertices : opaqueVertices;
-                    var inds = liquid ? waterIndices : opaqueIndices;
-                    uint baseIndex = (uint)verts.Count;
-
-                    for (int k = 0; k < 4; k++)
-                        verts.Add(new VoxelVertex(
-                            ax[k], ay[k], az[k], nx, ny, nz,
-                            au[k], av[k], tile, lightLevel, ao[k] / 3f));
-
-                    inds.Add(baseIndex + 0);
-                    inds.Add(baseIndex + 1);
-                    inds.Add(baseIndex + 2);
-                    inds.Add(baseIndex + 0);
-                    inds.Add(baseIndex + 2);
-                    inds.Add(baseIndex + 3);
                 }
             }
         }
@@ -299,6 +357,7 @@ public static class VoxelMesher
             waterVertices.ToArray(), waterIndices.ToArray());
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static VoxelTraits TraitsOf(ushort id, ReadOnlySpan<VoxelTraits> traits) =>
         id < traits.Length ? traits[id] : default;
 
@@ -306,64 +365,49 @@ public static class VoxelMesher
     /// 面剔除唯一判定（与 MC 口径一致）：
     /// 自身空气/未知 → 不渲染；邻居不透明 → 被遮挡；
     /// 不透明/切图 → 渲染；半透明/液体 → 仅同 ID 邻居剔内面。
+    /// <para>分类已由调用方预计算为 <c>cullClass</c>，此处只做字节比较与 id 等值比较。</para>
     /// </summary>
-    private static bool FaceVisible(ushort current, ushort neighbor, ReadOnlySpan<VoxelTraits> traits)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool FaceVisible(byte selfClass, ushort selfId, byte nbrClass, ushort nbrId)
     {
-        if (current == 0) return false;
+        if (selfId == 0) return false;
+        if (selfClass == (byte)VoxelRenderClass.Air) return false;
+        if (nbrClass == (byte)VoxelRenderClass.Opaque) return false;
 
-        var self = TraitsOf(current, traits).CullingClass;
-        if (self == VoxelRenderClass.Air) return false;
-        if (TraitsOf(neighbor, traits).CullingClass == VoxelRenderClass.Opaque) return false;
-
-        return self switch
+        return selfClass switch
         {
-            VoxelRenderClass.Opaque => true,
-            VoxelRenderClass.Cutout => true,
-            VoxelRenderClass.Translucent => neighbor != current,
-            VoxelRenderClass.Liquid => neighbor != current,
+            (byte)VoxelRenderClass.Opaque => true,
+            (byte)VoxelRenderClass.Cutout => true,
+            (byte)VoxelRenderClass.Translucent => nbrId != selfId,
+            (byte)VoxelRenderClass.Liquid => nbrId != selfId,
             _ => false,
         };
     }
 
-    private static bool Liquid(ushort id, ReadOnlySpan<VoxelTraits> traits) => TraitsOf(id, traits).Liquid;
-
-    /// <summary>face: 0=顶、1=侧、2=底。</summary>
-    private static int TileFor(ushort id, int face, ReadOnlySpan<VoxelTraits> traits)
-    {
-        var def = TraitsOf(id, traits);
-        return face switch
-        {
-            0 => def.TopTile,
-            2 => def.BottomTile,
-            _ => def.SideTile,
-        };
-    }
-
+    /// <summary>
+    /// 单角 AO 采样：<paramref name="nOffset"/> 是面外侧格在 padded 中的线性索引；
+    /// <paramref name="du"/>/<paramref name="dv"/> 是该角沿 u/v 轴的 ±1；
+    /// <paramref name="sU"/>/<paramref name="sV"/> 是 u/v 轴在 padded 中的 stride。
+    /// <para>padded 保证了 neighbor ± 1 仍在 [0, dim-1] 内，因此无边界检查。</para>
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int ComputeAo(
-        ReadOnlySpan<ushort> padded, ReadOnlySpan<VoxelTraits> traits, int[] neighbor,
-        int u, int v, int du, int dv, int dim)
+        ReadOnlySpan<byte> isOpaque, int nOffset,
+        int du, int dv, int sU, int sV)
     {
-        int side1 = SolidAt(padded, traits, neighbor, u, du, dim);
-        int side2 = SolidAt(padded, traits, neighbor, v, dv, dim);
-
-        int[] diagonal = { neighbor[0], neighbor[1], neighbor[2] };
-        diagonal[u] += du;
-        diagonal[v] += dv;
-        int corner = SolidAt(padded, traits, diagonal, 0, 0, dim);
+        int side1 = isOpaque[nOffset + du * sU];
+        int side2 = isOpaque[nOffset + dv * sV];
+        int corner = isOpaque[nOffset + du * sU + dv * sV];
 
         if (side1 != 0 && side2 != 0) return 0;
         return 3 - side1 - side2 - corner;
     }
 
-    private static int SolidAt(
-        ReadOnlySpan<ushort> padded, ReadOnlySpan<VoxelTraits> traits, int[] p, int axis, int delta, int dim)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void SetComp(ref float x, ref float y, ref float z, int axis, float value)
     {
-        int[] q = { p[0], p[1], p[2] };
-        q[axis] += delta;
-        if (q[0] < 0 || q[1] < 0 || q[2] < 0 || q[0] >= dim || q[1] >= dim || q[2] >= dim)
-            return 0;
-        return TraitsOf(padded[Index(q, dim)], traits).Opaque ? 1 : 0;
+        if (axis == 0) x = value;
+        else if (axis == 1) y = value;
+        else z = value;
     }
-
-    private static int Index(int[] p, int dim) => p[0] + dim * (p[1] + dim * p[2]);
 }

@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace UiBackend.Html;
 
@@ -20,22 +19,9 @@ public sealed record HtmlDataPageLayoutModel(
     string? EmptyText,
     HtmlPagerModel? Pager);
 
-/// <summary>数据页区域容器类名参数（默认值与既有数据页一致）。</summary>
-public sealed record HtmlDataPageLayoutOptions(
-    string ToolbarClass = "toolbar",
-    string ActionsClass = "toolbar-actions",
-    string ButtonClass = "btn",
-    string ResultPanelClass = "callout",
-    string ResultPreClass = "mono",
-    string PanelClass = "data-view")
-{
-    /// <summary>默认选项（无状态）。</summary>
-    public static HtmlDataPageLayoutOptions Default { get; } = new();
-}
-
 /// <summary>
 /// 通用数据页区域装配器 —— 固定「工具条 → 筛选条 → 选择条 → 结果横幅 → 分组行/空态 → 页脚分页」。
-/// 纯函数、零领域类型；文本由下游组件编码。
+/// 纯函数、零领域类型；组合体单源 = <see cref="HtmlDataPageComposer"/>，类名参数单源 = <see cref="HtmlDataPageOptions"/>。
 /// </summary>
 public static class HtmlDataPageLayout
 {
@@ -43,31 +29,27 @@ public static class HtmlDataPageLayout
     public static string Render(
         IReadOnlyDictionary<string, string> templates,
         HtmlDataPageLayoutModel model,
-        HtmlDataPageLayoutOptions? options = null)
+        HtmlDataPageOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(model);
-        var o = options ?? HtmlDataPageLayoutOptions.Default;
+        var o = options ?? HtmlDataPageOptions.Default;
 
-        var body = new StringBuilder();
-        body.Append(HtmlToolbar.RenderGroups(
-            o.ToolbarClass, model.LeadingText, model.Toolbar, o.ActionsClass, o.ButtonClass));
-        body.Append(HtmlFilterBar.Render(model.FilterBar, "filter-bar", o.ButtonClass));
-        body.Append(HtmlSelectionBar.Render(model.SelectionBar, "selection-bar", o.ButtonClass));
+        var toolbar = HtmlToolbar.RenderGroups(
+            o.ToolbarClass, model.LeadingText, model.Toolbar, o.ActionsClass, o.ButtonClass);
+        var filter = HtmlFilterBar.Render(model.FilterBar, o.FilterBarClass, o.ButtonClass);
+        var selection = HtmlSelectionBar.Render(model.SelectionBar, o.SelectionBarClass, o.ButtonClass);
+        var pager = HtmlPager.Render(model.Pager, o.PagerClass, o.ButtonClass);
 
-        if (!string.IsNullOrWhiteSpace(model.ResultText))
-            body.Append(HtmlBlocks.Panel(o.ResultPanelClass, HtmlBlocks.Pre(o.ResultPreClass, model.ResultText)));
-
-        if (model.Groups is not { Count: > 0 })
-        {
-            if (model.EmptyText is not null)
-                body.Append(HtmlRenderFaces.Empty(templates, model.EmptyText));
-        }
-        else
-        {
-            body.Append(HtmlGroupedRowList.Render(model.Groups));
-        }
-
-        body.Append(HtmlPager.Render(model.Pager, "pager", o.ButtonClass));
-        return HtmlBlocks.Panel(o.PanelClass, body.ToString());
+        return HtmlDataPageComposer.Render(
+            templates,
+            toolbar,
+            filter,
+            selection,
+            model.ResultText,
+            model.Groups,
+            model.EmptyText,
+            pager,
+            o);
     }
 }
+

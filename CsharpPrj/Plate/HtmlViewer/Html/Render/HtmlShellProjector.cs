@@ -37,14 +37,12 @@ public static class HtmlShellProjector
             foreach (var (key, label) in items)
             {
                 var isCurrent = key == currentKey;
-                var model = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["type"] = key,
-                    ["label"] = label,
-                    ["currentView"] = currentKey,
-                    ["active"] = isCurrent ? "1" : string.Empty,
-                    ["selected"] = isCurrent ? "1" : string.Empty,
-                };
+                var model = UiModel.New();
+                model["type"] = key;
+                model["label"] = label;
+                model["currentView"] = currentKey;
+                model["active"] = UiModel.Flag(isCurrent);
+                model["selected"] = UiModel.Flag(isCurrent);
                 rows.Add(catalog?.Apply(rowComponent, model) ?? model);
             }
         }
@@ -132,10 +130,10 @@ public static class HtmlShellProjector
             ? MarkupBlock.Render("div", "seg region", "region", Slot("seg"), selectorHtml)
             : string.Empty;
         var titleRegion = present.Contains(Slot("head"))
-            ? MarkupPresets.LabelledSpan(Slot("head"), title)
+            ? MarkupPresets.LabelledSpan(Slot("head"), MarkupTag.Text(title))
             : title;
         var subtitleRegion = present.Contains(Slot("subhead"))
-            ? MarkupPresets.LabelledSpan(Slot("subhead"), subtitle)
+            ? MarkupPresets.LabelledSpan(Slot("subhead"), MarkupTag.Text(subtitle))
             : subtitle;
         var treeRegion = present.Contains(Slot("aside"))
             ? MarkupBlock.Render("div", "region", "region", Slot("aside"), treeHtml)

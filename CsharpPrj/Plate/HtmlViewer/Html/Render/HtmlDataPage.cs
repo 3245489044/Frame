@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -92,8 +92,11 @@ public static class DataPageQuery
         return result;
     }
 
-    /// <summary>页码文案（<c>第 x/y 页</c>）。</summary>
-    public static string PageText(int page, int pageCount)
-        => "第 " + (page + 1).ToString(CultureInfo.InvariantCulture)
-           + "/" + pageCount.ToString(CultureInfo.InvariantCulture) + " 页";
+    /// <summary>页码文案（默认 <c>第 x/y 页</c>；数值格式单源 = <see cref="MarkupValue.Page"/>，语言文案由调用方参数注入）。</summary>
+    public static string PageText(
+        int page,
+        int pageCount,
+        string prefix = "第 ",
+        string suffix = " 页")
+        => prefix + MarkupValue.Page(page + 1, pageCount) + suffix;
 }

@@ -1,8 +1,9 @@
 #nullable enable
 
 using System.Collections.Generic;
-using System.Net;
+using System.Globalization;
 using System.Text;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -13,7 +14,8 @@ namespace UiBackend.Html;
 public sealed record HtmlSelectionBarModel(
     int Count,
     string Summary,
-    IReadOnlyList<HtmlToolbarGroup> Groups);
+    IReadOnlyList<HtmlToolbarGroup> Groups,
+    string AriaLabel = "选择");
 
 /// <summary>通用选择条构建器。</summary>
 public static class HtmlSelectionBar
@@ -27,15 +29,18 @@ public static class HtmlSelectionBar
         if (model is null) return string.Empty;
 
         var sb = new StringBuilder();
-        sb.Append("<div class=\"").Append(Safe(cssClass, "selection-bar"))
-          .Append("\" role=\"group\" aria-label=\"选择\" data-selection-count=\"")
-          .Append(model.Count).Append("\">");
-        sb.Append("<span class=\"selection-summary\">")
-          .Append(WebUtility.HtmlEncode(model.Summary ?? string.Empty)).Append("</span>");
+        sb.Append(MarkupTag.Element(
+            "span",
+            new MarkupAttrBatch().Class("selection-summary", "selection-summary"),
+            MarkupTag.Text(model.Summary)));
         HtmlToolbar.AppendGroupSequence(sb, model.Groups, buttonClass);
-        sb.Append("</div>");
-        return sb.ToString();
-    }
 
-    private static string Safe(string? cssClass, string fallback) => TextUtil.CssClass(cssClass, fallback);
+        var attrs = new MarkupAttrBatch()
+            .Class(cssClass, "selection-bar")
+            .Add("role", "group")
+            .AddIfAny("aria-label", model.AriaLabel)
+            .Add("data-selection-count", model.Count.ToString(CultureInfo.InvariantCulture));
+        return MarkupTag.Element("div", attrs, sb.ToString());
+    }
 }
+

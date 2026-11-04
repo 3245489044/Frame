@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Modules.Parsing.Markup;
 using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
@@ -10,18 +11,14 @@ namespace UiBackend.Html;
 /// <summary>
 /// 键控树 → HTML 序列化（Bulk 原语载荷）：保留标签/属性（稳定键在属性里）/文本/子节点。
 /// <para>仅用于 <see cref="SectionWriteMode.BulkReplace"/>（整节一次赋值）；不承担对齐语义（对齐仍由 applyTree 负责）。</para>
+/// <para>词表（空元素/布尔属性）与转义单源 = <see cref="MarkupTerms"/> / <see cref="MarkupDialects"/>。</para>
 /// </summary>
 public static class UiNodeHtml
 {
-    private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr",
-    };
+    private static IReadOnlySet<string> VoidElements => MarkupTerms.VoidTags;
 
-    private static readonly HashSet<string> BooleanAttributes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "open", "disabled", "checked", "selected", "readonly", "required", "multiple", "hidden", "autofocus",
-    };
+    private static IReadOnlySet<string> BooleanAttributes => MarkupTerms.BooleanAttributes;
+
 
     public static string ToHtml(UiNode? node)
     {
@@ -67,14 +64,8 @@ public static class UiNodeHtml
     }
 
     private static string EscapeText(string? text)
-    {
-        if (string.IsNullOrEmpty(text)) return string.Empty;
-        return text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
-    }
+        => MarkupDialects.Html.EncodeText(text ?? string.Empty);
 
     private static string EscapeAttr(string? value)
-    {
-        if (string.IsNullOrEmpty(value)) return string.Empty;
-        return value.Replace("&", "&amp;").Replace("\"", "&quot;").Replace("<", "&lt;").Replace(">", "&gt;");
-    }
+        => MarkupDialects.Html.EncodeAttr(value ?? string.Empty);
 }

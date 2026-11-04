@@ -62,6 +62,8 @@ public sealed class TerrainHeightModel
     private readonly TerrainConstants _constants;
     private readonly BiomeField? _biomes;
     private readonly int _surfaceExtraAboveCm;
+    private readonly long _baseSignature;
+    private IHeightSpanSource? _contentSpans;
 
     /// <summary>
     /// <paramref name="biomes"/> 为 null ⇒ 保持原「单调高度」公式；非 null ⇒ 高度幅度/偏移由群系决定。
@@ -89,6 +91,8 @@ public sealed class TerrainHeightModel
         hash = SignatureHash.Mix(hash, _surfaceExtraAboveCm);
         if (biomes is not null)
             hash = SignatureHash.Mix(hash, biomes.Signature);
+
+        _baseSignature = hash;
         Signature = hash;
     }
 
@@ -107,8 +111,32 @@ public sealed class TerrainHeightModel
     /// <summary>在 (x,z) 处采样群系（世界坐标；未接入群系时返回 default）。</summary>
     public BiomeSample SampleBiome(int x, int z) => _biomes?.Sample(x, z) ?? default;
 
-    /// <summary>公式签名：seed + 全部地形常量 + 单位 + 群系场；参数不变则签名不变。</summary>
-    public long Signature { get; }
+    /// <summary>
+    /// 公式签名：seed + 全部地形常量 + 单位 + 群系场 + 内容范围源。
+    /// <para>注入 <see cref="IHeightSpanSource"/> 时会重算（<see cref="TerrainHeightTiles"/> 据此自动失效）。</para>
+    /// </summary>
+    public long Signature { get; private set; }
+
+    /// <summary>可见内容垂直范围的数据源（分节流水线）；未注入为 null。</summary>
+    public IHeightSpanSource? ContentSpans => _contentSpans;
+
+    /// <summary>
+    /// 注入内容范围源（只允许一次且实例唯一）：不同实例 ⇒ 抛，避免同一模型出现两套可见范围。
+    /// <para>注入后重算 <see cref="Signature"/>，L1 瓦片缓存按签名失效。</para>
+    /// </summary>
+    public void SetContentSpans(IHeightSpanSource spans)
+    {
+        ArgumentNullException.ThrowIfNull(spans);
+        if (_contentSpans is not null)
+        {
+            if (ReferenceEquals(_contentSpans, spans))
+                return;
+            throw new InvalidOperationException("同一地形模型不允许注入第二个内容范围源");
+        }
+
+        _contentSpans = spans;
+        Signature = SignatureHash.Mix(_baseSignature, spans.Signature);
+    }
 
     /// <summary>
     /// 高度（cm，未取整）：基线高度噪声 × 群系幅度 + 群系偏移。
@@ -121,13 +149,7 @@ public sealed class TerrainHeightModel
             return _constants.HeightOffsetCm + noise * _constants.HeightScaleCm;
 
         var sample = _biomes.Sample(x, z);
-        var biomes = _biomes.Biomes;
-        float amplitude = biomes[sample.Primary].HeightAmplitude * sample.PrimaryWeight
-            + biomes[sample.Secondary].HeightAmplitude * (1f - sample.PrimaryWeight);
-        float bias = biomes[sample.Primary].HeightBiasCm * sample.PrimaryWeight
-            + biomes[sample.Secondary].HeightBiasCm * (1f - sample.PrimaryWeight);
-
-        return _constants.HeightOffsetCm + bias + noise * _constants.HeightScaleCm * amplitude;
+        return HeightFormula.Evaluate(_constants, _biomes.Biomes, sample, noise);
     }
 
     /// <summary>地表 Y（cm，四舍六入五取偶，与 GPU RoundEven 对齐）。</summary>
@@ -180,13 +202,22 @@ public sealed class TerrainHeightModel
             if (sz >= z1) break;
         }
 
+        // 补中心点：chunk footprint 的查询点（自检与网格中心）可能落在粗采样格之间。
+        if (minGround != int.MaxValue)
+        {
+            int centerGround = GroundYCm((x0 + x1) / 2, (z0 + z1) / 2);
+            if (centerGround < minGround) minGround = centerGround;
+            if (centerGround > maxGround) maxGround = centerGround;
+        }
+
         return minGround == int.MaxValue ? HeightSpan.Empty : new HeightSpan(minGround, maxGround);
     }
 
     /// <summary>
     /// 水平 footprint 内「可能产生可见面」的高度带：地表 ~ 地表向下 SoilDepth（土层），
     /// 且当 footprint 内存在低于海平面的列时，上界抬到海平面（水面是有可见顶面的液体块）。
-    /// <para>不含深层岩石（一直到底，但看不见），因此它是「可见内容」而非「所有非空气内容」。</para>
+    /// <para>再并集注入的 <see cref="ContentSpans"/>（洞穴/矿脉向下的范围、植被向上的范围），
+    /// 由各 section 显式声明，不再靠固定常量猜测。</para>
     /// <paramref name="marginCm"/> 覆盖采样步长内的插值起伏；逐 chunk 查询时传 0，避免把上方空气块带进候选。
     /// </summary>
     public HeightSpan SurfaceSpan(int minX, int minZ, int maxX, int maxZ, int marginCm = 0)
@@ -201,6 +232,17 @@ public sealed class TerrainHeightModel
             maxY = Math.Max(maxY, _constants.SeaLevelCm);
         // 地表以上还有树冠等可见内容（由世界生成器注入的保守上界）。
         maxY += _surfaceExtraAboveCm;
+
+        // 内容范围：由分节流水线按真实 section 声明求值（洞穴/矿脉向下，植被向上）。
+        if (_contentSpans is not null)
+        {
+            var content = _contentSpans.HeightSpanFor(ground.MinY, ground.MaxY, _constants.SeaLevelCm);
+            if (!content.IsEmpty)
+            {
+                minY = Math.Min(minY, content.MinY);
+                maxY = Math.Max(maxY, content.MaxY);
+            }
+        }
 
         return marginCm > 0 ? new HeightSpan(minY, maxY).Expand(marginCm) : new HeightSpan(minY, maxY);
     }

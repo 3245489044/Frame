@@ -20,14 +20,22 @@ public static class HtmlRenderFaces
         => HtmlEmptyState.Render(templates, text);
 
     /// <summary>渲染未就绪面（就绪矩阵 + 能力键注记）：正文/注记均经编码。</summary>
-    public static string NotReady(string title, string readinessText, string? capability)
+    public static string NotReady(
+        string title,
+        string readinessText,
+        string? capability,
+        string capabilityPrefix = "capability: ")
         => HtmlBlocks.Notice(
             "empty",
             title,
             readinessText,
-            string.IsNullOrEmpty(capability) ? null : "capability: " + capability);
+            string.IsNullOrEmpty(capability) ? null : capabilityPrefix + capability);
 
-    /// <summary>渲染失败面（可归因文案；异常分类由调用方完成后传入）。</summary>
-    public static string Failed(IReadOnlyDictionary<string, string> templates, string label, string message)
-        => HtmlEmptyState.Render(templates, "（" + label + "：" + message + "）");
+    /// <summary>渲染失败面（可归因文案；异常分类由调用方完成后传入；格式串可注入）。</summary>
+    public static string Failed(
+        IReadOnlyDictionary<string, string> templates,
+        string label,
+        string message,
+        string format = "（{0}：{1}）")
+        => HtmlEmptyState.Render(templates, string.Format(System.Globalization.CultureInfo.InvariantCulture, format, label, message));
 }

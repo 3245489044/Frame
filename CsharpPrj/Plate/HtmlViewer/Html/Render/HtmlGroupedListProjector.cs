@@ -33,14 +33,11 @@ public static class HtmlGroupedListProjector
         IReadOnlyDictionary<string, object?>? panelModel,
         IReadOnlyList<Group> groups)
     {
-        var model = new Dictionary<string, object?>(System.StringComparer.OrdinalIgnoreCase);
-        if (panelModel is not null)
-            foreach (var kv in panelModel)
-                model[kv.Key] = kv.Value;
+        var model = UiModel.New(panelModel);
 
         // 调用方若已在 panelModel 显式给出 hasGroups（如需保留领域判空语义），以其为准；否则按组数推导。
         if (!model.ContainsKey("hasGroups"))
-            model["hasGroups"] = groups is { Count: > 0 } ? "1" : string.Empty;
+            model["hasGroups"] = UiModel.Flag(groups is { Count: > 0 });
         model["groups"] = groups is null
             ? new List<object?>()
             : groups.Select(g => (object?)new Dictionary<string, object?>

@@ -116,49 +116,14 @@ public static class UiExpression
             ? arg.EnumerateArray().Select(x => EvaluateElement(x, model, resources)).ToList()
             : new List<object?> { EvaluateElement(arg, model, resources) };
 
-    /// <summary>模型路径取值（大小写不敏感；支持 <c>a.b</c> 嵌套字典）。</summary>
+    /// <summary>模型路径取值（大小写不敏感；支持 <c>a.b</c> 嵌套字典）—— 单源 = <see cref="UiModel.Lookup"/>。</summary>
     private static object? Lookup(IReadOnlyDictionary<string, object?> model, string path)
-    {
-        object? current = model;
-        foreach (var segment in path.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            current = current switch
-            {
-                IReadOnlyDictionary<string, object?> readOnly =>
-                    readOnly.FirstOrDefault(kv => string.Equals(kv.Key, segment, StringComparison.OrdinalIgnoreCase)).Value,
-                IDictionary<string, object?> mutable =>
-                    mutable.FirstOrDefault(kv => string.Equals(kv.Key, segment, StringComparison.OrdinalIgnoreCase)).Value,
-                _ => null
-            };
-            if (current is null) return null;
-        }
-        return current;
-    }
+        => UiModel.Lookup(model, path);
 
     private static bool ScalarEquals(object? left, object? right)
         => string.Equals(ToText(left), ToText(right), StringComparison.OrdinalIgnoreCase);
 
-    private static bool Truthy(object? value) => value switch
-    {
-        null => false,
-        bool b => b,
-        string s => !string.IsNullOrWhiteSpace(s)
-                    && !string.Equals(s, "0", StringComparison.Ordinal)
-                    && !string.Equals(s, "false", StringComparison.OrdinalIgnoreCase),
-        int i => i != 0,
-        long l => l != 0,
-        double d => d != 0,
-        float f => f != 0,
-        decimal m => m != 0,
-        System.Collections.ICollection c => c.Count > 0,
-        _ => true
-    };
+    private static bool Truthy(object? value) => UiModel.Truthy(value);
 
-    private static string ToText(object? value) => value switch
-    {
-        null => string.Empty,
-        bool b => b ? "true" : "false",
-        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-        _ => value.ToString() ?? string.Empty
-    };
+    private static string ToText(object? value) => UiModel.ToText(value);
 }

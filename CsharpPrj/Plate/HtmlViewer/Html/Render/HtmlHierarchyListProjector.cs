@@ -60,11 +60,11 @@ public static class HtmlHierarchyListProjector
             var nodes = container.Nodes ?? Array.Empty<string>();
             var model = NewModel(container.Extra);
             model["id"] = container.Id;
-            model["open"] = container.Open ? "1" : string.Empty;
-            model["selected"] = container.Selected ? "1" : string.Empty;
-            model["hasTasks"] = rows.Count > 0 ? "1" : string.Empty;
+            model["open"] = UiModel.Flag(container.Open);
+            model["selected"] = UiModel.Flag(container.Selected);
+            model["hasTasks"] = UiModel.Flag(rows.Count > 0);
             model["tasks"] = rows;
-            model["hasHistoryNodes"] = nodes.Count > 0 ? "1" : string.Empty;
+            model["hasHistoryNodes"] = UiModel.Flag(nodes.Count > 0);
             model["historyNodes"] = nodes;
             model["taskCount"] = container.CountText
                 ?? (rows.Count > 0 ? rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty);
@@ -117,21 +117,15 @@ public static class HtmlHierarchyListProjector
     {
         var model = NewModel(row.Extra);
         model["session"] = row.Key;
-        model["active"] = row.Active ? "1" : string.Empty;
-        model["selected"] = row.Selected || row.Active ? "1" : string.Empty;
+        model["active"] = UiModel.Flag(row.Active);
+        model["selected"] = UiModel.Flag(row.Selected || row.Active);
         if (!string.IsNullOrWhiteSpace(row.ContainerId)) model["history"] = row.ContainerId;
         var nodes = row.Nodes;
-        model["hasNodes"] = nodes is { Count: > 0 } ? "1" : string.Empty;
+        model["hasNodes"] = UiModel.Flag(nodes is { Count: > 0 });
         if (nodes is { Count: > 0 }) model["nodes"] = nodes;
         return model;
     }
 
     private static Dictionary<string, object?> NewModel(IReadOnlyDictionary<string, object?>? extra)
-    {
-        var model = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-        if (extra is not null)
-            foreach (var kv in extra)
-                model[kv.Key] = kv.Value;
-        return model;
-    }
+        => UiModel.New(extra);
 }

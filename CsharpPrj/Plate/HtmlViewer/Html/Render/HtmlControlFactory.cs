@@ -15,97 +15,172 @@ namespace UiBackend.Html;
 /// </summary>
 public static class HtmlControlFactory
 {
-    /// <summary>是否容器类型（子控件应渲染进内部）。容器词表唯一真源 = 共享语义层 <see cref="TConfig.Controls.ControlTypeCatalog"/>，
-    /// 消除 HTML 侧硬编码副本（与 FrontEndDriven.ControlTypeRegistry 同源，避免词表与注册漂移）。</summary>
+    /// <summary>控件发射方言：属性值编码同 HTML；空元素用 <c>&gt;</c>（与历史产物逐字一致）。</summary>
+    private static readonly MarkupDialect ControlDialect = new(
+        name: "html-control",
+        encodeText: System.Net.WebUtility.HtmlEncode,
+        encodeAttr: System.Net.WebUtility.HtmlEncode,
+        boolStyle: MarkupBoolStyle.Bare,
+        voidStyle: MarkupVoidStyle.Plain);
+
+    /// <summary>是否容器类型（子控件应渲染进内部）。容器词表唯一真源 = 共享语义层 <see cref="TConfig.Controls.ControlTypeCatalog"/>。</summary>
     public static bool IsContainer(string type) => TConfig.Controls.ControlTypeCatalog.IsContainer(type);
 
     /// <summary>
     /// 渲染单元素 HTML（含子控件递归，<paramref name="childrenHtml"/> 为已投影好的子元素 HTML）。
     /// <paramref name="styleCss"/> 为布局投影产出的定位样式（position:absolute;left..px;...）。
     /// </summary>
-    public static string RenderElement(ControlConfig config, string styleCss, string childrenHtml = "")
+    /// <param name="tabLabelFormat">tab 无文本时的回退文案格式（<c>{0}</c> = 序号；默认「页 {0}」）。</param>
+    public static string RenderElement(
+        ControlConfig config,
+        string styleCss,
+        string childrenHtml = "",
+        string tabLabelFormat = "页 {0}")
     {
-        var name = config.Name ?? string.Empty;
-        var encodedName = WebUtility.HtmlEncode(name);
-        var dataName = encodedName.Length > 0 ? $" data-name=\"{encodedName}\"" : string.Empty;
-        // P5 布局语义化：声明 layout.intent 降为语义 intent，经 data-layout 交给页面 CSS/JS 解释（C# 不再产绝对像素；比例→px 换算保留在兼容层 ResolveRect）。
-        if (!string.IsNullOrWhiteSpace(config.Layout?.Intent))
-            dataName += $" data-layout=\"{WebUtility.HtmlEncode(config.Layout!.Intent)}\"";
-        var text = WebUtility.HtmlEncode(config.Text ?? string.Empty);
+        var text = MarkupTag.Text(config.Text);
         var type = (config.Type ?? "div").ToLowerInvariant();
-
-        // P5 单协议：事件声明统一编译为 data-cmd（唯一交互协议，无 data-event 属性）；
-        // cmd=event:{eventName} 由点击桥翻译回事件负载（{event,name,payload}）供事件桥处理（渲染端桥接：页面点击 postMessage 上报宿主）。
-        var dataCmd = HasClickEvent(config) ? " data-cmd=\"event:click\"" : string.Empty;
+        var clickCmd = HasClickEvent(config) ? "event:click" : null;
 
         switch (type)
         {
             case "label":
-                return $"<span{dataName} style=\"{styleCss}\">{text}</span>";
+                return MarkupTag.Element("span", WithStyle(BaseAttrs(config), styleCss), text, ControlDialect);
 
             case "textbox":
                 return config.Multiline == true
-                    ? $"<textarea{dataName} style=\"{styleCss}\">{text}</textarea>"
-                    : $"<input type=\"text\"{dataName} style=\"{styleCss}\" value=\"{text}\">";
+                    ? MarkupTag.Element("textarea", WithStyle(BaseAttrs(config), styleCss), text, ControlDialect)
+                    : MarkupTag.Void(
+                        "input",
+                        WithStyle(BaseAttrs(config, "text"), styleCss).Add("value", config.Text ?? string.Empty),
+                        ControlDialect);
 
             case "button":
-                return $"<button type=\"button\"{dataName}{dataCmd} style=\"{styleCss}\">{text}</button>";
+                return MarkupTag.Element(
+                    "button",
+                    WithStyle(BaseAttrs(config, "button").AddIfAny("data-cmd", clickCmd), styleCss),
+                    text,
+                    ControlDialect);
 
             case "listview":
-                return $"<ul{dataName} class=\"list\" style=\"{styleCss}\">{RenderItems(config.Items)}</ul>";
+                return MarkupTag.Element(
+                    "ul",
+                    WithStyle(BaseAttrs(config).Class("list", "list"), styleCss),
+                    RenderItems(config.Items),
+                    ControlDialect);
 
             case "combobox":
-                return $"<select{dataName} style=\"{styleCss}\">{RenderOptions(config.Items, config.SelectedIndex)}</select>";
+                return MarkupTag.Element(
+                    "select",
+                    WithStyle(BaseAttrs(config), styleCss),
+                    RenderOptions(config.Items, config.SelectedIndex),
+                    ControlDialect);
 
             case "treeview":
-                return $"<ul{dataName} class=\"tree\" style=\"{styleCss}\">{RenderItems(config.Items)}</ul>";
+                return MarkupTag.Element(
+                    "ul",
+                    WithStyle(BaseAttrs(config).Class("tree", "tree"), styleCss),
+                    RenderItems(config.Items),
+                    ControlDialect);
 
             case "checkbox":
             case "radiobutton":
-                var checkedAttr = config.Checked == true ? " checked" : string.Empty;
-                // label 包裹 input：点击文本即切换勾选（可点区域/语义完整）；text 已 HtmlEncode。
-                return $"<label style=\"{styleCss}\"><input type=\"{(type == "checkbox" ? "checkbox" : "radio")}\"{dataName}{dataCmd}{checkedAttr}>{text}</label>";
+            {
+                var input = WithStyle(
+                                 new MarkupAttrBatch(ControlDialect)
+                                     .Add("type", type == "checkbox" ? "checkbox" : "radio")
+                                     .Name(config.Name),
+                                 styleCss: null)
+                             .AddIfAny("data-cmd", clickCmd)
+                             .Bool("checked", config.Checked == true);
+                var label = MarkupTag.Element(
+                    "label",
+                    new MarkupAttrBatch(ControlDialect).Add("style", styleCss),
+                    MarkupTag.Void("input", WithLayout(input, config), ControlDialect) + text,
+                    ControlDialect);
+                return label;
+            }
 
             case "numericupdown":
-                return $"<input type=\"number\"{dataName} style=\"{styleCss}\" value=\"{WebUtility.HtmlEncode(config.Value.ToString())}\">";
+                return MarkupTag.Void(
+                    "input",
+                    WithStyle(BaseAttrs(config, "number"), styleCss)
+                        .Add("value", config.Value.ToString()),
+                    ControlDialect);
 
             case "htmlviewer":
             case "markdownviewer":
             {
                 // 富文本宿主：初始文本 encode 入内，运行期内容经 DOM 桥 set（innerHTML）注入；
-                // 路线 A：声明 backend:"web" 时输出 data-backend，供页面 JS/CSS 走原生布局（而非绝对定位投影）。
-                var backendAttr = string.IsNullOrWhiteSpace(config.Backend)
-                    ? string.Empty
-                    : $" data-backend=\"{WebUtility.HtmlEncode(config.Backend)}\"";
-                return $"<div{dataName}{backendAttr} class=\"host\" style=\"{styleCss}\">{text}</div>";
+                // 路线 A：声明 backend:"web" 时输出 data-backend，供页面 JS/CSS 走原生布局。
+                var attrs = BaseAttrs(config)
+                    .AddIfAny("data-backend", config.Backend)
+                    .Class("host", "host");
+                return MarkupTag.Element("div", WithStyle(attrs, styleCss), text, ControlDialect);
             }
 
             case "tabcontrol":
-                return RenderTabControl(config, dataName, styleCss, childrenHtml);
+                return RenderTabControl(config, styleCss, childrenHtml, tabLabelFormat);
 
             default: // panel/groupbox/form/container/未知 → 容器或未知回退
-                return $"<div{dataName} class=\"container\" style=\"{styleCss}\">{childrenHtml}</div>";
+                return MarkupTag.Element(
+                    "div",
+                    WithStyle(BaseAttrs(config).Class("container", "container"), styleCss),
+                    childrenHtml,
+                    ControlDialect);
         }
     }
 
-    private static string RenderTabControl(ControlConfig config, string dataName, string styleCss, string childrenHtml)
+    private static MarkupAttrBatch BaseAttrs(ControlConfig config, string? type = null)
+    {
+        var attrs = new MarkupAttrBatch(ControlDialect);
+        if (type is not null) attrs.Add("type", type);
+        attrs.Name(config.Name);
+        return WithLayout(attrs, config);
+    }
+
+    private static MarkupAttrBatch WithLayout(MarkupAttrBatch attrs, ControlConfig config)
+    {
+        if (!string.IsNullOrWhiteSpace(config.Layout?.Intent))
+            attrs.Add("data-layout", config.Layout!.Intent);
+        return attrs;
+    }
+
+    private static MarkupAttrBatch WithStyle(MarkupAttrBatch attrs, string? styleCss)
+        => styleCss is null ? attrs : attrs.Add("style", styleCss);
+
+    private static string RenderTabControl(
+        ControlConfig config, string styleCss, string childrenHtml, string tabLabelFormat)
     {
         var sb = new StringBuilder();
-        sb.Append("<div").Append(dataName).Append(" class=\"tabcontrol\" style=\"").Append(styleCss).Append("\">");
-        sb.Append("<div class=\"tabbar\">");
+        sb.Append(MarkupTag.Open(
+            "div",
+            WithStyle(BaseAttrs(config).Class("tabcontrol", "tabcontrol"), styleCss),
+            ControlDialect));
+        sb.Append(MarkupTag.Open("div", new MarkupAttrBatch(ControlDialect).Class("tabbar", "tabbar"), ControlDialect));
         if (config.Controls is { Count: > 0 })
         {
-            for (int i = 0; i < config.Controls.Count; i++)
+            for (var i = 0; i < config.Controls.Count; i++)
             {
                 var tab = config.Controls[i];
-                sb.Append("<button type=\"button\" class=\"tab").Append(i == 0 ? " active" : string.Empty).Append("\" data-tab=\"").Append(i)
-                  .Append("\">").Append(WebUtility.HtmlEncode(tab.Text ?? tab.Name ?? ("页 " + i))).Append("</button>");
+                var label = tab.Text ?? tab.Name ?? string.Format(CultureInfo.InvariantCulture, tabLabelFormat, i);
+                var attrs = new MarkupAttrBatch(ControlDialect)
+                    .Add("type", "button")
+                    .Add("class", i == 0 ? "tab active" : "tab")
+                    .Add("data-tab", i.ToString(CultureInfo.InvariantCulture));
+                sb.Append(MarkupTag.Element("button", attrs, MarkupTag.Text(label), ControlDialect));
             }
         }
-        // childrenHtml 内每个 tab 页已隔离为独立 <div class="pane" data-pane={i}>（见 HtmlControlRenderer.RenderChildren），
-        // 内联切换脚本（全局一次）把 tab 点击映射到对应 pane 显隐；pane 显隐规则见 HtmlLayoutProjector.BaseCss。
-        sb.Append("</div><div class=\"panes\">").Append(childrenHtml).Append("</div>")
-          .Append("\n<script>").Append(HtmlAssetRegistry.GetScript(HtmlAssetKeys.TabSwapScript)).Append("</script>\n</div>");
+
+        // childrenHtml 内每个 tab 页已隔离为独立 <div class="pane" data-pane={i}>（见 HtmlControlRenderer.RenderChildren）。
+        sb.Append(MarkupTag.Close("div", ControlDialect));
+        sb.Append(MarkupTag.Open("div", new MarkupAttrBatch(ControlDialect).Class("panes", "panes"), ControlDialect));
+        sb.Append(childrenHtml);
+        sb.Append(MarkupTag.Close("div", ControlDialect));
+        sb.Append('\n');
+        sb.Append(MarkupTag.Element(
+            "script", null, HtmlAssetRegistry.GetScript(HtmlAssetKeys.TabSwapScript), ControlDialect));
+        sb.Append('\n');
+        sb.Append(MarkupTag.Close("div", ControlDialect));
         return sb.ToString();
     }
 
@@ -114,7 +189,7 @@ public static class HtmlControlFactory
         if (items is null) return string.Empty;
         var sb = new StringBuilder();
         foreach (var item in items)
-            sb.Append("<li>").Append(WebUtility.HtmlEncode(item)).Append("</li>");
+            sb.Append(MarkupTag.Element("li", null, MarkupTag.Text(item), ControlDialect));
         return sb.ToString();
     }
 
@@ -122,14 +197,16 @@ public static class HtmlControlFactory
     {
         if (items is null) return string.Empty;
         var sb = new StringBuilder();
-        int i = 0;
+        var i = 0;
         foreach (var item in items)
         {
-            var sel = i == (selectedIndex ?? -1) ? " selected" : string.Empty;
-            sb.Append("<option value=\"").Append(WebUtility.HtmlEncode(item)).Append("\"").Append(sel)
-              .Append(">").Append(WebUtility.HtmlEncode(item)).Append("</option>");
+            var attrs = new MarkupAttrBatch(ControlDialect)
+                .Add("value", item)
+                .Bool("selected", i == (selectedIndex ?? -1));
+            sb.Append(MarkupTag.Element("option", attrs, MarkupTag.Text(item), ControlDialect));
             i++;
         }
+
         return sb.ToString();
     }
 

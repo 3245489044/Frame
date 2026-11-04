@@ -2,8 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text;
+using Modules.Parsing.Markup;
 using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
@@ -16,10 +16,9 @@ namespace UiBackend.Html;
 /// </summary>
 public static class HtmlNodeParser
 {
-    private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr",
-    };
+    /// <summary>空元素集（单源 = <see cref="MarkupTerms.VoidTags"/>）。</summary>
+    private static IReadOnlySet<string> VoidElements => MarkupTerms.VoidTags;
+
 
     /// <summary>解析 HTML 片段为键控节点树（片段根）。</summary>
     /// <param name="html">HTML 片段。</param>
@@ -132,55 +131,8 @@ public static class HtmlNodeParser
         stack.Peek().Children.Add(new Builder(null, null, s));
     }
 
-    /// <summary>单遍 HTML 实体解码（命名字符 + 十进制/十六进制引用）；不识别/超长实体原样保留（不猜测）。</summary>
-    private static string DecodeEntities(string? value)
-    {
-        if (string.IsNullOrEmpty(value) || value.IndexOf('&') < 0) return value ?? string.Empty;
-        var sb = new StringBuilder(value.Length);
-        for (var i = 0; i < value.Length; i++)
-        {
-            if (value[i] != '&') { sb.Append(value[i]); continue; }
-            var semi = value.IndexOf(';', i + 1);
-            if (semi < 0 || semi - i > 12) { sb.Append('&'); continue; }
-            if (TryDecodeEntity(value.Substring(i + 1, semi - i - 1), out var decoded))
-            {
-                sb.Append(decoded);
-                i = semi;
-                continue;
-            }
-            sb.Append('&');
-        }
-
-        return sb.ToString();
-    }
-
-    private static bool TryDecodeEntity(string body, out string decoded)
-    {
-        switch (body)
-        {
-            case "amp": decoded = "&"; return true;
-            case "lt": decoded = "<"; return true;
-            case "gt": decoded = ">"; return true;
-            case "quot": decoded = "\""; return true;
-            case "apos": decoded = "'"; return true;
-            case "nbsp": decoded = "\u00a0"; return true;
-        }
-
-        if (body.Length > 1 && body[0] == '#')
-        {
-            var isHex = body.Length > 2 && (body[1] == 'x' || body[1] == 'X');
-            var digits = isHex ? body.Substring(2) : body.Substring(1);
-            if (int.TryParse(digits, isHex ? NumberStyles.HexNumber : NumberStyles.Integer, CultureInfo.InvariantCulture, out var code)
-                && code > 0 && code <= 0x10FFFF)
-            {
-                decoded = char.ConvertFromUtf32(code);
-                return true;
-            }
-        }
-
-        decoded = string.Empty;
-        return false;
-    }
+    /// <summary>实体解码单入口（实现单源 = <see cref="HtmlEntityCodec.Decode"/>；包装保留调用点结构供门禁复算）。</summary>
+    private static string DecodeEntities(string? value) => HtmlEntityCodec.Decode(value);
 
     private static bool PreserveWhitespace(string? tag)
         => string.Equals(tag, "pre", StringComparison.OrdinalIgnoreCase)

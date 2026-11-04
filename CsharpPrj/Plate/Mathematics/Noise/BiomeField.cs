@@ -43,6 +43,12 @@ public readonly struct BiomeSample
 /// </summary>
 public sealed class BiomeField
 {
+    /// <summary>温度噪声 seed 盐（CPU 与高度契约共用）。</summary>
+    public const int TemperatureSeedSalt = 0x5A17;
+
+    /// <summary>湿度噪声 seed 盐（CPU 与高度契约共用）。</summary>
+    public const int HumiditySeedSalt = 0x2C0F;
+
     private readonly BiomeClimate[] _biomes;
     private readonly int _temperatureCellCm;
     private readonly int _humidityCellCm;
@@ -80,8 +86,8 @@ public sealed class BiomeField
 
         _temperatureCellCm = temperatureCellMeters * unitsPerMeter;
         _humidityCellCm = humidityCellMeters * unitsPerMeter;
-        _temperatureSeed = seed ^ 0x5A17;
-        _humiditySeed = seed ^ 0x2C0F;
+        _temperatureSeed = seed ^ TemperatureSeedSalt;
+        _humiditySeed = seed ^ HumiditySeedSalt;
 
         var hash = SignatureHash.Begin();
         hash = SignatureHash.Mix(hash, _temperatureCellCm);
@@ -106,21 +112,45 @@ public sealed class BiomeField
     /// <summary>气候尺度/群系参数签名；参数不变则签名不变。</summary>
     public long Signature { get; }
 
+    /// <summary>温度噪声波长（cm）。</summary>
+    public int TemperatureCellCm => _temperatureCellCm;
+
+    /// <summary>湿度噪声波长（cm）。</summary>
+    public int HumidityCellCm => _humidityCellCm;
+
     /// <summary>在 (x,z) 处采样气候与最近两个群系（世界坐标，任意 chunk 求值一致）。</summary>
     public BiomeSample Sample(int x, int z)
     {
-        float temperature = Normalize(TerrainNoise.ValueNoise(x, z, _temperatureCellCm, _temperatureSeed));
-        float humidity = Normalize(TerrainNoise.ValueNoise(x, z, _humidityCellCm, _humiditySeed));
+        float temperature = NormalizeClimate(
+            TerrainNoise.ValueNoise(x, z, _temperatureCellCm, _temperatureSeed));
+        float humidity = NormalizeClimate(
+            TerrainNoise.ValueNoise(x, z, _humidityCellCm, _humiditySeed));
 
-        int primary = 0;
-        int secondary = 0;
+        float weight = PrimaryWeight(_biomes, temperature, humidity, out int primary, out int secondary);
+        return new BiomeSample(primary, secondary, weight, temperature, humidity);
+    }
+
+    /// <summary>气候噪声归一化到 0..1（CPU 与高度契约共用）。</summary>
+    public static float NormalizeClimate(float noise) => noise * 0.5f + 0.5f;
+
+    /// <summary>按气候坐标取最近两个群系与权重（高度契约与 CPU 共用同一判据与顺序）。</summary>
+    public static float PrimaryWeight(
+        IReadOnlyList<BiomeClimate> biomes, float temperature, float humidity,
+        out int primary, out int secondary)
+    {
+        ArgumentNullException.ThrowIfNull(biomes);
+        if (biomes.Count == 0)
+            throw new ArgumentException("群系表不能为空", nameof(biomes));
+
+        primary = 0;
+        secondary = 0;
         float best = float.MaxValue;
         float second = float.MaxValue;
 
-        for (int i = 0; i < _biomes.Length; i++)
+        for (int i = 0; i < biomes.Count; i++)
         {
-            float dt = temperature - _biomes[i].Temperature;
-            float dh = humidity - _biomes[i].Humidity;
+            float dt = temperature - biomes[i].Temperature;
+            float dh = humidity - biomes[i].Humidity;
             float distance = dt * dt + dh * dh;
 
             if (distance < best)
@@ -138,13 +168,18 @@ public sealed class BiomeField
         }
 
         if (secondary == primary)
-            secondary = _biomes.Length > 1 ? (primary == 0 ? 1 : 0) : primary;
+            secondary = biomes.Count > 1 ? (primary == 0 ? 1 : 0) : primary;
 
-        float weight = best + second > 0f ? second / (best + second) : 1f;
-        return new BiomeSample(primary, secondary, weight, temperature, humidity);
+        return best + second > 0f ? second / (best + second) : 1f;
     }
 
-    private static float Normalize(float noise) => noise * 0.5f + 0.5f;
+    /// <summary>一次性取出最近两个群系的采样结果（高度契约与 CPU 共用）。</summary>
+    public static BiomeSample Nearest(
+        IReadOnlyList<BiomeClimate> biomes, float temperature, float humidity)
+    {
+        float weight = PrimaryWeight(biomes, temperature, humidity, out int primary, out int secondary);
+        return new BiomeSample(primary, secondary, weight, temperature, humidity);
+    }
 
     /// <summary>跨进程稳定的名称哈希（不用 <see cref="string.GetHashCode()"/>，避免随机化盐影响签名）。</summary>
     private static long StableNameHash(string name)

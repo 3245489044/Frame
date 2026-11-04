@@ -20,7 +20,7 @@ namespace UiBackend.Html;
 /// <item><c>{&gt;name}</c> — 调用命名模板（以当前模型渲染）</item>
 /// </list>
 /// 纯字符串替换 + 编码，不执行任意 JS（对齐可信通道/白名单安全姿态）；未知绑定渲染为空；未配对块容错跳过。
-/// 模板不缓存（片段小、渲染非热路径），解析一次渲染一次。
+/// 模板整段解析结果按原文缓存（声明期常量，非热路径）；渲染不缓存。
 /// </summary>
 public static class HtmlTemplateEngine
 {
@@ -262,61 +262,34 @@ public static class HtmlTemplateEngine
         }
     }
 
-    /// <summary>条件求值：`{?field=value}` 等式比较（大小写不敏感）——让模板按字段原始值承担分支（如 `{?role=user}`）；
-    /// 否则按既有语义：字段非空即真。</summary>
+    /// <summary>条件求值：<c>{?field=value}</c> 等式比较（大小写不敏感）；否则按统一真值语义
+    /// （见 <see cref="UiModel.Truthy"/>：<c>"0"/"false"/空白</c> 为假）。</summary>
     private static bool EvalCond(IReadOnlyDictionary<string, object?> model, string cond)
     {
-        // 支持 field!=value / field==value / field=value；否则按既有语义：字段非空即真。
+        // 支持 field!=value / field==value / field=value；否则按统一真值语义。
         int neq = cond.IndexOf("!=", StringComparison.Ordinal);
         if (neq > 0)
-            return !string.Equals(Get(model, cond[..neq].Trim()), cond[(neq + 2)..].Trim(), StringComparison.OrdinalIgnoreCase);
+            return !string.Equals(UiModel.Get(model, cond[..neq].Trim()), cond[(neq + 2)..].Trim(), StringComparison.OrdinalIgnoreCase);
         int eq = cond.IndexOf('=');
         if (eq > 0)
         {
             var field = cond[..eq].Trim();
             var rest = cond[(eq + 1)..];
             if (rest.StartsWith("=", StringComparison.Ordinal)) rest = rest[1..];
-            return string.Equals(Get(model, field), rest.Trim(), StringComparison.OrdinalIgnoreCase);
+            return string.Equals(UiModel.Get(model, field), rest.Trim(), StringComparison.OrdinalIgnoreCase);
         }
-        var v = Get(model, cond);
-        return v is not null && v.Length > 0;
+        return UiModel.Truthy(UiModel.Get(model, cond));
     }
 
-    private static IReadOnlyDictionary<string, object?> ToModel(object? item)
-    {
-        if (item is IReadOnlyDictionary<string, object?> dict) return dict;
-        // 标量列表项（如 {#each nodes} 的字符串节点键）：暴露 {this} 指向该项本身，
-        // 使「{#each list}<span>{this}</span>{/each}」可渲染纯字符串/标量列表（字典项走上方分支，行为不变）。
-        if (item is not null)
-            return new Dictionary<string, object?> { ["this"] = item };
-        return EmptyModel;
-    }
+    private static IReadOnlyDictionary<string, object?> ToModel(object? item) => UiModel.ToModel(item);
 
     private static bool TryGetList(
         IReadOnlyDictionary<string, object?> model,
         string name,
         out IEnumerable<object?> list)
-    {
-        foreach (var kv in model)
-        {
-            if (string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase))
-            {
-                if (kv.Value is IEnumerable<object?> seq) { list = seq; return true; }
-                break;
-            }
-        }
-        list = [];
-        return false;
-    }
+        => UiModel.TryGetList(model, name, out list);
 
-    /// <summary>取值（大小写不敏感），返回字符串或 null。</summary>
+    /// <summary>取值（大小写不敏感，bool 归一为 <c>"1"/""</c>），缺失 ⇒ null。</summary>
     private static string? Get(IReadOnlyDictionary<string, object?> model, string field)
-    {
-        foreach (var kv in model)
-        {
-            if (string.Equals(kv.Key, field, StringComparison.OrdinalIgnoreCase))
-                return kv.Value?.ToString();
-        }
-        return null;
-    }
+        => UiModel.Get(model, field);
 }

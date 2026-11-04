@@ -1,3 +1,5 @@
+using MathematicalAlgorithms.Core;
+
 namespace MathematicalAlgorithms.Noise;
 
 /// <summary>
@@ -90,7 +92,25 @@ public sealed class VegetationField
         }
 
         _maxSearchRadiusCm = _maxCanopyRadiusCm;
+
+        var hash = SignatureHash.Begin();
+        hash = SignatureHash.Mix(hash, _seed);
+        hash = SignatureHash.Mix(hash, _cellCm);
+        hash = SignatureHash.Mix(hash, _marginCm);
+        hash = SignatureHash.Mix(hash, _seaMarginCm);
+        foreach (var rule in _rules)
+        {
+            hash = SignatureHash.Mix(hash, rule.Density);
+            hash = SignatureHash.Mix(hash, rule.HeightMinCm);
+            hash = SignatureHash.Mix(hash, rule.HeightMaxCm);
+            hash = SignatureHash.Mix(hash, rule.CanopyRadiusCm);
+            hash = SignatureHash.Mix(hash, rule.TrunkRadiusCm);
+        }
+        Signature = hash;
     }
+
+    /// <summary>植被参数签名（seed + 网格 + 全部群系树规则）。</summary>
+    public long Signature { get; }
 
     /// <summary>森林高度的保守上界（cm），供高度区间缓存把树冠并入可见范围。</summary>
     public int MaxTreeTopAboveGroundCm

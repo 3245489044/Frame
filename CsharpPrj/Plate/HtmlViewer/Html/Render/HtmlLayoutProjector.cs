@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Text;
+using Modules.Parsing.Markup;
 using TConfig;
 
 namespace UiBackend.Html;
@@ -57,15 +58,22 @@ public sealed class HtmlLayoutProjector
     /// <summary>投影控件树为 HTML：根容器 ui-root（relative）内绝对定位全部节点；子坐标相对父容器。</summary>
     public HtmlRenderResult Project(IEnumerable<ControlConfig> controls, int containerW, int containerH)
     {
+        var style = new MarkupStyle()
+            .Add("position", "relative")
+            .AddPx("width", containerW)
+            .AddPx("height", containerH)
+            .Add("overflow", "hidden");
+
         var sb = new StringBuilder();
-        sb.Append("<div class=\"ui-root\" style=\"position:relative;width:")
-          .Append(containerW).Append("px;height:").Append(containerH)
-          .Append("px;overflow:hidden;\">");
         var renderer = new HtmlControlRenderer();
         foreach (var control in controls)
             sb.Append(renderer.Render(control, new LayoutRect(0, 0, containerW, containerH)));
-        sb.Append("</div>");
-        return new HtmlRenderResult(sb.ToString(), BaseCss);
+
+        var html = MarkupTag.Element(
+            "div",
+            new MarkupAttrBatch().Class("ui-root", "ui-root").Add("style", style.Render()),
+            sb.ToString());
+        return new HtmlRenderResult(html, BaseCss);
     }
 
     /// <summary>流式投影（P5 布局下沉浏览器原生）：ui-root.flow 内由组件 CSS（flex/grid/%）承担布局，C# 不产绝对像素；
@@ -73,12 +81,14 @@ public sealed class HtmlLayoutProjector
     public HtmlRenderResult ProjectFlow(IEnumerable<ControlConfig> controls)
     {
         var sb = new StringBuilder();
-        sb.Append("<div class=\"ui-root flow\">");
         var renderer = new HtmlControlRenderer();
         foreach (var control in controls)
             sb.Append(renderer.RenderFlow(control));
-        sb.Append("</div>");
-        return new HtmlRenderResult(sb.ToString(), BaseCss);
+        var html = MarkupTag.Element(
+            "div",
+            new MarkupAttrBatch().Class("ui-root flow", "ui-root"),
+            sb.ToString());
+        return new HtmlRenderResult(html, BaseCss);
     }
 
 }

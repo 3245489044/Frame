@@ -50,8 +50,8 @@ public static class UiOverlayPresenter
             CloseData = spec.CloseData,
             CssClass = spec.CssClass,
             DataName = spec.DataName,
-            WidthCss = spec.WidthCss ?? new HtmlOverlayOptions().WidthCss,
-            HeightCss = spec.HeightCss ?? new HtmlOverlayOptions().HeightCss,
+            WidthCss = spec.WidthCss ?? HtmlOverlayOptions.Default.WidthCss,
+            HeightCss = spec.HeightCss ?? HtmlOverlayOptions.Default.HeightCss,
             LeftCss = left,
         };
     }

@@ -65,25 +65,20 @@ public static class HtmlStateBadgeProjector
     {
         if (state is not null && !string.IsNullOrWhiteSpace(state.Stage))
         {
-            row["available"] = "1";
+            row["available"] = UiModel.Flag(true);
             row["stage"] = state.Stage;
             row["statusClass"] = StageClass(state.Stage, stageClasses);
             row["status"] = string.IsNullOrWhiteSpace(state.StatusText) ? state.Stage : state.StatusText!;
             // 身份维度（actor）：渲染侧不判空 —— 供数侧声明「适用性」（ActorApplicable）+ 占位文本（ActorPlaceholder）。
             // 适用但缺值 → 显式占位（Unknown 出口 U，标记 actorUnknown）；不适用 → 不可见（⊥，零回归）。
             var actorLabel = state.ActorLabel ?? string.Empty;
-            if (actorLabel.Length == 0 && state.ActorApplicable)
-            {
+            var actorUnknown = actorLabel.Length == 0 && state.ActorApplicable;
+            if (actorUnknown)
                 actorLabel = state.ActorPlaceholder ?? string.Empty;
-                row["actorUnknown"] = "1";
-            }
-            else
-            {
-                row["actorUnknown"] = string.Empty;
-            }
+            row["actorUnknown"] = UiModel.Flag(actorUnknown);
             row["actor"] = actorLabel;
-            row["showActor"] = actorLabel.Length > 0 ? "1" : string.Empty;
-            row["isActive"] = state.IsActive ? "1" : string.Empty;
+            row["showActor"] = UiModel.Flag(actorLabel.Length > 0);
+            row["isActive"] = UiModel.Flag(state.IsActive);
             row["round"] = state.Round is > 0
                 ? "R" + state.Round.Value.ToString(CultureInfo.InvariantCulture)
                 : string.Empty;

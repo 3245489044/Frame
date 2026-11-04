@@ -125,7 +125,7 @@ public static class HtmlToolbar
             {
                 switch (item)
                 {
-                    case HtmlActionButton b: AppendButton(itemsHtml, b, Safe(buttonClass, "toolbar-btn")); break;
+                    case HtmlActionButton b: AppendButton(itemsHtml, b, TextUtil.CssClass(buttonClass, "toolbar-btn")); break;
                     case HtmlActionInput i: AppendInput(itemsHtml, i); break;
                 }
             }
@@ -147,7 +147,8 @@ public static class HtmlToolbar
         string? leadingText,
         HtmlToolbarModel? model,
         string actionsClass = "toolbar-actions",
-        string buttonClass = "toolbar-btn")
+        string buttonClass = "toolbar-btn",
+        string moreLabel = "更多")
     {
         var actions = new StringBuilder();
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -164,7 +165,7 @@ public static class HtmlToolbar
             var summary = MarkupTag.Element(
                 "summary",
                 new MarkupAttrBatch().Class("toolbar-more-summary", "toolbar-more-summary").Add("aria-haspopup", "menu"),
-                "更多");
+                MarkupTag.Text(moreLabel));
             actions.Append(MarkupTag.Element(
                 "details",
                 new MarkupAttrBatch().Class("toolbar-more", "toolbar-more").Add("data-group", "more"),
@@ -231,14 +232,8 @@ public static class HtmlToolbar
     /// <summary>渲染单个动作描述（按钮 + 语义属性）。</summary>
     internal static void AppendDescriptor(StringBuilder sb, HtmlActionDescriptor a, string buttonClass)
     {
-        var cls = Safe(buttonClass, "toolbar-btn");
-        var variantClass = a.Variant switch
-        {
-            HtmlActionVariant.Primary => "btn-action-primary",
-            HtmlActionVariant.Ghost => "btn-ghost",
-            HtmlActionVariant.Danger => "btn-danger",
-            _ => string.Empty,
-        };
+        var cls = TextUtil.CssClass(buttonClass, "toolbar-btn");
+        var (variantClass, variantName) = VariantInfo(a.Variant);
         if (variantClass.Length > 0) cls += " " + variantClass;
 
         var attrs = new MarkupAttrBatch()
@@ -248,7 +243,7 @@ public static class HtmlToolbar
             .Name(a.Name)
             .Add("data-action-id", a.Id ?? string.Empty)
             .Add("data-group", a.Group ?? string.Empty)
-            .Add("data-variant", VariantName(a.Variant))
+            .Add("data-variant", variantName)
             .Add("data-destructive", a.Destructive ? "1" : null)
             .DataAll(a.Data)
             .AddIfAny("data-input", a.InputName)
@@ -261,12 +256,13 @@ public static class HtmlToolbar
         sb.Append(MarkupTag.Element("button", attrs, MarkupTag.Text(a.Text)));
     }
 
-    private static string VariantName(HtmlActionVariant variant) => variant switch
+    /// <summary>动作视觉权重 → (样式类, 数据属性值)；样式类与语义名同一张表，禁两份映射。</summary>
+    private static (string Css, string Name) VariantInfo(HtmlActionVariant variant) => variant switch
     {
-        HtmlActionVariant.Primary => "primary",
-        HtmlActionVariant.Ghost => "ghost",
-        HtmlActionVariant.Danger => "danger",
-        _ => "default",
+        HtmlActionVariant.Primary => ("btn-action-primary", "primary"),
+        HtmlActionVariant.Ghost => ("btn-ghost", "ghost"),
+        HtmlActionVariant.Danger => ("btn-danger", "danger"),
+        _ => (string.Empty, "default"),
     };
 
     private static string KeyOf(HtmlActionDescriptor a)
@@ -289,7 +285,7 @@ public static class HtmlToolbar
     internal static void AppendInput(StringBuilder sb, HtmlActionInput i)
     {
         var attrs = new MarkupAttrBatch()
-            .Add("type", Safe(i.Type, "text"))
+            .Add("type", TextUtil.CssClass(i.Type, "text"))
             .Class(i.CssClass, "toolbar-input")
             .Add("data-name", i.DataName ?? string.Empty)
             .AddIfAny("placeholder", i.Placeholder)
@@ -297,7 +293,4 @@ public static class HtmlToolbar
             .AddIfAny("aria-label", i.AriaLabel);
         sb.Append(MarkupTag.Void("input", attrs));
     }
-
-    // DUP-03：CSS 类名兜底单源 = TextUtil.CssClass（本处仅为可读别名，不再自写口径）。
-    private static string Safe(string? cssClass, string fallback) => TextUtil.CssClass(cssClass, fallback);
 }

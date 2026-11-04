@@ -57,9 +57,9 @@ public sealed class MarkupAttrBatch
         return _dialect.BoolStyle == MarkupBoolStyle.Bare ? Bare(name) : Add(name, name);
     }
 
-    /// <summary>类属性：空/空白 ⇒ 回落 <paramref name="fallback"/>（与 <c>TextUtil.CssClass</c> 同口径）。</summary>
+    /// <summary>类属性：空/空白 ⇒ 回落 <paramref name="fallback"/>（单源 = <see cref="MarkupClass.Fallback"/>）。</summary>
     public MarkupAttrBatch Class(string? cssClass, string fallback)
-        => Add(_dialect.ClassAttr, string.IsNullOrWhiteSpace(cssClass) ? fallback : cssClass);
+        => Add(_dialect.ClassAttr, MarkupClass.Fallback(cssClass, fallback));
 
     /// <summary>稳定名属性（<see cref="MarkupDialect.NameAttr"/>）；null/空 ⇒ 不产。</summary>
     public MarkupAttrBatch Name(string? name) => AddIfAny(_dialect.NameAttr, name);

@@ -6,14 +6,10 @@ using UiBackend.Abstractions;
 namespace UiBackend.Html;
 
 /// <summary>
-/// 浮层宿主（通用件）—— 把「当前是否打开浮层 / 打开什么 / 如何收起」收敛为**单槽受控态**：
-/// 同一宿主任意时刻至多一个浮层（后写胜出），空内容即收起，状态外置可复用（刷新拍不用重传 HTML）。
-/// <para>
-/// 纪律：① 空/空白内容 ⇒ 关闭（禁止「空壳浮层」占位）；② 单写入口 <see cref="Show"/>，写即替换；
-/// ③ 只存 HTML 片段，不感知领域（taskKey/窗口类型由调用方编码在片段内）。
-/// 领域侧只需：打开时给片段，关闭时给 null。
-/// </para>
+/// 浮层宿主（通用件）—— 把「当前是否打开浮层 / 打开什么 / 如何收起」收敛为**单槽受控态**。
+/// <para><b>已弃用</b>：生产浮层受控态走 <c>UiOverlayRegistry</c>；本类保留仅为兼容编译，禁止新增调用。</para>
 /// </summary>
+[Obsolete("生产浮层受控态走 UiOverlayRegistry；本类无调用方，勿新增引用。")]
 public sealed class HtmlOverlayHost
 {
     private readonly UiStateSlot _slot;

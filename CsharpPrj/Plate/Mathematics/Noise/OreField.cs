@@ -65,11 +65,20 @@ public sealed class OreField
         }
 
         Signature = hash;
+
+        MinDepthCm = _bands.Length == 0 ? 0 : _minDepthCm.Min();
+        MaxDepthCm = _bands.Length == 0 ? 0 : _maxDepthCm.Max();
     }
 
     public IReadOnlyList<OreBand> Bands => _bands;
 
     public long Signature { get; }
+
+    /// <summary>全部矿带的最小起始深度（cm，相对地表）。</summary>
+    public int MinDepthCm { get; }
+
+    /// <summary>全部矿带的最大深度（cm，相对地表）。</summary>
+    public int MaxDepthCm { get; }
 
     /// <summary>返回命中的矿带下标；未命中返回 -1。</summary>
     public int BandAt(int x, int y, int z, int groundYCm)

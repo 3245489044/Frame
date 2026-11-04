@@ -89,8 +89,8 @@ public static class UiViewStateMigrationPolicy
         if (!string.IsNullOrWhiteSpace(interaction.Focus))
         {
             var allowed = declared.TryGetValue(KindFocus, out var focusKeys) ? focusKeys : null;
-            // 焦点判据 = 元素键精确等值（禁子串：data-key/id 形态与容器键不同域，子串判定恒不命中）。
-            if (allowed is null || allowed.Count == 0 || allowed.Contains(interaction.Focus!))
+            // 焦点判据 = 元素键精确等值（禁子串）。未声明/声明为空 ⇒ 丢弃（与 input/scroll 同口径）。
+            if (allowed is { Count: > 0 } && allowed.Contains(interaction.Focus!))
             {
                 focus = interaction.Focus;
             }

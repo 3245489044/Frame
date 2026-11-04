@@ -69,6 +69,19 @@ public static class UsharpLanguage
     /// <summary>产品接受面（<c>accepts=</c>：<c>owner:…,channel:…</c> 形态；面可见性的声明来源）。</summary>
     public const string ProductFieldAccepts = "accepts";
 
+    /// <summary>
+    /// 产品派生绑定（<c>derive=</c>：对应 <c>[Derive]</c> 的声明 Id）。
+    /// <para>声明面把「派生 Id ↔ 产品键」显式化：消费方按此建映射，禁在 C# 侧按命名约定拼产品键。</para>
+    /// </summary>
+    public const string ProductFieldDerive = "derive";
+
+    /// <summary>
+    /// 字段级血缘（<c>derives=</c>：<c>源字段-&gt;目标字段</c>，多项 <c>;</c> 分隔）。
+    /// <para>语义：被声明产品的**单一上游**（<c>depends_on</c> 恰 1 项）哪些字段供给本产品的哪些出字段；
+    /// 消费方据此生成 <c>data.derives</c> 边（键口径见 <c>TopologyLineageKeys</c>）。</para>
+    /// </summary>
+    public const string ProductFieldDerives = "derives";
+
     /// <summary>面引用的产品键（<c>product=</c>；须已声明 <c>[Product]</c>）。</summary>
     public const string FaceFieldProduct = "product";
 
@@ -233,7 +246,7 @@ public static class UsharpLanguage
     /// <summary>读模型源键字段（<c>source=</c>：<c>Slot.&lt;HostPort&gt;</c> / <c>Service.&lt;TypeName&gt;</c>，逗号或 <c>+</c> 分隔）。</summary>
     public const string ReadModelFieldSource = "source";
 
-    /// <summary>读模型版本源字段（<c>version=</c>：None|Ttl|Event|GraphMembership）。</summary>
+    /// <summary>读模型版本源字段（<c>version=</c>：None|Ttl|Event|GraphMembership|Declared）。</summary>
     public const string ReadModelFieldVersion = "version";
 
     /// <summary>读模型缓存存活期字段（<c>ttl=</c>；仅 Ttl 模式必填）。</summary>

@@ -4,9 +4,10 @@ namespace Usharp.Syntax;
 
 /// <summary>
 /// <c>[Product] &lt;productId&gt;: level=… | role=… | in=… | out=… | idempotency=…</c> 语法视图。
-/// <para>只装声明事实（产品键 / 层 / 角色 / 字段契约 / 幂等键 / 面接受表）；层存在性、字段闭合、
+/// <para>只装声明事实（产品键 / 层 / 角色 / 字段契约 / 幂等键 / 面接受表 / 派生绑定）；层存在性、字段闭合、
 /// 幂等键结构由闸A 校验，消费方（发射器 / 声明源）按此产出 <c>DeclaredGraph</c>。</para>
 /// </summary>
+/// <param name="DeriveId">派生绑定（<c>derive=</c>；null = 非派生镜像）。</param>
 public sealed record UsharpProductDecl(
     string ProductId,
     string LevelId,
@@ -18,9 +19,12 @@ public sealed record UsharpProductDecl(
     string? Stage,
     IReadOnlyList<string> DependsOn,
     IReadOnlyList<string> Accepts,
+    string? DeriveId,
+    string? Derives,
     IReadOnlyList<string> UnparsedLines,
     string SourceFile,
     int LineNumber)
+
 {
     /// <summary>投影单条 <c>[Product]</c>（无名 ⇒ null）。</summary>
     public static UsharpProductDecl? From(DslDeclaration d)
@@ -49,6 +53,8 @@ public sealed record UsharpProductDecl(
             UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.ProductFieldStage)),
             UsharpLineReader.SplitList(d.Field(UsharpLanguage.ProductFieldDependsOn)),
             UsharpLineReader.SplitList(d.Field(UsharpLanguage.ProductFieldAccepts)),
+            UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.ProductFieldDerive)),
+            UsharpLineReader.NullIfEmpty(d.Field(UsharpLanguage.ProductFieldDerives)),
             unparsed,
             d.SourceFile,
             d.LineNumber);

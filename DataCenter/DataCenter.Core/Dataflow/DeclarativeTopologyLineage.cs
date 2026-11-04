@@ -56,26 +56,16 @@ public sealed class DeclarativeTopologyLineage : ITopologyLineage
 
             var fromFields = new List<string>();
             var toFields = new List<string>();
-            foreach (var pair in (raw ?? string.Empty).Split(TopologyLineageKeys.PairSeparator))
+            if (!TopologyLineageKeys.TryParsePairs(raw, out var pairs, out var malformed))
             {
-                var entry = pair.Trim();
-                if (entry.Length == 0) continue;
-
-                var separator = entry.IndexOf(TopologyLineageKeys.FieldSeparator, StringComparison.Ordinal);
-                if (separator <= 0 || separator + TopologyLineageKeys.FieldSeparator.Length >= entry.Length)
+                foreach (var entry in malformed)
                 {
-                    diagnostics.Add($"{Diagnostics.MalformedPair}: {edgeKey} 字段对 '{entry}' 缺 {TopologyLineageKeys.FieldSeparator}");
-                    continue;
+                    diagnostics.Add($"{Diagnostics.MalformedPair}: {edgeKey} 字段对 '{entry}' 缺 {TopologyLineageKeys.FieldSeparator} 或含空字段");
                 }
+            }
 
-                var from = entry[..separator].Trim();
-                var to = entry[(separator + TopologyLineageKeys.FieldSeparator.Length)..].Trim();
-                if (from.Length == 0 || to.Length == 0)
-                {
-                    diagnostics.Add($"{Diagnostics.MalformedPair}: {edgeKey} 字段对 '{entry}' 含空字段");
-                    continue;
-                }
-
+            foreach (var (from, to) in pairs)
+            {
                 fromFields.Add(from);
                 toFields.Add(to);
             }

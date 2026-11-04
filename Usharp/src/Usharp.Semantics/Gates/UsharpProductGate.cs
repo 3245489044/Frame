@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Share.LogicComposition.Conversion.Models;
 using Share.LogicComposition.Conversion.Validation;
 using Usharp.Syntax;
@@ -22,9 +23,18 @@ internal sealed class ProductGateRule : IGateRule<UsharpGateModel>
 
     private static readonly HashSet<string> AcceptsKeys = new(StringComparer.Ordinal) { "owner", "channel" };
 
+    /// <summary>派生绑定形态（<c>[Derive]</c> 的声明 Id：字母/下划线起，字母数字下划线）。</summary>
+    private static readonly Regex DeriveIdPattern = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
+
+    /// <summary>血缘字段对分隔符（与 <c>TopologyLineageKeys</c> 同口径：<c>;</c> 项分隔 / <c>-&gt;</c> 字段分隔）。</summary>
+    private const char DerivesPairSeparator = ';';
+
+    private const string DerivesFieldSeparator = "->";
+
     public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
     {
         var declared = new Dictionary<string, UsharpProductDecl>(StringComparer.Ordinal);
+        var deriveIds = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var product in model.Products)
         {
@@ -40,7 +50,7 @@ internal sealed class ProductGateRule : IGateRule<UsharpGateModel>
                     product.SourceFile, product.LineNumber));
             }
 
-            CheckProductShape(product, model, sink);
+            CheckProductShape(product, model, deriveIds, sink);
         }
 
         var faces = new HashSet<string>(StringComparer.Ordinal);
@@ -63,7 +73,8 @@ internal sealed class ProductGateRule : IGateRule<UsharpGateModel>
     }
 
     private static void CheckProductShape(
-        UsharpProductDecl product, UsharpGateModel model, IConversionDiagnosticSink sink)
+        UsharpProductDecl product, UsharpGateModel model, HashSet<string> deriveIds,
+        IConversionDiagnosticSink sink)
     {
         if (string.IsNullOrWhiteSpace(product.LevelId))
         {
@@ -117,6 +128,65 @@ internal sealed class ProductGateRule : IGateRule<UsharpGateModel>
             {
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProductAcceptsInvalid,
                     $"[Product] {product.ProductId}: accepts 项 '{accept}' 非法（须 owner:<值> / channel:<值>）",
+                    product.SourceFile, product.LineNumber));
+            }
+        }
+
+        // 字段级血缘（derives=）：独立于 derive= 校验（两者可并存，任一缺失不跳过另一项）。
+        CheckProductDerives(product, sink);
+
+        // 派生绑定（derive=）：形态须为 [Derive] 的声明 Id；同一 Id 不得被两个产品同时镜像（边端点歧义）。
+        if (product.DeriveId is not { Length: > 0 } derive) return;
+
+        if (!DeriveIdPattern.IsMatch(derive))
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProductFieldInvalid,
+                $"[Product] {product.ProductId}: derive='{derive}' 形态非法（须 [Derive] 声明 Id：字母/下划线起）",
+                product.SourceFile, product.LineNumber));
+            return;
+        }
+
+        if (!deriveIds.Add(derive))
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProductFieldInvalid,
+                $"[Product] {product.ProductId}: derive='{derive}' 已被其他产品镜像（派生 Id 须唯一对应一个产品键）",
+                product.SourceFile, product.LineNumber));
+        }
+    }
+
+    /// <summary>字段级血缘（<c>derives=</c>）：端点上唯一（<c>depends_on</c> 恰 1 项）+ 字段对形态合法。</summary>
+    private static void CheckProductDerives(UsharpProductDecl product, IConversionDiagnosticSink sink)
+    {
+        if (product.Derives is not { Length: > 0 } derives) return;
+
+        if (product.DependsOn.Count != 1)
+        {
+            sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProductFieldInvalid,
+                $"[Product] {product.ProductId}: derives= 须恰有 1 个 depends_on 上游（现 {product.DependsOn.Count} 个；多上游时血缘端点不可判定）",
+                product.SourceFile, product.LineNumber));
+            return;
+        }
+
+        foreach (var pair in derives.Split(DerivesPairSeparator))
+        {
+            var entry = pair.Trim();
+            if (entry.Length == 0) continue;
+
+            var separator = entry.IndexOf(DerivesFieldSeparator, StringComparison.Ordinal);
+            if (separator <= 0 || separator + DerivesFieldSeparator.Length >= entry.Length)
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProductFieldInvalid,
+                    $"[Product] {product.ProductId}: derives 字段对 '{entry}' 缺 {DerivesFieldSeparator}",
+                    product.SourceFile, product.LineNumber));
+                continue;
+            }
+
+            var from = entry[..separator].Trim();
+            var to = entry[(separator + DerivesFieldSeparator.Length)..].Trim();
+            if (from.Length == 0 || to.Length == 0)
+            {
+                sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ProductFieldInvalid,
+                    $"[Product] {product.ProductId}: derives 字段对 '{entry}' 含空字段",
                     product.SourceFile, product.LineNumber));
             }
         }

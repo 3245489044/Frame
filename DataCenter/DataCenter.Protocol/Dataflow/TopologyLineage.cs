@@ -14,6 +14,48 @@ public static class TopologyLineageKeys
 
     /// <summary>字段对内的源/目标分隔符。</summary>
     public const string FieldSeparator = "->";
+
+    /// <summary>
+    /// 解析 <c>derives=</c> 值（**唯一实现**；声明源与血缘生成器共用，禁各自再写切分逻辑）。
+    /// </summary>
+    /// <param name="raw">属性原文（<c>a-&gt;b;c-&gt;d</c>；空白项跳过）。</param>
+    /// <param name="pairs">解析出的字段对（声明序；空 = 无可解析项）。</param>
+    /// <param name="errors">形态非法项（空 = 全绿；非空 ⇒ 判据不可判定，调用方须可见化）。</param>
+    /// <returns>true = 至少解析出一对且无错误。</returns>
+    public static bool TryParsePairs(
+        string? raw,
+        out IReadOnlyList<(string From, string To)> pairs,
+        out IReadOnlyList<string> errors)
+    {
+        var parsed = new List<(string From, string To)>();
+        var problems = new List<string>();
+        foreach (var pair in (raw ?? string.Empty).Split(PairSeparator))
+        {
+            var entry = pair.Trim();
+            if (entry.Length == 0) continue;
+
+            var separator = entry.IndexOf(FieldSeparator, StringComparison.Ordinal);
+            if (separator <= 0 || separator + FieldSeparator.Length >= entry.Length)
+            {
+                problems.Add(entry);
+                continue;
+            }
+
+            var from = entry[..separator].Trim();
+            var to = entry[(separator + FieldSeparator.Length)..].Trim();
+            if (from.Length == 0 || to.Length == 0)
+            {
+                problems.Add(entry);
+                continue;
+            }
+
+            parsed.Add((from, to));
+        }
+
+        pairs = parsed;
+        errors = problems;
+        return parsed.Count > 0 && problems.Count == 0;
+    }
 }
 
 /// <summary>

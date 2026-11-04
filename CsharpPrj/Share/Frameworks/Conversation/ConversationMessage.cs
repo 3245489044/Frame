@@ -15,7 +15,7 @@ namespace Share.Conversation;
 /// <param name="AtUtc">产生时刻（UTC）。</param>
 /// <param name="Payload">外部消息原文载荷（可选；如 Cline 对话映射时保留 <c>ClineMessage</c> 原文 JSON，供 resume 精确重建；默认 null）。</param>
 /// <param name="Binding">上下文绑定（可选；锚点键/来源域/投喂目标/文本哈希，供 UI≡LLM 一致性校验；默认 null）。尾参，不影响既有位置构造调用。</param>
-/// <param name="Channel">呈现通道（默认 <see cref="MessageChannel.Dialogue"/> = 对话气泡；<see cref="MessageChannel.Operation"/> = 操作流）。
+/// <param name="Channel">呈现通道（null = **未声明**：旧数据/未知；<see cref="MessageChannel.Dialogue"/> = 对话气泡；<see cref="MessageChannel.Operation"/> = 操作流；<see cref="MessageChannel.Process"/> = 过程流）。
 /// 与 <see cref="Binding"/> 的 FeedTarget（投喂目标）正交；尾参，不影响既有位置构造调用。</param>
 /// <param name="Targets">本轮分发/注入的**目标集**（dispatch 执行体产出的事实；F3）。null/空 = 无分发（reply/status）。
 /// 尾参，不影响既有位置构造调用。</param>
@@ -34,7 +34,7 @@ public sealed record ConversationMessage(
     DateTimeOffset AtUtc,
     string? Payload = null,
     MessageBinding? Binding = null,
-    MessageChannel Channel = MessageChannel.Dialogue,
+    MessageChannel? Channel = null,
     IReadOnlyList<string>? Targets = null,
     bool? Terminal = null,
     bool? Archived = null,

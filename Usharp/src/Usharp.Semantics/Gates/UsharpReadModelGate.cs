@@ -16,7 +16,7 @@ internal sealed class ReadModelGateRule : IGateRule<UsharpGateModel>
 
     private static readonly HashSet<string> Versions = new(StringComparer.Ordinal)
     {
-        "None", "Ttl", "Event", "GraphMembership",
+        "None", "Ttl", "Event", "GraphMembership", "Declared",
     };
 
     public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
@@ -43,7 +43,7 @@ internal sealed class ReadModelGateRule : IGateRule<UsharpGateModel>
 
             if (!Versions.Contains(readModel.Version))
                 sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.ReadModelVersionUnknown,
-                    $"[ReadModel] {readModel.ModelId}: version='{readModel.Version}' 不在词表（None|Ttl|Event|GraphMembership）",
+                    $"[ReadModel] {readModel.ModelId}: version='{readModel.Version}' 不在词表（None|Ttl|Event|GraphMembership|Declared）",
                     readModel.SourceFile, readModel.LineNumber));
 
             if (string.Equals(readModel.Version, "Ttl", StringComparison.Ordinal) && readModel.TtlMs is null)

@@ -27,4 +27,16 @@ public sealed record EdgeDoc
 
     /// <summary>边来源：<see cref="EdgeOrigin.Declared"/>（声明派生）| <see cref="EdgeOrigin.Runtime"/>（运行时写边）。</summary>
     public string Origin { get; init; } = EdgeOrigin.Runtime;
+
+    /// <summary>断言强度（<c>DependencyAssertion</c> 线上词形；空 = 未盖章）。</summary>
+    public string? Assertion { get; init; }
+
+    /// <summary>图内单调创建序号（0 = 未盖章）。</summary>
+    public long CreatedSeq { get; init; }
+
+    /// <summary>写入该边的流程标识（追溯键；null = 未声明）。</summary>
+    public string? OriginFlow { get; init; }
+
+    /// <summary>写入该边的步骤键（追溯键；null = 未声明）。</summary>
+    public string? OriginStep { get; init; }
 }

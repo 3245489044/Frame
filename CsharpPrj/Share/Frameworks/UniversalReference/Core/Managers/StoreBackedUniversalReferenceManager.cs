@@ -14,7 +14,8 @@ namespace UniversalWorkflowFramework.Core.Managers
     /// 以 <see cref="IResourceReferenceStore"/> 端口（L1 存储原语层）为后端的 <see cref="IUniversalReferenceManager"/> 实现。
     /// B0 激活：让框架管理器查询真实业务存储（DataStoreDriven 的 SQLite 后端经端口注入），
     /// 而非内存/JSON 镜像；<see cref="ReferenceGraphEngine"/> 经此实现读到真实引用图。
-    /// 写操作委托端口；图遍历（GetDependencies/FindPaths 等）保留基类内存实现——B2–B5 业务域降级后改走图引擎入口。
+    /// 写操作委托端口；查询面（GetResource/GetResourcesByType/GetDependencies/GetDependents/FindPaths/ContainsResource）
+    /// 亦逐个重写为端口/图遍历实现，避免回落到基类内存镜像。
     /// </summary>
     public class StoreBackedUniversalReferenceManager : ReferenceManagerBase
     {

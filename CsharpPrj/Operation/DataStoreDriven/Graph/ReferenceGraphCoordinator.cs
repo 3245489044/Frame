@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using DataCenter.Protocol.Dataflow;
 using GraphFoundation.Abstractions;
 using GraphFoundation.Core;
 using LiteDB;
@@ -54,6 +55,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     private readonly IReferenceEdgeDiagnostics _edgeDiagnostics;
     private readonly IGraphEdgePolicy _policy;
     private readonly IGraphKeyGrammar _keys;
+    private readonly IEdgeStampSource _stampSource;
     private long _writeSkips;
     private string? _lastWriteSkip;
     private bool _uniqueIndexEnforced;
@@ -107,7 +109,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         IReferenceEdgeDiagnostics? edgeDiagnostics = null,
         IDocumentCodec? codec = null,
         IGraphEdgePolicy? policy = null,
-        IGraphKeyGrammar? keys = null)
+        IGraphKeyGrammar? keys = null,
+        IEdgeStampSource? stampSource = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _edges = _db.GetCollection<BsonDocument>(edgesCollection);
@@ -125,6 +128,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         _edgeDiagnostics = edgeDiagnostics ?? NullReferenceEdgeDiagnostics.Instance;
         _policy = policy ?? new DeclaredGraphEdgePolicy(vocabulary);
         _keys = keys ?? DeclaredGraphKeyGrammar.Instance;
+        _stampSource = stampSource ?? new DeclaredEdgeStampSource();
     }
 
     /// <summary>组合根工厂：建目录 → 自开自持 LiteDatabase → 载入持久端点 + 边重建内存邻接。失败则释放回滚。</summary>
@@ -141,7 +145,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         IReferenceEdgeDiagnostics? edgeDiagnostics = null,
         IDocumentCodec? codec = null,
         IGraphEdgePolicy? policy = null,
-        IGraphKeyGrammar? keys = null)
+        IGraphKeyGrammar? keys = null,
+        IEdgeStampSource? stampSource = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         if (codec is null)
@@ -161,7 +166,7 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         var coordinator = new ReferenceGraphCoordinator(
             db, prefix + TableNames.References, prefix + TableNames.Endpoints, prefix + TableNames.Relations,
             prefix + TableNames.Tombstones, prefix + OutboxCollectionSuffix,
-            vocabulary, vocabularyGate, edgeDiagnostics, codec, policy, keys);
+            vocabulary, vocabularyGate, edgeDiagnostics, codec, policy, keys, stampSource);
         try
         {
             coordinator.Initialize();
@@ -299,6 +304,10 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         new KeyValuePair<string, UsharpValue>("refType", UsharpScalar.Str(e.RefType)),
         new KeyValuePair<string, UsharpValue>("strength", new UsharpScalar(UsharpScalarKind.Decimal, e.Strength.ToString(System.Globalization.CultureInfo.InvariantCulture))),
         new KeyValuePair<string, UsharpValue>("origin", UsharpScalar.Str(e.Origin ?? EdgeOrigin.Runtime)),
+        new KeyValuePair<string, UsharpValue>("assertion", UsharpScalar.Str(e.Assertion ?? string.Empty)),
+        new KeyValuePair<string, UsharpValue>("createdSeq", new UsharpScalar(UsharpScalarKind.Int, e.CreatedSeq.ToString(System.Globalization.CultureInfo.InvariantCulture))),
+        new KeyValuePair<string, UsharpValue>("originFlow", UsharpScalar.Str(e.OriginFlow ?? string.Empty)),
+        new KeyValuePair<string, UsharpValue>("originStep", UsharpScalar.Str(e.OriginStep ?? string.Empty)),
     });
 
     private static EdgeDoc EdgeFromRecord(UsharpRecord body) => new()
@@ -310,6 +319,10 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         RefType = S(body, "refType") ?? string.Empty,
         Strength = D(body, "strength", 1.0),
         Origin = S(body, "origin") ?? EdgeOrigin.Runtime,
+        Assertion = S(body, "assertion"),
+        CreatedSeq = (long)D(body, "createdSeq", 0),
+        OriginFlow = S(body, "originFlow"),
+        OriginStep = S(body, "originStep"),
     };
 
     /// <summary>EndpointDoc → USharp 记录体（metadata 为嵌套记录，键序 = 原字典序）。</summary>
@@ -512,7 +525,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
                 _edges.DeleteMany(Query.EQ("_id", legacyEdgeId));
                 if (_graph.ContainsEdge(legacyEdgeId)) _graph.RemoveEdge(legacyEdgeId);
             }
-            _edges.Insert(ToEdgeDoc(sourceKey, sourceId, targetKey, targetId, refType, strength, EdgeOrigin.Runtime, sourceId.Location));
+            _edges.Insert(ToEdgeDoc(sourceKey, sourceId, targetKey, targetId, refType, strength, EdgeOrigin.Runtime, sourceId.Location,
+                _stampSource.Next(refType, EdgeOrigin.Runtime, sourceId.Location)));
             if (!_graph.ContainsEdge(edgeId))
                 _graph.AddEdge(edgeId, sourceKey, targetKey, isDirected: true, new ReferenceEdgeData(refType, strength), strength);
             return Task.FromResult(GraphWriteOutcome.Written(verdict, cleared, clearReason));
@@ -1637,7 +1651,8 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
         EnsureNodeInMemory(sourceKey);
         EnsureNodeInMemory(targetKey);
         _edges.DeleteMany(Query.EQ("_id", edgeId));
-        _edges.Insert(ToEdgeDoc(sourceKey, src, targetKey, tgt, doc.RefType, 1.0, EdgeOrigin.Declared, doc.WorkflowId));
+        _edges.Insert(ToEdgeDoc(sourceKey, src, targetKey, tgt, doc.RefType, 1.0, EdgeOrigin.Declared, doc.WorkflowId,
+            _stampSource.Next(doc.RefType, EdgeOrigin.Declared, doc.WorkflowId)));
         if (!_graph.ContainsEdge(edgeId))
             _graph.AddEdge(edgeId, sourceKey, targetKey, isDirected: true, new ReferenceEdgeData(doc.RefType, 1.0), 1.0);
     }
@@ -1814,8 +1829,10 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
     // ---- 边文档编解码（ur_references）----
 
     private BsonDocument ToEdgeDoc(string sourceKey, ResourceIdentifier src, string targetKey, ResourceIdentifier tgt,
-        string refType, double strength, string origin = EdgeOrigin.Runtime, string? location = null)
+        string refType, double strength, string origin = EdgeOrigin.Runtime, string? location = null,
+        EdgeProductStamp? stamp = null)
     {
+        var effective = stamp ?? EdgeProductStamp.Empty;
         var id = BuildEdgeId(sourceKey, targetKey, refType, location);
         return new BsonDocument
         {
@@ -1833,6 +1850,10 @@ public sealed class ReferenceGraphCoordinator : IResourceReferenceStore, INodeRe
                 RefType = refType,
                 Strength = strength,
                 Origin = origin ?? EdgeOrigin.Runtime,
+                Assertion = string.IsNullOrWhiteSpace(effective.Assertion) ? null : effective.Assertion,
+                CreatedSeq = effective.CreatedSeq,
+                OriginFlow = effective.OriginFlow,
+                OriginStep = effective.OriginStep,
             })),
         };
     }

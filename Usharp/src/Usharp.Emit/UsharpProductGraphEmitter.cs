@@ -65,6 +65,8 @@ public static class UsharpProductGraphEmitter
                 ["stage"] = product.Stage,
                 ["dependsOn"] = UsharpJson.Array(product.DependsOn),
                 ["accepts"] = UsharpJson.Array(product.Accepts),
+                ["derive"] = product.DeriveId,
+                ["derives"] = product.Derives,
             });
         }
 

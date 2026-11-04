@@ -28,4 +28,33 @@ public static class ReadModelVersionProbe
                 : probe(owner),
         };
     }
+
+    /// <summary>
+    /// <see cref="ReadModelVersionMode.Declared"/> 的通用探针（声明指纹 → 版本）。
+    /// <para>
+    /// 纪律：① 指纹取不到（null/空）⇒ 版本 0（缓存不失效是显式可见的降级，由装配侧记账）；
+    /// ② 同一指纹必得同一版本（FNV-1a 64 内容散列，无时间/随机分量）。
+    /// </para>
+    /// </summary>
+    /// <param name="fingerprint">声明指纹取值器（每次读都取当前声明指纹）。</param>
+    public static Func<object, long> FromFingerprint(Func<string?> fingerprint)
+    {
+        ArgumentNullException.ThrowIfNull(fingerprint);
+        return _ =>
+        {
+            var text = fingerprint();
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+
+            const ulong offset = 14695981039346656037UL;
+            const ulong prime = 1099511628211UL;
+            var hash = offset;
+            foreach (var ch in text)
+            {
+                hash ^= ch;
+                hash *= prime;
+            }
+
+            return unchecked((long)(hash & 0x7FFF_FFFF_FFFF_FFFFUL));
+        };
+    }
 }

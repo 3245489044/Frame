@@ -109,9 +109,13 @@ public sealed class TriggerArbiter
         if (_winners.Count <= PruneThreshold) return;
 
         // 仍然超限：按时间淘汰最旧一半（有界内存；不影响当前窗口语义）。
+        var ordered = new List<(string Key, DateTime AtUtc)>(_winners.Count);
+        foreach (var pair in _winners) ordered.Add((pair.Key, pair.Value.AtUtc));
+        ordered.Sort((a, b) => a.AtUtc.CompareTo(b.AtUtc));
+
         var overflow = _winners.Count - PruneThreshold / 2;
-        foreach (var key in new List<string>(_winners.Keys).GetRange(0, Math.Min(overflow, _winners.Count)))
-            _winners.Remove(key);
+        for (var i = 0; i < overflow && i < ordered.Count; i++)
+            _winners.Remove(ordered[i].Key);
     }
 
     private sealed record Entry(int Priority, string Trigger, DateTime AtUtc);

@@ -18,7 +18,7 @@ public sealed record ConversationRenderItem(
     string? SubAgent,
     string Text,
     int Round,
-    MessageChannel Channel = MessageChannel.Dialogue,
+    MessageChannel? Channel = null,
     IReadOnlyList<string>? Targets = null,
     bool? Terminal = null,
     bool? Archived = null,

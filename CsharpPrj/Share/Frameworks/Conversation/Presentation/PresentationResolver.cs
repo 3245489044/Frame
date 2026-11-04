@@ -32,7 +32,7 @@ public static class PresentationResolver
     public static (string ClassId, PresentationOrigin Origin) Resolve(
         PresentationDeclaration declaration,
         ConversationRole role,
-        MessageChannel channel,
+        MessageChannel? channel,
         string? presentation,
         bool? terminal)
     {
@@ -74,11 +74,12 @@ public static class PresentationResolver
         return Resolve(declaration, item.Role, item.Channel, item.Presentation, item.Terminal);
     }
 
-    private static string ChannelWord(MessageChannel channel)
+    private static string ChannelWord(MessageChannel? channel)
         => channel switch
         {
             MessageChannel.Operation => OperationChannelWord,
             MessageChannel.Process => ProcessChannelWord,
+            // null = 未声明（旧数据/未知）：不冒充 operation/process，走呈现词/角色兜底。
             _ => "dialogue",
         };
 

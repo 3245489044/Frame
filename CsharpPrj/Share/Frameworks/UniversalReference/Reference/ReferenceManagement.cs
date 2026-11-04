@@ -187,7 +187,6 @@ namespace ReferenceManagement
     {
         private readonly string? _jsonPath;
         public JsonContentHandler(string? jsonPath = null) => _jsonPath = jsonPath;
-        public JsonContentHandler() : this(null) { }
         public string Process(string content, ReferenceTarget target, ReferenceContext context, IReferenceValueResolver resolver)
         {
             if (string.IsNullOrEmpty(content)) return content;

@@ -219,6 +219,30 @@
         Note   = '对外端口单文件：PS1 端口命名空间文件外 public = 0（白名单对账）/ PS2 文件内无方法体·new·IO / PS3 Agent.* 不引用实现类 / PS4 变更分类 + 迁移说明 / PS5 类型名无域词 / PS6 子命名空间受限 / PS7 负对照'
     }
 
+    GraphDeclarationDrift = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '声明面漂移：GD1 产品 depends_on 闭合 + 面字段 ⊆ 产品出字段 / GD2 面须有宿主视图层 + owner·channel 双维肯定式白名单 / GD3 视图内容域须有同名 [Gather] 段（缺口仅在基线棘轮在册，只降不升）/ GD5 derives= 血缘闭合（恰 1 上游 + 字段对两端闭合）/ GD4 负对照'
+    }
+
+    NoRoleAttribution = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '归属判据：C# 中 Role ==/!= ConversationRole.* 归属判定 = 0（面选择走通道白名单）；负对照必红'
+    }
+
+    FaceWhitelist = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '面白名单：每个 [Face] 的 product/owner/channel 齐备 + product 已声明 + fields ⊆ out；负对照缺 channel/悬空 product 必红'
+    }
+
     WriteSurface = @{
         Domain = 'Node'
         Args   = @{ Check = $true; NegativeControl = $true }

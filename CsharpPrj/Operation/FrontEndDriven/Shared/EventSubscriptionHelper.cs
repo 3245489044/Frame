@@ -46,16 +46,25 @@ public static class EventSubscriptionHelper
 
     /// <summary>
     /// 按事件名订阅控件物理事件（<paramref name="onRaised"/> 为事件触发回调）。
-    /// 返回 true=已成功订阅；false=事件名不支持或控件类型不匹配（由调用方决定记录/跳过语义）。
+    /// 返回 true=已成功订阅；false=事件名不支持/控件类型不匹配/消息通道被 plate 桥占用（由调用方决定记录/跳过语义）。
     /// </summary>
     public static bool TrySubscribe(Control control, string eventName, Action onRaised)
+        => TrySubscribeDetailed(control, eventName, onRaised) == SubscriptionOutcome.Subscribed;
+
+    /// <summary>
+    /// 三态订阅（E-18）：「事件不支持/控件类型不匹配」与「消息通道已被 plate 桥占用」不得混为一谈——
+    /// 后者是合法路由仲裁（plate 桥为 htmlviewer message 权威入口），ECS 绑定不应因此被丢弃或报“不支持”。
+    /// </summary>
+    public static SubscriptionOutcome TrySubscribeDetailed(Control control, string eventName, Action onRaised)
     {
         if (control == null || string.IsNullOrWhiteSpace(eventName) || onRaised == null)
-            return false;
+            return SubscriptionOutcome.Unsupported;
 
         var context = new SubscriptionContext(control, eventName.ToLowerInvariant(), onRaised);
         Dispatcher.Execute(context);
-        return context.Subscribed;
+        if (context.Subscribed) return SubscriptionOutcome.Subscribed;
+        if (context.ChannelOccupied) return SubscriptionOutcome.ChannelOccupied;
+        return SubscriptionOutcome.Unsupported;
     }
 
     /// <summary>分支包装（机制单源 = 框架 <c>AsBranch</c>）。</summary>
@@ -71,8 +80,11 @@ public static class EventSubscriptionHelper
 
         internal Action OnRaised { get; } = onRaised;
 
-        /// <summary>是否已完成物理订阅（分支置位；false = 事件不支持 / 控件类型不匹配）。</summary>
+        /// <summary>是否已完成物理订阅（分支置位；false = 事件不支持 / 控件类型不匹配 / 通道被占用）。</summary>
         internal bool Subscribed { get; set; }
+
+        /// <summary>消息通道已被 plate 桥占用（合法仲裁结果，非“不支持”）。</summary>
+        internal bool ChannelOccupied { get; set; }
     }
 
     /// <summary>分支表（事件名 → 订阅动作；分支体 = 迁移前 <c>case</c> 体，逐字一致）。</summary>
@@ -194,8 +206,18 @@ public static class EventSubscriptionHelper
                             htmlViewer.Name, (_, _) => context.OnRaised());
                         if (token is not null)
                             context.Subscribed = true;
+                        else
+                            context.ChannelOccupied = true; // plate 桥已占用：路由仍有效，仅 ECS 不重复订阅
                     }
                 }
             }),
         };
+}
+
+/// <summary>事件订阅三态结果（E-18）：成功 / 通道被 plate 桥合法占用 / 事件或控件不受支持。</summary>
+public enum SubscriptionOutcome
+{
+    Unsupported,
+    Subscribed,
+    ChannelOccupied
 }

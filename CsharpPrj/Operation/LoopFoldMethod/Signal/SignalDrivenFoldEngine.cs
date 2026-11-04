@@ -58,13 +58,20 @@ public sealed class SignalDrivenFoldEngine<TState, TVertex>
         ArgumentNullException.ThrowIfNull(cutoff);
         ArgumentNullException.ThrowIfNull(budget);
 
+        // E-05：每条信号只在「产生它的那一轮」解析一次，结果缓存进运行态；截断面只读缓存，
+        // 不再二次 Resolve（解析器可能非纯，重复解析会产生不同结论/额外副作用）。
+        var initialDirective = resolver.Resolve(
+            initialSignal,
+            initialState,
+            new FoldContext<TVertex>(0, budget, Array.Empty<FoldVertex<TVertex>>()));
+
         // 内部运行态 = 折叠状态 + 驱动信号（经 FoldEngine 携带；信号驱动步进的"当前触发事件"）。
         var fold = new FoldEngine<RunState, TVertex>();
         var inner = await fold.RunAsync(
-            initialState: new RunState(initialState, initialSignal),
+            initialState: new RunState(initialState, initialSignal, initialDirective),
             op: new SignalOperator(resolver, op),
             headProjector: new LastStateHeadProjector<RunState>(),
-            cutoff: new SignalCutoffPolicy(cutoff, resolver),
+            cutoff: new SignalCutoffPolicy(cutoff),
             budget: budget,
             ct: ct,
             observer: observer is null ? null : new RunStateObserver(observer)).ConfigureAwait(false);
@@ -73,11 +80,14 @@ public sealed class SignalDrivenFoldEngine<TState, TVertex>
         var trace = new FoldTrace<TState>(inner.Trace.AsReadOnly().Select(r => r.State));
         var head = headProjector.Head(trace.AsReadOnly());
         return new FoldResult<TState, TVertex>(
-            head, trace, inner.Vertices, inner.Coordinate, inner.TotalDuration, inner.Cut);
+            head, trace, inner.Vertices, inner.Coordinate, inner.TotalDuration, inner.Cut, inner.Failure);
     }
 
-    /// <summary>内部运行态：折叠状态 + 当前驱动信号。</summary>
-    private sealed record RunState(TState State, FoldSignal<TVertex> Signal);
+    /// <summary>内部运行态：折叠状态 + 当前驱动信号 + 该信号已解析出的下一步指令（null = 链终点）。</summary>
+    private sealed record RunState(
+        TState State,
+        FoldSignal<TVertex> Signal,
+        SignalDirective<TState, TVertex>? Directive);
 
     /// <summary>信号算子适配：解析器产出下一步指令 → 算子展开一步 → 产出 StepCompleted 信号。</summary>
     private sealed class SignalOperator : IFoldOperator<RunState, TVertex>
@@ -94,36 +104,48 @@ public sealed class SignalDrivenFoldEngine<TState, TVertex>
         public async Task<FoldStep<RunState, TVertex>> Expand(RunState state, FoldContext<TVertex> ctx, CancellationToken ct)
         {
             // 链终点由步进执法（SignalCutoffPolicy）先行拦截；此处 null 属防御性兜底（理论上不可达）。
-            var directive = _resolver.Resolve(state.Signal, state.State, ctx);
+            var directive = state.Directive;
             if (directive is null)
                 return new FoldStep<RunState, TVertex>(state, default!);
 
             var step = await _op.ExpandAsync(state.State, state.Signal, directive.ExecuteStepKey, ctx, ct).ConfigureAwait(false);
 
             // 本步产出 → 下一条 StepCompleted 信号（携带该步键 + 结论），交解析器驱动下一步。
+            // Payload 只承载文本；强类型结论一律走 Vertex，禁止把任意对象的 ToString 写进文本载荷。
             var nextSignal = new FoldSignal<TVertex>(
-                FoldSignalKind.StepCompleted, step.StepKey, step.Vertex?.ToString(), step.Vertex);
-            return new FoldStep<RunState, TVertex>(new RunState(step.Next, nextSignal), step.Vertex);
+                FoldSignalKind.StepCompleted,
+                step.StepKey,
+                step.Vertex is string text ? text : null,
+                step.Vertex);
+
+            // 用「下一轮展开将看到的上下文」解析一次，并缓存进下一运行态（坐标 +1、已含本步顶点）。
+            var nextVertices = new List<FoldVertex<TVertex>>(ctx.PreviousVertices.Count + 1);
+            nextVertices.AddRange(ctx.PreviousVertices);
+            nextVertices.Add(new FoldVertex<TVertex>(ctx.Coordinate, step.Vertex));
+            var nextDirective = _resolver.Resolve(
+                nextSignal,
+                step.Next,
+                new FoldContext<TVertex>(ctx.Coordinate + 1, ctx.Budget, nextVertices));
+
+            return new FoldStep<RunState, TVertex>(
+                new RunState(step.Next, nextSignal, nextDirective),
+                step.Vertex);
         }
     }
 
-    /// <summary>步进执法截断策略：链终点（resolver 无下一步）→ 收敛成功（run_to_end）；否则交用户截断策略。</summary>
+    /// <summary>
+    /// 步进执法截断策略：链终点（运行态已缓存 directive == null）→ 收敛成功（run_to_end）；
+    /// 否则交用户截断策略。每条信号只解析一次，本策略只读缓存，不再触发第二次 Resolve。
+    /// </summary>
     private sealed class SignalCutoffPolicy : ICutoffPolicy<RunState>
     {
         private readonly ICutoffPolicy<TState> _inner;
-        private readonly ISignalResolver<TState, TVertex> _resolver;
 
-        public SignalCutoffPolicy(ICutoffPolicy<TState> inner, ISignalResolver<TState, TVertex> resolver)
-        {
-            _inner = inner;
-            _resolver = resolver;
-        }
+        public SignalCutoffPolicy(ICutoffPolicy<TState> inner) => _inner = inner;
 
         public FoldCut Decide(RunState head, int coordinate, FoldBudget budget)
         {
-            // 链终点（无下一步）→ run_to_end 收敛成功（不信任算子自停，由框架执法）。
-            var ctx = new FoldContext<TVertex>(coordinate, budget, Array.Empty<FoldVertex<TVertex>>());
-            if (_resolver.Resolve(head.Signal, head.State, ctx) is null)
+            if (head.Directive is null)
                 return FoldCut.Success;
             return _inner.Decide(head.State, coordinate, budget);
         }

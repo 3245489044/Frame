@@ -49,7 +49,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Adapters
                 nodeInfos.Add(new NodeInfo
                 {
                     NodeKey = nodeKey,
-                    Symbol = nodeData?.ToString() ?? nodeKey,
+                    Symbol = nodeData?.Symbol ?? nodeKey,
                     PreviousNodes = previousNodes.ToList(),
                     NextNodes = nextNodes.ToList(),
                     IsEntry = previousNodes.Count == 0,

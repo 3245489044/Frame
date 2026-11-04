@@ -19,6 +19,10 @@ public sealed class ConvergenceCutoffPolicy<TState> : ICutoffPolicy<TState>
     private bool _hasPrev;
     private TState? _prev;
 
+    // E-03：同一坐标只裁决一次（引擎每轮头/末双调用；重复调用若再次推进 _prev 会丢掉一整个前缀）。
+    private int _lastCoordinate = int.MinValue;
+    private FoldCut _lastCut = FoldCut.Continue;
+
     /// <summary>默认相等比较收敛（EqualityComparer）。</summary>
     public ConvergenceCutoffPolicy(IEqualityComparer<TState>? comparer = null)
         => _converged = comparer is null
@@ -31,17 +35,32 @@ public sealed class ConvergenceCutoffPolicy<TState> : ICutoffPolicy<TState>
 
     public FoldCut Decide(TState head, int coordinate, FoldBudget budget)
     {
-        // 预算执法是强制底线（不信任外部收敛判定）：即使收敛谓词不触发，预算耗尽也必须熔断，避免无限展开。
-        if (budget.Exhausted(coordinate))
-            return FoldCut.BudgetExhausted;
+        // 同一坐标（同一折叠头）重复调用直接返回缓存，不得二次推进 _prev。
+        if (coordinate == _lastCoordinate)
+            return _lastCut;
 
+        FoldCut cut;
+        // 预算执法是强制底线（不信任外部收敛判定）：即使收敛谓词不触发，预算耗尽也必须熔断，避免无限展开。
+        var budgetCut = budget.Decide(coordinate);
+        if (budgetCut != FoldCut.Continue)
+        {
+            cut = budgetCut;
+        }
         // 收敛判定须建立在「确有上一折叠头」之上（_hasPrev），避免 TState 为可空引用类型且 head 为 null 时
         // 谓词 null==null 的误判收敛；同时消除 null 解引用歧义。
-        if (_hasPrev && _converged(head, _prev!))
-            return FoldCut.Success;
+        else if (_hasPrev && _converged(head, _prev!))
+        {
+            cut = FoldCut.Success;
+        }
+        else
+        {
+            _prev = head;
+            _hasPrev = true;
+            cut = FoldCut.Continue;
+        }
 
-        _prev = head;
-        _hasPrev = true;
-        return FoldCut.Continue;
+        _lastCoordinate = coordinate;
+        _lastCut = cut;
+        return cut;
     }
 }

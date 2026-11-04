@@ -26,10 +26,17 @@ namespace WorkflowExecution.Pipeline
 
         private readonly ConcurrentDictionary<string, object> _sharedData = new();
 
-        private readonly InMemoryStateStore _dataStore = new();
+        private readonly SharedDataStateStore _dataStore;
 
         public string ContextId { get; }
 
+        public PipelineContext(string contextId = null)
+            : base(default, null)
+        {
+            ContextId = contextId ?? $"ctx-{Guid.NewGuid():N}";
+            _dataStore = new SharedDataStateStore(_sharedData, () => _parametersCacheDirty = true);
+            _cts = new CancellationTokenSource();
+        }
         public object GraphSnapshot
         {
             get => _sharedData.TryGetValue("GraphSnapshot", out var v) ? v : null;
@@ -79,13 +86,6 @@ namespace WorkflowExecution.Pipeline
                     return _cts?.IsCancellationRequested ?? false;
                 }
             }
-        }
-
-        public PipelineContext(string contextId = null)
-            : base(default, null)
-        {
-            ContextId = contextId ?? $"ctx-{Guid.NewGuid():N}";
-            _cts = new CancellationTokenSource();
         }
 
         public override void Reset()
@@ -199,7 +199,7 @@ namespace WorkflowExecution.Pipeline
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
 
-            CurrentNodeKey = null;
+            CurrentNodeKey = snapshot.CurrentNodeKey;
             CurrentInput = snapshot.CurrentInput;
             CurrentOutput = snapshot.CurrentOutput;
             NextNodeKey = snapshot.NextNodeKey;
@@ -387,6 +387,92 @@ namespace WorkflowExecution.Pipeline
         {
             return $"PipelineContext [Id={ContextId}, Snapshot={GetGraphSnapshotId()}, Session={GetSessionId()}]";
         }
+    }
+
+    /// <summary>
+    /// IStageContext.Data 的单一数据源视图：与 SetData/GetData 共用同一个 _sharedData 容器，
+    /// 消除「阶段写 SetData、另一阶段读 Data 读不到」的双存储分裂（ERR-09）。
+    /// IStateStore 的契约为字符串值，因此写入值按原样存对象、读取时 ToString。
+    /// </summary>
+    internal sealed class SharedDataStateStore : IStateStore
+    {
+        private readonly ConcurrentDictionary<string, object> _inner;
+        private readonly Action _onModified;
+
+        public SharedDataStateStore(ConcurrentDictionary<string, object> inner, Action? onModified = null)
+        {
+            _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            _onModified = onModified ?? (() => { });
+        }
+
+        public void Set(string key, string? value)
+        {
+            if (value == null)
+                _inner.TryRemove(key, out _);
+            else
+                _inner[key] = value;
+            _onModified();
+        }
+
+        public string? Get(string key)
+            => _inner.TryGetValue(key, out var value) ? value?.ToString() : null;
+
+        public bool Has(string key) => _inner.ContainsKey(key);
+
+        public void Clear()
+        {
+            _inner.Clear();
+            _onModified();
+        }
+
+        public IReadOnlyCollection<string> GetAllKeys()
+            => _inner.Keys.ToList().AsReadOnly();
+
+        public string? GetOrAdd(string key, string? defaultValue)
+        {
+            if (_inner.TryGetValue(key, out var existing))
+                return existing?.ToString();
+
+            if (defaultValue != null)
+                _inner[key] = defaultValue;
+            _onModified();
+            return defaultValue;
+        }
+
+        public void Remove(string key)
+        {
+            if (_inner.TryRemove(key, out _))
+                _onModified();
+        }
+
+        public void RemoveByPrefix(string prefix)
+        {
+            foreach (var key in _inner.Keys)
+            {
+                if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    _inner.TryRemove(key, out _);
+            }
+            _onModified();
+        }
+
+        public void SetRange(IEnumerable<KeyValuePair<string, string?>> values)
+        {
+            foreach (var kvp in values)
+            {
+                if (kvp.Value == null)
+                    _inner.TryRemove(kvp.Key, out _);
+                else
+                    _inner[kvp.Key] = kvp.Value;
+            }
+            _onModified();
+        }
+
+        public Dictionary<string, string?> GetAll()
+            => _inner.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString());
+
+        public int Count => _inner.Count;
+
+        public bool IsEmpty => _inner.IsEmpty;
     }
 
     internal class ObservableDictionaryWrapper : IDictionary<string, object>

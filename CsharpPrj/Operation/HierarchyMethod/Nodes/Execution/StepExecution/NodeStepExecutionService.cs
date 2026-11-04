@@ -156,23 +156,26 @@ namespace Operation.HierarchyMethod.Nodes.Execution
 
             // ① 节点输出端口优先（节点即存储单元）：{node}.{port} 恒有；
             //    裸 {port} 仅在尚未被任一节点输出占用时加入，避免跨节点裸端口互覆盖（溯源随之填充，保证 NodeToNode 边一致）。
-            //    枚举源可过滤：传 taskKey 走过滤枚举（task 作用域寻址，只取本 task 归属节点），否则全量枚举（兼容）。
+            //    枚举源可过滤：传 taskKey 走 task 作用域，否则显式全量（见 EnumerateInputOutputsAsync）。
             if (_store != null)
             {
                 var outputs = await EnumerateInputOutputsAsync(taskKey, ct).ConfigureAwait(false);
-                foreach (var output in outputs)
+                // 复用 G2 单一键空间实现（Modules.Node.Ports.PortKeySpace），不再手写「qualified + 裸端口先到者胜」投影（R-02/D-03）。
+                // 枚举序显式按节点键序数序（与 WorkFlowMethod/Modules 同口径 NodeKeyOrdinalComparer），
+                // 使裸端口的先到者归属不随存储返回顺序漂移（同一输入恒得同一合并结果）。
+                var space = new Modules.Node.Ports.PortKeySpace<object?>();
+                foreach (var output in outputs.OrderBy(static o => o.NodeKey, Modules.Node.Projection.NodeKeyOrdinalComparer.Instance))
                     foreach (var (port, value) in output.OutputPorts)
                     {
-                        if (value is null) continue;
-                        var qual = $"{output.NodeKey}.{port}";
-                        source[qual] = value;
-                        sourceNode[qual] = (output.NodeKey, port);
-                        if (!sourceNode.ContainsKey(port))
-                        {
-                            source[port] = value;
-                            sourceNode[port] = (output.NodeKey, port);
-                        }
+                        space.TryAdd(output.NodeKey, port, value);
+                        space.TryAddBare(output.NodeKey, port, value);
                     }
+
+                foreach (var entry in space.Entries)
+                {
+                    source[entry.PortKey] = entry.Value;
+                    sourceNode[entry.PortKey] = (entry.NodeKey, entry.Port);
+                }
             }
 
             // ② 数据空间兜底：仅填充未被节点输出占用的键（节点输出优先于数据空间）。
@@ -278,17 +281,17 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         }
 
         /// <summary>
-        /// 输入枚举源（全量 / 过滤两级并存，过滤为更高抽象层，对齐 MCP「复合节点引用关系」task 作用域寻址）：
-        /// 传 taskKey 且装配引用守卫时，按 cross_db_link 边只取本 task 归属节点输出，根除跨 task 污染；
-        /// 无 taskKey / 无守卫 → 回退全量枚举（现有行为，兼容直跑/单测）。过滤枚举结果为空（如首轮尚无归属边）→ 空源。
+        /// 输入枚举源（读量由调用点显式声明，对齐 MCP「复合节点引用关系」task 作用域寻址）：
+        /// 传 taskKey ⇒ <see cref="NodeReadScope.ByTask"/> 经 cross_db_link 边只取本 task 归属节点输出，根除跨 task 污染；
+        /// 无 taskKey ⇒ 显式 <see cref="NodeReadScope.Full"/>（直跑/单测兼容面，不再依赖「空 key 隐式全量」）。过滤枚举结果为空（如首轮尚无归属边）→ 空源。
         /// </summary>
         private async Task<IReadOnlyList<NodeOutput>> EnumerateInputOutputsAsync(string? taskKey, CancellationToken ct)
         {
             if (_readView is null) return Array.Empty<NodeOutput>(); // 未装配节点输出存储 → 空源
             // 诊断：进入读源边界（若卡死在任一存储读，此条在而后续某条缺失 → 精确定位读锁归属）。
             _diagnostics?.Report("NodeStepExecutionService_ResolveInputs_enumerateStart", new { taskKey = taskKey ?? "", workflowId = _workflowId });
-            // 显式解析器（R4 读源经 NodeReadView）：仅在「有 taskKey 且装配引用守卫」时提供，内部在图读后打点
-            // （缺此条 = 卡图读 GetMemberNodeKeysAsync）；无 taskKey / 无守卫 → 传 null → ReadView 回退全量（语义与既有兼容）。
+            // 显式解析器（R4 读源经 NodeReadView）：仅装配引用守卫时提供，内部在图读后打点
+            // （缺此条 = 卡图读 GetMemberNodeKeysAsync）；无守卫 → ByTask 直接抛（ERR-02 接线缺口可见化）。
             Func<string, string, CancellationToken, Task<IReadOnlyCollection<string>>>? resolver =
                 _grounding is null ? null : async (tk, wf, t) =>
                 {
@@ -296,7 +299,8 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                     _diagnostics?.Report("NodeStepExecutionService_ResolveInputs_graphKeysDone", new { taskKey = tk, keyCount = keys.Count });
                     return keys;
                 };
-            var outputs = await _readView.ListTaskOutputsAsync(_workflowId, taskKey, resolver, ct).ConfigureAwait(false);
+            var scope = string.IsNullOrWhiteSpace(taskKey) ? NodeReadScope.Full : NodeReadScope.ByTask(taskKey!);
+            var outputs = await _readView.ListOutputsAsync(_workflowId, scope, resolver, ct).ConfigureAwait(false);
             // 诊断：SQLite ur_nodes 读（经 ReadView）已返回；此条缺失 = 卡 ur_nodes 读 EnumerateOutputsAsync。
             _diagnostics?.Report("NodeStepExecutionService_ResolveInputs_urNodesDone", new { workflowId = _workflowId, count = outputs.Count });
             return outputs;
@@ -436,12 +440,12 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             if (_store is null) return Task.CompletedTask;
             return _writeCoordinator.RunWriteAsync(
                 $"persist:{nodeKey}",
-                t => WritePortCoreAsync(nodeKey, port, value, t),
+                t => WritePortCoreAsync(_workflowId, nodeKey, port, value, t),
                 ct: ct);
         }
 
-        private Task WritePortCoreAsync(string nodeKey, string port, object? value, CancellationToken ct)
-            => _store!.WriteOutputAsync(_workflowId, nodeKey, port, value, ct);
+        private Task WritePortCoreAsync(string workflowId, string nodeKey, string port, object? value, CancellationToken ct)
+            => _store!.WriteOutputAsync(workflowId, nodeKey, port, value, ct);
 
         /// <summary>
         /// 轮次产物整批落库（非步骤路径复用，CP-1 配套）：会话/折叠链路无步骤暂存（<see cref="NodeRoundContext"/>），
@@ -480,32 +484,44 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                 // 实例身份（F1）：记录未带实例键（旧 runner）⇒ 按任务键补齐；合成存储主键（唯一构造点）。
                 var instanceKey = string.IsNullOrWhiteSpace(record.InstanceKey) ? taskKey : record.InstanceKey;
                 var storageKey = NodeInstanceRef.StorageKeyOf(record.NodeKey, instanceKey);
+                // 写命名空间取记录自述工作流（缺失才回落服务缺省）：禁止以调用方身份回填他域产物（ERR-05）。
+                var writeWf = string.IsNullOrWhiteSpace(record.WorkflowId) ? _workflowId : record.WorkflowId!;
+                var writtenPorts = new List<string>();
                 try
                 {
-                    foreach (var (port, value) in record.OutputPorts)
-                        if (value is not null)
-                            await WritePortCoreAsync(storageKey, port, value, ct).ConfigureAwait(false);
-
-                    // 业务节点行 + 引用/归属边：以最小 NodeDefinition 复用引用落地实现（不复制建边逻辑）。
-                    var nodeType = "output";
-                    if (_nodes is not null || _relationGateway is not null)
-                    {
-                        var node = new NodeDefinition
+                    // 与步骤路径共用同一写门（禁止第二写路径）：端口 + 节点行 + 引用边同批串行，避免读改写竞态（R-05）。
+                    await _writeCoordinator.RunWriteAsync(
+                        $"persist:{storageKey}",
+                        async t =>
                         {
-                            NodeKey = storageKey,
-                            WorkflowId = _workflowId,
-                            Symbol = record.NodeKey,
-                            ResultKeys = record.OutputPorts.Keys.ToList(),
-                        };
-                        var input = new NodeInputSnapshot(
-                            new Dictionary<string, object?>(StringComparer.Ordinal), record.Provenance);
-                        await PersistNodeReferencesAsync(node, input, taskKey, ct).ConfigureAwait(false);
-                        nodeType = NodeTypes.Node;
-                    }
+                            foreach (var (port, value) in record.OutputPorts)
+                                if (value is not null)
+                                {
+                                    await WritePortCoreAsync(writeWf, storageKey, port, value, t).ConfigureAwait(false);
+                                    writtenPorts.Add(port);
+                                }
 
+                            // 业务节点行 + 引用/归属边：以最小 NodeDefinition 复用引用落地实现（不复制建边逻辑）。
+                            if (_nodes is not null || _relationGateway is not null)
+                            {
+                                var node = new NodeDefinition
+                                {
+                                    NodeKey = storageKey,
+                                    WorkflowId = writeWf,
+                                    Symbol = record.NodeKey,
+                                    ResultKeys = record.OutputPorts.Keys.ToList(),
+                                };
+                                var input = new NodeInputSnapshot(
+                                    new Dictionary<string, object?>(StringComparer.Ordinal), record.Provenance);
+                                await PersistNodeReferencesAsync(node, input, taskKey, writeWf, t).ConfigureAwait(false);
+                            }
+                        },
+                        ct: ct).ConfigureAwait(false);
+
+                    var nodeType = _nodes is not null || _relationGateway is not null ? NodeTypes.Node : "output";
                     // 只有真正写入的记录进入归属集合（I2：attributed ≡ persisted）。
                     persisted.Add(new PersistedNodeRef(
-                        NodeInstanceRef.Create(record.ContainerKey ?? taskKey, _workflowId, record.NodeKey, instanceKey),
+                        NodeInstanceRef.Create(record.ContainerKey ?? taskKey, writeWf, record.NodeKey, instanceKey),
                         nodeType,
                         storageKey));
                 }
@@ -522,6 +538,9 @@ namespace Operation.HierarchyMethod.Nodes.Execution
                         nodeKey = record.NodeKey,
                         instanceKey,
                         storageKey,
+                        workflowId = writeWf,
+                        // 本路径无事务，已写端口不可回滚：显式标注部分落库（ERR-05）。
+                        writtenPorts = writtenPorts.ToArray(),
                         errorClass = ErrorClassifier.ClassifyError(ex).ToString(),
                         error = ex.Message,
                     });
@@ -551,7 +570,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
 
             // 引用层自动落地（跨介质，无单库原子性）：业务节点写透镜像（wf.node）+ 边推导统一写入，最终一致 + 对账兜底。
             if (_nodes != null || _grounding != null)
-                await PersistNodeReferencesAsync(node, input, taskKey, ct).ConfigureAwait(false);
+                await PersistNodeReferencesAsync(node, input, taskKey, _workflowId, ct).ConfigureAwait(false);
         }
 
         /// <summary>节点输出端口写 + KeyMapping 分类写（同库 agent.db）并入同一 SQLite 事务一次 commit（消除 R4 事务碎片）。</summary>
@@ -605,33 +624,53 @@ namespace Operation.HierarchyMethod.Nodes.Execution
         /// <summary>引用层自动落地：业务节点写透基础节点库（NodeType=node，携带关系状态 RelationsJson）→ 经守卫写入权威边集。
         /// 「有守卫走守卫、无守卫跳过」由装配期注入决定，不依赖具体装饰器类型（WriteGuardPort）；守卫 reconcile 幂等，
         /// 即便节点库自身已写透对账也无副作用（收敛到同一权威边集）。引用写（②③）收敛至 Agent.Reference 门面。</summary>
-        private async Task PersistNodeReferencesAsync(NodeDefinition node, NodeInputSnapshot input, string? taskKey, CancellationToken ct)
+        private async Task PersistNodeReferencesAsync(
+            NodeDefinition node, NodeInputSnapshot input, string? taskKey, string workflowId, CancellationToken ct)
         {
             var hasMapping = node.InputMapping != null || node.OutputMapping != null;
             var relationsJson = NodeRelationGateway.SerializeRelations(hasMapping, input.Provenance);
-            var edges = NodeRelationGateway.DeriveEdgesForNode(_workflowId, node.NodeKey, hasMapping, input.Provenance);
+            var edges = NodeRelationGateway.DeriveEdgesForNode(workflowId, node.NodeKey, hasMapping, input.Provenance);
 
             // ① 业务节点 → 基础节点库（NodeType=node，携带关系状态）：存储侧留 Core；写透守卫（WriteGuardPort）PutAsync 后
             //    自动镜像内容跟随（wf.node 图资源，upsert）+ 依 RelationsJson 对账收敛边；原始 INodeStore 则仅落节点库。
             //    F-63 形态事实（取证）：ur_nodes 业务节点为**单形** —— NodeType=node + BusinessNodePayload{Symbol, Outputs}，
             //    输出端口由 NodeOutputStore.WriteOutputAsync 内嵌写、读侧 EnumerateOutputsAsync 亦只枚举 NodeType=node；
-            //    本方法读-改-写**只改** Symbol/RelationsJson 并原样保留既有 Outputs（DecodeBusiness→EncodeBusiness）。
-            //    残余口径缺口（非本处）：API node.write 缺省形可为 NodeType=output 且载荷非 NodeOutputDoc
-            //    （见 AgentApiIntentSource.ToRecord），形态收敛另立编号，不在此处改语义。
+            //    本方法读-改-写**只改** Symbol/RelationsJson：业务载荷走 DecodeBusiness→EncodeBusiness 并原样保留 Outputs，
+            //    非业务载荷（API node.write 通用 JSON / 数组 / 标量）原样保留、不参与往返（ERR-07）。
             if (_nodes != null)
             {
                 var existing = await _nodes.GetAsync(node.NodeKey, ct).ConfigureAwait(false);
-                var payload = existing != null
-                    ? global::Operation.HierarchyMethod.Nodes.NodeOutputCodec.DecodeBusiness(Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(existing.Payload))
-                    : new global::Operation.HierarchyMethod.Nodes.BusinessNodePayload();
-                payload.Symbol = node.Symbol;
+                var existingPayloadText = existing is null
+                    ? null
+                    : Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(existing.Payload);
+                // 形态闸门（ERR-07）：仅业务载荷允许 Decode→Encode 往返改写 Symbol；其它载荷（API node.write 的通用
+                // JSON / 数组 / 标量）原样保留，否则会被解码为空业务载荷后覆写、整段丢失。
+                Plate.DslMethod.Usharp.UsharpValue? payload;
+                if (existing is null)
+                {
+                    payload = Plate.DslMethod.Usharp.UsharpValueJson.ParseOrString(
+                        global::Operation.HierarchyMethod.Nodes.NodeOutputCodec.EncodeBusiness(
+                            new global::Operation.HierarchyMethod.Nodes.BusinessNodePayload { Symbol = node.Symbol }));
+                }
+                else if (global::Operation.HierarchyMethod.Nodes.NodeOutputCodec.IsBusinessPayload(existingPayloadText))
+                {
+                    var business = global::Operation.HierarchyMethod.Nodes.NodeOutputCodec.DecodeBusiness(existingPayloadText);
+                    business.Symbol = node.Symbol;
+                    payload = Plate.DslMethod.Usharp.UsharpValueJson.ParseOrString(
+                        global::Operation.HierarchyMethod.Nodes.NodeOutputCodec.EncodeBusiness(business));
+                }
+                else
+                {
+                    payload = existing.Payload;
+                }
+
                 await _nodes.PutAsync(new NodeRecord
                 {
                     NodeKey = node.NodeKey,
                     NodeType = NodeTypes.Node,
-                    ThreadId = _workflowId,
+                    ThreadId = workflowId,
                     Status = "executed",
-                    Payload = Plate.DslMethod.Usharp.UsharpValueJson.ParseOrString(global::Operation.HierarchyMethod.Nodes.NodeOutputCodec.EncodeBusiness(payload)),
+                    Payload = payload,
                     Relations = string.IsNullOrWhiteSpace(relationsJson) ? null : Plate.DslMethod.Usharp.UsharpValueJson.ParseOrString(relationsJson),
                 }, ct).ConfigureAwait(false);
             }
@@ -643,7 +682,7 @@ namespace Operation.HierarchyMethod.Nodes.Execution
             if (_relationGateway is not null)
             {
                 await _relationGateway.WriteRelationsAsync(
-                    _workflowId, node.NodeKey, edges, isWriteThroughStore: _nodes is WriteGuardPort, ct).ConfigureAwait(false);
+                    workflowId, node.NodeKey, edges, isWriteThroughStore: _nodes is WriteGuardPort, ct).ConfigureAwait(false);
             }
 
             // ③ task 归属边（cross_db_link）已归流（UMF · M2）：本逐节点路径不再写归属边。

@@ -100,8 +100,10 @@ public sealed class WinFormsUIDispatcher : IUIDispatcher
         if (IsUIThread)
             return await asyncFunc();
 
+        // E-02：需要返回值的异步封送在宿主关闭后不能返回 default!（调用方会立即解引用 ⇒ NRE，
+        // 且被上层误当成功/空数据）。明确以 ObjectDisposedException 报告失败，由调用方显式分支。
         if (!HostAcceptsDispatch())
-            return default!;
+            throw HostClosedException();
 
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
         try
@@ -115,7 +117,7 @@ public sealed class WinFormsUIDispatcher : IUIDispatcher
         catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException)
         {
             System.Threading.Interlocked.Increment(ref _droppedAfterHostClosed);
-            return default!;
+            throw HostClosedException();
         }
 
         var completed = await Task.WhenAny(tcs.Task, Task.Delay(UiDispatcherCore.SyncDispatchTimeoutMs))
@@ -137,6 +139,9 @@ public sealed class WinFormsUIDispatcher : IUIDispatcher
         }
         return true;
     }
+
+    private ObjectDisposedException HostClosedException()
+        => new(nameof(WinFormsUIDispatcher), "宿主窗口已关闭或句柄未创建，无法执行需要返回值的 UI 封送。");
 
     public void AssertUIThread()
     {

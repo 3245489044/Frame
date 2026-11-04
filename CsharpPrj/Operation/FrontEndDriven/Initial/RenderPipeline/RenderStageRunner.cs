@@ -243,10 +243,15 @@ public sealed class RenderStageRunner
     private RenderRunResult BuildResult(RenderContext ctx, bool renderExecuted, long elapsedMs)
     {
         var collectedCount = renderExecuted && ctx.Snapshot != null ? ctx.Snapshot.Controls.Count : 0;
-        var appliedCount = renderExecuted ? _outputPort.LastAppliedNodeCount : 0;
 
         // P7：挂载统计来自 RenderApplyStage 回填的 ApplyResult（仅渲染区间有效）
         var apply = renderExecuted ? ctx.ApplyResult : null;
+
+        // E-07②：AppliedCount 必须是「真实应用数」而非快照控件数（后者恒等于 CollectedCount ⇒ 比例恒 1.0）。
+        // 跳过（解析/创建失败/已释放）未应用，须从应用数中扣除，使 AppliedRatio 反映真实覆盖率。
+        var appliedCount = renderExecuted
+            ? Math.Max(0, (_outputPort.LastAppliedNodeCount) - (apply?.ControlsSkipped ?? 0))
+            : 0;
 
         // R5：宿主真实子控件数——由 RenderMountStage 在物理挂载完成后回填的唯一真值（GetDirectChildCount 同口径）；
         // 无宿主或非状态管理场景（未回填）回退 0。消除 BuildResult 挂载前预计算（恒 0）+ 调用方二次覆盖的双算。

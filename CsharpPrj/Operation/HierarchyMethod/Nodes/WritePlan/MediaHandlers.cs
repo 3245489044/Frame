@@ -45,14 +45,24 @@ public sealed class NodeStoreMediaHandler : WriteMediaHandlerBase
     private async Task PutAsync(string nodeKey, JsonElement payload, CancellationToken ct)
     {
         var isObject = payload.ValueKind == JsonValueKind.Object;
+        var existing = await _nodes.GetAsync(nodeKey, ct).ConfigureAwait(false);
+        // ERR-32：ThreadId 缺省不得落 null（否则按 ThreadId 枚举/信号/作用域读全部看不见该节点）；
+        // 依次取 载荷 threadId / workflowId → 既有记录归属 → 默认工作流命名空间。
+        var threadId = (isObject ? Str(payload, "threadId") ?? Str(payload, "workflowId") : null)
+                       ?? existing?.ThreadId
+                       ?? NodeKeys.DefaultWorkflowId;
+        // ERR-32：非对象载荷不再压成 "{}"（数组/标量原样透传，由 Codec 判定是否业务形态）。
+        var raw = payload.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? null : payload.GetRawText();
         var record = new NodeRecord
         {
             NodeKey = nodeKey,
-            NodeType = isObject ? Str(payload, "nodeType") ?? NodeTypes.Node : NodeTypes.Node,
-            ThreadId = isObject ? Str(payload, "threadId") : null,
-            Key = isObject ? Str(payload, "key") : null,
-            Status = (isObject ? Str(payload, "status") : null) ?? "executed",
-            Payload = Plate.DslMethod.Usharp.UsharpValueJson.ParseOrString(isObject ? NodeOutputCodec.EncodeExternal(payload.GetRawText(), nodeKey) : "{}"),
+            NodeType = (isObject ? Str(payload, "nodeType") : null) ?? existing?.NodeType ?? NodeTypes.Node,
+            ThreadId = threadId,
+            Key = (isObject ? Str(payload, "key") : null) ?? existing?.Key,
+            Status = (isObject ? Str(payload, "status") : null) ?? existing?.Status ?? "executed",
+            Payload = Plate.DslMethod.Usharp.UsharpValueJson.ParseOrString(NodeOutputCodec.EncodeExternal(raw, nodeKey)),
+            // ERR-32：写步骤不自带关系列，读-改-写须保留既有 Relations，避免把已建边清空。
+            Relations = existing?.Relations,
         };
         await _nodes.PutAsync(record, ct).ConfigureAwait(false);
     }
@@ -135,5 +145,8 @@ public sealed class DelegateMediaHandler : WriteMediaHandlerBase
 
     /// <inheritdoc />
     public override Task CompensateAsync(WriteWork work, CancellationToken ct)
-        => _compensate is null ? Task.CompletedTask : _compensate(work, ct);
+        => _compensate is null
+            ? throw new NotSupportedException(
+                $"介质 {_media} 的集合 [{string.Join(", ", _collections)}] 未装配补偿器，写步骤 '{work.Id}' 不可补偿（不得伪装为已补偿）。")
+            : _compensate(work, ct);
 }

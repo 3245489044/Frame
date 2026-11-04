@@ -53,15 +53,17 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
 
             var identifierMap = BuildIdentifierMap(chains);
 
-            var renameMap = ResolveDuplicates(identifierMap);
+            var (renameMap, nodeRenames) = ResolveDuplicates(identifierMap);
 
-            ApplyRenames(chains, renameMap);
+            ApplyRenames(chains, renameMap, nodeRenames);
 
             var allNodeSequences = chains
                 .Where(c => c != null)
                 .Select(c => _nodeHandler.GetNodes(c))
                 .Where(nodes => nodes != null && nodes.Any())
                 .ToList();
+
+            var resultChains = chains;
 
             if (allNodeSequences.Count > 0)
             {
@@ -74,14 +76,31 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
                         TrackConflicts = _config.VerboseLogging
                     });
 
-                if (!composeResult.IsSuccess && _config.VerboseLogging)
+                if (composeResult.IsSuccess && composeResult.Result != null)
+                {
+                    // ERR-05：合并结果必须作为返回值落地，否则「去重合并」只是空转。
+                    var mergedNodes = composeResult.Result.ToList();
+                    if (mergedNodes.Count > 0)
+                    {
+                        resultChains = new List<Chain<string, NodeConfig>>
+                        {
+                            new Chain<string, NodeConfig>
+                            {
+                                AllNodes = mergedNodes,
+                                StartNode = mergedNodes.FirstOrDefault(),
+                                EndNode = mergedNodes.LastOrDefault()
+                            }
+                        };
+                    }
+                }
+                else if (_config.VerboseLogging)
                 {
                     WorkFlowMethodLog.Log("ConfigDeduplicationProcessor_ComposeWarning",
                         new { error = composeResult.ErrorMessage });
                 }
             }
 
-            foreach (var chain in chains)
+            foreach (var chain in resultChains)
             {
                 foreach (var node in _nodeHandler.GetNodes(chain))
                 {
@@ -91,7 +110,7 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
                 }
             }
 
-            return chains;
+            return resultChains;
         }
 
         private Dictionary<string, List<(Chain<string, NodeConfig> chain, NodeConfig node)>> BuildIdentifierMap(
@@ -119,10 +138,11 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
             return map;
         }
 
-        private Dictionary<string, string> ResolveDuplicates(
+        private (Dictionary<string, string> RenameMap, List<(Chain<string, NodeConfig> chain, NodeConfig node, string newKey)> NodeRenames) ResolveDuplicates(
             Dictionary<string, List<(Chain<string, NodeConfig> chain, NodeConfig node)>> identifierMap)
         {
             var renameMap = new Dictionary<string, string>();
+            var nodeRenames = new List<(Chain<string, NodeConfig>, NodeConfig, string)>();
 
             foreach (var kvp in identifierMap)
             {
@@ -140,31 +160,32 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
 
                     var newKey = _nameGenerator.GenerateName(normalizedKey);
                     renameMap[originalKey] = newKey;
+                    nodeRenames.Add((entries[i].chain, entries[i].node, newKey));
                 }
             }
 
-            return renameMap;
+            return (renameMap, nodeRenames);
         }
 
         private void ApplyRenames(
             List<Chain<string, NodeConfig>> chains,
-            Dictionary<string, string> renameMap)
+            Dictionary<string, string> renameMap,
+            List<(Chain<string, NodeConfig> chain, NodeConfig node, string newKey)> nodeRenames)
         {
             if (renameMap.Count == 0)
                 return;
 
-            foreach (var chain in chains)
+            foreach (var (chain, node, newKey) in nodeRenames)
             {
-                var nodes = _nodeHandler.GetNodes(chain).ToList();
-                foreach (var node in nodes)
-                {
-                    var originalKey = _nodeHandler.GetKey(node);
-                    if (originalKey != null && renameMap.TryGetValue(originalKey, out var newKey))
-                    {
-                        _nodeHandler.RemoveNode(chain, originalKey);
-                        _nodeHandler.SetNode(chain, node);
-                    }
-                }
+                var originalKey = _nodeHandler.GetKey(node);
+                if (string.IsNullOrEmpty(originalKey))
+                    continue;
+
+                _nodeHandler.RemoveNode(chain, originalKey);
+
+                // ERR-04：SetNode 依据节点自身键写入，必须先改键再设置，否则注册表仍是旧键。
+                SetNodeKey(node, newKey);
+                _nodeHandler.SetNode(chain, node);
             }
 
             foreach (var chain in chains)
@@ -174,6 +195,12 @@ namespace WorkFlowMethod.GraphFramework.Deduplication
                     _relationHandler.UpdateReferences(node, renameMap);
                 }
             }
+        }
+
+        private static void SetNodeKey(NodeConfig node, string newKey)
+        {
+            node.basicConfig ??= new NodeConfig.BasicConfig();
+            node.basicConfig.Callkey = newKey;
         }
     }
 }

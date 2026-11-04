@@ -46,7 +46,7 @@ public class CsgIntegrationService : IDisposable
 
         foreach (var node in chain.AllNodes)
         {
-            var nodeId = node.basicConfig?.Callkey ?? node.Id ?? node.Symbol ?? Guid.NewGuid().ToString("N");
+            var nodeId = ResolveNodeId(node);
             form.Nodes.Add(new CanonicalNode
             {
                 Id = nodeId,
@@ -64,7 +64,7 @@ public class CsgIntegrationService : IDisposable
         var edgeIndex = 0;
         foreach (var node in chain.AllNodes)
         {
-            var sourceId = node.basicConfig?.Callkey ?? node.Id ?? node.Symbol ?? Guid.NewGuid().ToString("N");
+            var sourceId = ResolveNodeId(node);
             if (!string.IsNullOrEmpty(node.NextNodeId))
             {
                 edgeIndex++;
@@ -86,6 +86,21 @@ public class CsgIntegrationService : IDisposable
         form.Metadata["created"] = DateTime.UtcNow.ToString("O");
 
         return form;
+    }
+
+    /// <summary>
+    /// 节点稳定标识的单一解析入口：节点与边必须使用同一结果，否则悬空边（ERR-10）。
+    /// 三者皆空时 fail-fast，不再各自生成随机 Guid。
+    /// </summary>
+    private static string ResolveNodeId(NodeConfig node)
+    {
+        var nodeId = node.basicConfig?.Callkey ?? node.Id ?? node.Symbol;
+        if (string.IsNullOrEmpty(nodeId))
+        {
+            throw new InvalidOperationException(
+                "节点缺少 callkey/Id/Symbol，无法生成稳定标识（ChainToCanonical 拒绝产出悬空边）");
+        }
+        return nodeId;
     }
 
     public ValidationResult ValidateWorkflow(PipelineContext context)

@@ -17,18 +17,18 @@ namespace FrontEndDriven.HtmlHosting;
 public sealed class HtmlRenderOutputSink : IRefreshSink
 {
     private readonly Func<IUiRenderExecutor?> _executor;
-    private readonly Action? _onDelivered;
+    private readonly Action<string>? _onDelivered;
 
     /// <param name="executor">执行器解析（缺省 = 默认 HTML 宿主槽的运行时；返回 null = 未装配）。</param>
-    /// <param name="onDelivered">直接写落地回调（用于消除「写已落地仍 push 重算」的回环）。</param>
-    public HtmlRenderOutputSink(Func<IUiRenderExecutor?>? executor = null, Action? onDelivered = null)
+    /// <param name="onDelivered">直接写落地回调（携带 SlotKey，用于按 scope 消除「写已落地仍 push 重算」的回环）。</param>
+    public HtmlRenderOutputSink(Func<IUiRenderExecutor?>? executor = null, Action<string>? onDelivered = null)
     {
         _executor = executor ?? (static () => HtmlUiHost.Default.HtmlUi);
         _onDelivered = onDelivered;
     }
 
     /// <summary>按宿主槽装配（推荐：多插件隔离，不绑全局默认槽；未装配 ⇒ 未送达，可重试）。</summary>
-    public HtmlRenderOutputSink(HtmlUiHostSlot host, Action? onDelivered = null)
+    public HtmlRenderOutputSink(HtmlUiHostSlot host, Action<string>? onDelivered = null)
     {
         ArgumentNullException.ThrowIfNull(host);
         _executor = () => host.HtmlUi;
@@ -50,7 +50,7 @@ public sealed class HtmlRenderOutputSink : IRefreshSink
             var result = await executor.ExecuteAsync(plan, UiWriteSource.Refresh, delivery.TraceId, ct).ConfigureAwait(false);
             if (result.Status is UiWriteStatus.Applied or UiWriteStatus.Partial)
             {
-                _onDelivered?.Invoke();
+                _onDelivered?.Invoke(delivery.SlotKey);
                 return DeliveryResult.Changed(delivery.Fingerprint);
             }
 

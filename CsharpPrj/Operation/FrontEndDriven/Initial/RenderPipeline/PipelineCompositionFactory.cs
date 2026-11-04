@@ -131,12 +131,12 @@ public static class PipelineCompositionFactory
                     .ToArray();
             });
         // R2·收缩：InputCapturePort 只做值变更回灌 ECS（不再采集 click/doubleclick→函数，事件→函数由物理绑定链单通道）
-        var inputCapturePort = new InputCapturePort(ecsStateAccessor, valueService);
+        var inputCapturePort = new InputCapturePort(ecsStateAccessor, valueService, entityManager);
         AppServiceProvider.Register<IEcsStateAccessor>(ecsStateAccessor);
         AppServiceProvider.Register<IInteractionEventPort>(ecsEventBus);
         AppServiceProvider.Register<TConfig.Controls.IControlService>(valueService);
         AppServiceProvider.Register<FrontEndDriven.ControlInteraction.EventBinding.EcsEventBus>(ecsEventBus);
-        AppServiceProvider.Register<FrontEndDriven.ControlInteraction.EventBinding.InputCapturePort>(inputCapturePort);
+        // R-18：同一实例只注册一次（此前重复注册产生字典重复条目/解析歧义）。
         AppServiceProvider.Register<FrontEndDriven.ControlInteraction.EventBinding.InputCapturePort>(inputCapturePort);
         // Phase A·作用域感知寻址：活动作用域上下文（脚本 load 设置，命令 get/set/click 解析据此优先在活动 scope 内查找）
         AppServiceProvider.Register<IScopeContext>(new FrontEndDriven.ControlLookup.ScopeContext());

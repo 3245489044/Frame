@@ -7,5 +7,5 @@ namespace Operation.LoopFoldMethod.Cutoff;
 public sealed class BudgetCutoffPolicy<TState> : ICutoffPolicy<TState>
 {
     public FoldCut Decide(TState head, int coordinate, FoldBudget budget)
-        => budget.Exhausted(coordinate) ? FoldCut.BudgetExhausted : FoldCut.Continue;
+        => budget.Decide(coordinate);
 }

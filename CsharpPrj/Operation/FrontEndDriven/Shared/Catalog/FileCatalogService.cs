@@ -21,7 +21,18 @@ public static class FileCatalogService
             return Directory.Exists(dir) ? Path.GetFullPath(dir) : null;
         var root = UiPathManager.GetProjectRoot();
         var abs = Path.GetFullPath(Path.Combine(root, dir));
-        return Directory.Exists(abs) ? abs : null;
+        // E-15：相对目录同样不得越出项目根（dir 可含 ".."）。
+        return IsWithin(root, abs) && Directory.Exists(abs) ? abs : null;
+    }
+
+    /// <summary>路径包含校验（规范化后必须位于 root 之内，防止 ../ 与绝对路径越根）。</summary>
+    private static bool IsWithin(string root, string path)
+    {
+        var rootFull = Path.GetFullPath(root)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var full = Path.GetFullPath(path);
+        return string.Equals(full, rootFull, StringComparison.OrdinalIgnoreCase)
+            || full.StartsWith(rootFull + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>递归扫描目录，生成目录条目（分类=一级文件夹；action/summary 仅对 json 模板由内容推导）。

@@ -34,9 +34,15 @@ namespace WorkFlowMethod.Infrastructure
         public void Set<T>(string key, T? value) where T : class
         {
             if (value != null)
-                _data.GetOrAdd(key, value);
-            else
+            {
+                // Set 语义为「写入/覆盖」：MemoryCache.GetOrAdd 在键已存在时不写入，必须先移除（ERR-07）。
                 _data.Remove(key);
+                _data.GetOrAdd(key, value);
+            }
+            else
+            {
+                _data.Remove(key);
+            }
         }
 
         public bool TryGet<T>(string key, out T? value) where T : class

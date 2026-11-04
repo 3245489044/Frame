@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using ECS.Core;
 using FrameworkAbstractions.WinFormsAbstractions;
 using FrontEndDriven.Diagnostics;
+using FrontEndDriven.ECS.Components;
 using FrontEndDriven.Shared;
 using TConfig.Controls;
 
@@ -23,6 +24,7 @@ public sealed class InputCapturePort
 {
     private readonly IEcsStateAccessor _stateAccessor;
     private readonly IControlService _valueService;
+    private readonly EntityManager _entityManager;
 
     private static readonly object s_subscribedSentinel = new();
 
@@ -30,10 +32,11 @@ public sealed class InputCapturePort
     // 避免"反复 load-config-show / 销毁 scope"场景下字典以控件为 key 永久持有强引用、永续增长。
     private readonly ConditionalWeakTable<Control, object> _subscribed = new();
 
-    public InputCapturePort(IEcsStateAccessor stateAccessor, IControlService valueService)
+    public InputCapturePort(IEcsStateAccessor stateAccessor, IControlService valueService, EntityManager entityManager)
     {
         _stateAccessor = stateAccessor ?? throw new ArgumentNullException(nameof(stateAccessor));
         _valueService = valueService ?? throw new ArgumentNullException(nameof(valueService));
+        _entityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
     }
 
     // 诊断计数：弱引用表 Count 为方法；条目随 GC 回收，反映当前仍存活且已订阅的控件数。
@@ -57,7 +60,7 @@ public sealed class InputCapturePort
         {
             foreach (var (semantic, eventName) in contract.ValueChangedEvents)
             {
-                SubscribeValueChanged(control, controlName, semantic, eventName);
+                SubscribeValueChanged(control, entity, controlName, semantic, eventName);
             }
         }
 
@@ -66,15 +69,23 @@ public sealed class InputCapturePort
     }
 
     /// <summary>值变更信号 → 回灌 ECS（物理 ≠ ECS 时）。</summary>
-    private void OnValueChanged(Control control, string controlName, ValueSemantic semantic)
+    private void OnValueChanged(Control control, Entity entity, string controlName, ValueSemantic semantic)
     {
         if (control.IsDisposed) return;
 
         var physical = _valueService.GetValue(control, semantic)?.ToString();
         if (physical == null) return;
 
-        // 防循环：程序化 set（ECS→物理投影）后物理值 == ECS 值 → 跳过；仅用户操作（物理 ≠ ECS）回灌 ECS 状态
-        var current = _stateAccessor.GetValue(controlName);
+        // E-19：防循环基线必须直接读 ControlValueComponent（ECS 真源），不能走 GetValue()——
+        // 后者在 ECS 无值时回退物理值，导致 current == physical 直接返回，首次编辑永不回灌 ECS。
+        string? current = null;
+        if (entity.IsValid
+            && _entityManager.TryGetComponent<ControlValueComponent>(entity, out var valueComponent))
+        {
+            current = valueComponent.Value;
+        }
+
+        // 防循环：程序化 set（ECS→物理投影）后物理值 == ECS 值 → 跳过；ECS 缺失（current=null）视为不等，回灌。
         if (string.Equals(current, physical, StringComparison.Ordinal))
             return;
 
@@ -82,9 +93,14 @@ public sealed class InputCapturePort
     }
 
     /// <summary>契约事件名 → 强类型订阅（单点收口：值变更信号的物理订阅适配；事件名为契约声明的有限集）。</summary>
-    private void SubscribeValueChanged(Control control, string controlName, ValueSemantic semantic, string eventName)
+    private void SubscribeValueChanged(
+        Control control,
+        Entity entity,
+        string controlName,
+        ValueSemantic semantic,
+        string eventName)
     {
-        void OnChanged() => OnValueChanged(control, controlName, semantic);
+        void OnChanged() => OnValueChanged(control, entity, controlName, semantic);
 
         // 统一事件订阅分派（EventSubscriptionHelper）：契约事件名（PascalCase）大小写不敏感匹配，
         // checkedchanged/selectedindexchanged/valuechanged 按控件实际类型分派——

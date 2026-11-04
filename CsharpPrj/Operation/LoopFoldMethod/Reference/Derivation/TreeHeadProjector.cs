@@ -16,7 +16,10 @@ namespace Operation.LoopFoldMethod.Reference.Derivation;
 /// </summary>
 public static class TreeHeadProjector
 {
-    /// <summary>从控制流引用链（Calls 边）推导终答步骤索引（链尾 = 出度 0；空/退化图兜底最后一步）。</summary>
+    /// <summary>
+    /// 从控制流引用链（Calls 边）推导终答步骤索引：链尾 = 出度 0；全环/退化图兜底最后一步；
+    /// **空步骤表返回 -1**（调用方必须显式处理「无步骤」而非把它当成最后一步）。
+    /// </summary>
     public static int ResolveFinalStepIndex(IReadOnlyList<string> stepNodeIds, IReadOnlyList<ReferenceEdge> edges)
     {
         if (stepNodeIds is not { Count: > 0 }) return -1;

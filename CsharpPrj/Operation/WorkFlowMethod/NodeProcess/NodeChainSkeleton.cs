@@ -35,12 +35,14 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
 
             if (string.IsNullOrEmpty(jsonConfig))
             {
+                context.SetItem("NodeChainSkeleton.Status", "Skipped");
                 context.SetItem("NodeChainSkeleton.Warning", "未找到 JSON 配置（键: NodeChain.JsonConfig），跳过链创建");
                 return input;
             }
 
             if (chainCount <= 0)
             {
+                context.SetItem("NodeChainSkeleton.Status", "Skipped");
                 context.SetItem("NodeChainSkeleton.Warning", "链数量 <= 0（键: NodeChain.ChainCount），跳过链创建");
                 return input;
             }

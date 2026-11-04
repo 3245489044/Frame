@@ -17,8 +17,14 @@ public static class NodeBuilder
     /// </summary>
     /// <param name="nodes">原始节点集（可空/空 = 空装配）。</param>
     /// <param name="policy">槽位策略；null = <see cref="CacheStableSlotPolicy.Instance"/>（通用稳定前缀策略）。</param>
-    /// <param name="maxPerBand">每段上限（&gt;0 生效，超出截断并保持段内序）；null = 不限。</param>
-    public static NodeAssembly Build(IEnumerable<NodeItem>? nodes, INodeSlotPolicy? policy = null, int? maxPerBand = null)
+    /// <param name="maxPerBand">每段自动内容上限（&gt;0 生效，超出截断并保持段内序）；null = 不限。</param>
+    /// <param name="alwaysOnKeys">必选节点键（AlwaysOn 组件）：永不因 <paramref name="maxPerBand"/> 被截断，
+    /// 且计入名额（E-11：先保证必选，再按剩余名额填可选）。null = 无必选概念。</param>
+    public static NodeAssembly Build(
+        IEnumerable<NodeItem>? nodes,
+        INodeSlotPolicy? policy = null,
+        int? maxPerBand = null,
+        IReadOnlyCollection<string>? alwaysOnKeys = null)
     {
         var p = policy ?? CacheStableSlotPolicy.Instance;
         var head = new List<NodeItem>();
@@ -44,13 +50,48 @@ public static class NodeBuilder
 
         if (maxPerBand is > 0)
         {
-            orderedHead = orderedHead.Take(maxPerBand.Value).ToList();
-            orderedBody = orderedBody.Take(maxPerBand.Value).ToList();
-            orderedTail = orderedTail.Take(maxPerBand.Value).ToList();
+            orderedHead = LimitBand(orderedHead, maxPerBand.Value, alwaysOnKeys);
+            orderedBody = LimitBand(orderedBody, maxPerBand.Value, alwaysOnKeys);
+            orderedTail = LimitBand(orderedTail, maxPerBand.Value, alwaysOnKeys);
         }
 
         return new NodeAssembly(orderedHead, orderedBody, orderedTail);
     }
+
+    /// <summary>
+    /// 段内限额：必选节点（<paramref name="alwaysOnKeys"/> 命中）无条件保留并占用名额，可选节点按剩余名额取；
+    /// 段内相对顺序保持不变。
+    /// </summary>
+    private static List<NodeItem> LimitBand(
+        List<NodeItem> band,
+        int max,
+        IReadOnlyCollection<string>? alwaysOnKeys)
+    {
+        var mandatoryCount = alwaysOnKeys is null
+            ? 0
+            : band.Count(n => IsAlwaysOn(n, alwaysOnKeys));
+        var optionalQuota = Math.Max(0, max - mandatoryCount);
+        if (mandatoryCount == 0 && band.Count <= optionalQuota) return band;
+
+        var kept = new List<NodeItem>(Math.Max(mandatoryCount, Math.Min(band.Count, max)));
+        var optionalTaken = 0;
+        foreach (var node in band)
+        {
+            if (alwaysOnKeys is not null && IsAlwaysOn(node, alwaysOnKeys))
+            {
+                kept.Add(node);
+            }
+            else if (optionalTaken < optionalQuota)
+            {
+                kept.Add(node);
+                optionalTaken++;
+            }
+        }
+        return kept;
+    }
+
+    private static bool IsAlwaysOn(NodeItem node, IReadOnlyCollection<string> alwaysOnKeys)
+        => node.Key is not null && alwaysOnKeys.Contains(node.Key);
 
     /// <summary>段内稳定排序：Order 升序；Order 相等保持输入源序（LINQ OrderBy 稳定）。</summary>
     private static List<NodeItem> OrderByStable(IEnumerable<NodeItem> band) => band.OrderBy(n => n.Order).ToList();

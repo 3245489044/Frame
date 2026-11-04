@@ -53,9 +53,26 @@ public static class TerminationReasonMapping
         _ => TerminationReason.None,
     };
 
-    /// <summary>理由 → 统一结果。</summary>
+    /// <summary>
+    /// 引擎终态 → 理由（Runner 收尾的单一映射权威）。
+    /// 注：与 <see cref="FromFoldCut"/> 同属**非双射**（TripTerminated/Failed 与 Stagnant 均归 Failed），
+    /// 禁止用于「理由 → 截断值 → 理由」往返还原。
+    /// </summary>
+    public static TerminationReason FromLoopDecision(LoopDecision decision) => decision switch
+    {
+        LoopDecision.Success or LoopDecision.Complete => TerminationReason.Completed,
+        LoopDecision.Timeout => TerminationReason.BudgetExhausted,
+        LoopDecision.TripTerminated => TerminationReason.Failed,
+        LoopDecision.Abort => TerminationReason.Failed,
+        _ => TerminationReason.None,
+    };
+
+    /// <summary>
+    /// 理由 → 统一结果。None 表示「尚非终态」，不得伪装成失败（E-09：避免 IsTerminalFailure 与实际 Reason 自相矛盾）。
+    /// </summary>
     public static LoopOutcome ToOutcome(TerminationReason reason, string? message = null) => reason switch
     {
+        TerminationReason.None => new LoopOutcome(TerminationReason.None, message),
         TerminationReason.Completed => LoopOutcome.Completed(message),
         TerminationReason.BudgetExhausted => LoopOutcome.TimedOut(message),
         TerminationReason.IdleHung => LoopOutcome.IdleHung(message),

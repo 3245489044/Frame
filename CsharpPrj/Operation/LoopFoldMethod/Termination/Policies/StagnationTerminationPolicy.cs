@@ -1,6 +1,4 @@
 using Modules.Threading;
-using System;
-using Modules.Threading;
 using Share.TaskStatusPool.Loops;
 
 namespace Operation.LoopFoldMethod.Termination;
@@ -21,10 +19,12 @@ public sealed class StagnationTerminationPolicy : ITerminationPolicy
         if (context.NoGainLimit <= 0 || context.NoGain < context.NoGainLimit)
             return TerminationVerdict.Continue;
 
+        var evidence = $"macro 判据连续 {context.NoGain} 轮无推进（上限 {context.NoGainLimit}）";
+
+        // E-21：仅可见化模式返回携带 Reason=Stagnant 的**非终值**裁决（宿主可据此 report），
+        // 不得降级成 Reason=None 的 Continue（否则观测面无法区分「空转」与「正常推进」）。
         return _terminate
-            ? TerminationVerdict.Terminal(
-                LoopDecision.TripTerminated, TerminationReason.Stagnant,
-                $"macro 判据连续 {context.NoGain} 轮无推进（上限 {context.NoGainLimit}）")
-            : TerminationVerdict.Continue; // 仅可见化：由宿主产出 report，不终止
+            ? TerminationVerdict.Terminal(LoopDecision.TripTerminated, TerminationReason.Stagnant, evidence)
+            : new TerminationVerdict(LoopDecision.Continue, TerminationReason.Stagnant, false, evidence);
     }
 }

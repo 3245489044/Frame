@@ -60,6 +60,15 @@ public sealed class FoldEngine<TState, TVertex>
         var defensiveCut = FoldCut.Continue;
         var nextState = initialState;
 
+        // 截断面裁定的终值（权威记录）。取消/失败不依赖 LoopDecision 往返还原（Cancelled 与 Failed 在
+        // LoopDecision 上均折叠为 Abort，往返会丢失语义）。
+        FoldCut? decisiveCut = null;
+
+        // 引擎每轮在「循环头」与「轮末」各调用一次 budgetTerminate；状态型截断策略（收敛/指纹/终止链）
+        // 若同坐标重复裁决会被计成多轮，产生提前收敛等错误。此处按坐标去重：同一坐标只裁决一次。
+        var lastCutCoordinate = -1;
+        var lastDecision = LoopDecision.Continue;
+
         // 复用最底层快照驱动循环引擎（TH-12）：fold 概念映射到既有 while。
         var engine = new SnapshotDrivenLoopEngine<TState, FoldVertex<TVertex>>();
         var snapshot = await engine.RunAsync(
@@ -100,24 +109,40 @@ public sealed class FoldEngine<TState, TVertex>
                 if (defensiveCut != FoldCut.Continue)
                     return FoldCutMapping.ToLoopDecision(defensiveCut);
 
+                // E-03：同一坐标只裁决一次（引擎头/末双调用，状态型策略不得被重复计轮）。
+                if (coordinate == lastCutCoordinate)
+                    return lastDecision;
+
                 var head = headProjector.Head(trace.AsReadOnly());
-                return FoldCutMapping.ToLoopDecision(cutoff.Decide(head, coordinate, budget));
+                var cut = cutoff.Decide(head, coordinate, budget);
+                lastCutCoordinate = coordinate;
+                lastDecision = FoldCutMapping.ToLoopDecision(cut);
+                if (cut != FoldCut.Continue)
+                    decisiveCut = cut;
+                return lastDecision;
             }).ConfigureAwait(false);
 
-        // 收敛：外部终止（取消）→ Cancelled；否则引擎承载的预算终止值映射回 FoldCut；空值守卫兜底。
-        var finalCut = snapshot.TerminatedByExternal
-            ? FoldCut.Cancelled
-            : FoldCutMapping.FromLoopDecision(snapshot.FinalDecision);
-        if (defensiveCut != FoldCut.Continue && finalCut == FoldCut.Continue)
-            finalCut = FoldCut.TripTerminated;
+        // 收敛（权威顺序）：空值守卫 > 截断面终值 > 外部终止 > 引擎终态映射。
+        // 截断面终值是权威：Cancelled/Failed 经 LoopDecision 往返会退化，不再用 FinalDecision 反推。
+        var finalCut = defensiveCut != FoldCut.Continue
+            ? defensiveCut
+            : decisiveCut
+              ?? (snapshot.TerminatedByExternal
+                  ? FoldCut.Cancelled
+                  : FoldCutMapping.FromLoopDecision(snapshot.FinalDecision));
+
+        var failure = snapshot.Failure;
+        if (finalCut == FoldCut.Cancelled)
+            failure = Failure.Environment(FailureCodes.Cancelled, "折叠被取消（取消令牌/宿主关闭）。");
 
         var head = headProjector.Head(trace.AsReadOnly());
         return new FoldResult<TState, TVertex>(
             head,
             trace,
-            vertices,
+            System.Array.AsReadOnly(vertices.ToArray()),
             coordinate,
             snapshot.TotalDuration,
-            finalCut);
+            finalCut,
+            failure);
     }
 }

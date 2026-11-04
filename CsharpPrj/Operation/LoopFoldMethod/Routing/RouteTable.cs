@@ -26,8 +26,12 @@ public sealed class RouteTable<TState>
     public RouteTable<TState> At(ActionStageId stage, IActionHandler<TState> handler)
         => At(stage, new SingleHandlerRouter<TState>(handler));
 
-    /// <summary>产出只读 stage→router 映射（供 <c>SpinalPipeline</c> 消费）。</summary>
-    public IReadOnlyDictionary<ActionStageId, IActionRouter<TState>> Build() => _routers;
+    /// <summary>
+    /// 产出只读 stage→router 映射（供 <c>SpinalPipeline</c> 消费）。
+    /// E-24：返回构建期快照（副本 + 只读包装），Build 之后的 <see cref="At"/> 不得再影响已生成管道的路由。
+    /// </summary>
+    public IReadOnlyDictionary<ActionStageId, IActionRouter<TState>> Build()
+        => new Dictionary<ActionStageId, IActionRouter<TState>>(_routers).AsReadOnly();
 }
 
 /// <summary>恒返回单 handler 的路由（把单 handler 提升为 Router 的最小适配）。</summary>

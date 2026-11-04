@@ -107,15 +107,19 @@ public sealed class EcsGate : IDisposable
         // E7：优先读最近一次渲染区间结果快照（DoLoadAndRender 落定），语义=「本次 boot 最后一次渲染」；
         // 未执行过渲染时回退 Composition 计数。
         var last = _lastRenderResult;
+        // E-07②：首次渲染前没有快照时，扣掉「已释放控件」等跳过数仍无从得知，按 0 应用/0 收集表达未执行，
+        // 避免回退到快照控件数把比例伪装成 1.0。
         var collected = last?.CollectedCount ?? _composition.LastCollectedNodeCount;
-        var applied = last?.AppliedCount ?? _composition.OutputPort?.LastAppliedNodeCount ?? 0;
+        var applied = last?.AppliedCount ?? (_composition.HasExecuted ? collected : 0);
         var ratio = collected > 0 ? (double)applied / collected : 1.0;
 
         return new RenderStats(
             CollectedCount: collected,
             AppliedCount: applied,
             AppliedRatio: ratio,
-            HasExecuted: last?.RenderExecuted ?? _composition.HasExecuted);
+            HasExecuted: last?.RenderExecuted ?? _composition.HasExecuted,
+            // E-07③：渲染异常快照（HasError）必须显式暴露，不能被“未执行”吞掉。
+            HasError: last?.HasError ?? false);
     }
 
     /// <summary>按名查找普通控件（ControlPool 索引收口），替代外部直摸 <see cref="Composition"/>.ControlPool。</summary>
@@ -207,8 +211,12 @@ public sealed class EcsGate : IDisposable
                     hostActualChildCount = result.HostActualChildCount
                 });
 
-            // M2：渲染成功落定事务（跳过 Rollback 补偿）
-            transaction.Commit();
+            // M2/E-07①：只有渲染结果 Succeeded（无孤儿、无控件跳过）才落定事务；
+            // 部分应用/跳过/孤儿必须回滚（未 Commit ⇒ Dispose 触发 CompositionTeardown），不得提交为成功。
+            if (result.Succeeded)
+            {
+                transaction.Commit();
+            }
 
             return result;
         }
@@ -259,7 +267,8 @@ public sealed record RenderStats(
     int CollectedCount,
     int AppliedCount,
     double AppliedRatio,
-    bool HasExecuted);
+    bool HasExecuted,
+    bool HasError);
 
 public interface IEcsInterceptor
 {

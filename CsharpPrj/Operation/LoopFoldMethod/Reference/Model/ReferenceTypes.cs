@@ -19,7 +19,7 @@ public static class ReferenceTypes
     /// <summary>历史归拢任务边：history.{historyId} → task（History=Task 上层 class 容器）。</summary>
     public const string HistoryOwnsTask = global::Operation.DataStoreDriven.Abstractions.ReferenceTypes.HistoryOwnsTask;
 
-    /// <summary>会话归属边：session.{name} → 会话消息/产出节点（会话图子图挂载）。</summary>
+    /// <summary>会话归属边：sessionId.3 → owner key（会话图子图挂载；端点不是消息名）。</summary>
     public const string SessionOwns = global::Operation.DataStoreDriven.Abstractions.ReferenceTypes.SessionOwns;
 
     /// <summary>跨库归属边：ur_tasks.{taskKey} → ur_nodes.{wf.node}（运行时节点产出归属）。</summary>

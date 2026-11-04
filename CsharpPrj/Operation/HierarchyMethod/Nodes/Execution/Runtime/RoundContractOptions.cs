@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Operation.HierarchyMethod.Nodes.Execution;
 
@@ -26,25 +24,4 @@ public sealed record RoundContractOptions(
 {
     /// <summary>默认选项（Report + 空豁免）。</summary>
     public static RoundContractOptions Default { get; } = new();
-}
-
-/// <summary>
-/// 声明契约判据（E1/E2/E3/E4）**单点实现**的兼容入口：实现已迁至 <see cref="RoundContractJudge"/>，
-/// 本类仅保留旧名转发一迭代（dep: replaced-by(RoundContractJudge)）。
-/// </summary>
-public static class DeclaredContractEnforcer
-{
-    /// <summary>声明外键 = 实际键 − 声明键 − 豁免键（内部键）。空 = 闭合。</summary>
-    public static IReadOnlyList<string> Undeclared(
-        IEnumerable<string>? declared,
-        IEnumerable<string> actual,
-        IReadOnlyCollection<string>? exempt = null)
-        => RoundContractJudge.Undeclared(declared, actual, exempt);
-
-    /// <summary>E1：声明步骤中既未执行、也未「合法跳过」的步骤（升序；空 = 闭合）。</summary>
-    public static IReadOnlyList<string> MissingSteps(
-        IEnumerable<string> declaredSteps,
-        IEnumerable<string> executed,
-        IEnumerable<string>? skipped = null)
-        => RoundContractJudge.MissingSteps(declaredSteps, executed, skipped);
 }

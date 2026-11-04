@@ -77,6 +77,15 @@ public sealed class ContainerRegistry : IDisposable
             Role = reg.Role,
         };
 
+        // E-06：同一 scope 切换 hostKey 时必须反查并注销旧容器，否则旧 hostKey 仍处于 Mounted，
+        // GetAll/ResolveByHostKey 会返回幽灵挂载（同 scope 两条记录）。
+        if (_byScope.TryGetValue(id.ScopeId, out var previousHostKey)
+            && !string.Equals(previousHostKey, id.HostKey, StringComparison.OrdinalIgnoreCase)
+            && _byHostKey.TryGetValue(previousHostKey, out var previousEntry))
+        {
+            Unregister(previousEntry.Id);
+        }
+
         // scope↔hostKey 落地到 IStorageCell 双向映射（原 HostBindingStore.Bind 内联）
         BindScopeHost(id.ScopeId, id.HostKey, source);
         _byHostKey[id.HostKey] = new Entry(id, MountState.Registered, id.ScopeId);

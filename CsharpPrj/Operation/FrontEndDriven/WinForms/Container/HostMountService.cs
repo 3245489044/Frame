@@ -6,6 +6,7 @@ using ECS.Core;
 using ECS.Core.Lifecycle;
 using FrameworkAbstractions.ComponentRegistry;
 using FrameworkAbstractions.ContainerAbstractions;
+using FrontEndDriven.Abstractions;
 using FrontEndDriven.Diagnostics;
 using Share.StateManagement;
 
@@ -26,19 +27,16 @@ public sealed class HostMountService : IEntityLifecycleSubscriber, IContainerLif
 {
     private readonly ContainerRegistry _registry;
     private readonly ControlPool _controlPool;
+    private readonly IControlAdapter? _adapter;
 
     // 待挂队列：root 控件尚未入池时挂起，渲染管线（RenderMountStage）在 Apply 后自愈补挂。
     private readonly ConcurrentDictionary<string, Entity> _pendingAttach = new(StringComparer.OrdinalIgnoreCase);
 
-    // WinForms Panel 默认尺寸（new Panel() 未设 Size 时的物理初值）。root 处于该尺寸 = ECS 布局未投影到物理
-    // （如 root 实体尚无 ComputedLayoutComponent），需 Dock=Fill 兜底填满宿主（见 AttachRootToHost 可见性守卫）。
-    private const int DefaultRootPanelWidth = 200;
-    private const int DefaultRootPanelHeight = 100;
-
-    public HostMountService(ContainerRegistry registry, ControlPool controlPool)
+    public HostMountService(ContainerRegistry registry, ControlPool controlPool, IControlAdapter? adapter = null)
     {
         _registry = registry ?? throw new System.ArgumentNullException(nameof(registry));
         _controlPool = controlPool ?? throw new System.ArgumentNullException(nameof(controlPool));
+        _adapter = adapter;
 
         // 阶段2：订阅 Entity 生命周期总线（scope 失效 → 清理待挂队列中的旧 root 实体引用，
         // 取代 DestroyScopeEntities 的手写联动调用，纳入注册-广播-自愈治理）。
@@ -160,15 +158,27 @@ public sealed class HostMountService : IEntityLifecycleSubscriber, IContainerLif
             return; // 已挂到宿主，幂等
         }
 
-        host.Controls.Add(rootControl);
+        // E-05①：统一经 IControlAdapter.AddControl 挂载（内含 InvokeRequired 封送与防环），
+        // 不再直接 host.Controls.Add 绕过权威端口（后台线程挂载/句柄校验被绕开）。
+        var adapter = ResolveAdapter();
+        if (adapter == null)
+        {
+            FrontEndDrivenLog.Log("HostMountService_AdapterMissing",
+                new { scope = scopeOrHostKey, note = "IControlAdapter 未注册，root 未挂载" });
+            return;
+        }
 
-        // 可见性守卫：root 以无效尺寸 Add 进宿主=「日志全绿但 UI 空」直接来源。
-        // root 尚无有效尺寸——0x0，或仍为 WinForms Panel 默认 200x100（ECS 布局未投影到物理，修复 A 的兜底防线）——
-        // 时 Dock=Fill 使其填满宿主，避免误覆盖已按 ECS 布局驱动尺寸的 root。
-        if ((rootControl.Width == 0 && rootControl.Height == 0)
-            || (rootControl.Dock == System.Windows.Forms.DockStyle.None
-                && rootControl.Width <= DefaultRootPanelWidth
-                && rootControl.Height <= DefaultRootPanelHeight))
+        if (!adapter.AddControl(host, rootControl))
+        {
+            FrontEndDrivenLog.Log("HostMountService_AddControlFailed",
+                new { scope = scopeOrHostKey, rootName = rootControl.Name, hostName = host.Name });
+            return;
+        }
+
+        // 可见性守卫：root 以 0x0 尺寸 Add 进宿主=「日志全绿但 UI 空」直接来源，此时 Dock=Fill 填满宿主。
+        // E-05②：仅在「确无尺寸」时兜底；200x100 是 WinForms Panel 默认尺寸，但对显式声明该尺寸的合法 root
+        // （或无 ComputedLayout 但已由调用方设尺寸）不得强制 Dock=Fill 覆盖布局投影结果。
+        if (rootControl.Width == 0 && rootControl.Height == 0)
         {
             rootControl.Dock = System.Windows.Forms.DockStyle.Fill;
         }
@@ -213,12 +223,9 @@ public sealed class HostMountService : IEntityLifecycleSubscriber, IContainerLif
         {
             if (node is System.Windows.Forms.SplitContainer sc)
             {
-                // 重设 SplitterDistance（触发 Panel1/Panel2 尺寸重排）；值非法时由 PerformLayout 兜底。
+                // E-05②：这里不再直写 SplitterDistance（该属性唯一权威 = LayoutProjector/SplitterMath），
+                // 仅触发重布局；比例/距离由布局投影在下一拍统一结算，避免自愈路径与投影竞争同一物理属性。
                 try { sc.PerformLayout(); } catch { /* 不阻断 */ }
-                if (sc.SplitterDistance <= 0 && sc.Width > 0)
-                {
-                    sc.SplitterDistance = Math.Max(1, sc.Width / 2);
-                }
                 sc.PerformLayout();
             }
             else
@@ -295,14 +302,30 @@ public sealed class HostMountService : IEntityLifecycleSubscriber, IContainerLif
         // 快照遍历，避免迭代中修改字典
         foreach (var (scope, rootEntity) in _pendingAttach.ToArray())
         {
-            // 已挂（宿主已收到子控件）→ 出队，避免重放重复 Add。
-            if (GetDirectChildCount(scope) > 0)
+            // E-05③：判据必须是「本次 root 已挂到宿主」（rootControl.Parent == host），
+            // 不能用「宿主已有任意子控件」——宿主可能早已挂了无关控件，会导致新 root 出队却永不挂载。
+            if (IsRootAttachedToHost(scope, rootEntity))
             {
                 _pendingAttach.TryRemove(scope, out _);
                 continue;
             }
             AttachRootToHost(scope, rootEntity);
         }
+    }
+
+    /// <summary>挂载端口惰性解析（装配顺序容忍：构造时未注入则首次挂载时从 AppServiceProvider 取）。</summary>
+    private IControlAdapter? ResolveAdapter()
+        => _adapter ?? AppServiceProvider.Resolve<IControlAdapter>();
+
+    /// <summary>待挂 root 是否已物理挂到其宿主（Parent 一致性判据，替代宿主任意子控件计数）。</summary>
+    private bool IsRootAttachedToHost(string scopeOrHostKey, Entity rootEntity)
+    {
+        var host = ResolveHost(scopeOrHostKey);
+        if (host == null) return false;
+
+        var rootControl = rootEntity.IsValid ? _controlPool.GetControl(rootEntity) : null;
+        rootControl ??= _controlPool.GetControl($"root:{scopeOrHostKey}");
+        return rootControl != null && ReferenceEquals(rootControl.Parent, host);
     }
 
     /// <summary>③ 宿主真实子控件数（scope 或 hostKey 均可；无宿主返回 0）。</summary>

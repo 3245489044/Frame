@@ -122,6 +122,14 @@ public sealed class WinFormApplier
             var existingControl = _controlPool.GetControl(entity);
             if (existingControl != null)
             {
+                // E-04②：配置改名（热重载）时 ControlPool 名称索引必须同步，否则 FindByName(新名)/label 解析失真。
+                if (!string.IsNullOrEmpty(desc.Name)
+                    && !string.Equals(_controlPool.GetControlName(entity), desc.Name, StringComparison.Ordinal))
+                {
+                    _controlPool.Unregister(entity);
+                    _controlPool.Register(entity, desc.Name, existingControl);
+                }
+
                 // R2：已有控件仅维护结构身份（SplitContainer 面板注册），属性投影统一在 ApplyProperties 执行。
                 if (existingControl is SplitContainer existingSc)
                 {
@@ -193,9 +201,20 @@ public sealed class WinFormApplier
             if (!TryResolveEntity(desc, out var entity))
                 continue;
 
+            // 创建失败/解析失败已在 ApplyStructure 计入跳过，此处不得重复计数。
             var control = _controlPool.GetControl(entity);
-            if (control == null || control.IsDisposed)
+            if (control == null)
                 continue;
+
+            // E-04③：已释放控件不得静默跳过——计入跳过统计，避免 AllMounted=true 的空页假绿。
+            if (control.IsDisposed)
+            {
+                result.ControlsSkipped++;
+                result.SkipReasons.Add($"Disposed nodeId={desc.Id}");
+                FrontEndDrivenLog.Log("WinFormApplier_Skip_Disposed",
+                    new { nodeId = desc.Id, name = desc.Name });
+                continue;
+            }
 
             work.Add((desc, entity, control));
         }
@@ -205,32 +224,34 @@ public sealed class WinFormApplier
 
         foreach (var (desc, entity, control) in work)
         {
-            var props = BuildPropertyDict(desc);
+            var normalized = NormalizeSnapshot(desc, control, BuildPropertyDict(desc));
+
+            // R3·布局真源收敛（SingleImplementation）：ECS 布局托管实体（proportional / dock·anchor 原生意图）
+            // 的像素 Bounds 不再由内容 Apply 写入——物理 Bounds 唯一由 LayoutProjector（纯 ECS 父原点）在挂载后投影。
+            // dock/anchor 由原生布局引擎接管（Dock/Anchor 属性仍由属性投影设置），两者均不依赖本处像素 Bounds。
+            if (_entityManager != null && IsEcsLayoutManaged(entity))
+                ProjectionKeys.StripCoordinates(normalized);
+
+            // E3·SplitterRatio 双写消除：含 SplitterRatioComponent 的 splitcontainer，其 SplitterDistance 物理属性
+            // 唯一由 LayoutProjector 按比例投影（SplitterMath 单一权威），内容 Apply 不再写该键。
+            if (_entityManager != null && _entityManager.HasComponent<SplitterRatioComponent>(entity))
+                normalized.Remove(UIProtocol.Prop_SplitterDistance);
 
             // 快照差异判定（唯一路径）：目标快照 vs 上次 AppliedSnapshot，无快照（新控件/首渲）→ 全量。
-            var changed = GetSnapshotChanged(entity, desc, control, props);
+            var changed = _appliedSnapshots.TryGet(entity, out var last)
+                ? PropertyComparer.GetChangedProperties(last, normalized)
+                : new Dictionary<string, object?>(normalized);
 
             if (changed.Count == 0)
                 continue;
 
-            // R3·布局真源收敛（SingleImplementation）：ECS 布局托管实体（proportional / dock·anchor 原生意图）
-            // 的像素 Bounds 不再由内容 Apply 写入——物理 Bounds 唯一由 LayoutProjector（纯 ECS 父原点）在挂载后投影。
-            // 消除「内容 Apply 在 root 未挂宿主时经物理父链 ToParentRelative 换算 → 把 ECS 全局坐标当父相对 → 多重偏移」缺陷。
-            // dock/anchor 由原生布局引擎接管（Dock/Anchor 属性仍由属性投影设置），两者均不依赖本处像素 Bounds。
-            if (_entityManager != null && IsEcsLayoutManaged(entity))
-                StripBoundsKeys(changed);
-
-            // E3·SplitterRatio 双写消除：含 SplitterRatioComponent 的 splitcontainer，其 SplitterDistance 物理属性
-            // 唯一由 LayoutProjector 按比例投影（SplitterMath 单一权威），内容 Apply 不再写该键，
-            // 否则同一物理属性存在两个写入源 → 快照差异判定（AppliedSnapshot）与实际物理值漂移。
-            if (_entityManager != null && _entityManager.HasComponent<SplitterRatioComponent>(entity))
-                changed.Remove(UIProtocol.Prop_SplitterDistance);
-
             ApplyPropertiesFromDict(control, changed, entity);
             result.UpdatedCount++;
 
-            // R1：应用成功后回写目标快照（归一化产物，ECS form 相对基准）——只写实际应用过的属性集。
-            _appliedSnapshots.Set(entity, NormalizeSnapshot(desc, control, props));
+            // R1：回写基线必须是「实际目标快照」减去未应用键后的同一份归一化产物，
+            // 不得把未经 StripCoordinates/SplitterDistance 豁免的全量快照写回 —— 否则未应用属性进入基线，
+            // 后续差异恒为空、物理值不再更新（E-04①）。
+            _appliedSnapshots.Set(entity, normalized);
         }
     }
 
@@ -238,30 +259,6 @@ public sealed class WinFormApplier
     private bool IsEcsLayoutManaged(Entity entity)
         => _entityManager!.HasComponent<ProportionalLayoutComponent>(entity)
            || LayoutQuery.IsNativeIntent(_entityManager!, entity);
-
-    /// <summary>移除像素 Bounds 键（Left/Top/Width/Height），使内容 Apply 不写布局托管实体的位置/尺寸。</summary>
-    private static void StripBoundsKeys(Dictionary<string, object?> dict)
-    {
-        dict.Remove(UIProtocol.Prop_Left);
-        dict.Remove(UIProtocol.Prop_Top);
-        dict.Remove(UIProtocol.Prop_Width);
-        dict.Remove(UIProtocol.Prop_Height);
-    }
-
-    /// <summary>快照驱动差异判定（唯一路径）：目标快照 vs 上次 AppliedSnapshot，无快照（新控件/首渲）→ 全量。</summary>
-    private Dictionary<string, object?> GetSnapshotChanged(
-        Entity entity,
-        ControlDescriptor desc,
-        Control control,
-        Dictionary<string, object?> target)
-    {
-        var normalized = NormalizeSnapshot(desc, control, target);
-
-        if (_appliedSnapshots.TryGet(entity, out var last))
-            return PropertyComparer.GetChangedProperties(last, normalized);
-
-        return normalized;
-    }
 
     /// <summary>
     /// R3·快照归一：按投影策略注册表（DockProjector/PlatformConstrainedProjector/默认 PixelProjector）解析策略并归一目标属性集。

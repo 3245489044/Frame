@@ -6,6 +6,7 @@ using FrontEndDriven.Diagnostics;
 using FrontEndDriven.Eventing;
 using FrontEndDriven.Gate;
 using FrontEndDriven.Lifecycle;
+using FrontEndDriven.Pipeline;
 using FrontEndDriven.Validation;
 using Share.StateManagement;
 using TConfig;
@@ -130,8 +131,20 @@ public sealed class ScopeLifecycleAdapter : IScopeLifecycle
         }
 
         // ⑤ UI 线程渲染（EcsGate 原子操作：内部先销毁旧 scope → composition.Execute → ExecuteRenderStage(scope)）
-        var result = await _uiDispatcher.InvokeAsync(
-            () => _gate.LoadConfigAndRenderAsync(config, scope, host)).ConfigureAwait(false);
+        // E-02：宿主关闭时 InvokeAsync 以 ObjectDisposedException 明确失败，此处显式分支落 Failed，
+        // 不再解引用 default! 产生 NRE（也不会被上层误判成功）。
+        RenderRunResult result;
+        try
+        {
+            result = await _uiDispatcher.InvokeAsync(
+                () => _gate.LoadConfigAndRenderAsync(config, scope, host)).ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException ex)
+        {
+            FrontEndDrivenLog.Log("ScopeLifecycleAdapter_render_host_closed",
+                new { scope, configPath, error = ex.Message });
+            return new ScopeLoadResult(scope, false, 0, 0, $"宿主窗口已关闭，无法在 UI 线程渲染：{ex.Message}");
+        }
 
         // ⑥ R5 唯一写入点 + M3 双条件：宿主真实收到 root（rootAttached）∧ 内容层控件物理核验挂载（contentMounted）。
         // 仅 root 入宿主不构成挂载成功——内容层可能物理 orphan（如配置误嵌套），必须二者同时满足才 MarkMounted。

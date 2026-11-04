@@ -53,8 +53,9 @@ public sealed class NodeAssemblyEngine : INodeAssemblyEngine
         // ② 合并动态上下文节点（外部已收集；历史/上步产出等）。
         if (dynamicNodes is not null) nodes.AddRange(dynamicNodes);
 
-        // ③ 三段排布（槽位策略注入，默认稳定前缀）。
-        var assembly = NodeBuilder.Build(nodes, policy, maxPerBand);
+        // ③ 三段排布（槽位策略注入，默认稳定前缀）；AlwaysOn 组件不计入每段可选名额（E-11）。
+        var alwaysOnKeys = sel.Selected.Where(c => c.AlwaysOn).Select(c => c.Name).ToArray();
+        var assembly = NodeBuilder.Build(nodes, policy, maxPerBand, alwaysOnKeys);
 
         // ④ 一致工具面：与提示词面同源于同一组命中组件。
         var applied = sel.Selected.Select(c => c.Name).ToArray();

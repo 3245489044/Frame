@@ -8,6 +8,7 @@ using Operation.DataStoreDriven.Core;
 using UniversalWorkflowFramework.Relations;
 using UniversalWorkflowFramework.Relations.Gather.Adapters;
 using Operation.LoopFoldMethod.Reference.Derivation;
+using Operation.LoopFoldMethod.Reference.Model;
 using UniversalWorkflowFramework.Core.Models;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 
@@ -106,6 +107,8 @@ public sealed class NodeRelationGateway
     /// <summary>幂等新增引用边（归属边 → 声明 operation；数据流边 → 图原语；写操作；未装配 store → 抛异常）。</summary>
     public async Task AddReferenceAsync(string sourceType, string sourceId, string targetType, string targetId, string refType, CancellationToken ct = default)
     {
+        RejectOwnershipWriteWithoutPorts(refType);
+
         if (ResolveOwnershipOperation(sourceType, targetType, refType, remove: false) is { } operation)
         {
             var result = await _ports!.Commands.EnsureAsync(
@@ -122,6 +125,8 @@ public sealed class NodeRelationGateway
     /// <summary>删除引用边（归属边 → 声明 operation；数据流边 → 图原语；写操作；未装配 store → 抛异常）。</summary>
     public async Task RemoveReferenceAsync(string sourceType, string sourceId, string targetType, string targetId, string refType, CancellationToken ct = default)
     {
+        RejectOwnershipWriteWithoutPorts(refType);
+
         if (ResolveOwnershipOperation(sourceType, targetType, refType, remove: true) is { } operation)
         {
             var result = await _ports!.Commands.RemoveAsync(
@@ -166,6 +171,23 @@ public sealed class NodeRelationGateway
         // 归属边只能由 [Relation] 声明解析（裸 refType 推导会引入第二套 operation 口径，已删除）。
         return null;
     }
+
+    /// <summary>
+    /// E-04：未装配关系端口时，归属边无法解析 [Relation] 声明 —— 若继续写，会静默绕过归属声明裸写 store。
+    /// 故对已知归属边类 fail-fast；数据流边仍可继续（其写图原语不依赖声明）。
+    /// </summary>
+    private void RejectOwnershipWriteWithoutPorts(string refType)
+    {
+        if (_ports is not null) return;
+        if (!IsOwnershipEdge(refType)) return;
+        throw new InvalidOperationException(
+            $"关系端口（IRelationPorts）未装配：归属边 {refType} 禁止裸写 store（须经 [Relation] 声明 operation）。");
+    }
+
+    /// <summary>已知归属边类（端点由 operation 声明约束；未装配端口时不得裸写）。</summary>
+    private static bool IsOwnershipEdge(string refType)
+        => refType is ReferenceTypes.Owns or ReferenceTypes.SessionOwns
+            or ReferenceTypes.CrossDbLink or ReferenceTypes.HistoryOwnsTask;
 
     /// <summary>未命中归属 operation ⇒ 仅数据流边允许写图原语（禁裸写归属边）。</summary>
     private void EnsureDataflowEdge(string refType)

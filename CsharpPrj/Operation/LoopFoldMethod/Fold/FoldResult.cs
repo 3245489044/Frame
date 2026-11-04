@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Share.TaskStatusPool.Loops;
 
 namespace Operation.LoopFoldMethod.Fold;
 
@@ -27,4 +28,7 @@ public sealed record FoldResult<TState, TVertex>(
     TimeSpan TotalDuration,
 
     /// <summary>截断值（终值 = 折叠如何结束）。</summary>
-    FoldCut Cut);
+    FoldCut Cut,
+
+    /// <summary>失败证据（仅 <see cref="FoldCut.Failed"/> / <see cref="FoldCut.Cancelled"/> 等终态可能非空）；判失败禁从文本推断。</summary>
+    Failure? Failure);

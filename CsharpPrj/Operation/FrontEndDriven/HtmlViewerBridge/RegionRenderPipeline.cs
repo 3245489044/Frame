@@ -170,7 +170,8 @@ public sealed class RegionRenderPipeline<TSnapshot> where TSnapshot : class
         var hasStreams = streams.Count > 0;
         var hasLeaves = leaves is { Count: > 0 };
 
-        if (!hasTrees && !hasStreams && !hasLeaves) return Done(RenderOutput.Skip);
+        // 空计划 ⇒ 无任何写目标，不得推进 baseline（契约：送达且变化才 Commit）。
+        if (!hasTrees && !hasStreams && !hasLeaves) return RenderOutput.Skip;
         if (hasTrees && !hasStreams && !hasLeaves)
             return Done(RenderOutput.Write(UiWritePlan.Trees(trees, interaction, null, traceId, source)));
         if (!hasTrees && hasStreams && !hasLeaves)

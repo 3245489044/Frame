@@ -36,6 +36,8 @@ public sealed class LoopRunner<TState, TResult>
         ArgumentNullException.ThrowIfNull(scope);
 
         var opt = options ?? TerminationOptions.Default;
+        if (opt.MaxRounds <= 0)
+            throw new ArgumentOutOfRangeException(nameof(options), "MaxRounds 须为正（无界循环禁入）。");
         var chain = policy ?? TerminationPolicyChain.Default(opt);
         var stopwatch = Stopwatch.StartNew();
         var rounds = new List<TResult>();
@@ -81,16 +83,17 @@ public sealed class LoopRunner<TState, TResult>
             {
                 var nextState = await next(state, result, t).ConfigureAwait(false);
 
-                var progressed = macroProgressed?.Invoke(nextState) ?? false;
-                if (progressed)
+                // E-07：每轮成功推进后无条件心跳（推进判据只用于 Stagnation，不用于心跳），
+                // 否则 Idle 策略把「从不 Beat」误读成「已空闲」。
+                scope.Beat("round");
+                observer?.OnBeat(scope.ScopeId, "round");
+
+                // 未提供 macro 判据 ⇒ 不启用 Stagnation 判定（不得把「无判据」当作「无进展」）。
+                if (macroProgressed is not null && opt.StagnationLimit > 0)
                 {
-                    noGain = 0;
-                    scope.Beat("round");
-                    observer?.OnBeat(scope.ScopeId, "round");
-                }
-                else if (opt.StagnationLimit > 0)
-                {
-                    noGain = Math.Min(noGain + 1, opt.StagnationLimit);
+                    noGain = macroProgressed(nextState)
+                        ? 0
+                        : Math.Min(noGain + 1, opt.StagnationLimit);
                 }
 
                 var currentFingerprintValue = fingerprint?.Invoke(nextState);
@@ -103,7 +106,7 @@ public sealed class LoopRunner<TState, TResult>
 
                 return nextState;
             },
-            maxRounds: opt.MaxRounds > 0 ? opt.MaxRounds : 1,
+            maxRounds: opt.MaxRounds,
             ct: token,
             externalTerminate: (state, _) =>
             {
@@ -115,26 +118,9 @@ public sealed class LoopRunner<TState, TResult>
             },
             budgetTerminate: state =>
             {
+                // D-04：语义判定统一交策略链（总预算由 BudgetTerminationPolicy 判）；
+                // 轮次硬上限仅作物理兜底，由引擎 maxRounds 承载（到达即 Abort/UNRESOLVED，不伪装成功）。
                 if (verdict.IsTerminal) return verdict.Decision;
-
-                if (opt.MaxRounds > 0 && rounds.Count >= opt.MaxRounds)
-                {
-                    verdict = TerminationVerdict.Terminal(
-                        LoopDecision.Timeout, TerminationReason.BudgetExhausted,
-                        $"轮次达到硬上限 {opt.MaxRounds}");
-                    observer?.OnVerdict(verdict);
-                    return verdict.Decision;
-                }
-
-                if (scope.HasDeadline && scope.Remaining <= TimeSpan.Zero)
-                {
-                    verdict = TerminationVerdict.Terminal(
-                        LoopDecision.Timeout, TerminationReason.BudgetExhausted,
-                        "总预算耗尽（引擎内裁决）");
-                    observer?.OnVerdict(verdict);
-                    return verdict.Decision;
-                }
-
                 return LoopDecision.Continue;
             }).ConfigureAwait(false);
 
@@ -167,15 +153,12 @@ public sealed class LoopRunner<TState, TResult>
         }
         else if (snapshot.TerminatedByBudget)
         {
+            // D-05：理由映射唯一权威在 TerminationReasonMapping（禁止就地再写一套 switch）。
             decision = snapshot.FinalDecision;
-            reason = decision switch
-            {
-                LoopDecision.Success or LoopDecision.Complete => TerminationReason.Completed,
-                LoopDecision.Timeout => TerminationReason.BudgetExhausted,
-                LoopDecision.TripTerminated or LoopDecision.Abort => TerminationReason.Failed,
-                _ => TerminationReason.None,
-            };
-            evidence = null;
+            reason = TerminationReasonMapping.FromLoopDecision(decision);
+            evidence = snapshot.Failure is { } failure
+                ? $"{failure.Code}: {failure.Message}"
+                : null;
         }
         else
         {

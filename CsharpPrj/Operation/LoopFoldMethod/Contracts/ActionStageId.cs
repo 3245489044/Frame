@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Operation.LoopFoldMethod.Contracts;
@@ -52,4 +53,15 @@ public static class SpinalStageOrder
         ActionStageId.Persist,
         ActionStageId.Converge,
     };
+
+    static SpinalStageOrder()
+    {
+        // D-06：数组与枚举值必须严格同序（否则「固定顺序」与按值索引的消费方会静默漂移）。
+        for (var i = 0; i < Fixed.Count; i++)
+        {
+            if ((int)Fixed[i] != i)
+                throw new InvalidOperationException(
+                    $"SpinalStageOrder.Fixed[{i}]={Fixed[i]} 与 ActionStageId 枚举序不一致（固定阶段顺序漂移）。");
+        }
+    }
 }

@@ -97,6 +97,25 @@ namespace Operation.HierarchyMethod.Nodes {
         public static string EncodeBusiness(BusinessNodePayload payload)
             => JsonSerializationService.Instance.Serialize(payload ?? new BusinessNodePayload(), DocJsonOptions);
 
+        /// <summary>
+        /// 载荷是否为业务节点形态（JSON 对象且含 <c>Outputs</c> 键）。
+        /// <para>写回前的形态闸门（ERR-07）：非业务载荷（通用 JSON / 数组 / 标量）不得经 <see cref="DecodeBusiness"/> → 
+        /// <see cref="EncodeBusiness"/> 往返，否则原内容会被替换为空业务载荷。</para>
+        /// </summary>
+        public static bool IsBusinessPayload(string? payloadJson)
+        {
+            if (string.IsNullOrWhiteSpace(payloadJson)) return false;
+            try
+            {
+                return JsonSerializationService.Instance.ParseJsonNode(payloadJson) is JsonObject root
+                       && root.ContainsKey(nameof(BusinessNodePayload.Outputs));
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
         /// <summary>文档 → 载荷 JSON（NodeOutputDoc 独立承载场景，如投影/测试装配）。</summary>
         public static string EncodeDoc(NodeOutputDoc doc)
             => JsonSerializationService.Instance.Serialize(doc, DocJsonOptions);

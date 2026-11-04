@@ -36,7 +36,9 @@ public sealed class RefreshPublisherHost
     private RefreshService? _service;
     private IPagePusher? _pusher;
     private long _deliveredSeq;
-    private long _pushedSeq;
+    // E-21：直接写「已落地」必须按 scope 记账，不能用全局序号 —— 角色 A 的直接写会错误抑制角色 B 的推送。
+    private readonly Dictionary<string, long> _deliveredByScope = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, long> _pushedByScope = new(StringComparer.OrdinalIgnoreCase);
 
     /// <param name="channelResolver">页面通道解析（返回 null = 未挂载 → 零推送）。</param>
     /// <param name="traceFactory">追踪号工厂（缺省刷新框架 <see cref="RefreshTraceId.New"/>）。</param>
@@ -173,16 +175,26 @@ public sealed class RefreshPublisherHost
         // 刷新回桥短路：上一次推送之后已有「直接写已落地」⇒ 页面 DOM 已更新，不再发 update 触发全量重投影。
         if (scopes is { Count: > 0 })
         {
-            long delivered;
-            long pushed;
             lock (_gate)
             {
-                delivered = _deliveredSeq;
-                pushed = _pushedSeq;
-                if (delivered > pushed) _pushedSeq = delivered;
-            }
+                var allCovered = true;
+                foreach (var scope in scopes)
+                {
+                    var delivered = _deliveredByScope.TryGetValue(scope, out var d) ? d : 0;
+                    var pushed = _pushedByScope.TryGetValue(scope, out var p) ? p : 0;
+                    if (delivered > pushed)
+                    {
+                        // 该 scope 自上次推送后已直接写落地：等价于已推送，无需再触发全量重投影。
+                        _pushedByScope[scope] = delivered;
+                    }
+                    else
+                    {
+                        allCovered = false;
+                    }
+                }
 
-            if (delivered > pushed) return true;
+                if (allCovered) return true;
+            }
         }
 
         lock (_gate)
@@ -191,15 +203,24 @@ public sealed class RefreshPublisherHost
         var ok = await _pusher.PushAsync(scopes, ct).ConfigureAwait(false);
         if (ok)
         {
-            lock (_gate) _pushedSeq = _deliveredSeq;
+            lock (_gate)
+            {
+                foreach (var scope in scopes ?? Array.Empty<string>())
+                    _pushedByScope[scope] = _deliveredSeq;
+            }
         }
 
         return ok;
     }
 
-    /// <summary>直接写落地通知（唯一入口 = 写落地 Sink）：推进「已交付」序号。</summary>
-    public void NotifyDelivered()
+    /// <summary>直接写落地通知（唯一入口 = 写落地 Sink）：按 scope 推进「已交付」序号（E-21）。</summary>
+    public void NotifyDelivered(string? scopeKey = null)
     {
-        lock (_gate) _deliveredSeq++;
+        lock (_gate)
+        {
+            _deliveredSeq++;
+            if (!string.IsNullOrEmpty(scopeKey))
+                _deliveredByScope[scopeKey] = _deliveredSeq;
+        }
     }
 }

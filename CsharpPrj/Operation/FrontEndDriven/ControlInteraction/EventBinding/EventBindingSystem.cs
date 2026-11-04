@@ -175,7 +175,10 @@ public class EventBindingSystem
 
         // 物理挂接统一经 EventSubscriptionHelper 分派（D6 收敛）：事件名 → 控件类型映射唯一实现，
         // 与 InputCapturePort 值变更订阅共用，消除两处 switch 重复与实现漂移。
-        if (EventSubscriptionHelper.TrySubscribe(control, eventName, Raise))
+        // E-18：区分三态——消息通道被 plate 桥占用属合法仲裁（绑定保留，路由经 plate 桥），
+        // 不得误报“不支持物理挂接”并丢弃绑定。
+        var outcome = EventSubscriptionHelper.TrySubscribeDetailed(control, eventName, Raise);
+        if (outcome is SubscriptionOutcome.Subscribed or SubscriptionOutcome.ChannelOccupied)
             return true;
 
         errors.Add($"事件 '{eventName}' 不支持物理挂接（控件类型 {control.GetType().Name}）");

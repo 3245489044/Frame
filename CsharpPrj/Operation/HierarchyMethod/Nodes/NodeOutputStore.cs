@@ -45,7 +45,7 @@ namespace Operation.HierarchyMethod.Nodes {
             ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
             ArgumentException.ThrowIfNullOrWhiteSpace(port);
             if (value is null) return;
-            var (existing, payload, doc) = await LoadForWriteAsync(nodeKey, ct).ConfigureAwait(false);
+            var (existing, payload, doc) = await LoadForWriteAsync(workflowId, nodeKey, ct).ConfigureAwait(false);
             doc.Ports[port] = NodeOutputCodec.EncodeValue(value);
             doc.Visibility = visibility.ToString();
             await PutBusinessAsync(workflowId, nodeKey, existing, payload, ct).ConfigureAwait(false);
@@ -55,7 +55,7 @@ namespace Operation.HierarchyMethod.Nodes {
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
             if (string.IsNullOrWhiteSpace(inputDigest)) return;
-            var (existing, payload, doc) = await LoadForWriteAsync(nodeKey, ct).ConfigureAwait(false);
+            var (existing, payload, doc) = await LoadForWriteAsync(workflowId, nodeKey, ct).ConfigureAwait(false);
             doc.InputDigest = inputDigest;
             await PutBusinessAsync(workflowId, nodeKey, existing, payload, ct).ConfigureAwait(false);
         }
@@ -69,7 +69,11 @@ namespace Operation.HierarchyMethod.Nodes {
             if (rec == null && NodeInstanceRef.IsInstanceStorageKey(nodeKey))
                 rec = await _nodes.GetAsync(NodeInstanceRef.StripInstance(nodeKey), ct).ConfigureAwait(false);
             if (rec == null) return null;
-            return BuildOutput(wf, nodeKey, Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(rec.Payload));
+            // ERR-04：ur_nodes 物理主键为裸 nodeKey，读路径必须以 ThreadId 复核归属；命中他域同名键 ⇒ 视为不存在。
+            // 所有者取记录自述 ThreadId（禁止用请求方身份回填，避免「读 A 得 B 数据却标注为 A」）；ThreadId 空 = 存量未标注，按请求域读。
+            if (!BelongsTo(rec, wf)) return null;
+            var ownerWf = string.IsNullOrEmpty(rec.ThreadId) ? wf : rec.ThreadId;
+            return BuildOutput(ownerWf, nodeKey, Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(rec.Payload));
         }
 
         /// <summary>按节点实例身份读取（存储键 = <see cref="NodeInstanceRef.ToStorageKey"/>；回退语义同上）。</summary>
@@ -152,7 +156,7 @@ namespace Operation.HierarchyMethod.Nodes {
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(nodeKey);
             ArgumentNullException.ThrowIfNull(signal);
-            var (existing, payload, doc) = await LoadForWriteAsync(nodeKey, ct).ConfigureAwait(false);
+            var (existing, payload, doc) = await LoadForWriteAsync(workflowId, nodeKey, ct).ConfigureAwait(false);
             doc.Module = signal.Module;
             doc.Region = signal.Region;
             doc.NodeType = signal.NodeType;
@@ -194,10 +198,17 @@ namespace Operation.HierarchyMethod.Nodes {
             return limit >= 0 ? ranked.Take(limit).ToList() : ranked;
         }
 
-        // 业务节点主键为裸 nodeKey（输出并入业务节点后不含 workflowId 命名空间），故 workflowId 不参与删除目标；
-        // 参数保留以对齐 INodeOutputStore 契约（工作流作用域清理由 ClearWorkflowAsync 承担）。
-        public Task ClearNodeAsync(string workflowId, string nodeKey, CancellationToken ct = default)
-            => _nodes.DeleteAsync(nodeKey, ct);
+        /// <summary>
+        /// 按 (ThreadId, 裸 nodeKey) 双条件清理（ERR-04/ERR-08）：物理主键为裸 nodeKey，直接按键删除会误删他域同名节点；
+        /// 故先读归属，命中他域即跳过（视为不存在）。工作流级清理由 <see cref="ClearWorkflowAsync"/> 承担。
+        /// </summary>
+        public async Task ClearNodeAsync(string workflowId, string nodeKey, CancellationToken ct = default)
+        {
+            var wf = NormalizeWf(workflowId);
+            var rec = await _nodes.GetAsync(nodeKey, ct).ConfigureAwait(false);
+            if (rec is null || !BelongsTo(rec, wf)) return;
+            await _nodes.DeleteAsync(nodeKey, ct).ConfigureAwait(false);
+        }
 
         public async Task ClearWorkflowAsync(string workflowId, CancellationToken ct = default)
         {
@@ -235,13 +246,23 @@ namespace Operation.HierarchyMethod.Nodes {
         }
 
         /// <summary>读业务节点并按需初始化输出文档（写侧读-改-写共用入口；existing 供 PutBusinessAsync 保留 Status/RelationsJson）。</summary>
-        private async Task<(NodeRecord? Existing, BusinessNodePayload Payload, NodeOutputDoc Doc)> LoadForWriteAsync(string nodeKey, CancellationToken ct)
+        /// <exception cref="InvalidOperationException">节点键已被他域工作流占用（ERR-04：裸键物理主键无法同键双属，fail-fast 而非静默覆写）。</exception>
+        private async Task<(NodeRecord? Existing, BusinessNodePayload Payload, NodeOutputDoc Doc)> LoadForWriteAsync(
+            string workflowId, string nodeKey, CancellationToken ct)
         {
+            var wf = NormalizeWf(workflowId);
             var existing = await _nodes.GetAsync(nodeKey, ct).ConfigureAwait(false);
+            if (existing is not null && !BelongsTo(existing, wf))
+                throw new InvalidOperationException(
+                    $"节点键 '{nodeKey}' 已归属工作流 '{existing.ThreadId}'，拒绝以 '{wf}' 覆写（ur_nodes 物理主键为裸 nodeKey；跨域隔离需统一键协议后收口，见 ERR-04）。");
             var payload = existing != null ? NodeOutputCodec.DecodeBusiness(Plate.DslMethod.Usharp.UsharpValueJson.ToPayloadText(existing.Payload)) : new BusinessNodePayload();
             payload.Outputs ??= new NodeOutputDoc();
             return (existing, payload, payload.Outputs);
         }
+
+        /// <summary>记录归属域校验（ERR-04）：ThreadId 为空视为存量未标注（归属不可证，按请求域读/写/删）。</summary>
+        private static bool BelongsTo(NodeRecord rec, string wf)
+            => string.IsNullOrEmpty(rec.ThreadId) || string.Equals(rec.ThreadId, wf, StringComparison.Ordinal);
 
         /// <summary>写回业务节点载荷（NodeType=node、裸键；保留既有 Status/RelationsJson，与 PersistNodeReferencesAsync 写标识/关系互不覆盖）。</summary>
         private Task PutBusinessAsync(string workflowId, string nodeKey, NodeRecord? existing, BusinessNodePayload payload, CancellationToken ct)

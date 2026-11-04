@@ -24,6 +24,7 @@ public sealed class FoldTrace<TState>
     /// <summary>追加一个状态点（只增带，不覆盖既有）。</summary>
     public void Append(TState state) => _states.Add(state);
 
-    /// <summary>只读快照（供折叠头投影 / 观测 / 消费方读取）。</summary>
-    public IReadOnlyList<TState> AsReadOnly() => _states;
+    /// <summary>只读快照（供折叠头投影 / 观测 / 消费方读取）。返回独立副本，调用方无法看到后续追加，
+    /// 也无法把视图强转为可变集合改写内部带（信息只增不回写）。</summary>
+    public IReadOnlyList<TState> AsReadOnly() => System.Array.AsReadOnly(_states.ToArray());
 }

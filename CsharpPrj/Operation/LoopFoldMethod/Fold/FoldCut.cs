@@ -1,14 +1,12 @@
 namespace Operation.LoopFoldMethod.Fold;
 
 /// <summary>
-/// 折叠截断值（FoldCut ∈ { Continue, Success, BudgetExhausted, TripTerminated, Cancelled }）。
-/// 终值（Success/BudgetExhausted/TripTerminated/Cancelled）由折叠器强制停止展开；
+/// 折叠截断值（FoldCut ∈ { Continue, Success, BudgetExhausted, TripTerminated, Cancelled, Failed }）。
+/// 终值（Success/BudgetExhausted/TripTerminated/Cancelled/Failed）由折叠器强制停止展开；
 /// 非终值（Continue）继续。信任反转的执法出口：折叠器不信任外部算子自停，截断由 <see cref="Cutoff.ICutoffPolicy{TState}"/> 裁决。
 /// </summary>
 public enum FoldCut
 {
-    None,
-
     /// <summary>继续展开（非终值）。</summary>
     Continue,
 
@@ -23,4 +21,7 @@ public enum FoldCut
 
     /// <summary>取消 —— <see cref="System.Threading.CancellationToken"/> 触发。</summary>
     Cancelled,
+
+    /// <summary>失败终止 —— 引擎终态为 Abort（未收敛/不可继续），携带 <see cref="FoldResult{TState,TVertex}.Failure"/> 证据。</summary>
+    Failed,
 }

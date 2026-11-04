@@ -14,7 +14,12 @@ public sealed record ComponentToolFace(
     IReadOnlyList<ComponentToolSpec> Tools,
     IReadOnlyDictionary<string, string> ExecutorBindings)
 {
-    /// <summary>空工具面（无命中工具 / 无执行端绑定）。</summary>
+    /// <summary>
+    /// 空工具面（无命中工具 / 无执行端绑定）。
+    /// 静态共享实例 ⇒ 绑定表必须是只读包装（内部可变字典会被任一使用方强转后污染全局空面）。
+    /// </summary>
     public static readonly ComponentToolFace Empty =
-        new(System.Array.Empty<ComponentToolSpec>(), new Dictionary<string, string>());
+        new(
+            System.Array.Empty<ComponentToolSpec>(),
+            new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>()));
 }

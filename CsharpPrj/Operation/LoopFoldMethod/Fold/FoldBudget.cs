@@ -11,4 +11,10 @@ public sealed record FoldBudget(int MaxCoordinate)
 
     /// <summary>是否已达坐标上限（预算耗尽）。坐标 = 已完成的展开步数。</summary>
     public bool Exhausted(int coordinate) => coordinate >= MaxCoordinate;
+
+    /// <summary>
+    /// 预算截断值的唯一判定点（D-02）：各截断策略不得各自重写「耗尽/继续」三元。
+    /// </summary>
+    public FoldCut Decide(int coordinate)
+        => Exhausted(coordinate) ? FoldCut.BudgetExhausted : FoldCut.Continue;
 }

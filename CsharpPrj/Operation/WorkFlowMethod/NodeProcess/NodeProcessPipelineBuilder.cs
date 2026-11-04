@@ -34,6 +34,12 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
 {
     public class NodeProcessPipelineBuilder
     {
+        /// <summary>节点执行阶段注册名（未启用错误处理）。</summary>
+        public const string NodeExecutionStageName = "NodeExecution";
+
+        /// <summary>节点执行阶段注册名（启用错误处理时由 TryCatch 包装）。</summary>
+        public const string NodeExecutionTryCatchStageName = "NodeExecution.TryCatch";
+
         private readonly StagePipeline<WfPipelineContext> _pipeline;
         private INodeOutputStore? _outputStore;
         private NodePersistCoordinator? _persistCoordinator;
@@ -97,7 +103,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
             {
                 // P0-5：异步路径直达 asyncWithCtx，禁止在 stage action 内 GetAwaiter().GetResult()（SyncContext 死锁风险）。
                 var stagePipeline = PipelineUsage.CreateWithContext<WfPipelineContext, WfPipelineContext>(
-                    name: "NodeExecution",
+                    name: NodeExecutionStageName,
                     syncWithCtx: (_, _) => throw new NotSupportedException(
                         "NodeExecution 仅支持异步管线执行（请使用 ExecuteAsync）。"),
                     asyncWithCtx: async (ctx, pipelineCtx) =>
@@ -112,7 +118,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
                     fallbackPipeline: null,
                     onError: ex => WorkFlowMethodLog.Log("NodeProcessPipelineBuilder_NodeExecution_error",
                         new { error = ex.Message }),
-                    name: "NodeExecution.TryCatch");
+                    name: NodeExecutionTryCatchStageName);
 
                 _pipeline.Register(new PipelineToStageAdapter(tryCatchPipeline));
             }
@@ -139,23 +145,23 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
                 asyncWithCtx: async (ctx, pipelineCtx) =>
                 {
                     var skeletonCtx = new SkeletonContext();
-                    await stepSkeleton.ExecuteAsync(ctx, skeletonCtx).ConfigureAwait(false);
+                    var stepResult = await stepSkeleton.ExecuteAsync(ctx, skeletonCtx).ConfigureAwait(false);
 
                     // 节点即存储单元：注入 store 时，单节点执行后持久化当前节点产出端口（未注入 → 零回归）
                     if (_outputStore != null)
                     {
                         await NodeOutputPersistStage.PersistAsync(
-                                ctx, _outputStore, pipelineCtx.CancellationToken, _persistCoordinator)
+                                stepResult, _outputStore, pipelineCtx.CancellationToken, _persistCoordinator)
                             .ConfigureAwait(false);
 
                         // S4 入参读源：将刚持久化的当前节点输出端口水化进参数解析器，
                         // 使下游节点经 MergeParameters 可按 {port} 或 {nodeKey}.{port} 取用。
                         await NodeParameterHydrator.HydrateCurrentNodeAsync(
-                                ctx, _outputStore, pipelineCtx.CancellationToken)
+                                stepResult, _outputStore, pipelineCtx.CancellationToken)
                             .ConfigureAwait(false);
                     }
 
-                    return ctx;
+                    return stepResult;
                 });
 
             var loopPipeline = PipelineUsage.Loop<WfPipelineContext>(
@@ -164,7 +170,13 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
                     if (string.IsNullOrEmpty(ctx.CurrentNodeKey))
                         return false;
 
-                    var executionStageResult = ctx.GetStageSuccess("NodeExecution");
+                    if (ctx.GetData<bool>("NodeLoop.StopRequested"))
+                        return false;
+
+                    // ERR-02：按实际注册的阶段名记账（错误处理开启时为 TryCatch 包装名）。
+                    var executionStageResult =
+                        ctx.GetStageSuccess(NodeExecutionTryCatchStageName) ||
+                        ctx.GetStageSuccess(NodeExecutionStageName);
                     if (!executionStageResult)
                     {
                         var snapshot = ctx.GetGraphSnapshot<GraphSnapshot<string, NodeConfig, object>>();
@@ -180,6 +192,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess
                         }
                     }
 
+                    // ERR-01：轮次由 NodeExecutionStepSkeleton 写入，保护不再恒不触发。
                     var loopCount = ctx.GetData<int>("NodeLoop.IterationCount");
                     if (loopCount >= maxIterations)
                     {

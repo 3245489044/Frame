@@ -14,8 +14,11 @@ public sealed class NodeComponentRegistry : INodeComponentRegistry
     private readonly object _gate = new();
     private readonly Dictionary<string, NodeComponent> _byName;
 
-    /// <summary>共享空实例（可作占位/测试初始态）。</summary>
-    public static readonly NodeComponentRegistry Empty = new();
+    /// <summary>
+    /// 空注册表（每次访问返回**新实例**，可作占位/测试初始态）。
+    /// E-14：不得共享同一个可变实例，否则任一使用方的 Register 会污染其他使用方。
+    /// </summary>
+    public static NodeComponentRegistry Empty => new();
 
     /// <summary>新建空注册表。</summary>
     public NodeComponentRegistry()
@@ -60,7 +63,7 @@ public sealed class NodeComponentRegistry : INodeComponentRegistry
     /// <param name="goal">任务目标（关键词匹配文本）。</param>
     /// <param name="userInput">用户输入（关键词匹配文本）。</param>
     /// <param name="scopeId">作用域键（如 stepKey/taskKey，关键词匹配文本）。</param>
-    /// <param name="maxAuto">关键词自动补足上限（&lt;=0 = 关闭自动匹配，等价于点名 + AlwaysOn）。</param>
+    /// <param name="maxAuto">本次装配总名额（含 AlwaysOn 与点名；&lt;=0 = 关闭自动匹配，等价于点名 + AlwaysOn）。</param>
     public ComponentSelection ResolveWithContext(
         IReadOnlyCollection<string>? requestedNames,
         string? goal, string? userInput, string? scopeId, int maxAuto)
@@ -89,8 +92,10 @@ public sealed class NodeComponentRegistry : INodeComponentRegistry
                 }
             }
 
-            // 关键词自动补足剩余名额（autoPool = 非 AlwaysOn 且非 OnDemand）。
-            if (maxAuto > 0)
+            // 关键词自动补足「剩余名额」（autoPool = 非 AlwaysOn 且非 OnDemand）。
+            // E-15：maxAuto 是总名额，须扣除 AlwaysOn + 点名已占用的名额，否则实际入选会变成 maxAuto（超编）。
+            var remaining = Math.Max(0, maxAuto - selected.Count);
+            if (remaining > 0)
             {
                 var text = Concat(goal, userInput, scopeId).ToLowerInvariant();
                 foreach (var c in _byName.Values
@@ -99,7 +104,7 @@ public sealed class NodeComponentRegistry : INodeComponentRegistry
                              .Where(x => x.Score > 0)
                              .OrderByDescending(x => x.Score)
                              .ThenBy(x => x.C.Name, StringComparer.OrdinalIgnoreCase)
-                             .Take(maxAuto))
+                             .Take(remaining))
                 {
                     if (seen.Add(c.C.Name)) selected.Add(c.C);
                 }
@@ -132,32 +137,10 @@ public sealed class NodeComponentRegistry : INodeComponentRegistry
         => keyword.Length > 0 && text.Contains(keyword.ToLowerInvariant(), StringComparison.Ordinal);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// D-01：与 <see cref="ResolveWithContext"/> 共用唯一选择核心（maxAuto=0 即「点名 + AlwaysOn」），
+    /// 不再维护第二份等价投影（两份实现曾在去重/Unmet 口径上分叉）。
+    /// </remarks>
     public ComponentSelection ResolveSelected(IReadOnlyCollection<string>? requestedNames)
-    {
-        List<NodeComponent> selected;
-        List<string> unmet;
-        lock (_gate)
-        {
-            selected = _byName.Values
-                .Where(c => c.AlwaysOn)
-                .OrderBy(c => c.Order)
-                .ToList();
-            unmet = new List<string>();
-
-            if (requestedNames is not null)
-            {
-                var added = new HashSet<string>(selected.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
-                foreach (var name in requestedNames)
-                {
-                    if (string.IsNullOrWhiteSpace(name)) continue;
-                    if (_byName.TryGetValue(name, out var comp))
-                    {
-                        if (added.Add(comp.Name)) selected.Add(comp);
-                    }
-                    else unmet.Add(name);
-                }
-            }
-        }
-        return new ComponentSelection(selected, unmet);
-    }
+        => ResolveWithContext(requestedNames, goal: null, userInput: null, scopeId: null, maxAuto: 0);
 }

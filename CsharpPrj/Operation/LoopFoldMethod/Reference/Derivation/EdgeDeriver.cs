@@ -29,9 +29,15 @@ public static class EdgeDeriver
     public static (IReadOnlyList<string> Keys, IReadOnlyList<ReferenceEdge> Edges) DeriveParts(
         string workflowId, IReadOnlyList<string> stepNodeKeys)
     {
-        if (string.IsNullOrWhiteSpace(workflowId) || stepNodeKeys is not { Count: > 0 })
+        // E-12：两条件语义不同，不得合并短路 —— 步骤键的提取不依赖 workflowId；
+        // 仅「控制流边」需要 workflowId（无 Id 时边无法成立，返回空边但键照常可用）。
+        if (stepNodeKeys is not { Count: > 0 })
             return (Array.Empty<string>(), Array.Empty<ReferenceEdge>());
+
         var keys = stepNodeKeys.ToList();
+        if (string.IsNullOrWhiteSpace(workflowId))
+            return (keys, Array.Empty<ReferenceEdge>());
+
         return (keys, DeriveWorkflowControlFlowEdges(workflowId, keys));
     }
 

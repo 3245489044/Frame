@@ -12,7 +12,7 @@ namespace Operation.LoopFoldMethod.Node.Project;
 /// 稳定前缀缓存策略载体：Head（L0 基础，稳定）→ system；Body（动态步骤）→ 首条 user；Tail（skill，多变）→ 末条 user。
 /// </summary>
 /// <param name="System">系统提示（头部稳定前缀，如 L0 底座）。</param>
-/// <param name="UserContents">有序 user 消息（中部动态 + 尾部技能；空串段被剔除）。</param>
+/// <param name="UserContents">有序 user 消息（中部动态 + 尾部技能；组内空串段<b>保真保留</b>，仅纯空白组整体丢弃）。</param>
 public sealed record PromptLayeredResult(string System, IReadOnlyList<string> UserContents);
 
 /// <summary>
@@ -66,8 +66,7 @@ public sealed class PromptNodeProjector : INodeProjector<PromptLayeredResult>
     {
         for (var i = 0; i < band.Count; i++)
         {
-            var payload = band[i].Payload;
-            if (payload is null) continue;
+            var payload = band[i].Payload; // NodeItem.Payload 非空（契约），不需要 null 守卫（E-23 死判定）
             var key = new TextKey($"{group}:{i}");
             var text = payload.ToString();
             specs.Add(TextSpec.Always(key, group, new OrderKey(i), _ => TextBlock.Filled(key, text)));

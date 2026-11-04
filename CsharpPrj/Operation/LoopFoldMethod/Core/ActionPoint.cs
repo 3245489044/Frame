@@ -52,7 +52,12 @@ public sealed class ActionPoint<TState>
         // 有界守卫归一（A₀）：单次 HandleAsync 的有界执行上收 Modules.Threading.Bounded（BoundedExecution——
         // 协作取消 + 自身预算耗尽抛强类型 BoundedTimeoutException，外层取消一律上抛 OCE 不误报超时）。
         // 终止作用域存在时其令牌并入外部取消面（父预算/强制退出可贯穿到本级）。
-        var external = MergeCancellation(ct, Scope?.Token ?? default);
+        // E-06：链接令牌的生命周期绑定本次调用（using），不把未释放的 CTS 交给调用方持有。
+        using var linked = ct.CanBeCanceled && Scope?.Token.CanBeCanceled == true
+            ? CancellationTokenSource.CreateLinkedTokenSource(ct, Scope!.Token)
+            : null;
+        var external = linked?.Token
+            ?? (ct.CanBeCanceled ? ct : Scope?.Token ?? default);
         HandlerOutcome<TState> outcome;
         LoopDecision? yield;
         if (Timeout > TimeSpan.Zero && Timeout != System.Threading.Timeout.InfiniteTimeSpan)
@@ -78,12 +83,5 @@ public sealed class ActionPoint<TState>
             yield = handler.MayYield(out var decision) ? decision : null;
         }
         return (outcome, yield);
-    }
-
-    private static CancellationToken MergeCancellation(CancellationToken primary, CancellationToken secondary)
-    {
-        if (!secondary.CanBeCanceled) return primary;
-        if (!primary.CanBeCanceled) return secondary;
-        return CancellationTokenSource.CreateLinkedTokenSource(primary, secondary).Token;
     }
 }

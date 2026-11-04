@@ -159,50 +159,22 @@ public sealed class TaskReferenceGrounding
         return result.Keys;
     }
 
-    /// <summary>批量 task 节点键集（一次图枚举 + 按 task 分组；消 N+1）。</summary>
+    /// <summary>批量 task 节点键集（单源 = [Derive] TaskNodes；逐作用域求值，禁本类手写图投影）。</summary>
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetMemberNodeKeysManyAsync(
         IReadOnlyCollection<string> taskKeys, string workflowId, CancellationToken ct = default)
     {
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
-        var tasks = (taskKeys ?? Array.Empty<string>())
-            .Where(static key => !string.IsNullOrWhiteSpace(key))
-            .Select(static key => key.Trim())
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        if (tasks.Count == 0) return result;
+        if (taskKeys is null) return result;
 
-        var resources = tasks
-            .Select(key => new ResourceIdentifier
-            {
-                ResourceType = NodeResourceTypes.Task,
-                Id = key,
-            })
-            .ToList();
-        var refsByKey = await _graph
-            .GetReferencesManyAsync(resources, includeIncoming: false, ct)
-            .ConfigureAwait(false);
-
-        foreach (var taskKey in tasks)
+        foreach (var taskKey in taskKeys
+                     .Where(static key => !string.IsNullOrWhiteSpace(key))
+                     .Select(static key => key.Trim())
+                     .Distinct(StringComparer.Ordinal))
         {
-            var resource = new ResourceIdentifier { ResourceType = NodeResourceTypes.Task, Id = taskKey };
-            if (!refsByKey.TryGetValue(_graph.Keys.Endpoint(resource), out var refs))
-            {
-                result[taskKey] = Array.Empty<string>();
-                continue;
-            }
-
-            var targets = GraphEdgeWriter.ProjectOutgoingTargetIds(
-                refs, CrossDbReferenceTypes.CrossDbLink, static r => r.RefType, static r => r.Target?.Id);
-            var keys = new List<string>(targets.Count);
-            foreach (var id in targets)
-            {
-                if (HierarchyResourceKeys.TryParseNodeKey(id, workflowId, out var nodeKey))
-                {
-                    keys.Add(nodeKey);
-                }
-            }
-
-            result[taskKey] = keys.Distinct(StringComparer.Ordinal).ToList();
+            var derived = await _relations
+                .DeriveTaskNodesAsync(taskKey, workflowId, ct)
+                .ConfigureAwait(false);
+            result[taskKey] = derived.Keys;
         }
 
         return result;

@@ -93,38 +93,22 @@ public sealed class ContainerReferenceGrounding
         return result.Keys;
     }
 
-    /// <summary>批量成员集（一次持锁读多个历史出边）。</summary>
+    /// <summary>批量成员集（单源 = [Derive] HistoryTasks；逐作用域求值，禁本类手写图投影）。</summary>
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetHistoryTasksManyAsync(
         IReadOnlyCollection<string> historyIds, CancellationToken ct)
     {
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         if (historyIds is null) return result;
-        var ids = historyIds
-            .Where(static id => !string.IsNullOrWhiteSpace(id))
-            .Select(static id => id.Trim())
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        if (ids.Count == 0) return result;
 
-        var resources = ids
-            .Select(id => (ContainerId: id, Resource: new ResourceIdentifier
-            {
-                ResourceType = NodeResourceTypes.History,
-                Id = HistoryNodeId(id),
-            }))
-            .ToList();
-        var refsByKey = await _graph
-            .GetReferencesManyAsync(resources.Select(static r => r.Resource).ToList(), includeIncoming: false, ct)
-            .ConfigureAwait(false);
-
-        foreach (var (historyId, resource) in resources)
+        foreach (var id in historyIds
+                     .Where(static id => !string.IsNullOrWhiteSpace(id))
+                     .Select(static id => id.Trim())
+                     .Distinct(StringComparer.Ordinal))
         {
-            if (refsByKey.TryGetValue(_graph.Keys.Endpoint(resource), out var refs))
-                result[historyId] = GraphEdgeWriter.ProjectOutgoingTargetIds(
-                    refs, CrossDbReferenceTypes.HistoryOwnsTask, static r => r.RefType, static r => r.Target?.Id);
-            else
-                result[historyId] = Array.Empty<string>();
+            var derived = await _relations.DeriveHistoryTasksAsync(id, ct).ConfigureAwait(false);
+            result[id] = derived.Keys;
         }
+
         return result;
     }
 
@@ -173,14 +157,29 @@ public sealed class ContainerReferenceGrounding
         return result.Keys;
     }
 
-    /// <summary>历史容器合并（先写后撤，幂等可重跑）。</summary>
+    /// <summary>历史容器合并（move 批量：先挂后撤，补偿事务由维护端口承担；未装配维护端口 ⇒ 逐条兼容）。</summary>
     public async Task<int> MergeHistoriesAsync(string intoHistory, string fromHistory, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(intoHistory) || string.IsNullOrWhiteSpace(fromHistory)) return 0;
         if (string.Equals(intoHistory, fromHistory, StringComparison.Ordinal)) return 0;
 
-        await EnsureHistoryMirrorAsync(intoHistory, ct).ConfigureAwait(false);
         var tasks = await GetHistoryTasksAsync(fromHistory, ct).ConfigureAwait(false);
+        if (tasks.Count == 0) return 0;
+
+        if (_ports.Maintenance is { } maintenance)
+        {
+            var merged = await maintenance.MergeAsync(
+                new RelationMergeRequest(
+                    RelationOperationIds.MountTaskHistory,
+                    tasks,
+                    FromSourceKey: fromHistory,
+                    ToSourceKey: intoHistory),
+                ct).ConfigureAwait(false);
+            RelationResultGuard.ThrowIfFailed(merged);
+            return merged.Written;
+        }
+
+        await EnsureHistoryMirrorAsync(intoHistory, ct).ConfigureAwait(false);
         var moved = 0;
         foreach (var taskKey in tasks)
         {

@@ -234,6 +234,9 @@ public interface IRelationPorts
 
     /// <summary>关系聚拢点（唯一求值入口）；未装配 ⇒ null（调用方回退端口直连）。</summary>
     IRelationGatherPoint? Gather { get; }
+
+    /// <summary>维护端口（move/merge/gc 与创建同源）；未装配 ⇒ null（调用方回退逐条写）。</summary>
+    IRelationMaintenancePort? Maintenance => null;
 }
 
 /// <summary>端口租约提供者：通用编排门面从既有 grounding 句柄取端口（免新增装配点）。</summary>

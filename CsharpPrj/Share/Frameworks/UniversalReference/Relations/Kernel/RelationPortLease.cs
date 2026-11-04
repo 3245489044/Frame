@@ -12,6 +12,7 @@ public sealed class RelationPortLease : IRelationPorts
     private IRelationQueryPort? _queries;
     private IRelationOperationResolver? _operations;
     private IRelationGatherPoint? _gather;
+    private IRelationMaintenancePort? _maintenance;
 
     /// <summary>三件是否已全部装配。</summary>
     public bool IsAttached
@@ -25,6 +26,13 @@ public sealed class RelationPortLease : IRelationPorts
 
     /// <summary>聚拢点（可空：未装配则调用方回退端口直连；装配后为唯一求值入口）。</summary>
     public IRelationGatherPoint? Gather => _gather;
+
+    /// <summary>维护端口（可空：未装配则调用方回退逐条写）。</summary>
+    public IRelationMaintenancePort? Maintenance => _maintenance;
+
+    /// <summary>装配维护端口（唯一装配点 = AgentStorageBundle；与命令端口同一 kernel 实例）。</summary>
+    public void AttachMaintenance(IRelationMaintenancePort maintenance)
+        => _maintenance = maintenance ?? throw new ArgumentNullException(nameof(maintenance));
 
     /// <summary>装配聚拢点（唯一维护面；缺省即回退端口直连，兼容旧测试夹具）。</summary>
     public void AttachGather(IRelationGatherPoint gather)

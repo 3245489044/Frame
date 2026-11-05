@@ -2448,8 +2448,41 @@
         Args    = @{ Check = $true }
         Tier    = 'fast'
         Expect  = 0
-        Carrier = 'EnableMent\*.bat 文本结构'
-        Note    = 'P1 入口数正对照 / P2 禁直呼 Launcher.exe 与 ps1 / P3 必须引用 Invoke-Frame.ps1（唯一入口）'
+        Carrier = 'EnableMent\*.bat 文本结构（去注释有效行数 + 禁用 token 集）'
+        Note    = 'K1 入口零逻辑：有效行 ≤ 基线、禁 if/set/pause/chcp/call/for、须引用唯一入口并显式声明 -Product'
+    }
+
+    LaunchContract = @{
+        Domain  = 'Meta'
+        Family  = 'Launch'
+        Form    = 'SingleSource'
+        Args    = @{ Check = $true }
+        Tier    = 'fast'
+        Expect  = 0
+        Carrier = 'Launchers\*.launch.psd1 表项 + EnableMent\*.bat 集合（双向覆盖）'
+        Note    = 'K2 契约完备：每产品恰一份契约、字段完备、Entries 与入口双向映射、禁装载面路径字面'
+    }
+
+    LaunchExitCodes = @{
+        Domain  = 'Meta'
+        Family  = 'Launch'
+        Form    = 'Consistency'
+        Args    = @{ Check = $true }
+        Tier    = 'fast'
+        Expect  = 0
+        Carrier = '契约 ExitCodes 表 × 执行体常量退出点（源码静态计数）'
+        Note    = 'K3 退出码可证：禁常量 exit 0；常量码 ⊆ 契约码；契约非零码 ⊆ 常量码；须有 WaitForExit + 进程退出码返回'
+    }
+
+    LaunchTrace = @{
+        Domain  = 'Meta'
+        Family  = 'Launch'
+        Form    = 'Consistency'
+        Args    = @{ Check = $true }
+        Tier    = 'fast'
+        Expect  = 0
+        Carrier = '契约 Trace 表 + 实跑 --diagnose 新增日志内容标记'
+        Note    = 'K4 失败可复算：Trace.Dir/Tee/KeepDays 在册，诊断实跑必落日志且含契约哈希/阶段/判定证据'
     }
 
 }

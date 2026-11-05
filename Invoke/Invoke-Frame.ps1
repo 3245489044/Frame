@@ -36,7 +36,7 @@ param(
         'search-repo', 'test-jsonfiles', 'invoke-gatecheck',
         'keyspace-check', 'keyspace-verify',
         'invoke-verify', 'invoke-regression', 'locate-test', 'locate-build', 'locate-port', 'locate-failure',
-        'invoke-buildeffective', 'launch',
+        'invoke-buildeffective', 'launch', 'invoke-launch-selftest', 'launch-smoke',
         'invoke-specgen', 'get-spec-chain', 'new-spec-chain', 'use-spec-chain', 'set-spec-chain',
         'remove-spec-chain', 'new-specchains', 'foreach-speccase', 'test-specrefs', 'get-specgenerated',
         'read-agentdb', 'watch-observe', 'state-root-audit', 'task-consistency-audit',
@@ -61,6 +61,12 @@ param(
     [string[]]$Name = @(),
     [string[]]$Key = @(),
     [string]$Configuration = 'Debug',
+
+    # 启动面透传通道（唯一）：bat 的 %* 原样进入 RawArgs，禁再经环境变量中转
+    [string]$Product = '',
+    [string]$EntryId = '',
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$RawArgs = @(),
 
     [string]$Manifest = '',
     [switch]$EmitManifest,

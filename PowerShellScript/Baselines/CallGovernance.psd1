@@ -12,6 +12,10 @@
     # 迁移期默认 shadow：先拿到「有多少次无凭证/无区分力调用」的实测，再翻 enforce。
     Mode = 'shadow'
 
+    # 低风险动作（免票据/免区分力）：产品运行时归一面，不承担「证据采集」职责。
+    # 判据载体 = 动作名表项（结构事实）；新增项须同时说明为何不产生 verifiable 结论。
+    LowRiskActions = @('launch', 'invoke-launch-selftest', 'launch-smoke')
+
     # 无票据是否拒绝（AX.CallAdmissibility I1）；shadow 下仅记 R1 可见化
     RequireTicket = $true
 

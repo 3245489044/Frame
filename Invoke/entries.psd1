@@ -142,11 +142,21 @@
             Fixed = @{ Action = 'locate-port' }
         }
 
-        # ---------- 启动（唯一入口）----------
+        # ---------- 启动（唯一入口：契约驱动执行体）----------
         'launch' = @{
             Kind = 'Ps'
-            Target = '..\PowerShellScript\Share\Launch\Invoke-Launch.ps1'
-            Map = @{ Configuration = 'Configuration' }
+            Target = '..\PowerShellScript\Share\Launch\Invoke-LaunchEntry.ps1'
+            Map = @{ Product = 'Product'; EntryId = 'Entry'; RawArgs = 'RawArgs' }
+        }
+        'invoke-launch-selftest' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Launch\Invoke-LaunchSelfTest.ps1'
+            Map = @{ Product = 'Product'; Json = 'Json' }
+        }
+        'launch-smoke' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Launch\Invoke-LaunchSmoke.ps1'
+            Map = @{ Product = 'Product' }
         }
 
         # ---------- 生效 ----------

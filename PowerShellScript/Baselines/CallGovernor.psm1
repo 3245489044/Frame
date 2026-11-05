@@ -142,11 +142,15 @@ function Resolve-CallAdmissibility {
     }
 
     # R1 票据 + 区分力（写不出「结果A⇒H1 / 结果B⇒H2」⇒ 不该调用）
-    if ($Policy.RequireTicket -and [string]::IsNullOrWhiteSpace($Ticket)) {
-        return New-Verdict $codes.R1 '缺调用票据（须声明 Purpose/ExpectedOutcome/Discriminates/CostClass）' $true
-    }
-    if ($Policy.RequireDiscrimination -and [string]::IsNullOrWhiteSpace($Discriminates)) {
-        return New-Verdict $codes.R1 '缺区分力 Discriminates（结果A⇒H1 / 结果B⇒H2；写不出即不该调用）' $true
+    # 例外：LowRiskActions（产品运行时归一面）不承担证据采集职责 ⇒ 免票据/免区分力（判据载体 = 表项）。
+    $lowRisk = $Policy.ContainsKey('LowRiskActions') -and (@($Policy.LowRiskActions) -contains $Action)
+    if (-not $lowRisk) {
+        if ($Policy.RequireTicket -and [string]::IsNullOrWhiteSpace($Ticket)) {
+            return New-Verdict $codes.R1 '缺调用票据（须声明 Purpose/ExpectedOutcome/Discriminates/CostClass）' $true
+        }
+        if ($Policy.RequireDiscrimination -and [string]::IsNullOrWhiteSpace($Discriminates)) {
+            return New-Verdict $codes.R1 '缺区分力 Discriminates（结果A⇒H1 / 结果B⇒H2；写不出即不该调用）' $true
+        }
     }
 
     # R2 参数契约（未声明参数被静默丢弃 ⇒ 语义静默改变，如 -Switch value 错位）
@@ -155,20 +159,23 @@ function Resolve-CallAdmissibility {
     }
 
     # R4 分账预算（总账不豁免分账）
+    # LowRiskActions 例外：产品运行时归一面不占「证据采集」预算（与 R1 免票口径一致，否则免票是半截的）。
     $class = Get-CallActionClass -Policy $Policy -Action $Action
-    $shellUsed = [int]$Ledger.Doc.counts.shell
-    if ($shellUsed -ge [int]$Policy.Budgets.shell) {
-        return New-Verdict $codes.R4 ("本批 shell 调用已达上限 {0}" -f $Policy.Budgets.shell) $true
-    }
-    if ($class -eq 'verify' -and [int]$Ledger.Doc.counts.verify -ge [int]$Policy.Budgets.verify) {
-        return New-Verdict $codes.R4 ("本批验证调用已达上限 {0}" -f $Policy.Budgets.verify) $true
-    }
-    if ($class -eq 'diagnose' -and [int]$Ledger.Doc.counts.diagnose -ge [int]$Policy.Budgets.diagnose) {
-        return New-Verdict $codes.R4 ("本批诊断调用已达上限 {0}" -f $Policy.Budgets.diagnose) $true
+    if (-not $lowRisk) {
+        $shellUsed = [int]$Ledger.Doc.counts.shell
+        if ($shellUsed -ge [int]$Policy.Budgets.shell) {
+            return New-Verdict $codes.R4 ("本批 shell 调用已达上限 {0}" -f $Policy.Budgets.shell) $true
+        }
+        if ($class -eq 'verify' -and [int]$Ledger.Doc.counts.verify -ge [int]$Policy.Budgets.verify) {
+            return New-Verdict $codes.R4 ("本批验证调用已达上限 {0}" -f $Policy.Budgets.verify) $true
+        }
+        if ($class -eq 'diagnose' -and [int]$Ledger.Doc.counts.diagnose -ge [int]$Policy.Budgets.diagnose) {
+            return New-Verdict $codes.R4 ("本批诊断调用已达上限 {0}" -f $Policy.Budgets.diagnose) $true
+        }
     }
 
     # R5 零增益重复（同区分力 + 同动作 = 命题已判定）
-    if (-not [string]::IsNullOrWhiteSpace($Discriminates)) {
+    if (-not $lowRisk -and -not [string]::IsNullOrWhiteSpace($Discriminates)) {
         foreach ($entry in @($Ledger.Doc.entries)) {
             if ($null -eq $entry) { continue }
             if ([string]$entry.discriminates -eq $Discriminates -and [string]$entry.action -eq $Action) {

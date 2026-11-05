@@ -34,15 +34,27 @@ param(
     [switch]$UpdateStamp,
     [switch]$Invalidate,
     [switch]$Json,
+    # 账本来源：built=构建成功后记账（唯一合法凭证）；adopted=无账本时登记基线（不声明已构建）
+    [ValidateSet('built', 'adopted')]
+    [string]$Origin = 'built',
     # 未跟踪文件纳入 B 判据的上限；超限 ⇒ 判据不可得 ⇒ Build（fail-closed，避免全树哈希）
     [int]$UntrackedHashCap = 200
 )
 
 $ErrorActionPreference = 'Stop'
 
+$script:JsonOnly = [bool]$Json
+
 function Write-Gate {
     param([string]$Text, [string]$Color = 'Gray')
+    if ($script:JsonOnly) { return }
     Write-Host "[BUILD-GATE] $Text" -ForegroundColor $Color
+}
+
+function Write-Detail {
+    param([string]$Text, [string]$Color = 'DarkGray')
+    if ($script:JsonOnly) { return }
+    Write-Host $Text -ForegroundColor $Color
 }
 
 $coreModule = Join-Path $PSScriptRoot '..\..\Modules\Core\ReadProjectConfig.ps1'
@@ -262,6 +274,7 @@ if ($UpdateStamp) {
     $payload = [ordered]@{
         schema        = $stampSchema
         configuration = $Configuration
+        origin        = $Origin
         builtAt       = (Get-Date).ToString('o')
         repoRoot      = $RepoRoot
         repos         = $evidence
@@ -272,18 +285,28 @@ if ($UpdateStamp) {
 }
 
 # ---- 判定：A 提交态 ∧ B 工作树态 ∧ C 产物态 ⇒ Skip；任一不符 ⇒ Build（fail-closed）----
+#   策略例外（用户裁决 2026-11-05）：工作树**有构建相关改动** ⇒ 一律不自动编译（Skip + 可见化）。
+#   理由：脏工作区自动编译会写共享面/产代，且"改动未定稿"不应触发全量构建；
+#         显式构建由 --fast / --full 提供（执行体 ForceBuild 覆盖本判定，禁在本件另设开关）。
 $decision = 'Build'
 $reason = ''
 $missing = @(Test-KeyArtifacts)
+$dirtyRepos = @($evidence.Keys | Where-Object { @($evidence[$_].changed).Count -gt 0 })
 
 if ($unresolvedAll.Count -gt 0) {
     $reason = 'evidence-unavailable'
+}
+elseif ($dirtyRepos.Count -gt 0) {
+    $decision = 'Skip'
+    $reason = 'worktree-dirty:{0}' -f ($dirtyRepos -join ',')
 }
 elseif ($missing.Count -gt 0) {
     $reason = 'artifacts-missing'
 }
 elseif (-not (Test-Path -LiteralPath $stampFile)) {
-    $reason = 'no-stamp'
+    # 无账本 ⇒ 无「变化」可比对：登记基线后放行（禁以「账本缺失」为由强制全量构建）
+    $decision = 'Skip'
+    $reason = 'adopted'
 }
 else {
     $stamp = $null
@@ -327,11 +350,24 @@ if ($Json) {
 }
 
 if ($decision -eq 'Skip') {
-    Write-Gate ("decision=Skip reason=fresh（{0} 仓：提交态/工作树态/产物均一致）" -f $evidence.Keys.Count) 'Green'
+    if ($reason -eq 'adopted') {
+        Write-Gate ("decision=Skip reason=adopted（无构建账本：视为与当前产物一致，待登记基线）") 'Yellow'
+        Write-Gate '未验证「源码 ↔ 产物」对齐；要强制重建用 --fast（或 UI启动.bat --fast）' 'DarkGray'
+    }
+    elseif ($reason -like 'worktree-dirty:*') {
+        Write-Gate ("decision=Skip reason={0}（工作区有构建相关改动 ⇒ 按策略不自动编译）" -f $reason) 'Yellow'
+        if ($missing.Count -gt 0) {
+            Write-Gate ("注意：关键产物仍缺 {0} 项，直接启动会以 exit 3 报缺件（补齐需显式构建）" -f $missing.Count) 'DarkRed'
+        }
+        Write-Gate '显式构建：UI启动.bat --fast（快速） / --full（完整）；只想跑现有产物：直接启动即可' 'DarkGray'
+    }
+    else {
+        Write-Gate ("decision=Skip reason=fresh（{0} 仓：提交态/工作树态/产物均一致）" -f $evidence.Keys.Count) 'Green'
+    }
     foreach ($key in @($evidence.Keys)) {
         $row = $evidence[$key]
         $wt = if ([string]::IsNullOrWhiteSpace([string]$row.worktreeId)) { '(clean)' } else { Format-Short ([string]$row.worktreeId) }
-        Write-Host ("             {0,-10} head={1} worktree={2} changed={3}" -f $key, (Format-Short ([string]$row.head)), $wt, @($row.changed).Count) -ForegroundColor DarkGray
+        Write-Detail ("             {0,-10} head={1} worktree={2} changed={3}" -f $key, (Format-Short ([string]$row.head)), $wt, @($row.changed).Count)
     }
     exit 10
 }
@@ -339,14 +375,14 @@ if ($decision -eq 'Skip') {
 Write-Gate ("decision=Build reason={0}" -f $reason) 'Yellow'
 if ($missing.Count -gt 0) {
     Write-Gate ("关键产物缺失 {0} 项：" -f $missing.Count) 'Yellow'
-    foreach ($path in ($missing | Select-Object -First 8)) { Write-Host ("             {0}" -f $path) -ForegroundColor DarkGray }
+    foreach ($path in ($missing | Select-Object -First 8)) { Write-Detail ("             {0}" -f $path) }
 }
 foreach ($key in @($evidence.Keys)) {
     $row = $evidence[$key]
     if (@($row.changed).Count -eq 0) { continue }
     Write-Gate ("{0}：{1} 项构建相关改动" -f $key, @($row.changed).Count) 'DarkGray'
-    foreach ($p in (@($row.changed) | Select-Object -First 6)) { Write-Host ("             {0}" -f $p) -ForegroundColor DarkGray }
-    if (@($row.changed).Count -gt 6) { Write-Host '             ...' -ForegroundColor DarkGray }
+    foreach ($p in (@($row.changed) | Select-Object -First 6)) { Write-Detail ("             {0}" -f $p) }
+    if (@($row.changed).Count -gt 6) { Write-Detail '             ...' }
 }
 exit 0
 

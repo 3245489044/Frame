@@ -196,11 +196,14 @@
 | `WireFabric` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WireFabric.ps1` |
 | `WorkFlowMethodKeySemantics` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WorkFlowMethodKeySemantics.ps1` |
 
-## Meta（26 件）
+## Meta（34 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
 | `AntiPatternFamily` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-AntiPatternFamily.ps1` |
+| `AssemblyClosure` | fast | 0 | Closure | Closure | `Frame\PowerShellScript\Operation\DSL\Meta\Check-AssemblyClosure.ps1` |
+| `BuildClosure` | fast | 0 | Build | Closure | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BuildClosure.ps1` |
+| `BuildLayout` | fast | 0 | Build | Closure | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BuildLayout.ps1` |
 | `BulkThreshold` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BulkThreshold.ps1` |
 | `ContractRegistry` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-ContractRegistry.ps1` |
 | `DeclaredBundle` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-DeclaredBundle.ps1` |
@@ -211,6 +214,11 @@
 | `GateRegistry` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GateRegistry.ps1` |
 | `GateTaxonomy` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GateTaxonomy.ps1` |
 | `GeneratedArtifactsDrift` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GeneratedArtifactsDrift.ps1` |
+| `LaunchContract` | fast | 0 | Launch | SingleSource | `Frame\PowerShellScript\Operation\DSL\Meta\Check-LaunchContract.ps1` |
+| `LaunchEntrypoint` | fast | 0 | Launch | SingleSource | `Frame\PowerShellScript\Operation\DSL\Process\Check-LaunchEntrypoint.ps1` |
+| `LaunchExitCodes` | fast | 0 | Launch | Consistency | `Frame\PowerShellScript\Operation\DSL\Meta\Check-LaunchExitCodes.ps1` |
+| `LaunchSmoke` | fast | 0 | Launch | Closure | `Frame\PowerShellScript\Operation\DSL\Meta\Check-LaunchSmoke.ps1` |
+| `LaunchTrace` | fast | 0 | Launch | Consistency | `Frame\PowerShellScript\Operation\DSL\Meta\Check-LaunchTrace.ps1` |
 | `OperationLayerIsolation` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-OperationLayerIsolation.ps1` |
 | `PrjBridgeDecoupling` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BridgeDecoupling.ps1` |
 | `ProjectReferences` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-ProjectReferences.ps1` |

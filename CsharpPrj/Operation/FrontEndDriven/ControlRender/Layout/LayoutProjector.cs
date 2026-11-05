@@ -24,6 +24,15 @@ namespace FrontEndDriven.ControlRender.Layout;
 /// </summary>
 public sealed class LayoutProjector
 {
+    private static int _projectionDepth;
+
+    /// <summary>
+    /// 投影进行中（跨 Ports 的 splitter 回写闸门）：投影内的 SetSplitterDistance 属程序化写入，
+    /// 不得经 SplitterMoved 回写比例——尤其当物理宽度与 ECS 宽度尚未收敛时，
+    /// distance/旧物理宽 会把配置比例固化成一个失真值（App 启动后二次 Resize 即触发）。
+    /// </summary>
+    public static bool IsProjectionInProgress => _projectionDepth > 0;
+
     private readonly EntityManager _entityManager;
     private readonly ControlPool _controlPool;
     private readonly IControlAdapter _adapter;
@@ -45,16 +54,24 @@ public sealed class LayoutProjector
         if (string.IsNullOrWhiteSpace(scope))
             return 0;
 
-        int totalChanged = 0;
-        for (int pass = 0; pass < LayoutConvergencePolicy.MaxProjectionPasses; pass++)
+        _projectionDepth++;
+        try
         {
-            int changedThisPass = ProjectScopeOnce(scope);
-            totalChanged += changedThisPass;
-            if (changedThisPass == 0)
-                break;
-        }
+            int totalChanged = 0;
+            for (int pass = 0; pass < LayoutConvergencePolicy.MaxProjectionPasses; pass++)
+            {
+                int changedThisPass = ProjectScopeOnce(scope);
+                totalChanged += changedThisPass;
+                if (changedThisPass == 0)
+                    break;
+            }
 
-        return totalChanged;
+            return totalChanged;
+        }
+        finally
+        {
+            _projectionDepth--;
+        }
     }
 
     private int ProjectScopeOnce(string scope)
@@ -123,6 +140,21 @@ public sealed class LayoutProjector
             int dimension = sc.Orientation == Orientation.Vertical ? cl.Width : cl.Height;
             if (dimension <= 0)
                 continue;
+
+            // 物理容器尺寸必须先收敛到 ECS：distance 由 ECS 尺寸算出，若落在仍是旧宽度（启动/二次 Resize 瞬态）
+            // 的物理控件上，SplitterMoved 会按 distance/旧物理宽 回写比例，把 0.75/0.60 固化成一堆失真值。
+            // 此处按 ECS 回投影一次，确保「distance 的计算基准 == 物理承载宽度」。
+            int physicalWidth = _adapter.GetWidth(sc);
+            int physicalHeight = _adapter.GetHeight(sc);
+            if (physicalWidth != cl.Width || physicalHeight != cl.Height)
+            {
+                var (originX, originY) = ResolveParentOrigin(entity);
+                int relX = cl.Left - originX;
+                int relY = cl.Top - originY;
+                _adapter.SetBounds(sc, relX, relY, cl.Width, cl.Height);
+                MarkProjected(entity, relX, relY, cl.Width, cl.Height);
+                changed++;
+            }
 
             int distance = SplitterMath.Distance(ratio.Ratio, sc.Orientation, cl.Width, cl.Height);
             if (Math.Abs(_adapter.GetSplitterDistance(sc) - distance) <= 1)

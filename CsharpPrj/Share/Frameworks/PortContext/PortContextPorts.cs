@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -70,6 +71,18 @@ public interface IPortWindowSource
     /// <param name="ct">取消令牌。</param>
     Task<IReadOnlyList<PortContextWindowItem>> GetWindowAsync(
         string containerKey, IReadOnlyList<string> memberKeys, int take, CancellationToken ct = default);
+
+    /// <summary>
+    /// 单成员分页窗口（尾部跳过 <paramref name="skipFromEnd"/> 条后取 <paramref name="take"/> 条）。
+    /// <para>切片实现单源 = 实现方（<c>WindowSlice</c>）；本端口不提供默认实现（禁第二份尾部切片算法）。</para>
+    /// </summary>
+    /// <param name="containerKey">容器键。</param>
+    /// <param name="memberKey">成员键（单成员）。</param>
+    /// <param name="take">条数（含 hasMore 探测位；调用方决定）。</param>
+    /// <param name="skipFromEnd">离尾跳过条数（0 = 首页）。</param>
+    /// <param name="ct">取消令牌。</param>
+    Task<IReadOnlyList<PortContextWindowItem>> GetWindowPageAsync(
+        string containerKey, string memberKey, int take, int skipFromEnd, CancellationToken ct = default);
 }
 
 /// <summary>上下文唯一获取口（三出口都只此一个口；禁各自再取数）。</summary>
@@ -88,4 +101,33 @@ public interface IPortContextPort
     /// <param name="ct">取消令牌。</param>
     Task<PortContext> GetAsync(
         PortContextKeyAxis axis, string key, PortContextSpec spec, CancellationToken ct = default);
+
+    /// <summary>
+    /// 单成员分页（唯一获取口之二：分页不得另起第二读法）。
+    /// <para>默认实现回退 <see cref="GetAsync"/> 的该成员窗口（首页口径，<c>HasMore=false</c>）；
+    /// 具备尾部下推/游标的实现（装配器）覆盖本方法。</para>
+    /// </summary>
+    /// <param name="containerKey">容器键。</param>
+    /// <param name="request">分页请求（成员键 + 游标 + 条数）。</param>
+    /// <param name="spec">上下文规格。</param>
+    /// <param name="ct">取消令牌。</param>
+    async Task<PortContextPage> GetPageAsync(
+        string containerKey, PortContextPageRequest request, PortContextSpec spec, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var context = await GetAsync(containerKey, spec, ct).ConfigureAwait(false);
+        var memberKey = (request.MemberKey ?? string.Empty).Trim();
+        var key = containerKey ?? string.Empty;
+        if (memberKey.Length == 0)
+            return PortContextPage.Empty(key, memberKey, PortContextEmptyCodes.KeyAxisMismatch);
+
+        var member = context.Members.FirstOrDefault(
+            m => string.Equals(m.MemberKey, memberKey, StringComparison.Ordinal));
+        if (member is null)
+            return PortContextPage.Empty(key, memberKey, PortContextEmptyCodes.NoOwnedMember);
+
+        return member.WindowItems.Count == 0
+            ? PortContextPage.Empty(key, memberKey, PortContextEmptyCodes.WindowEmpty)
+            : new PortContextPage(key, memberKey, member.WindowItems, null, false, null, member.Truncated);
+    }
 }

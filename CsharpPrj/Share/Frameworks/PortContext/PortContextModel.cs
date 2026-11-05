@@ -6,7 +6,17 @@ using System.Text;
 namespace Share.PortContexts;
 
 /// <summary>单条成员窗口片段（Owner = 成员键；Text = 窗口文本）。</summary>
-public sealed record PortContextWindowItem(string Owner, string Text);
+/// <param name="Owner">成员键。</param>
+/// <param name="Text">窗口文本（上下文摘要口径；分页渲染走原始正文）。</param>
+/// <param name="Seq">窗口内序号（1 起；分页渲染稳定键；0 = 未提供）。</param>
+/// <param name="Stage">会话阶段标识（可选；分页渲染可见）。</param>
+/// <param name="Round">会话轮次（可选；0 = 未提供）。</param>
+public sealed record PortContextWindowItem(
+    string Owner,
+    string Text,
+    int Seq = 0,
+    string? Stage = null,
+    int? Round = null);
 
 /// <summary>单个上下文字段（分类 + 稳定度 + 键值）。</summary>
 public sealed record PortContextField(string Class, string Volatility, string Key, string? Value);

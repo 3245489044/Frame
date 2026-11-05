@@ -43,7 +43,7 @@ $rules = @(
     [pscustomobject]@{ Id = 'C5'; Title = 'History 卡片不读消息窗口（A：纯控制台）'
         Ok = { $t = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
             -not ($t -match 'ReadWindowAsync|UiReadShape\.WindowContext|FromWindow') } }
-    [pscustomobject]@{ Id = 'C6'; Title = '卡片模型无对话形态回流（上下文结构字段已放开，UPC）'
+    [pscustomobject]@{ Id = 'C6'; Title = '卡片模型无对话形态回流（结构化消息项已放开：禁 Role/绑定，放行 TaskMessageItem）'
         Ok = { $t = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Projection\HistoryBoardModel.cs')
             # C6 禁的是"对话形态回流"（卡片记录含 Role/气泡字段），不是"上下文"（UPC 结构字段已放开）。
             $card = [regex]::Match($t, 'record\s+TaskWindowCard\((?<body>[\s\S]*?)\);')

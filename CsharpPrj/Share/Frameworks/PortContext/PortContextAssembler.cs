@@ -129,4 +129,72 @@ public sealed partial class PortContextAssembler : IPortContextPort
             Truncated: truncated,
             TruncationCode: truncated ? PortContextEmptyCodes.MemberWindowTruncated : null);
     }
+
+    /// <summary>
+    /// 单成员分页（尾部下推 + 无状态游标）：解码失败 ⇒ <c>cursor-invalid</c>；条数夹到规格上限；
+    /// <c>HasMore</c> 由「多读 1 条」探测（不二次取数）。
+    /// </summary>
+    /// <param name="containerKey">容器键。</param>
+    /// <param name="request">分页请求。</param>
+    /// <param name="spec">上下文规格。</param>
+    /// <param name="ct">取消令牌。</param>
+    public async Task<PortContextPage> GetPageAsync(
+        string containerKey, PortContextPageRequest request, PortContextSpec spec, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var container = PortContextKeyResolver.Resolve(PortContextKeyAxis.Container, containerKey);
+        if (container is null)
+            return PortContextPage.Empty(containerKey ?? string.Empty, request.MemberKey ?? string.Empty,
+                PortContextEmptyCodes.KeyAxisMismatch);
+
+        var memberKey = (request.MemberKey ?? string.Empty).Trim();
+        if (memberKey.Length == 0)
+            return PortContextPage.Empty(container, string.Empty, PortContextEmptyCodes.KeyAxisMismatch);
+
+        if (!PortContextCursor.TryDecode(request.Cursor, memberKey, out var skipFromEnd))
+            return PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.CursorInvalid);
+
+        if (_windows is null)
+            return PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.StateProviderNotAttached);
+
+        var take = request.Take > 0 ? Math.Min(request.Take, spec.EffectiveWindowTake) : spec.EffectiveWindowTake;
+
+        IReadOnlyList<PortContextWindowItem> fetched;
+        try
+        {
+            // 多读 1 条只用于 HasMore 判定（调用方决定 take 上限）。
+            fetched = await _windows
+                .GetWindowPageAsync(container, memberKey, take + 1, skipFromEnd, ct)
+                .ConfigureAwait(false) ?? Array.Empty<PortContextWindowItem>();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.WindowEmpty);
+        }
+
+        var hasMore = fetched.Count > take;
+        var items = hasMore ? fetched.Take(take).ToArray() : fetched;
+        if (items.Count == 0)
+        {
+            // 首页空 ⇒ 空因可见；翻页到底 ⇒ 正常结束（非错误）。
+            return skipFromEnd == 0
+                ? PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.WindowEmpty)
+                : new PortContextPage(container, memberKey, Array.Empty<PortContextWindowItem>(), null, false, null, false);
+        }
+
+        return new PortContextPage(
+            container,
+            memberKey,
+            items,
+            hasMore ? PortContextCursor.Encode(memberKey, skipFromEnd + take) : null,
+            hasMore,
+            EmptyCode: null,
+            Truncated: hasMore);
+    }
 }

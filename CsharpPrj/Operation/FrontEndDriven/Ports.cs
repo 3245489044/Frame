@@ -708,7 +708,10 @@ public sealed class WinFormsOutputPort
         if (sender == null || !entity.IsValid) return;
 
         // 投影期间（ApplySnapshot）抑制：不读回自投影产生的 SplitterDistance，避免「投影 → 事件 → 再投影」自循环。
-        if (_suppressProjectionEvents)
+        // 布局投影（LayoutProjector.ProjectScope）同样抑制：程序化 SetSplitterDistance 会再次触发本事件，
+        // 若此时物理尺寸尚未收敛到 ECS，按 distance/物理宽 回写会把配置比例固化失真（启动后二次 Resize 即触发）。
+        if (_suppressProjectionEvents
+            || FrontEndDriven.ControlRender.Layout.LayoutProjector.IsProjectionInProgress)
             return;
 
         try

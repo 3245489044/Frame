@@ -29,4 +29,27 @@ public static class WindowSlice
         var limit = Math.Max(1, take);
         return source.TakeLast(limit).ToList();
     }
+
+    /// <summary>
+    /// 尾部窗口切片（分页口径）：跳过末尾 <paramref name="skipFromEnd"/> 条后，取紧邻的 <paramref name="take"/> 条。
+    /// <para>全仓「尾部跳过 + 取 N」的唯一实现；调用点禁手写 <c>Skip(count - take - skip)</c>。</para>
+    /// </summary>
+    /// <param name="source">源序列。</param>
+    /// <param name="take">条数（≤0 ⇒ 归一为 1，与既有窗口语义一致）。</param>
+    /// <param name="skipFromEnd">离尾跳过条数（&lt;0 ⇒ 0）。</param>
+    public static IReadOnlyList<T> TakeLast<T>(IReadOnlyList<T> source, int take, int skipFromEnd)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var limit = Math.Max(1, take);
+        var skip = Math.Max(0, skipFromEnd);
+        var end = source.Count - skip;
+        if (end <= 0) return Array.Empty<T>();
+
+        var start = Math.Max(0, end - limit);
+        if (start == 0 && end == source.Count) return source;
+
+        var result = new List<T>(end - start);
+        for (var i = start; i < end; i++) result.Add(source[i]);
+        return result;
+    }
 }

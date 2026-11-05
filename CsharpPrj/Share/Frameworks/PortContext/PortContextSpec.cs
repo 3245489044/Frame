@@ -148,11 +148,15 @@ public static class PortContextEmptyCodes
     /// <summary>窗口/成员被预算截断（Present 但带截断标记）。</summary>
     public const string MemberWindowTruncated = "member-window-truncated";
 
+    /// <summary>分页游标非法（解不出「成员键|偏移」或越界）。</summary>
+    public const string CursorInvalid = "cursor-invalid";
+
     /// <summary>全部空因码（门禁遍历单源）。</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
         NoOwnedMember, EnumeratorNotAttached, StateProviderNotAttached,
         WindowEmpty, SyntheticOnly, KeyAxisMismatch, MemberWindowTruncated,
+        CursorInvalid,
     };
 
     /// <summary>空因码是否受控（未登记 ⇒ 判据不可判定）。</summary>

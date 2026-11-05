@@ -24,6 +24,12 @@ public enum RejectReason : byte
 
     /// <summary>重复命令（幂等键 <c>(TargetTick, CommandId)</c> 已处理过）。</summary>
     Duplicate = 5,
+
+    /// <summary>
+    /// 逐帧校验和失配（稳定名 <c>checksum-mismatch</c>）；该帧必须整帧拒收、不得提交。
+    /// <para>当前为契约缺口的临时取值，待契约确认后调整。</para>
+    /// </summary>
+    ChecksumMismatch = 6,
 }
 
 /// <summary>

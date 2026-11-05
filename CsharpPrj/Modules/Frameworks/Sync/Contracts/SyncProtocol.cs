@@ -59,4 +59,25 @@ public static class SyncProtocol
 
     /// <summary>保护窗口宽度（决策 tick）：0.5s × 10Hz = 5。</summary>
     public const int GuardWindowTicks = 5;
+
+    /// <summary>
+    /// 单帧字节上限 <c>66</c>。
+    /// <para>
+    /// 与 <see cref="SyncMessageLayout"/> 中 <see cref="SyncMessageKind.Snapshot"/> 的冻结宽度一致：
+    /// <c>Tick(8) + Projection(<see cref="SyncStateProjectionLayout.EncodedBytes"/>=50) + StateHash(8) = 66</c>。
+    /// 低于 66 会把原子快照切开，因此该值只能取“不切快照”的下界。
+    /// </p>
+    /// <para>当前为契约缺口的临时取值，待契约确认后调整。</para>
+    /// </summary>
+    public const int MaxFrameBytes = 66;
+
+    /// <summary>
+    /// 单片字节上限 <c>50</c>。
+    /// <para>
+    /// 取投影编码宽度 <see cref="SyncStateProjectionLayout.EncodedBytes"/>=50：保证任一单片都不跨投影字段块边界，
+    /// 且 <c>50 ≤ MaxFrameBytes(66)</c>，66 字节快照恰好切成 <c>50 + 16</c> 两片。
+    /// </p>
+    /// <para>当前为契约缺口的临时取值，待契约确认后调整。</para>
+    /// </summary>
+    public const int MaxFragmentBytes = 50;
 }

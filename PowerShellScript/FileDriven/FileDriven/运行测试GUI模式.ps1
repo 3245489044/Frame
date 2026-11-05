@@ -4,11 +4,15 @@
 
 .DESCRIPTION
     使用 --show-gui 强制 GUI 模式执行测试脚本，显示真实 WinForms 窗口，操作真实控件。
-    不传参进入交互选择界面，输入 mode 可切换自动/手动模式。
+    不传参进入分层交互选择界面（文件夹 → 用例），输入 mode 可切换自动/手动模式。
     详细文档见: FileDriven\Docs\ 目录
 
 .PARAMETER ScriptName
-    要运行的测试脚本文件名（可选）。不传参进入交互选择界面。
+    要运行的测试脚本文件名，或路径式编号（2 / 2-3 / 2-* / run 2）：
+      2            进入文件夹 2（只列出其下用例，不运行）
+      2-3          定位并运行该用例
+      2-* / run 2  批量运行文件夹 2 下全部用例
+    不传参进入分层交互选择界面。
 
 .PARAMETER List
     列出可用脚本。
@@ -49,7 +53,11 @@ param(
 
     # 无头模式：不传 --show-gui，Launcher 以 CLI 模式（虚拟控件）执行，不弹出真实窗口。
     # 适用脚本/即时指令执行（结果经命名管道回读）；GUI 渲染/布局检查等功能不适用。
-    [switch]$Headless
+    [switch]$Headless,
+
+    # 剩余位置参数：用于承载 `run 2` 这类被 bat 按空格拆开的指令（其余参数忽略）
+    [Parameter(ValueFromRemainingArguments=$true)]
+    [string[]]$RemainingArgs = @()
 )
 
 # ============================================
@@ -73,6 +81,51 @@ function Write-LauncherLog {
     } catch {
         # 日志写入失败不阻断主流程
     }
+}
+
+# ============================================
+#  退出码契约（供 CI/自动化判定；不得只看 Launcher 自身退出码）
+#    0 = 全部通过
+#    1 = 存在 fail（用例已执行完成，但内含红色命令：断言/命令失败）
+#    2 = 存在 error（依赖/环境类执行错误，或未产出完成结果/启动失败/卡死）
+#    3 = 全部跳过（请求运行但没有任何用例被执行）
+#  格式: pass=<n> fail=<n> error=<n>
+# ============================================
+$script:RunStats = @{ Pass = 0; Fail = 0; Error = 0 }
+$script:RunRequested = $false
+
+function Add-RunStat {
+    param([ValidateSet('Pass', 'Fail', 'Error')][string]$Kind)
+    $script:RunStats[$Kind]++
+}
+
+function Get-RunExitCode {
+    if ($script:RunStats.Error -gt 0) { return 2 }
+    if ($script:RunStats.Fail -gt 0) { return 1 }
+    if ($script:RunStats.Pass -gt 0) { return 0 }
+    return 3
+}
+
+function Format-RunStats {
+    return ("pass={0} fail={1} error={2}" -f `
+        $script:RunStats.Pass, $script:RunStats.Fail, $script:RunStats.Error)
+}
+
+function Get-CaseVerdict {
+    <#
+        把单例结果归入 Pass/Fail/Error：
+        - 未产出完成行（启动失败/管道未连接/卡死）→ Error
+        - success=true → Pass
+        - success=false 且 completed=true：
+            依赖未注册（Workflow definition ... not found）或宿主渲染未就绪（sideload ... 渲染失败）→ Error
+            其余（断言/命令失败）→ Fail
+    #>
+    param([bool]$Completed, [bool]$Success, [string]$ErrorMessage)
+    if (-not $Completed) { return 'Error' }
+    if ($Success) { return 'Pass' }
+    if ($ErrorMessage -match "Workflow definition .* not found" -or
+        $ErrorMessage -match "^sideload: .*渲染失败") { return 'Error' }
+    return 'Fail'
 }
 
 function Write-HangDiagnostics {
@@ -348,6 +401,55 @@ $runAction = {
     }
 
 
+    # ★ 批量运行分支（run-dir）：复用下面已有的 run 分支逐个执行，不另造 runner。
+    #   $Arg 为相对 ScriptsDir 的文件夹路径（空串表示根目录）。
+    if ($Action -eq "run-dir") {
+        $script:RunRequested = $true
+        $displayDir = if ([string]::IsNullOrWhiteSpace($Arg)) { "（根目录）" } else { $Arg }
+        $batchFiles = @(Get-ScriptBatchFiles -ScriptsDir $scriptsDir -RelativeDir $Arg)
+        if ($batchFiles.Count -eq 0) {
+            # 空文件夹：提示即可，不抛错误、不中断调用方；按契约归入"全部跳过"（退出码 3）
+            Write-Host "  [提示] 该文件夹无可用用例: $displayDir" -ForegroundColor Yellow
+            Write-Host "  汇总: pass=0 fail=0 error=0（已执行 0 个）→ 退出码 3（全部跳过）" -ForegroundColor Yellow
+            return
+        }
+
+        Write-Host ""
+        Write-Host ("=" * 60)
+        Write-Host "  批量运行: $displayDir"
+        Write-Host "  用例数量: $($batchFiles.Count)"
+        Write-Host ("=" * 60)
+
+        $script:BatchRunning = $true
+        $batchWatch = [System.Diagnostics.Stopwatch]::StartNew()
+        try {
+            $batchIndex = 0
+            foreach ($batchFile in $batchFiles) {
+                $batchIndex++
+                Write-Host ""
+                Write-Host ("-" * 60)
+                Write-Host ("  [批量 {0}/{1}] {2}  ({3})" -f $batchIndex, $batchFiles.Count, $batchFile.RelativePath, (Get-Date -Format "HH:mm:ss"))
+                Write-Host ("-" * 60)
+                $caseWatch = [System.Diagnostics.Stopwatch]::StartNew()
+                & $runAction "run" $batchFile.RelativePath
+                $caseWatch.Stop()
+                Write-Host ("  [批量 {0}/{1}] 完成，耗时 {2:N1}s" -f $batchIndex, $batchFiles.Count, $caseWatch.Elapsed.TotalSeconds)
+            }
+        }
+        finally {
+            $script:BatchRunning = $false
+        }
+        $batchWatch.Stop()
+
+        Write-Host ""
+        Write-Host ("=" * 60)
+        Write-Host ("  批量运行结束: {0}（共 {1} 个用例，总墙钟 {2:N1}s）" -f $displayDir, $batchFiles.Count, $batchWatch.Elapsed.TotalSeconds)
+        Write-Host ("  汇总: {0}（已执行 {1} 个）" -f (Format-RunStats), ($script:RunStats.Pass + $script:RunStats.Fail + $script:RunStats.Error))
+        Write-Host ("  退出码: {0}" -f (Get-RunExitCode))
+        Write-Host ("=" * 60)
+        return
+    }
+
     # ★ 以下代码仅 run 分支需要，log 分支不经过此处
 
     # 查找启动器目录
@@ -355,7 +457,8 @@ $runAction = {
     $launcherDir = Find-LauncherDir -FindScriptPath $findScript -FileDrivenDir $fileDrivenDir
     if (-not $launcherDir) {
         Write-Host "[ERROR] 无法获取启动器目录" -ForegroundColor Red
-        Read-Host "按回车键退出"
+        Add-RunStat 'Error'
+        if (-not $script:BatchRunning) { Read-Host "按回车键退出" }
         return
     }
 
@@ -416,6 +519,7 @@ $runAction = {
         Write-Host "[错误] JSON 请求体解析失败（可能是转义或引号问题）:" -ForegroundColor Red
         Write-Host "  $bodyParseError" -ForegroundColor Red
         Write-Host "  请确认为合法 JSON（路径反斜杠需写为 \\）后重试。" -ForegroundColor Yellow
+        Add-RunStat 'Error'
         Read-Host "按回车键退出"
         return
     }
@@ -429,7 +533,8 @@ $runAction = {
         Write-Host "可用的测试脚本:"
         $scripts = Get-ScriptFiles -ScriptsDir $scriptsDir
         $scripts | ForEach-Object { Write-Host "  $($_.Name)" }
-        Read-Host "按回车键退出"
+        Add-RunStat 'Error'
+        if (-not $script:BatchRunning) { Read-Host "按回车键退出" }
         return
     }
 
@@ -470,7 +575,15 @@ $runAction = {
     Write-Host ""
     Write-Header ""
 
-    # 切换到项目根目录执行
+    # 切换回项目根目录执行
+    # ★ 单例结果判定状态：由管道回读的"脚本执行完成"行填充，缺行按 error 计
+    $script:RunRequested = $true
+    $caseSawCompletion = $false
+    $caseSuccess = $false
+    $caseCompleted = $false
+    $caseErrorMessage = ""
+    $caseStatRecorded = $false
+
     Push-Location $projectRoot
 
     try {
@@ -629,6 +742,15 @@ $runAction = {
                         }
                         if ($null -ne $line) {
                             Write-Host $line
+                            # ★ 捕获最终结果行（唯一的判定依据；Launcher 自身退出码在 EOF 时尚未可靠落定）
+                            if ($line -match 'GUI 模式脚本执行完成: success=(true|false), completed=(true|false)') {
+                                $caseSawCompletion = $true
+                                $caseSuccess = ($matches[1] -eq 'true')
+                                $caseCompleted = ($matches[2] -eq 'true')
+                                if ($line -match 'errorMessage=(.*?)(?:, elapsedMs=\d+|$)') {
+                                    $caseErrorMessage = $matches[1]
+                                }
+                            }
                             # ★ 维护卡死诊断缓冲（保序、只留最近 N 条，天然去掉空行噪声可选——保留全部便于定位）
                             $recentOutput.Add($line)
                             if ($recentOutput.Count -gt $recentOutputCap) {
@@ -674,15 +796,23 @@ $runAction = {
             }
 
             # 显示退出状态
+            # ★ EOF 后 Launcher 可能尚未完全退出：短暂等待再读 ExitCode，避免打印空错误码。
+            #   注意：判定以回读的"脚本执行完成"行为准，此处仅用于日志可读性。
             Write-Host ""
-            Write-LauncherLog "Launcher 退出: ExitCode=$($process.ExitCode)"
-            if ($process.ExitCode -ne 0) {
-                Write-Host "[完成] 测试执行结束（错误码: $($process.ExitCode)）"
+            $launcherExit = $null
+            try {
+                if (-not $process.HasExited) { $null = $process.WaitForExit(3000) }
+                $process.Refresh()
+                if ($process.HasExited) { $launcherExit = $process.ExitCode }
+            } catch { }
+            Write-LauncherLog "Launcher 退出: ExitCode=$(if ($null -ne $launcherExit) { $launcherExit } else { '(未取得)' })"
+            if ($null -ne $launcherExit -and $launcherExit -ne 0) {
+                Write-Host "[完成] 测试执行结束（Launcher 退出码: $launcherExit）"
             } else {
                 Write-Host "[完成] 测试执行结束"
             }
 
-            if ($runMode -eq "manual" -and -not (Test-PipeMode)) {
+            if ($runMode -eq "manual" -and -not (Test-PipeMode) -and -not $script:BatchRunning) {
                 Write-Host ""
                 Read-Host "按回车键继续"
             }
@@ -691,6 +821,14 @@ $runAction = {
             if ($pipeReader) { $pipeReader.Dispose() }
             if ($pipeServer) { $pipeServer.Dispose() }
         }
+
+        # ★ 单例判定入账（完成行缺失/管道未连接/卡死均归 error）
+        $verdict = Get-CaseVerdict -Completed ($caseSawCompletion -and $caseCompleted) `
+            -Success $caseSuccess -ErrorMessage $caseErrorMessage
+        Add-RunStat $verdict
+        $caseStatRecorded = $true
+        Write-Host ("  [判定] {0} → {1}（{2}）" -f $Arg, $verdict, (Format-RunStats))
+        Write-LauncherLog "[判定] $Arg => $verdict | $(Format-RunStats)"
     }
     finally {
         # 即时指令合成的临时脚本清理
@@ -698,6 +836,12 @@ $runAction = {
             Remove-Item $synthesizedTemp -Force
         }
         Pop-Location
+        # ★ 异常路径兜底：未入账的 run 一律按 error 计，避免静默漏计
+        if (-not $caseStatRecorded -and $script:RunRequested) {
+            Add-RunStat 'Error'
+            $caseStatRecorded = $true
+            Write-Host ("  [判定] {0} → error（异常中断，未产出结果）" -f $Arg) -ForegroundColor Red
+        }
     }
 }
 
@@ -712,29 +856,84 @@ if (-not [string]::IsNullOrWhiteSpace($envInstantBody) -and [string]::IsNullOrWh
     $ScriptName = $envInstantBody
 }
 
+# ★ 兼容双横线写法（bat 文档中的 --list/--info/--dirs/--help/--show）：
+#   powershell -File 只把单横线识别为参数名，--list 会作为位置参数落到 $ScriptName。
+switch ($ScriptName.ToLower()) {
+    '--list' { $List = $true;  $ScriptName = "" }
+    '--info' { $Info = $true;  $ScriptName = "" }
+    '--dirs' { $Dirs = $true;  $ScriptName = "" }
+    '--help' { $Help = $true;  $ScriptName = "" }
+    '--show' {
+        if ($RemainingArgs.Count -gt 0) { $Show = $RemainingArgs[0] }
+        $ScriptName = ""
+    }
+    '--log' {
+        if ($RemainingArgs.Count -gt 0) {
+            # --log "level ERROR"：与 -Log 等价，交给 LogViewer 执行单条命令
+            $Log = ($RemainingArgs -join ' ')
+            $ScriptName = ""
+        } else {
+            # --log 不带参数：直接进入分层交互式日志查看器
+            & $runAction "log" ""
+            exit 0
+        }
+    }
+}
+
 # ============================================
-#  预处理：解析数字参数为脚本路径
-#  ★ 2026-07-26 新增：支持 echo 5 | 交互启动.bat 直接传序号
-#    修复管道流被菜单层级消费的问题。数字序号直接对应脚本清单的序号，
-#    无需经过 SelectScript.ps1 的 Read-Host 交互选择。
+#  预处理：解析路径式编号参数（按文件夹分层）
+#    2            只显示文件夹 2 的内容（不运行）
+#    2-3 / 2-3-4  定位到用例并直接运行（末级必须是文件）
+#    run 2 / 2-*  批量运行文件夹 2 下全部用例（含子文件夹）
+#  路径编号始终从 ScriptsDir 根目录起算；非法编号给出提示并列出根目录。
 # ============================================
 
-if ($ScriptName -match '^\d+$') {
-    $seqNumber = [int]$ScriptName
-    $extensions = @(".json")   # 与 SelectScript/ScriptRunner 的 FilePattern 默认同源（.txt 须显式指定）
-    $allScripts = Get-ChildItem -Path $scriptsDir -File -Recurse | 
-        Where-Object { $_.Extension -in $extensions } | 
-        Sort-Object FullName
+if (-not [string]::IsNullOrWhiteSpace($ScriptName)) {
+    $spec = $ScriptName.Trim()
 
-    if ($seqNumber -ge 1 -and $seqNumber -le $allScripts.Count) {
-        $resolvedPath = $allScripts[$seqNumber - 1].FullName.Substring($scriptsDir.Length + 1)
-        Write-Host "  [自动解析] 序号 $seqNumber → $resolvedPath" -ForegroundColor Cyan
-        $ScriptName = $resolvedPath
-    } else {
-        Write-Host "  [错误] 序号 $seqNumber 超出范围（1-$( $allScripts.Count)）" -ForegroundColor Red
-        Write-Host ""
-        pause
-        exit 1
+    # bat 按空格拆分 `run 2` 时，把剩余参数拼回指令
+    if ($spec -match '(?i)^run$' -and $RemainingArgs.Count -gt 0) {
+        $spec = "run " + ($RemainingArgs -join ' ')
+    }
+
+    if ($spec -match '^(run|run:|\d|\*)') {
+        $resolved = Resolve-ScriptCatalogSpec -ScriptsDir $scriptsDir -Spec $spec
+
+        switch ($resolved.Kind) {
+            'File' {
+                if ($resolved.Batch) {
+                    Write-Host "  [错误] '$spec' 指向单个文件，不能按文件夹批量运行" -ForegroundColor Red
+                    exit 1
+                }
+                Write-Host "  [自动解析] $spec → $($resolved.RelativePath)" -ForegroundColor Cyan
+                $ScriptName = $resolved.RelativePath
+            }
+            'Folder' {
+                if ($resolved.Batch -or $spec -match '(?i)^run') {
+                    & $runAction "run-dir" $resolved.RelativePath
+                    exit (Get-RunExitCode)
+                }
+                # 未加 * / run：仅进入该文件夹查看内容
+                Write-Host ""
+                Write-Host ("=" * 44)
+                Write-Host "  文件夹: $($resolved.RelativePath)"
+                Write-Host ("=" * 44)
+                Write-Host ""
+                Show-ScriptTree -ScriptsDir $scriptsDir -RelativeDir $resolved.RelativePath
+                Write-Host ""
+                Write-Host "  提示: 批量运行请用 run $spec 或 $spec-*" -ForegroundColor Yellow
+                Write-Host ""
+                exit 0
+            }
+            default {
+                Write-Host "  [错误] $($resolved.Message)" -ForegroundColor Red
+                Write-Host ""
+                Write-Host "  根目录分层:"
+                Show-ScriptTree -ScriptsDir $scriptsDir
+                Write-Host ""
+                exit 1
+            }
+        }
     }
 }
 
@@ -757,5 +956,16 @@ $runner = New-ScriptRunner `
     }
 
 $runner.Invoke($ScriptName, $List, $Info, $Show, $Dirs, $Help, $Log)
+
+# ============================================
+#  退出码：只有真正发起过运行才按契约返回；--list/--info/--help 等非运行操作仍为 0
+# ============================================
+if ($script:RunRequested) {
+    Write-Host ""
+    Write-Host ("  汇总: {0}（已执行 {1} 个）→ 退出码 {2}" -f `
+        (Format-RunStats), ($script:RunStats.Pass + $script:RunStats.Fail + $script:RunStats.Error), (Get-RunExitCode))
+    exit (Get-RunExitCode)
+}
+exit 0
 
 

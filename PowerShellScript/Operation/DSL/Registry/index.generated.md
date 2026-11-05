@@ -196,7 +196,7 @@
 | `WireFabric` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WireFabric.ps1` |
 | `WorkFlowMethodKeySemantics` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WorkFlowMethodKeySemantics.ps1` |
 
-## Meta（24 件）
+## Meta（26 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -213,11 +213,13 @@
 | `GeneratedArtifactsDrift` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-GeneratedArtifactsDrift.ps1` |
 | `OperationLayerIsolation` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-OperationLayerIsolation.ps1` |
 | `PrjBridgeDecoupling` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BridgeDecoupling.ps1` |
+| `ProjectReferences` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-ProjectReferences.ps1` |
 | `PsCapabilityFileOnly` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-PsCapabilityFileOnly.ps1` |
 | `RefreshFetch` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-RefreshFetch.ps1` |
 | `SectionWrite` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SectionWrite.ps1` |
 | `SemanticCentralization` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1` |
 | `SolutionUmbrella` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SolutionUmbrella.ps1` |
+| `TestBuildFramework` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-TestBuildFramework.ps1` |
 | `UiBudget` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiBudget.ps1` |
 | `UiIncremental` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiIncremental.ps1` |
 | `UiSingleWrite` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiSingleWrite.ps1` |

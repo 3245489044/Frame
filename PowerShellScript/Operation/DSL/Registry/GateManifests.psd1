@@ -1267,6 +1267,14 @@
         Note   = '项目引用形态守卫 P1–P3：扫描面 = Frame + Projects 全部 csproj（与映射源 modules.json 解耦）/ 跨子树指向 CsharpPrj 必须 $(Proj_<项目名>) 且悬空 = 0 / 正对照（扫描数 ≥ 基线，防解析面失效）；唯一实现 = Share\Solution\Test-ProjectReferences.ps1'
     }
 
+    TestBuildFramework = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '测试构建通用框架守卫 T1–T4：输出拓扑单源（测试工程禁本地 OutputPath）/ 产品面单源（禁 Reference 直连权威目录与 CopyProductClosure）/ 兼容入口薄转发 / 保留策略（published ≤1、无 dmp）；负对照合成 OutputPath 必红'
+    }
+
     PsCapabilityFileOnly = @{
         Domain = 'Meta'
         Args   = @{ Check = $true }

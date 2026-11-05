@@ -301,6 +301,13 @@ function New-ScriptRunner {
                 return
             }
 
+            # 检查是否为批量运行文件夹标记（__RUN_DIR__:<相对文件夹路径>）
+            if ($lastLine -like '__RUN_DIR__:*') {
+                $targetDir = $lastLine.Substring('__RUN_DIR__:'.Length)
+                $this.InvokeRunActionSafe("run-dir", $targetDir)
+                continue loop
+            }
+
             # 检查是否为命令关键字（list/info/dirs/show/help/mode）
             $cmdName = $lastLine.Trim().ToLower()
             if ($cmdName -eq "list")  { $this.ShowList();  continue loop }
@@ -379,17 +386,11 @@ function Show-ScriptList {
         [string]$FilePattern = ".json"
     )
 
-    Write-Header "可用脚本"
+    Write-Header "可用脚本（按文件夹分组）"
     Write-Host "  ($ScriptsDir)"
     Write-Host ""
-    $scripts = Get-ScriptFiles -ScriptsDir $ScriptsDir -FilePattern $FilePattern -Recurse
-    $index = 1
-    $scripts | ForEach-Object { 
-        # 计算相对路径
-        $relativePath = $_.FullName.Substring($ScriptsDir.Length + 1)
-        Write-Host ("  [{0,2}] {1}" -f $index, $relativePath)
-        $index++
-    }
+    # ★ 分层显示：一级文件夹 → 其下用例（编号规则由 Get-ScriptCatalogChildren 统一保证）
+    Show-ScriptTree -ScriptsDir $ScriptsDir -FilePattern $FilePattern -Recurse
     Write-Host ""
 }
 
@@ -488,10 +489,12 @@ function Show-HelpText {
     }
 
     Write-Host ""
-    Write-Host "  模式说明:"
-    Write-Host "     自动模式（默认）— 运行完自动关闭窗口"
-    Write-Host "     手动模式         — 运行完后暂停等待按键"
-    Write-Host "     不传参进入交互选择界面，输入 mode 可切换自动/手动模式"
+    Write-Host "  交互模式（不传参进入，按文件夹分层）:"
+    Write-Host "     顶层输入文件夹编号进入文件夹，文件夹内输入用例编号运行"
+    Write-Host "     1-2-3          路径式直达（从根目录逐级定位；末级文件则运行）"
+    Write-Host "     run 2 / 2-*    批量运行文件夹 2 下全部用例（含子文件夹）"
+    Write-Host "     0 / .. / back  返回上一级；root 回到根目录；exit 或空行退出"
+    Write-Host "     输入 mode 可切换自动/手动模式"
     Write-Host ""
     Write-Host "  示例:"
     Write-Host "    $ScriptName <脚本文件名>"

@@ -336,3 +336,356 @@ function Find-LauncherDir {
 
     return $pathLine
 }
+
+# ============================================
+#  脚本目录分层浏览（文件夹 → 用例）
+#  编号规则：同一层级内先列子文件夹、再列脚本文件；
+#            两组均按名称 OrdinalIgnoreCase 排序，编号稳定可预测，
+#            不随文件系统枚举顺序抖动。
+# ============================================
+
+function Sort-CatalogName {
+    <#
+    .SYNOPSIS
+        按 OrdinalIgnoreCase 排序名称数组（稳定、与区域设置无关）
+    #>
+    param([string[]]$Names)
+
+    if ($null -eq $Names -or $Names.Count -eq 0) { return @() }
+    $sorted = [string[]]($Names.Clone())
+    [System.Array]::Sort($sorted, [System.StringComparer]::OrdinalIgnoreCase)
+    return ,$sorted
+}
+
+function Get-ScriptFileMeta {
+    <#
+    .SYNOPSIS
+        读取并缓存脚本文件元信息（是否测试脚本、description）
+
+    .DESCRIPTION
+        判定依据（与 pipeline/04-json-script.md §3.1 的脚本结构一致）：
+        JSON 顶层同时存在非空 "script" 字符串和 "commands" 数组 → 测试脚本。
+        由此排除同名同扩展名但非测试脚本的文件（如 cline_write_smoke\package.json）。
+        缓存以 完整路径 + LastWriteTimeUtc 为键，文件变更后自动失效；
+        全局缓存使同一次菜单会话内多次渲染/统计不重复读盘。
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Path
+    )
+
+    if ($null -eq $global:FileDrivenScriptMetaCache) { $global:FileDrivenScriptMetaCache = @{} }
+
+    $item = Get-Item -LiteralPath $Path -ErrorAction SilentlyContinue
+    if ($null -eq $item) { return $null }
+
+    $stamp = $item.LastWriteTimeUtc.Ticks
+    $cached = $global:FileDrivenScriptMetaCache[$Path]
+    if ($null -ne $cached -and $cached.Stamp -eq $stamp) { return $cached }
+
+    $meta = [PSCustomObject]@{
+        Stamp       = $stamp
+        IsJson      = ($item.Extension -ieq '.json')
+        IsScript    = $false
+        Description = ''
+    }
+
+    if ($meta.IsJson) {
+        try {
+            $json = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            $hasScript = ($null -ne $json.PSObject.Properties['script']) -and
+                         (-not [string]::IsNullOrWhiteSpace([string]$json.script))
+            $hasCommands = ($null -ne $json.PSObject.Properties['commands']) -and
+                           ($json.commands -is [System.Array])
+            $meta.IsScript = ($hasScript -and $hasCommands)
+            if ($null -ne $json.PSObject.Properties['description']) {
+                $meta.Description = [string]$json.description
+            }
+        } catch {
+            $meta.IsScript = $false
+        }
+    }
+
+    $global:FileDrivenScriptMetaCache[$Path] = $meta
+    return $meta
+}
+
+function Test-ScriptCatalogFile {
+    <#
+    .SYNOPSIS
+        判断文件是否应纳入脚本清单（扩展名匹配 + JSON 须为测试脚本结构）
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Path,
+
+        [Parameter(Mandatory=$true)]
+        [string[]]$Extensions
+    )
+
+    $ext = [System.IO.Path]::GetExtension($Path)
+    if (-not ($Extensions -contains $ext)) { return $false }
+
+    if ($ext -ieq '.json') {
+        $meta = Get-ScriptFileMeta -Path $Path
+        return ($null -ne $meta -and $meta.IsScript)
+    }
+    return $true
+}
+
+function Get-ScriptCatalogChildren {
+    <#
+    .SYNOPSIS
+        获取某一层级下的目录项（子文件夹 + 脚本文件），按固定规则排序编号
+
+    .OUTPUTS
+        PSCustomObject[]：Kind(Folder/File)、Name、RelativePath（相对 ScriptsDir）
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$ScriptsDir,
+
+        [Parameter(Mandatory=$false)]
+        [string]$RelativeDir = "",
+
+        [Parameter(Mandatory=$false)]
+        [string]$FilePattern = ".json"
+    )
+
+    $fullDir = if ([string]::IsNullOrWhiteSpace($RelativeDir)) { $ScriptsDir } else { Join-Path $ScriptsDir $RelativeDir }
+    if (-not (Test-Path -LiteralPath $fullDir)) { return @() }
+
+    $extensions = $FilePattern -split '\|'
+    $entries = New-Object System.Collections.Generic.List[object]
+
+    $folderNames = @([System.IO.Directory]::GetDirectories($fullDir) | ForEach-Object { Split-Path -Leaf $_ })
+    foreach ($name in (Sort-CatalogName -Names $folderNames)) {
+        $rel = if ([string]::IsNullOrWhiteSpace($RelativeDir)) { $name } else { $RelativeDir + '\' + $name }
+        $entries.Add([PSCustomObject]@{
+            Kind         = 'Folder'
+            Name         = $name
+            RelativePath = $rel
+        })
+    }
+
+    $fileNames = @([System.IO.Directory]::GetFiles($fullDir) |
+        Where-Object { Test-ScriptCatalogFile -Path $_ -Extensions $extensions } |
+        ForEach-Object { Split-Path -Leaf $_ })
+    foreach ($name in (Sort-CatalogName -Names $fileNames)) {
+        $rel = if ([string]::IsNullOrWhiteSpace($RelativeDir)) { $name } else { $RelativeDir + '\' + $name }
+        $entries.Add([PSCustomObject]@{
+            Kind         = 'File'
+            Name         = $name
+            RelativePath = $rel
+        })
+    }
+
+    return $entries.ToArray()
+}
+
+function Get-ScriptDescription {
+    <#
+    .SYNOPSIS
+        读取脚本 JSON 的 description 字段（失败时返回空串）
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$ScriptsDir,
+
+        [Parameter(Mandatory=$true)]
+        [string]$RelativePath,
+
+        [Parameter(Mandatory=$false)]
+        [int]$MaxLength = 60
+    )
+
+    $full = Join-Path $ScriptsDir $RelativePath
+    $meta = Get-ScriptFileMeta -Path $full
+    if ($null -eq $meta -or [string]::IsNullOrWhiteSpace($meta.Description)) { return '' }
+
+    $desc = $meta.Description
+    $one = ($desc -replace '\s+', ' ').Trim()
+    if ($one.Length -gt $MaxLength) { $one = $one.Substring(0, $MaxLength) + '...' }
+    return $one
+}
+
+function Resolve-ScriptCatalogSpec {
+    <#
+    .SYNOPSIS
+        解析路径式编号（如 2、2-3、2-*、run 2、run:2-*）为目录项
+
+    .OUTPUTS
+        PSCustomObject：Kind(File/Folder/Invalid)、RelativePath、Batch、Message
+        路径始终从 ScriptsDir（根目录）起算。
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$ScriptsDir,
+
+        [Parameter(Mandatory=$true)]
+        [string]$Spec,
+
+        [Parameter(Mandatory=$false)]
+        [string]$FilePattern = ".json"
+    )
+
+    $result = [PSCustomObject]@{
+        Kind         = 'Invalid'
+        RelativePath = ''
+        Batch        = $false
+        Message      = ''
+    }
+
+    $s = $Spec.Trim()
+    if ($s -match '(?i)^run(\s*:\s*|\s+)') {
+        $s = $s -replace '(?i)^run(\s*:\s*|\s+)', ''
+    } elseif ($s -match '(?i)^run$') {
+        $s = ''
+    }
+
+    $batch = $false
+    if ($s.EndsWith('*')) {
+        $batch = $true
+        $s = $s.Substring(0, $s.Length - 1).TrimEnd([char]'-')
+    }
+    $s = $s.Trim()
+
+    if ($s -eq '') {
+        if ($batch) {
+            $result.Kind = 'Folder'
+            $result.Batch = $true
+            return $result
+        }
+        $result.Message = '请指定文件夹编号或路径，例如 2 或 2-3'
+        return $result
+    }
+
+    if ($s -notmatch '^\d+(-\d+)*$') {
+        $result.Message = "无法识别的路径：$Spec（应为 2、2-3、2-* 或 run 2）"
+        return $result
+    }
+
+    $segments = $s -split '-'
+    $currentRel = ''
+    $kind = 'Folder'
+
+    for ($i = 0; $i -lt $segments.Count; $i++) {
+        $children = @(Get-ScriptCatalogChildren -ScriptsDir $ScriptsDir -RelativeDir $currentRel -FilePattern $FilePattern)
+        $num = [int]$segments[$i]
+        if ($num -lt 1 -or $num -gt $children.Count) {
+            $range = if ($children.Count -eq 0) { '该目录为空' } else { "1-$($children.Count)" }
+            $result.Message = "路径 '$s' 的第 $($i + 1) 级编号 '$($segments[$i])' 超出有效范围（$range）"
+            return $result
+        }
+
+        $entry = $children[$num - 1]
+        $currentRel = $entry.RelativePath
+        $kind = $entry.Kind
+
+        if ($kind -eq 'File' -and $i -lt ($segments.Count - 1)) {
+            $result.Message = "路径 '$s' 无效：'$($entry.Name)' 是文件，不能继续向下定位"
+            return $result
+        }
+    }
+
+    $result.Kind = $kind
+    $result.RelativePath = $currentRel
+    $result.Batch = $batch
+    return $result
+}
+
+function Get-ScriptBatchFiles {
+    <#
+    .SYNOPSIS
+        递归枚举某个文件夹下的全部脚本（按相对路径 OrdinalIgnoreCase 排序）
+
+    .OUTPUTS
+        PSCustomObject[]：RelativePath、Name
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$ScriptsDir,
+
+        [Parameter(Mandatory=$false)]
+        [string]$RelativeDir = "",
+
+        [Parameter(Mandatory=$false)]
+        [string]$FilePattern = ".json"
+    )
+
+    $fullDir = if ([string]::IsNullOrWhiteSpace($RelativeDir)) { $ScriptsDir } else { Join-Path $ScriptsDir $RelativeDir }
+    if (-not (Test-Path -LiteralPath $fullDir)) { return @() }
+
+    $extensions = $FilePattern -split '\|'
+    $map = @{}
+    foreach ($f in @(Get-ChildItem -LiteralPath $fullDir -File -Recurse)) {
+        if (Test-ScriptCatalogFile -Path $f.FullName -Extensions $extensions) {
+            $map[$f.FullName.Substring($ScriptsDir.Length + 1)] = $f
+        }
+    }
+
+    $rels = Sort-CatalogName -Names ([string[]]@($map.Keys))
+    $out = foreach ($rel in $rels) {
+        [PSCustomObject]@{
+            RelativePath = $rel
+            Name         = Split-Path -Leaf $rel
+        }
+    }
+    return @($out)
+}
+
+function Show-ScriptTree {
+    <#
+    .SYNOPSIS
+        按文件夹分组显示脚本树（一级文件夹 → 其下用例）
+
+    .PARAMETER Recurse
+        是否递归展开子文件夹（默认只显示当前层）
+    #>
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$ScriptsDir,
+
+        [Parameter(Mandatory=$false)]
+        [string]$FilePattern = ".json",
+
+        [Parameter(Mandatory=$false)]
+        [string]$RelativeDir = "",
+
+        [Parameter(Mandatory=$false)]
+        [switch]$Recurse,
+
+        [Parameter(Mandatory=$false)]
+        [int]$Depth = 0,
+
+        [Parameter(Mandatory=$false)]
+        [int]$MaxDepth = 6
+    )
+
+    $children = @(Get-ScriptCatalogChildren -ScriptsDir $ScriptsDir -RelativeDir $RelativeDir -FilePattern $FilePattern)
+    if ($children.Count -eq 0) {
+        if ($Depth -eq 0) { Write-Host "  （该目录下没有脚本）" }
+        return
+    }
+
+    $indent = '  ' * ($Depth + 1)
+    $idx = 0
+    foreach ($entry in $children) {
+        $idx++
+        if ($entry.Kind -eq 'Folder') {
+            $count = @(Get-ScriptBatchFiles -ScriptsDir $ScriptsDir -RelativeDir $entry.RelativePath -FilePattern $FilePattern).Count
+            Write-Host ("{0}[{1,2}] {2}\  ({3} 个用例)" -f $indent, $idx, $entry.Name, $count)
+            if ($Recurse -and $Depth -lt $MaxDepth) {
+                Show-ScriptTree -ScriptsDir $ScriptsDir -FilePattern $FilePattern `
+                    -RelativeDir $entry.RelativePath -Recurse -Depth ($Depth + 1) -MaxDepth $MaxDepth
+            }
+        } else {
+            $desc = Get-ScriptDescription -ScriptsDir $ScriptsDir -RelativePath $entry.RelativePath
+            if ($desc) {
+                Write-Host ("{0}[{1,2}] {2}  — {3}" -f $indent, $idx, $entry.Name, $desc)
+            } else {
+                Write-Host ("{0}[{1,2}] {2}" -f $indent, $idx, $entry.Name)
+            }
+        }
+    }
+}

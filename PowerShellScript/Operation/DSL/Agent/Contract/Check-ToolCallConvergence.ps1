@@ -43,7 +43,7 @@ $violations = New-Object System.Collections.Generic.List[string]
 function Get-CsHits([string]$root, [string]$pattern) {
     Get-ChildItem -Path $root -Recurse -Filter '*.cs' -File -ErrorAction SilentlyContinue |
         Select-String -Pattern $pattern |
-        Where-Object { $_.Path -notmatch '\\(obj|bin|BuildOutput)\\' }
+        Where-Object { $_.Path -notmatch (Get-GateSourceExcludePattern) }
 }
 
 # A1 Launcher 不再持有工具装配（ToolFaceFlowCatalog 为纯读投影 CodeRef，排除）

@@ -55,6 +55,7 @@
         @{ File = 'Meta\AntiPatternFamily.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'AntiPatternFamily'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-AntiPatternFamily.ps1' }
         @{ File = 'Meta\GateFileIndex.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'GateFileIndex'; Shape = 'Grid'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-GateFileIndex.ps1' }
         @{ File = 'Meta\OperationLayerIsolation.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'OperationLayerIsolation'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-OperationLayerIsolation.ps1' }
+      @{ File = 'Meta\ProjectReferences.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'ProjectReferences'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-ProjectReferences.ps1' }
         @{ File = 'Meta\SemanticCentralization.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'SemanticCentralization'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1' }
         @{ File = 'Meta\UiSingleWrite.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'UiSingleWrite'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-UiSingleWrite.ps1' }
         @{ File = 'Meta\FallbackInventoryRate.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'FallbackInventoryRate'; Shape = 'FactRow'; Origins = @('Debt'); DueWhen = '兜底逐项显式化（EmptyReason / fail-fast）后条目归零'; Consumer = 'Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-FallbackInventoryRate.ps1' }
@@ -116,6 +117,7 @@
         @{ File = 'GateBaseline.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateFileIndex.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateRuntime.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
+        @{ File = 'GateFacts.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateClosure.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\KeySpace\Check-DeclarationClosure.ps1' }
         @{ File = 'ArtifactFreshness.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'VerifyScope.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }

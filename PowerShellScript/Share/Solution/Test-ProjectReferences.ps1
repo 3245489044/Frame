@@ -1,20 +1,22 @@
 <#
 .SYNOPSIS
-    CsharpPrj 项目引用校验器 — 悬空引用 / 未属性化 / 层序违规 / 循环依赖，并支持批量转换与清单同步
+    项目引用校验器（跨子树扫描）— 悬空 / 未属性化 / 跨子树手写路径 / 层序违规 / 循环依赖，并支持批量转换与清单同步
 
 .DESCRIPTION
-    以 modules.json（模块目录单一真源）为基准，对 Frame/CsharpPrj 下全部 csproj 的
-    <ProjectReference> 执行四类检查：
+    映射源 = modules.json（模块目录单一真源）；扫描面 = $(ScanRoots)（默认 Frame + Projects 全部 csproj）。
+    两者刻意分离：新增子树无需先登记清单即可被检查（旧实现以清单当扫描面 ⇒ Usharp/DataCenter/Projects 成盲区）。
+
+    对扫描面内全部 csproj 的 <ProjectReference> 执行五类检查：
 
       1 悬空引用     Include 解析后指向不存在的文件
-      2 未属性化     仍为相对路径字面量（应改为 $(Proj_<项目名>)）
-      3 层序违规     违反 modules.json roots.layer（硬规则：Share 不得引用 Strategy/Operation/Frame 外；
-                     其余向上引用列为告警）
-      4 循环依赖     项目间 A→B ∧ B→A
+      2 未属性化     仍为相对路径字面量（CsharpPrj 内部 / 跨子树指向 CsharpPrj）
+      3 跨子树形态   跨子树指向 CsharpPrj 的引用必须是 $(Proj_<项目名>)
+      4 层序违规     违反 modules.json roots.layer
+      5 循环依赖     项目间 A→B ∧ B→A
 
     并输出反向引用报告（谁引用了 X）。附加能力：
 
-      -Convert       把相对路径字面量机械改写为 $(Proj_<项目名>)
+      -Convert       把跨子树手写路径机械改写为 $(Proj_<项目名>)
       -SyncManifest  从磁盘重算 modules.json 的 projects 节点（幂等）
 
 .PARAMETER Check
@@ -49,7 +51,9 @@ param(
     [switch]$SyncManifest,
     [switch]$WhatIf,
     [switch]$Strict,
-    [string]$ManifestFile = ""
+    [string]$ManifestFile = "",
+    # 引用扫描面（与映射源 modules.json 解耦）：默认 Frame + Projects 全部 csproj。
+    [string[]]$ScanRoots = @('Frame', 'Projects')
 )
 
 $ErrorActionPreference = "Stop"
@@ -95,12 +99,41 @@ $rootList = $rootList | Sort-Object { $_.Path.Length } -Descending
 # 旧式根别名（保留兼容；新引用统一用 $(Proj_<项目名>)）
 # 注意：值必须以分隔符结尾，否则与 rest 拼接会粘连出 "CsharpPrj..\..\" 这类无效路径
 $legacyAliases = @{
-    'CsharpPrjDir'    = "$csharpPrj\"
-    'BasicMethodDir'  = (Join-Path $csharpPrj 'BasicMethod\')
-    'BasicMethodRoot' = (Join-Path $csharpPrj 'BasicMethod\Map\')
-    'PlateDir'        = (Join-Path $csharpPrj 'Plate\')
-    'ShareDir'        = (Join-Path $csharpPrj 'Share\')
-    'ProtocolDir'     = (Join-Path $csharpPrj 'Protocol\')
+    'CsharpPrjDir'        = "$csharpPrj\"
+    'BasicMethodDir'      = (Join-Path $csharpPrj 'BasicMethod\')
+    'BasicMethodRoot'     = (Join-Path $csharpPrj 'BasicMethod\Map\')
+    'PlateDir'            = (Join-Path $csharpPrj 'Plate\')
+    'ShareDir'            = (Join-Path $csharpPrj 'Share\')
+    'ProtocolDir'         = (Join-Path $csharpPrj 'Protocol\')
+    # 子树级根别名（跨子树手写路径的两种既有形态）：解析后即可映射到 $(Proj_*) 并被 -Convert 机械改写。
+    'CsharpProjectRoot'   = (Join-Path (Get-WorkflowFrameRoot) 'CsharpPrj\')
+    'UsharpCsharpPrjRoot' = (Join-Path (Get-WorkflowFrameRoot) 'CsharpPrj\')
+    'CsharpRootDir'       = "$csharpPrj\"
+}
+
+# 引用域（子树）判定：跨域指向 CsharpPrj 的引用必须是 $(Proj_*)，同域内允许相对路径。
+function Get-ReferenceDomain {
+    param([Parameter(Mandatory)][string]$AbsPath)
+    $frameRoot = [System.IO.Path]::GetFullPath((Get-WorkflowFrameRoot)).TrimEnd('\')
+    $repoRoot = Split-Path -Parent $frameRoot
+    $p = [System.IO.Path]::GetFullPath($AbsPath).ToLowerInvariant()
+    $map = [ordered]@{
+        'csharpprj'  = (Join-Path $frameRoot 'CsharpPrj')
+        'usharp'     = (Join-Path $frameRoot 'Usharp')
+        'datacenter' = (Join-Path $frameRoot 'DataCenter')
+        'callcenter' = (Join-Path $frameRoot 'CallCenter')
+        'projects'   = (Join-Path $repoRoot 'Projects')
+    }
+    foreach ($k in $map.Keys) {
+        $prefix = ([System.IO.Path]::GetFullPath($map[$k])).TrimEnd('\').ToLowerInvariant() + '\'
+        if ($p.StartsWith($prefix)) { return $k }
+    }
+    return 'other'
+}
+
+function Test-CanonicalProjReference {
+    param([Parameter(Mandatory)][string]$Include)
+    return ($Include.Trim() -match '^\$\(Proj_[A-Za-z0-9_]+\)$')
 }
 
 # Proj_<Safe>（小写）→ 绝对 csproj 路径
@@ -120,6 +153,11 @@ function Resolve-IncludeValue {
         $rest = $m.Groups[2].Value
         $key = $propName.ToLowerInvariant()
         if ($propMap.ContainsKey($key)) { return $propMap[$key] }
+        # 聚合工程别名（<Root>Csproj → Proj_<Root>）：仅当映射存在时解析，不做路径猜测
+        if ($propName -match '^([A-Za-z_][A-Za-z0-9_]*)Csproj$') {
+            $agg = ('Proj_' + $Matches[1]).ToLowerInvariant()
+            if ($propMap.ContainsKey($agg)) { return $propMap[$agg] }
+        }
         if ($legacyAliases.ContainsKey($propName)) {
             $combined = ($legacyAliases[$propName] + ($rest -replace '^[\\/]+', '')) -replace '/', '\'
             return [System.IO.Path]::GetFullPath($combined)
@@ -253,8 +291,22 @@ if ($Convert) {
     $convertedCount = 0
     $unresolved = @()
 
-    foreach ($proj in Get-EnumeratedProjects -CsharpPrjRoot $csharpPrj) {
-        $refs = @(Get-ProjectReferences -ProjectFile $proj | Where-Object { -not $_.IsProperty })
+    # 失效路径兜底：按 csproj 文件名（= modules.json 项目名）反查，保证搬迁后（旧路径不存在）仍可机械修正
+    $nameMap = @{}
+    foreach ($kv in $pathMap.GetEnumerator()) {
+        $nameMap[$kv.Value.Name] = $kv.Value
+        # csproj 文件名可能 ≠ modules.json 键名（如键 Node / 文件 Modules.Node.csproj）⇒ 双登记
+        $csprojLeaf = [System.IO.Path]::GetFileNameWithoutExtension($kv.Value.Path)
+        if (-not $nameMap.ContainsKey($csprojLeaf)) { $nameMap[$csprojLeaf] = $kv.Value }
+    }
+
+    foreach ($proj in Get-ReferenceScanProjects -FrameRoot (Get-WorkflowFrameRoot) -Roots $ScanRoots) {
+        $refs = @(Get-ProjectReferences -ProjectFile $proj | Where-Object {
+                # 改写「目标在 CsharpPrj 且非规范 $(Proj_*)」的引用（含同域旧别名 / 跨子树手写路径）；
+                # 指向非 CsharpPrj 的相对引用保持原样（不受 modules.json 管辖）
+                $toDomain = if ([string]::IsNullOrEmpty($_.Abs)) { '' } else { Get-ReferenceDomain -AbsPath $_.Abs }
+                (-not (Test-CanonicalProjReference -Include $_.Raw)) -and ($toDomain -eq 'csharpprj')
+            })
         if ($refs.Count -eq 0) { continue }
 
         $text = Get-Content $proj.FullName -Raw -Encoding UTF8
@@ -269,7 +321,15 @@ if ($Convert) {
                 $newText = $newText.Remove($t.ValueStart, $t.ValueLen).Insert($t.ValueStart, $replacement)
                 $fileConverted++
             } else {
-                $unresolved += "$($proj.BaseName): $($t.Raw)"
+                # 路径不存在（模块已搬迁）时按文件名兜底：modules.json 项目名唯一 ⇒ 映射安全
+                $leaf = [System.IO.Path]::GetFileNameWithoutExtension(($t.Raw -replace '/', '\'))
+                if ($nameMap.ContainsKey($leaf)) {
+                    $replacement = '$(Proj_' + $nameMap[$leaf].Safe + ')'
+                    $newText = $newText.Remove($t.ValueStart, $t.ValueLen).Insert($t.ValueStart, $replacement)
+                    $fileConverted++
+                } else {
+                    $unresolved += "$($proj.BaseName): $($t.Raw)"
+                }
             }
         }
 
@@ -305,11 +365,12 @@ Write-Host ""
 Write-Host "[Check] CsharpPrj 项目引用校验" -ForegroundColor Cyan
 Write-Host "  清单: $ManifestFile" -ForegroundColor Gray
 
-$allProjects = Get-EnumeratedProjects -CsharpPrjRoot $csharpPrj
-Write-Host "  扫描 $($allProjects.Count) 个 csproj" -ForegroundColor Gray
+$allProjects = Get-ReferenceScanProjects -FrameRoot (Get-WorkflowFrameRoot) -Roots $ScanRoots
+Write-Host "  扫描 $($allProjects.Count) 个 csproj（扫描面: $($ScanRoots -join ', ')；映射源: modules.json）" -ForegroundColor Gray
 
 $dangling = @()
 $nonProperty = @()
+$crossDomain = @()
 $layerHard = @()
 $layerWarn = @()
 $excepted = @()
@@ -320,13 +381,26 @@ $reverseRef = @{}
 
 foreach ($proj in $allProjects) {
     $me = $proj.BaseName
+    $meDomain = Get-ReferenceDomain -AbsPath $proj.FullName
     if (-not $graph.ContainsKey($me)) { $graph[$me] = @() }
     $meLayer = Get-LayerInfo -AbsPath $proj.FullName
 
     foreach ($r in Get-ProjectReferences -ProjectFile $proj) {
         $totalRefs++
-        if (-not $r.IsProperty) {
-            if (-not $exceptionSet.ContainsKey("$me|$($r.Raw)")) { $nonProperty += "$me -> $($r.Raw)" }
+        $targetDomain = if ([string]::IsNullOrEmpty($r.Abs)) { '' } else { Get-ReferenceDomain -AbsPath $r.Abs }
+        $isCanonical = Test-CanonicalProjReference -Include $r.Raw
+
+        # 未属性化：目标在 CsharpPrj（内部相对引用 或 跨子树手写/旧别名）⇒ 必须 $(Proj_<项目名>)
+        # 注：跨子树指向非 CsharpPrj（DataCenter/Projects 等）的相对引用不属 modules.json 管辖，不计入。
+        if (-not $isCanonical -and $targetDomain -eq 'csharpprj') {
+            if (-not $exceptionSet.ContainsKey("$me|$($r.Raw)")) {
+                $nonProperty += "$me -> $($r.Raw)"
+            }
+        }
+
+        # 跨子树形态判据：目标在 CsharpPrj 且引用方不在 CsharpPrj ⇒ 必须 $(Proj_<项目名>)
+        if ($targetDomain -eq 'csharpprj' -and $meDomain -ne 'csharpprj' -and -not $isCanonical) {
+            $crossDomain += "$me [$meDomain] -> $($r.Raw)"
         }
 
         if ([string]::IsNullOrEmpty($r.Abs)) {
@@ -398,6 +472,8 @@ $umbrellaSet = New-Object System.Collections.Generic.HashSet[string]
 foreach ($u in $umbrellas) { [void]$umbrellaSet.Add($u) }
 $orphanSet = New-Object System.Collections.Generic.HashSet[string]
 foreach ($proj in $allProjects) {
+    # 孤儿判定仅适用于 CsharpPrj 内部（跨子树工程不在伞可达域；其悬空/未属性化必须硬判）
+    if ((Get-ReferenceDomain -AbsPath $proj.FullName) -ne 'csharpprj') { continue }
     if (-not $reachable.Contains($proj.BaseName)) { [void]$orphanSet.Add($proj.BaseName) }
 }
 
@@ -481,6 +557,14 @@ if ($unresolvable.Count -gt 0) {
     $unresolvable | Sort-Object -Unique | Select-Object -First 10 | ForEach-Object { Write-Host "      $_" -ForegroundColor DarkGray }
 }
 
+Write-Host '--- [附加] 跨子树引用形态（跨子树 → CsharpPrj 必须 $(Proj_<项目名>)）---' -ForegroundColor White
+if ($crossDomain.Count -eq 0) {
+    Write-Host "  [通过] 无跨子树手写路径（引用形态与模块位置解耦）" -ForegroundColor Green
+} else {
+    Write-Host "  [失败] $($crossDomain.Count) 条跨子树引用仍为手写路径（可运行 -Convert 机械改写）:" -ForegroundColor Red
+    $crossDomain | Sort-Object -Unique | ForEach-Object { Write-Host "      $_" -ForegroundColor Red }
+}
+
 Write-Host "--- [3/4] 层序违规 ---" -ForegroundColor White
 if ($layerHard.Count -eq 0 -and $layerWarn.Count -eq 0 -and $excepted.Count -eq 0) {
     Write-Host "  [通过] 无层序违规" -ForegroundColor Green
@@ -522,7 +606,7 @@ foreach ($e in $topReferenced) {
 # ============================================================
 
 Write-Host ""
-$fail = ($danglingReachable.Count -gt 0) -or ($nonPropertyFail.Count -gt 0) -or ($layerHard.Count -gt 0) -or ($script:cycles.Count -gt 0)
+$fail = ($danglingReachable.Count -gt 0) -or ($nonPropertyFail.Count -gt 0) -or ($crossDomain.Count -gt 0) -or ($layerHard.Count -gt 0) -or ($script:cycles.Count -gt 0)
 if ($Strict -and $layerWarn.Count -gt 0) { $fail = $true }
 
 if ($orphanSet.Count -gt 0) {

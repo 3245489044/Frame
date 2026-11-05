@@ -1,9 +1,10 @@
-#requires -Version 7.0
 <#
 .SYNOPSIS
     调用治理原语（CallGovernor）—— 票据 / 契约 / 预算 / 增益 / 相位 / 账本 的唯一实现点。
 
 .DESCRIPTION
+    5.1 兼容（硬约束）：本模块不使用 #requires -Version 7.0，也不使用 5.1 不支持的
+    ConvertFrom-Json -AsHashtable / -Depth（读取账本 JSON 不需要 -Depth 参数）。
     治「执行者自证」：原调用约束只写在 .clinerules（声明层），无任何运行期执行体，
     判据载体 = 执行者叙述（违 SEP.JudgmentCarrierStructural）。本模块把四类判定搬成宿主代码：
 
@@ -72,7 +73,7 @@ function Open-CallLedger {
 
     $doc = $null
     if (Test-Path -LiteralPath $path) {
-        try { $doc = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -Depth 12 } catch { $doc = $null }
+        try { $doc = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json } catch { $doc = $null }
     }
 
     if ($null -eq $doc) {

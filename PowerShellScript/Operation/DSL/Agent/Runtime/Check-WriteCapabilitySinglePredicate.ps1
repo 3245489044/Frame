@@ -40,7 +40,7 @@ $src = Join-Path $Root 'Projects\Plug\Agent\src'
 $sources = Join-Path $src 'Agent.Ui\Core\Functions\Batch\AgentWriteSources.cs'
 $capDefs = 0
 $legacyRefs = 0
-foreach ($f in (Get-ChildItem -Path $src -Recurse -Include '*.cs' -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\(bin|obj|BuildOutput)\\' })) {
+foreach ($f in (Get-ChildItem -Path $src -Recurse -Include '*.cs' -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch (Get-GateSourceExcludePattern) })) {
     $t = [System.IO.File]::ReadAllText($f.FullName)
     $c1 = Get-Count $t 'internal\s+static\s+WriteCapability\s+Capability\s*\('
     if ($c1 -gt 0) { $capDefs += $c1 }

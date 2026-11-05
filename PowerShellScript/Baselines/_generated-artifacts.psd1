@@ -9,7 +9,7 @@
     Artifacts = @(
         @{
             Name               = 'ModulePathsProps'
-            Artifact           = 'Frame\CsharpPrj\generated\Directory.Build.props.modules.generated.props'
+            Artifact           = 'Frame\generated\ModulePaths.generated.props'
             Generator          = 'Frame\PowerShellScript\Share\Solution\Generate-ModulePaths.ps1'
             GeneratorArgs      = @{ OutputFile = '{TEMP}' }
             Kind               = 'Text'

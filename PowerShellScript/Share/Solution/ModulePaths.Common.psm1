@@ -26,8 +26,9 @@ function Get-ModuleManifestPath {
     return (Join-Path $script:CsharpPrjRoot "modules.json")
 }
 
+# 跨子树路径契约：生成物位于 Frame\generated（不属于任何子树），由 CsharpPrj / Usharp / DataCenter 共同导入。
 function Get-ModuleGeneratedPropsPath {
-    return (Join-Path $script:CsharpPrjRoot "generated\Directory.Build.props.modules.generated.props")
+    return (Join-Path $script:FrameRoot "generated\ModulePaths.generated.props")
 }
 
 # MSBuild 属性名仅允许 [A-Za-z0-9_]；项目名中的 '.' 等字符需替换为 '_'
@@ -68,6 +69,52 @@ function Get-EnumeratedProjects {
 
 <#
 .SYNOPSIS
+    清单声明的 CsharpPrj 工程（映射源 = modules.json）。
+.DESCRIPTION
+    映射源与扫描面分离：清单只决定「属性名 ↔ 路径」，不决定「检查哪些 csproj」
+    （旧实现把 Get-EnumeratedProjects 同时当两用，导致清单外的子树成为校验盲区）。
+#>
+function Get-ManifestProjects {
+    param(
+        [Parameter(Mandatory)][string]$CsharpPrjRoot,
+        [Parameter(Mandatory)]$Manifest
+    )
+    $out = [System.Collections.Generic.List[object]]::new()
+    foreach ($p in $Manifest.projects.PSObject.Properties) {
+        $abs = [System.IO.Path]::GetFullPath((Join-Path $CsharpPrjRoot $p.Value))
+        if (Test-Path -LiteralPath $abs) { $out.Add((Get-Item -LiteralPath $abs)) }
+    }
+    return $out.ToArray()
+}
+
+<#
+.SYNOPSIS
+    引用扫描面（默认 Frame + Projects 全部 csproj）。
+.DESCRIPTION
+    扫描面独立于清单：新增子树/工程即使未登记 modules.json 也会被检查
+    （缺引用、跨子树手写路径必须可见）。
+#>
+function Get-ReferenceScanProjects {
+    param(
+        [Parameter(Mandatory)][string]$FrameRoot,
+        [string[]]$Roots = @()
+    )
+    if ($null -eq $Roots -or $Roots.Count -eq 0) { $Roots = @('Frame', 'Projects') }
+    $repoRoot = Split-Path -Parent ([System.IO.Path]::GetFullPath($FrameRoot).TrimEnd('\'))
+    $out = [System.Collections.Generic.List[object]]::new()
+    foreach ($r in $Roots) {
+        $root = Join-Path $repoRoot $r
+        if (-not (Test-Path -LiteralPath $root)) { continue }
+        foreach ($f in (Get-ChildItem -LiteralPath $root -Recurse -Filter *.csproj -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -notmatch '\\(obj|bin|BuildOutput|_deprecated|Runtime)\\' })) {
+            $out.Add($f)
+        }
+    }
+    return $out.ToArray()
+}
+
+<#
+.SYNOPSIS
     推导「根伞工程」集合 —— MainProj.sln 唯一允许直挂的工程。
 
 .DESCRIPTION
@@ -101,4 +148,5 @@ function Get-UmbrellaProjects {
 
 Export-ModuleMember -Function Get-CsharpPrjRoot, Get-WorkflowFrameRoot, Get-ModuleManifestPath,
 Get-ModuleGeneratedPropsPath, Get-SafeModuleName, Read-ModuleManifest, Get-ModulePathMap, Get-EnumeratedProjects,
+Get-ManifestProjects, Get-ReferenceScanProjects,
 Get-UmbrellaProjects

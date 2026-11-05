@@ -60,7 +60,7 @@
     <ProjectReference Include="$(Proj_TConfig)" />
 
     <!-- Container 执行容器（IExecutionCell 等抽象接口） -->
-    <ProjectReference Include="$(BasicMethodRoot)Container\Container.csproj" />
+    <ProjectReference Include="$(Proj_Container)" />
 
     <!-- ★ 2026-07-06 新增：TaskStatusPool（池 + 态射 + 上下文，用于跨模块多控件读写） -->
     <ProjectReference Include="$(Proj_TaskStatusPool)" />

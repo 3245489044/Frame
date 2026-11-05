@@ -375,7 +375,7 @@ if (Test-Path -LiteralPath $nodesDir) {
 # H24 建容器单入口（P1/K1）：实现点 = 1 ∧ 入口登记点 = 1
 $agentSrc = Join-Path $agentRoot 'src'
 $agentCs = @(Get-ChildItem -LiteralPath $agentSrc -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' })
+    Where-Object { $_.FullName -notmatch (Get-GateSourceExcludePattern) })
 $ensureImpls = @($agentCs | Select-String -Pattern 'private static async Task<object> EnsureContainerAsync' -List)
 if ($ensureImpls.Count -ne 1) {
     Add-Violation 'H24' "建容器实现点=$($ensureImpls.Count)（应为 1；建容器须收敛为单一所有者）"

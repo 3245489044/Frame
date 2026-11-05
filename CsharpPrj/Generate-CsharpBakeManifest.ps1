@@ -33,7 +33,7 @@ $stampPath   = Join-Path $outDir '.csharp-bake-complete.stamp'
 $props = @{}
 $propsFiles = @(
     (Join-Path $root 'Directory.Build.props'),
-    (Join-Path $root 'generated\Directory.Build.props.modules.generated.props'),
+    (Join-Path $root '..\generated\ModulePaths.generated.props'),
     (Join-Path $root 'generated\Directory.Build.props.versions.generated.props')
 )
 foreach ($propsFile in $propsFiles) {

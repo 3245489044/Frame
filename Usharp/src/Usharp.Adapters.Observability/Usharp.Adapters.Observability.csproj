@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
-    <ProjectReference Include="$(UsharpCsharpPrjRoot)Strategy\Observability\Observability.csproj" />
+    <ProjectReference Include="$(Proj_Observability)" />
   </ItemGroup>
 
   <!-- 不引 Operation.HierarchyMethod（RoundSpec 载体）：埋点入参由宿主编排把 step 投影为

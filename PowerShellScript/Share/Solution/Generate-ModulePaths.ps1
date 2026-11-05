@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     读取 Frame/CsharpPrj/modules.json（模块目录单一真源），生成
-    Frame/CsharpPrj/generated/Directory.Build.props.modules.generated.props，
+    Frame/generated/ModulePaths.generated.props（跨子树共享路径契约；不属于任何子树），
     其中为每个模块定义两个 MSBuild 属性：
 
       Mod_<ProjectName>  = 该 csproj 所在目录（绝对路径，尾随 "\"）
@@ -21,7 +21,7 @@
     modules.json 的路径（默认：Frame/CsharpPrj/modules.json）
 
 .PARAMETER OutputFile
-    生成的 .props 路径（默认：Frame/CsharpPrj/generated/Directory.Build.props.modules.generated.props）
+    生成的 .props 路径（默认：Frame/generated/ModulePaths.generated.props）
 
 .PARAMETER WhatIf
     预览将要生成的内容，不实际写入文件
@@ -155,7 +155,7 @@ $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine("<Project>")
 [void]$sb.AppendLine("")
 [void]$sb.AppendLine("  <PropertyGroup Label=`"ModuleRoot`">")
-[void]$sb.AppendLine("    <CsharpPrjDir>`$([System.IO.Path]::GetFullPath('`$(MSBuildThisFileDirectory)..\'))</CsharpPrjDir>")
+[void]$sb.AppendLine("    <CsharpPrjDir>`$([System.IO.Path]::GetFullPath('`$(MSBuildThisFileDirectory)..\CsharpPrj\'))</CsharpPrjDir>")
 [void]$sb.AppendLine("  </PropertyGroup>")
 [void]$sb.AppendLine("")
 

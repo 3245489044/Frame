@@ -24,6 +24,7 @@ $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateFacts.psm1') -Force -DisableNameChecking
 
 $repoRoot = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 $ledgerForge = Get-GateLedgerForge -RepoRoot $repoRoot
@@ -85,18 +86,12 @@ $contractActions = @()
 # 契约根单源（A4）：唯一解析实现 = C# PowerShellHostRoots（经 LedgerForge ps-runtime-facts 导出）。
 # PS 不再自算 repoRoot/projectRoot/contractDirs，也不再自带 Frame 回退分支。
 $frameRoot = Join-Path $GateRuntimeRoot 'Frame'
-$factsOut = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('ps-runtime-facts-' + [guid]::NewGuid().ToString('N') + '.json'))
-try {
-    & $ledgerForge ps-runtime-facts --repo $repoRoot --agent $AgentRoot --frame-root $frameRoot --out $factsOut | Out-Null
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $factsOut)) {
-        Write-Host '[FAIL] 无法执行：ps-runtime-facts 未产出（契约根解析不可用）' -ForegroundColor Red
-        exit 2
-    }
-    $runtimeFacts = Get-Content -LiteralPath $factsOut -Raw -Encoding UTF8 | ConvertFrom-Json
+$psRuntimeProbe = Get-GatePsRuntimeFacts -LedgerForge $ledgerForge -RepoRoot $repoRoot -AgentRoot $AgentRoot -FrameRoot $frameRoot
+if (-not $psRuntimeProbe.Ok) {
+    Write-Host '[FAIL] 无法执行：ps-runtime-facts 未产出（契约根解析不可用）' -ForegroundColor Red
+    exit 2
 }
-finally {
-    if (Test-Path -LiteralPath $factsOut) { Remove-Item -LiteralPath $factsOut -Force }
-}
+$runtimeFacts = $psRuntimeProbe.Payload
 # 口径对齐断言：运行期不得另有一份契约根解析（必须复用同一实现）。
 $runtimeHostSource = Join-Path $AgentRoot 'src\Agent.Modules\Framework\Invoke\PsRuntime\PsRuntimeHost.cs'
 if (-not (Test-Path -LiteralPath $runtimeHostSource)) {

@@ -23,7 +23,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(UsharpCsharpPrjRoot)Plate\DslMethod\DslMethod.csproj" />
+    <ProjectReference Include="$(Proj_DslMethod)" />
   </ItemGroup>
 
 </Project>

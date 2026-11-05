@@ -42,10 +42,10 @@
        （CsharpPrj\Operation\StateHoldDriven 源码引用本工程）——这些边不消费上游源码类型、不复制其产物，
        只把上游工程排在编译之前，保证干净机器上 `dotnet build MainProj.sln` 与 `DataCenter.slnx` 不出现上游 dll 竞态缺失。 -->
   <ItemGroup Label="CsharpPrjBuildOrderOnly">
-    <ProjectReference Include="$(CsharpProjectRoot)\Protocol\CSG\CSG.Unified\CSG.Unified.csproj" ReferenceOutputAssembly="false" Private="false" />
-    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\StateManagement\StateManagement.csproj" ReferenceOutputAssembly="false" Private="false" />
-    <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" ReferenceOutputAssembly="false" Private="false" />
-    <ProjectReference Include="$(CsharpProjectRoot)\BasicMethod\Map\Block\Block.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(Proj_CSG_Unified)" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(Proj_StateManagement)" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(Proj_TConfig)" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(Proj_Block)" ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
 
   <ItemGroup>

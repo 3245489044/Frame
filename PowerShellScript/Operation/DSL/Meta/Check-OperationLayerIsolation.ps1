@@ -52,7 +52,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 }
 
 $csharpPrjDir = Join-Path $Root 'Frame\CsharpPrj'
-$propsPath    = Join-Path $csharpPrjDir 'generated\Directory.Build.props.modules.generated.props'
+$propsPath    = Join-Path $Root 'Frame\generated\ModulePaths.generated.props'
 $modulesJson  = Join-Path $csharpPrjDir 'modules.json'
 $operationDir = Join-Path $csharpPrjDir 'Operation'
 

@@ -19,7 +19,7 @@
     <ProjectReference Include="$(Proj_BasicMethod)" />
     <!-- 2026-09 StateBus 治理 P3：Modules.Threading（叶子）为派发原语家，供 IPublishDispatcher 桥接（PublishDispatcherAdapter） -->
     <ProjectReference Include="$(Proj_Threading)" />
-    <ProjectReference Include="$(BasicMethodRoot)Block\Block.csproj" />
+    <ProjectReference Include="$(Proj_Block)" />
     <ProjectReference Include="$(Proj_Pipeline)" />
     <!-- DiagnosticContext 诊断上下文 -->
     <ProjectReference Include="$(Proj_DiagnosticContext)" />

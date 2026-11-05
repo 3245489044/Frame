@@ -12,6 +12,7 @@ $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateFacts.psm1') -Force -DisableNameChecking
 
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $d = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
@@ -74,24 +75,17 @@ if (-not ((Test-Path -LiteralPath $codecPath) -and (Test-Path -LiteralPath $cons
     Write-GateSkip -Key 'TransferKey' -Reason '键文法/词表事实源缺失（值集等价与 slot 边界未验证）'
 }
 else {
-    $factsOut = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('transfer-facts-' + [guid]::NewGuid().ToString('N') + '.json'))
-    try {
-        & $ledgerForge transfer-facts --ushar $transferPath --consts $constsPath --codec $codecPath --out $factsOut | Out-Null
-        $factsCode = $LASTEXITCODE
-        if ($factsCode -eq 2 -or -not (Test-Path -LiteralPath $factsOut)) {
-            $violations.Add('无法执行：transfer-facts 输入不可读（值集等价与 slot 边界未验证）')
-        }
-        else {
-            $facts = Get-Content -LiteralPath $factsOut -Raw -Encoding UTF8 | ConvertFrom-Json
-            foreach ($mismatch in @($facts.mismatches)) { $violations.Add("转移键事实不一致：$mismatch") }
-            if ([string]::IsNullOrEmpty([string]$facts.codec.prefix)) { $violations.Add('TransferKeyCodec 缺 Prefix 事实') }
-            if ([int]$facts.codec.maxSlotLength -le 0) { $violations.Add('TransferKeyCodec 缺 MaxSlotLength 事实') }
-            if (@($facts.codec.layers).Count -eq 0) { $violations.Add('TransferKeyCodec 缺 Layers 词表') }
-            if (@($facts.codec.kinds).Count -eq 0) { $violations.Add('TransferKeyCodec 缺 Kinds 词表') }
-        }
+    $factsProbe = Get-GateTransferFacts -LedgerForge $ledgerForge -UsharRoot $transferPath -ConstantsPath $constsPath -CodecPath $codecPath
+    if (-not $factsProbe.Ok) {
+        $violations.Add('无法执行：transfer-facts 输入不可读（值集等价与 slot 边界未验证）')
     }
-    finally {
-        if (Test-Path -LiteralPath $factsOut) { Remove-Item -LiteralPath $factsOut -Force }
+    else {
+        $facts = $factsProbe.Payload
+        foreach ($mismatch in @($facts.mismatches)) { $violations.Add("转移键事实不一致：$mismatch") }
+        if ([string]::IsNullOrEmpty([string]$facts.codec.prefix)) { $violations.Add('TransferKeyCodec 缺 Prefix 事实') }
+        if ([int]$facts.codec.maxSlotLength -le 0) { $violations.Add('TransferKeyCodec 缺 MaxSlotLength 事实') }
+        if (@($facts.codec.layers).Count -eq 0) { $violations.Add('TransferKeyCodec 缺 Layers 词表') }
+        if (@($facts.codec.kinds).Count -eq 0) { $violations.Add('TransferKeyCodec 缺 Kinds 词表') }
     }
 }
 

@@ -79,7 +79,7 @@ $rules = @(
             foreach ($rootDir in $frameRoots) {
                 if (-not (Test-Path -LiteralPath $rootDir)) { continue }
                 $hits += @(Get-ChildItem -LiteralPath $rootDir -Recurse -File -Filter *.cs |
-                    Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' } |
+                    Where-Object { $_.FullName -notmatch (Get-GateSourceExcludePattern) } |
                     ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) } |
                     Select-String -Pattern '\bUiRegionKind\b' -AllMatches |
                     ForEach-Object { $_.Matches.Count } |

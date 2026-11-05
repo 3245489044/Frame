@@ -31,11 +31,11 @@
 
   <ItemGroup>
     <!-- 底座：基础决策引擎（零依赖），复用其条件求值 / 优先级选择 / 引擎组合 -->
-    <ProjectReference Include="$(BasicMethodRoot)DecisionEngine\DecisionEngine.csproj" />
+    <ProjectReference Include="$(Proj_DecisionEngine)" />
     <!-- 声明式框架（BasicMethod.Map.Declarative）：参数坐标系/语义词元/分层决策图 等声明原子归此（零外部依赖） -->
     <ProjectReference Include="$(Proj_Declarative)" />
     <!-- 扩充依赖：平台级统一 JSON 框架（jsonPath 匹配 / 占位符渲染 / 规则文件校验），不污染底座 -->
-    <ProjectReference Include="$(PlateDir)JsonMethod\JsonMethod.csproj" />
+    <ProjectReference Include="$(Proj_JsonMethod)" />
     <!-- 初始化护栏门面（P1 空值护栏收敛）：PortGuard.Required（T 出口） -->
     <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
   </ItemGroup>

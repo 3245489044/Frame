@@ -44,6 +44,7 @@ $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateFacts.psm1') -Force -DisableNameChecking
 
 if ([string]::IsNullOrWhiteSpace($Root))
 {
@@ -68,51 +69,33 @@ if (-not $ledgerForge) {
     exit 2
 }
 
-function Invoke-GatherValidate([string]$Directory, [string]$OutFile) {
-    & $ledgerForge gather-validate --dir $Directory --out $OutFile
-    return $LASTEXITCODE
-}
-
-function Read-GatherIssues([string]$Path) {
-    if (-not (Test-Path -LiteralPath $Path)) { return @() }
-    $payload = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-    return @($payload.issues)
-}
-
 $declDir = Join-Path $Root 'Projects\Plug\Agent\Config\gather'
 $files = @(Get-ChildItem -LiteralPath $declDir -Filter '*.json' -File -ErrorAction SilentlyContinue)
 $totalViews = 0
 if ($files.Count -eq 0) {
     $violations.Add('[V1] 聚拢声明缺失：*.json（缺失即判红，禁回退 C# 常量）')
 } else {
-    $probeOut = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('gather-' + [guid]::NewGuid().ToString('N') + '.json'))
-    try {
-        $code = Invoke-GatherValidate -Directory $declDir -OutFile $probeOut
-        if ($code -eq 2) {
-            Write-Host '[FAIL] 无法执行：gather-validate 声明目录不可读' -ForegroundColor Red
-            exit 2
-        }
-        if ($code -notin @(0, 1)) {
-            Write-Host "[FAIL] 无法执行：gather-validate 退出码 $code" -ForegroundColor Red
-            exit 2
-        }
-        foreach ($issue in (Read-GatherIssues $probeOut)) {
-            $violations.Add("$(Split-Path -Leaf $issue.path) [$($issue.code)] $($issue.message)")
-        }
-        foreach ($file in $files) {
-            $spec = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-            $totalViews += @($spec.views.PSObject.Properties).Count
-        }
+    $mainFacts = Get-GateGatherIssues -LedgerForge $ledgerForge -Directory $declDir
+    if ($mainFacts.ExitCode -eq 2) {
+        Write-Host '[FAIL] 无法执行：gather-validate 声明目录不可读' -ForegroundColor Red
+        exit 2
     }
-    finally {
-        if (Test-Path -LiteralPath $probeOut) { Remove-Item -LiteralPath $probeOut -Force }
+    if ($mainFacts.ExitCode -notin @(0, 1)) {
+        Write-Host "[FAIL] 无法执行：gather-validate 退出码 $($mainFacts.ExitCode)" -ForegroundColor Red
+        exit 2
+    }
+    foreach ($issue in @($mainFacts.Payload.issues)) {
+        $violations.Add("$(Split-Path -Leaf $issue.path) [$($issue.code)] $($issue.message)")
+    }
+    foreach ($file in $files) {
+        $spec = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+        $totalViews += @($spec.views.PSObject.Properties).Count
     }
 }
 
 # ---------------- 正负对照（同一 CLI，防判据被「恒真」绕过） ----------------
 # 一次调用覆盖 1 正 + 7 负；每个样本必须命中对应 V 规则，正样本必须 0 issue。
 $controlDir = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('gather-controls-' + [guid]::NewGuid().ToString('N')))
-$controlOut = [System.IO.Path]::Combine($controlDir, 'result.json')
 $samples = [ordered]@{
     'good.json'           = '{"schema":"gather-spec-v1","views":{"base":{"stages":[{"name":"s","needs":["d"],"deps":[]}],"needs":[{"domain":"d","scope":"x"}],"produces":[{"name":"p","kind":"k","retention":"c","crit":"micro"}]},"child":{"extends":"base"}}}'
     'missing-need.json'   = '{"schema":"gather-spec-v1","views":{"v":{"stages":[{"name":"s","needs":["ghost"],"deps":[]}],"needs":[{"domain":"a","scope":"x"}],"produces":[]}}}'
@@ -133,9 +116,10 @@ try {
     foreach ($name in $samples.Keys) {
         [System.IO.File]::WriteAllText((Join-Path $controlDir $name), $samples[$name])
     }
-    $controlCode = Invoke-GatherValidate -Directory $controlDir -OutFile $controlOut
+    $controlFacts = Get-GateGatherIssues -LedgerForge $ledgerForge -Directory $controlDir
+    $controlCode = $controlFacts.ExitCode
     $actual = @{}
-    foreach ($issue in (Read-GatherIssues $controlOut)) {
+    foreach ($issue in @($controlFacts.Payload.issues)) {
         $leaf = Split-Path -Leaf $issue.path
         if (-not $actual.ContainsKey($leaf)) { $actual[$leaf] = [System.Collections.Generic.List[string]]::new() }
         $actual[$leaf].Add([string]$issue.code)

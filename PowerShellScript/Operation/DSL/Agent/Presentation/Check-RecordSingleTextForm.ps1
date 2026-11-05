@@ -45,7 +45,7 @@ function Get-Count([string]$Text, [string]$Pattern) { return [regex]::Matches($T
 $src = Join-Path $Root 'Projects\Plug\Agent\src'
 $refs = 0
 $hasRecord = $false
-foreach ($f in (Get-ChildItem -Path $src -Recurse -Include '*.cs' -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\(bin|obj|BuildOutput)\\' })) {
+foreach ($f in (Get-ChildItem -Path $src -Recurse -Include '*.cs' -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch (Get-GateSourceExcludePattern) })) {
     $t = [System.IO.File]::ReadAllText($f.FullName)
     $c = Get-Count $t 'DetailPayloadJson'
     if ($c -gt 0) { $refs += $c; $violations.Add("[G1] DetailPayloadJson 引用：$($f.Name) × $c") }

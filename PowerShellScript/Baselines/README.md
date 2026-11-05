@@ -44,7 +44,7 @@
 
 | 产物 | 生成器 | 易变字段 |
 |---|---|---|
-| `Frame\CsharpPrj\generated\Directory.Build.props.modules.generated.props` | `Share\Solution\Generate-ModulePaths.ps1` | `生成时间:` 行 |
+| `Frame\generated\ModulePaths.generated.props` | `Share\Solution\Generate-ModulePaths.ps1` | `生成时间:` 行 |
 | `Frame\PowerShellScript\PScriptManager\Framework\ps-function-index.json` | `Build-FunctionIndex.ps1`（`-IndexOut`） | `builtAt` |
 | `Frame\CsharpPrj\generated\ContractIndex.json` | `Share\Index\Build-ContractIndex.ps1`（`-Update`） | `builtAt` |
 

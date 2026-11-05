@@ -22,9 +22,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
-    <ProjectReference Include="$(UsharpCsharpPrjRoot)Share\Frameworks\UniversalReference\UniversalWorkflowFramework.csproj" />
+    <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" />
     <!-- [Node]/[Edge]/[Constraint] → ReferenceSchema 的既有实现（零依赖，复用不重建） -->
-    <ProjectReference Include="$(UsharpCsharpPrjRoot)Plate\DslMethod\DslMethod.csproj" />
+    <ProjectReference Include="$(Proj_DslMethod)" />
   </ItemGroup>
 
 </Project>

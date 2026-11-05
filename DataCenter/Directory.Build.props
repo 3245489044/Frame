@@ -33,10 +33,15 @@
   <!-- 导入 CsharpPrj 共享版本号定义（DataCenter 引用了 CsharpPrj 的项目） -->
   <Import Project="..\CsharpPrj\generated\Directory.Build.props.versions.generated.props" />
 
-  <!-- ★ 模块路径单一真源（生成式）：主仓 CsharpPrj\modules.json → Generate-ModulePaths.ps1。
+  <!-- ★ 模块路径单一真源（生成式，跨子树共享契约）：Frame\CsharpPrj\modules.json
+       → Generate-ModulePaths.ps1 → Frame\generated\ModulePaths.generated.props。
        使 Frame 平台库对 CsharpPrj 工程/顺序边的引用写为 $(Proj_<项目名>)，
        与目录位置解耦（移动模块只改 modules.json 一处）。 -->
-  <Import Project="..\CsharpPrj\generated\Directory.Build.props.modules.generated.props" />
+  <Import Project="..\generated\ModulePaths.generated.props" />
+  <!-- 引用目标缺失（MSB9008）不得降级为 warning：否则真因被级联 CS0246 淹没。 -->
+  <PropertyGroup>
+    <MSBuildWarningsAsErrors>$(MSBuildWarningsAsErrors);MSB9008</MSBuildWarningsAsErrors>
+  </PropertyGroup>
 
   <!-- ★ 烘焙轨（方案 B，2026-09-12）：DataCenter 对 CsharpPrj 只吃「权威烘焙二进制引用」，
        本属性 = 该权威目录的唯一表达点（Frame\CsharpPrj\BuildOutput\$(Configuration)，无 TFM 层，与 CsharpPrj 同约定）；

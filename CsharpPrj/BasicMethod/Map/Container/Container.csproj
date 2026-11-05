@@ -35,8 +35,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(BasicMethodDir)BasicMethod.csproj" />
-    <ProjectReference Include="$(PlateDir)TConfig\TConfig.csproj" />
+    <ProjectReference Include="$(Proj_BasicMethod)" />
+    <ProjectReference Include="$(Proj_TConfig)" />
   </ItemGroup>
 
 </Project>

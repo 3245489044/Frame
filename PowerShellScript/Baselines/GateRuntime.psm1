@@ -429,39 +429,7 @@ function Get-GateUnrecognizedKind {
     return $script:GateUnrecognizedKind
 }
 
-<#
-.SYNOPSIS
-    契约事实（A7）：经 LedgerForge contract-facts 导出 C# 事实；生成常量过期 ⇒ 抛错（不算通过）。
-.DESCRIPTION
-    返回 recognizedKinds / unrecognized / agentRuntimeSlotKeys / dispatchTracePhases。
-    过期断言（用户要求 #4）：生成常量与已提交 manifest 不一致时显性失败，防「读生成文件但生成文件过期」假绿。
-#>
-function Get-GateContractFacts {
-    param([string]$RepoRoot = '')
-
-    $root = if ($RepoRoot) { $RepoRoot } else { Get-GateRepoRoot }
-    $ledgerForge = Get-GateLedgerForge -RepoRoot $root
-    if (-not $ledgerForge) { throw 'LedgerForge 未构建（contract-facts 不可执行）' }
-
-    $outPath = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('contract-facts-' + [guid]::NewGuid().ToString('N') + '.json'))
-    try {
-        & $ledgerForge contract-facts --repo $root --agent (Join-Path $root 'Projects\Plug\Agent') --out $outPath | Out-Null
-        $code = $LASTEXITCODE
-        if ($code -ne 0 -or -not (Test-Path -LiteralPath $outPath)) {
-            throw "contract-facts 不可执行（退出码 $code）"
-        }
-
-        $facts = Get-Content -LiteralPath $outPath -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ($facts.constantsStale) {
-            $detail = (@($facts.constantMismatches) | Select-Object -First 3) -join '；'
-            throw "生成契约常量已过期（与已提交 manifest 不一致）：$detail"
-        }
-        return $facts
-    }
-    finally {
-        if (Test-Path -LiteralPath $outPath) { Remove-Item -LiteralPath $outPath -Force }
-    }
-}
+<# 契约事实（A7）已归位到 GateFacts.psm1：Get-GateContractFacts（取数 + 过期断言单源）。 #>
 
 
 # 显式导出面（自有 API + 门禁面向的目录映射 API）：
@@ -480,7 +448,6 @@ Export-ModuleMember -Function @(
     'Get-GateRegionKeyPattern',
     'Get-GateSourceExcludePattern',
     'Get-GateUnrecognizedKind',
-    'Get-GateContractFacts',
     'Get-GateLedgerForge',
     'Compare-GateKeySet',
     'Write-GateSkip',

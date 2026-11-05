@@ -74,7 +74,7 @@
     <!-- ★ MetaCommand 引用已移除：ConfigExecutor.cs、FileSystemExecutor.cs、RegistryExecutor.cs、WinFormsExecutor.cs 已迁移到 Modules/MetaCommand/Executors/ -->
     <ProjectReference Include="$(Proj_Share_ConfigurationModels)" />
     <ProjectReference Include="$(Proj_LayoutAnalysis)" />
-    <ProjectReference Include="$(BasicMethodRoot)GraphFoundation\GraphFoundation.csproj" />
+    <ProjectReference Include="$(Proj_GraphFoundation)" />
     <ProjectReference Include="$(Proj_ContextFrame)" />
     <!-- ★ 整合 BasicMethod 子项目（方案B：先整合再精简） -->
     <ProjectReference Include="$(Proj_BasicMethod_Framework_Abstractions)" />
@@ -83,11 +83,11 @@
     <ProjectReference Include="$(Proj_BasicMethod_Initialization)" />
     <ProjectReference Include="$(Proj_JsonMethod)" />
     <ProjectReference Include="$(Proj_ReactiveData)" />
-    <ProjectReference Include="$(BasicMethodRoot)StateMachine\StateMachine.csproj" />
-    <ProjectReference Include="$(BasicMethodRoot)DecisionEngine\DecisionEngine.csproj" />
+    <ProjectReference Include="$(Proj_StateMachine)" />
+    <ProjectReference Include="$(Proj_DecisionEngine)" />
     <ProjectReference Include="$(Proj_TConfig)" />
     <!-- ★ SortMent 编排态射框架（注册表/管线/分类） -->
-    <ProjectReference Include="$(BasicMethodRoot)SortMent\SortMent.csproj" />
+    <ProjectReference Include="$(Proj_SortMent)" />
     <!-- ★ Transformers 通用转换器框架 -->
     <ProjectReference Include="$(Proj_Transformers)" />
     <!-- JsonUIBeautifier（JsonUIBeautifier.Models、JsonUIBeautifier.Pipeline 等） -->

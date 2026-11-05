@@ -1259,6 +1259,14 @@
         Note   = '伞工程解决方案守卫 S1–S6：伞集合由 modules.json roots 推导（根目录直属 csproj ∧ 该根无独立 sln）/ 叶子不得直挂 MainProj.sln / 禁 Solution Folder 与 NestedProjects / 悬挂与重复登记 / 配置行双向一致；含正负对照（叶子直挂与文件夹必被捕获）'
     }
 
+    ProjectReferences = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '项目引用形态守卫 P1–P3：扫描面 = Frame + Projects 全部 csproj（与映射源 modules.json 解耦）/ 跨子树指向 CsharpPrj 必须 $(Proj_<项目名>) 且悬空 = 0 / 正对照（扫描数 ≥ 基线，防解析面失效）；唯一实现 = Share\Solution\Test-ProjectReferences.ps1'
+    }
+
     PsCapabilityFileOnly = @{
         Domain = 'Meta'
         Args   = @{ Check = $true }

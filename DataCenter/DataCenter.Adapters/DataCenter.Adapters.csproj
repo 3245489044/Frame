@@ -38,11 +38,11 @@
 
   <!-- ★ 仅顺序边（见 DataCenter.Core.csproj 同款说明）：本工程在 MainProj.sln 烘焙闭包内。 -->
   <ItemGroup Label="CsharpPrjBuildOrderOnly">
-    <ProjectReference Include="$(CsharpProjectRoot)\Modules\InternalStorage\InternalStorage.csproj" ReferenceOutputAssembly="false" Private="false" />
-    <ProjectReference Include="$(CsharpProjectRoot)\BasicMethod\Map\Block\Block.csproj" ReferenceOutputAssembly="false" Private="false" />
-    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\FrameworkAbstractions\FrameworkAbstractions.csproj" ReferenceOutputAssembly="false" Private="false" />
-    <ProjectReference Include="$(CsharpProjectRoot)\Share\Foundations\StateManagement\StateManagement.csproj" ReferenceOutputAssembly="false" Private="false" />
-    <ProjectReference Include="$(CsharpProjectRoot)\Plate\TConfig\TConfig.csproj" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(Proj_InternalStorage)" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(Proj_Block)" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(Proj_StateManagement)" ReferenceOutputAssembly="false" Private="false" />
+    <ProjectReference Include="$(Proj_TConfig)" ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
 
   <ItemGroup>

@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_BasicMethod)" />
-    <ProjectReference Include="$(BasicMethodRoot)Declarative\Declarative.csproj" />
+    <ProjectReference Include="$(Proj_Declarative)" />
     <ProjectReference Include="$(Proj_TConfig)" />
   </ItemGroup>
 

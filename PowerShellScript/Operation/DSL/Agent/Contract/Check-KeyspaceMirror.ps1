@@ -26,6 +26,7 @@ $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateFacts.psm1') -Force -DisableNameChecking
 
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $probe = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
@@ -48,62 +49,41 @@ $repoGenerated = Join-Path $repoConfig 'keyspaces\agent.keyspace.generated.json'
 $dataPath = Join-Path $Root 'Data\Agent\Config\keyspaces\agent.keyspace.json'
 $violations = New-Object System.Collections.Generic.List[string]
 
-$probeDir = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('keyspace-' + [guid]::NewGuid().ToString('N')))
-New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
+$repoFacts = Get-GateKeyspaceFactsText -BundlePath $bundle -InputPath $repoConfig -Mode 'keyspace-facts'
 
-function Invoke-Facts([string]$ModeName, [string]$InputPath, [string]$OutFile) {
-    & $bundle $ModeName $InputPath $OutFile | Out-Null
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $OutFile)) {
-        throw "Usharp.Bundle $ModeName 失败（输入：$InputPath）"
-    }
-    # 生成器刚写完的产物可能被索引/杀软短暂占用：重试读取（不改内容）。
-    for ($attempt = 0; $attempt -lt 5; $attempt++) {
-        try { return [System.IO.File]::ReadAllText($OutFile) }
-        catch { Start-Sleep -Milliseconds 50 }
-    }
-    throw "无法读取事实产物：$OutFile"
-}
-
-function Compare-Facts([string]$Label, [string]$Expected, [string]$Actual) {
-    if (-not [string]::Equals($Expected, $Actual, [System.StringComparison]::Ordinal)) {
-        $violations.Add("$Label 键空间事实漂移（Ordinal 文本不等；按 families/ports 规范化后比较）")
+# 生成产物必须与声明复算一致：第二处「读生成文件但可能过期」的载体（与 ITransferKeyStore.cs 空壳同类）。
+if (-not (Test-Path -LiteralPath $repoGenerated)) {
+    $violations.Add("缺仓库键空间产物：$repoGenerated")
+} else {
+    $committedFacts = Get-GateKeyspaceFactsText -BundlePath $bundle -InputPath $repoGenerated -Mode 'keyspace-facts-json'
+    if (-not (Test-GateFactTextEqual -Expected $repoFacts -Actual $committedFacts)) {
+        $violations.Add('仓库声明 vs agent.keyspace.generated.json 键空间事实漂移（Ordinal 文本不等；按 families/ports 规范化后比较）')
     }
 }
 
-try {
-    $repoFacts = Invoke-Facts 'keyspace-facts' $repoConfig (Join-Path $probeDir 'repo.json')
-
-    # 生成产物必须与声明复算一致：第二处「读生成文件但可能过期」的载体（与 ITransferKeyStore.cs 空壳同类）。
-    if (-not (Test-Path -LiteralPath $repoGenerated)) {
-        $violations.Add("缺仓库键空间产物：$repoGenerated")
-    } else {
-        $committedFacts = Invoke-Facts 'keyspace-facts-json' $repoGenerated (Join-Path $probeDir 'committed.json')
-        Compare-Facts '仓库声明 vs agent.keyspace.generated.json' $repoFacts $committedFacts
+$dataAvailable = Test-Path -LiteralPath $dataPath
+if ($dataAvailable) {
+    $dataFacts = Get-GateKeyspaceFactsText -BundlePath $bundle -InputPath $dataPath -Mode 'keyspace-facts-json'
+    if (-not (Test-GateFactTextEqual -Expected $repoFacts -Actual $dataFacts)) {
+        $violations.Add('仓库声明 vs Data\Agent\Config 键空间事实漂移（Ordinal 文本不等；按 families/ports 规范化后比较）')
     }
+}
 
-    $dataAvailable = Test-Path -LiteralPath $dataPath
-    if ($dataAvailable) {
-        $dataFacts = Invoke-Facts 'keyspace-facts-json' $dataPath (Join-Path $probeDir 'data.json')
-        Compare-Facts '仓库声明 vs Data\Agent\Config' $repoFacts $dataFacts
-    }
-
-    $currentPtr = Join-Path $Root 'Runtime\Plugins\Agent\current'
-    if (Test-Path -LiteralPath $currentPtr) {
-        $generation = (Get-Content -LiteralPath $currentPtr -Raw).Trim()
-        if (-not [string]::IsNullOrWhiteSpace($generation)) {
-            $genPath = Join-Path $Root "Runtime\Plugins\Agent\Generations\$generation\assets\Config\keyspaces\agent.keyspace.json"
-            if (Test-Path -LiteralPath $genPath) {
-                $genFacts = Invoke-Facts 'keyspace-facts-json' $genPath (Join-Path $probeDir 'generation.json')
-                Compare-Facts "仓库声明 vs Gen($generation)" $repoFacts $genFacts
-            }
-            else {
-                $violations.Add("Gen($generation) 缺 keyspace 声明：$genPath")
+$currentPtr = Join-Path $Root 'Runtime\Plugins\Agent\current'
+if (Test-Path -LiteralPath $currentPtr) {
+    $generation = (Get-Content -LiteralPath $currentPtr -Raw).Trim()
+    if (-not [string]::IsNullOrWhiteSpace($generation)) {
+        $genPath = Join-Path $Root "Runtime\Plugins\Agent\Generations\$generation\assets\Config\keyspaces\agent.keyspace.json"
+        if (Test-Path -LiteralPath $genPath) {
+            $genFacts = Get-GateKeyspaceFactsText -BundlePath $bundle -InputPath $genPath -Mode 'keyspace-facts-json'
+            if (-not (Test-GateFactTextEqual -Expected $repoFacts -Actual $genFacts)) {
+                $violations.Add("仓库声明 vs Gen($generation) 键空间事实漂移（Ordinal 文本不等；按 families/ports 规范化后比较）")
             }
         }
+        else {
+            $violations.Add("Gen($generation) 缺 keyspace 声明：$genPath")
+        }
     }
-}
-finally {
-    if (Test-Path -LiteralPath $probeDir) { Remove-Item -LiteralPath $probeDir -Recurse -Force }
 }
 
 if ($violations.Count -gt 0) {

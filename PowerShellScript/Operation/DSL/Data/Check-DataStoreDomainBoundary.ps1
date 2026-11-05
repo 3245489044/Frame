@@ -146,7 +146,7 @@ if (-not (Test-Path -LiteralPath $domainsList)) {
 Write-Host ("  P6 正对照：historyStore={0} / domainsList={1}" -f (Test-Path -LiteralPath $historyStore), (Test-Path -LiteralPath $domainsList)) -ForegroundColor Gray
 
 # ---------------- P7 同层引用棘轮 ----------------
-$propsPath = Join-Path $Root 'Frame\CsharpPrj\generated\Directory.Build.props.modules.generated.props'
+$propsPath = Join-Path $Root 'Frame\generated\ModulePaths.generated.props'
 $projMap = @{}
 if (Test-Path -LiteralPath $propsPath) {
     foreach ($m in [regex]::Matches([System.IO.File]::ReadAllText($propsPath), '<Proj_(?<n>[\w\.]+)>(?<p>[^<]+)</Proj_')) {

@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Emit\Usharp.Emit.csproj" />
-    <ProjectReference Include="$(UsharpCsharpPrjRoot)Modules\Node\Modules.Node.csproj" />
+    <ProjectReference Include="$(Proj_Node)" />
   </ItemGroup>
 
 </Project>

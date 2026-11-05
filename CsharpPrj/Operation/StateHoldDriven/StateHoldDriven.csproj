@@ -33,7 +33,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(BasicMethodRoot)Block\Block.csproj" />
+    <ProjectReference Include="$(Proj_Block)" />
     <ProjectReference Include="$(Proj_StateManagement)" />
     <!-- ★ 2026-09-12 DataCenter 立项（全量上收）：StateCenter 家族的通用逻辑（分层键/决策状态化…）
          物理迁出至 Frame\DataCenter\DataCenter.Core（命名空间沿用 Operation.StateBlock.*，消费方零破坏）。

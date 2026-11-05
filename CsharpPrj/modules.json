@@ -156,6 +156,7 @@
     "Share.Conversation": "Share\\Frameworks\\Conversation\\Share.Conversation.csproj",
     "Share.Messaging": "Share\\Frameworks\\Messaging\\Share.Messaging.csproj",
     "Share.ContextGeometry": "Share\\Frameworks\\ContextGeometry\\Share.ContextGeometry.csproj",
+    "Share.PortContext": "Share\\Frameworks\\PortContext\\Share.PortContext.csproj",
 
     "Diagnostics": "Share\\Frameworks\\Diagnostics\\Diagnostics.csproj",
     "GraphFramework": "Share\\Frameworks\\GraphFramework\\GraphFramework.csproj",

@@ -49,9 +49,6 @@ public static class MvpTuning
     /// <summary>provisional（附录 C #2）：每个决策 tick 的 ATB 充能量（速度属性的最小占位表达）。</summary>
     public const int AtbChargePerDecisionTick = 40;
 
-    /// <summary>provisional（附录 C #3）：保护窗口长度（0.5s = 5 个决策 tick，含首尾）。</summary>
-    public const int GuardWindowTicks = 5;
-
     /// <summary>provisional（附录 C #3）：手动保护猜错后的硬直长度（1.2s = 12 个决策 tick）。</summary>
     public const int GuardMissStunTicks = 12;
 

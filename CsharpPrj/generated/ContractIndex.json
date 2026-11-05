@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-04T17:31:11.4054412Z",
+  "builtAt": "2026-11-05T05:15:00.9227539Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -11836,7 +11836,7 @@
       },
       {
         "repo": "Projects",
-        "lines": 331
+        "lines": 338
       },
       {
         "repo": "Main",

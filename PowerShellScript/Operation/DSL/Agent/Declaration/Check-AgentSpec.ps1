@@ -46,7 +46,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
 
 $agentsRoot = Join-Path $Root 'Projects\Plug\Agent\Config\agents'
 $canonPath  = Join-Path $Root 'Projects\Plug\Agent\Config\conversation-canon.ushar'
-$fallbackKind = 'unrecognized'
+$fallbackKind = Get-GateUnrecognizedKind   # A7 单源（同 C# RecognizedKinds.Unrecognized）
 $processKeys = @('order', 'step', 'sequence', 'then', 'next')
 
 $violations = [System.Collections.Generic.List[string]]::new()

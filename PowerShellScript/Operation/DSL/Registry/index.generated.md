@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（99 件）
+## Agent（102 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -64,6 +64,7 @@
 | `KeyspaceMirror` | fast | 0 | Contract | Drift | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-KeyspaceMirror.ps1` |
 | `LaneCatalog` | fast | 0 | Declaration | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-LaneCatalog.ps1` |
 | `LlmRoutingSurface` | full | 0 | Runtime | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-LlmRoutingSurface.ps1` |
+| `NoClearWrite` | fast | 0 | Presentation | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-NoClearWrite.ps1` |
 | `NodePromptBinding` | full | 0 | Declaration | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-NodePromptBinding.ps1` |
 | `OperationRowCarriesActor` | fast | 0 | Observability | Consistency | `Frame\PowerShellScript\Operation\DSL\Agent\Observability\Check-OperationRowCarriesActor.ps1` |
 | `PowerShellHostSingleSource` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-PowerShellHostSingleSource.ps1` |
@@ -103,8 +104,10 @@
 | `UiViewCatalog` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-UiViewCatalog.ps1` |
 | `UiWriteFidelity` | fast | 0 | Presentation | Consistency | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-UiWriteFidelity.ps1` |
 | `UnknownVisible` | fast | 0 | Observability | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Observability\Check-UnknownVisible.ps1` |
+| `ViewContainerOwnership` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-ViewContainerOwnership.ps1` |
 | `ViewContract` | fast | 0 | Presentation | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-ViewContract.ps1` |
 | `ViewGolden` | fast | 0 | Runtime | Drift | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ViewGolden.ps1` |
+| `ViewProgramConsistency` | fast | 0 | Presentation | Consistency | `Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-ViewProgramConsistency.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | Boundary | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-VmKernelReferenceBoundary.ps1` |
 | `WorkflowRegistration` | fast | 0 | Declaration | Closure | `Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-WorkflowRegistration.ps1` |
 | `WriteCapabilitySinglePredicate` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-WriteCapabilitySinglePredicate.ps1` |
@@ -153,14 +156,20 @@
 | `TableConvergenceSingleEntry` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Data\Check-TableConvergenceSingleEntry.ps1` |
 | `TableWriteDeclaration` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Data\Check-TableWriteDeclaration.ps1` |
 
-## Declarations（4 件）
+## Declarations（10 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
 | `ClinerulesReferences` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-ClinerulesReferences.ps1` |
+| `DeclaredFlowConsumers` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-DeclaredFlowConsumers.ps1` |
+| `EmptyReasonLiveness` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-EmptyReasonLiveness.ps1` |
+| `FactFieldCoverage` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-FactFieldCoverage.ps1` |
+| `FactProducerSingle` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-FactProducerSingle.ps1` |
 | `InitGuards` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-InitGuards.ps1` |
 | `LogMessages` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-LogMessages.ps1` |
+| `PortContextShapeEquality` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-PortContextShapeEquality.ps1` |
 | `RuntimeMirror` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-RuntimeMirror.ps1` |
+| `SyntheticVisible` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-SyntheticVisible.ps1` |
 
 ## KeySpace（20 件）
 
@@ -187,7 +196,7 @@
 | `WireFabric` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WireFabric.ps1` |
 | `WorkFlowMethodKeySemantics` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WorkFlowMethodKeySemantics.ps1` |
 
-## Meta（23 件）
+## Meta（24 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -208,6 +217,7 @@
 | `RefreshFetch` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-RefreshFetch.ps1` |
 | `SectionWrite` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SectionWrite.ps1` |
 | `SemanticCentralization` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1` |
+| `SolutionUmbrella` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-SolutionUmbrella.ps1` |
 | `UiBudget` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiBudget.ps1` |
 | `UiIncremental` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiIncremental.ps1` |
 | `UiSingleWrite` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiSingleWrite.ps1` |
@@ -215,7 +225,7 @@
 | `UiThreadAffinity` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-UiThreadAffinity.ps1` |
 | `WriteBudgetNodes` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-WriteBudgetNodes.ps1` |
 
-## Node（37 件）
+## Node（47 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -225,8 +235,13 @@
 | `DbPageGatherWiring` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-DbPageGatherWiring.ps1` |
 | `DomainRosterSingleSource` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-DomainRosterSingleSource.ps1` |
 | `DomainWireSingleSource` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-DomainWireSingleSource.ps1` |
+| `EdgeSingleWriter` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-EdgeSingleWriter.ps1` |
+| `EdgeStamp` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-EdgeStamp.ps1` |
+| `FaceWhitelist` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-FaceWhitelist.ps1` |
 | `FreshnessFamilySingleSource` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-FreshnessFamilySingleSource.ps1` |
 | `GatherFieldMapping` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-GatherFieldMapping.ps1` |
+| `GraphDeclarationDrift` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-GraphDeclarationDrift.ps1` |
+| `GraphPortSurface` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-GraphPortSurface.ps1` |
 | `MountCallSites` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-MountCallSites.ps1` |
 | `MountDeclaration` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-MountDeclaration.ps1` |
 | `MountFailurePosture` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-MountFailurePosture.ps1` |
@@ -246,6 +261,9 @@
 | `NodePortPurity` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-NodePortPurity.ps1` |
 | `NodeReadSingleSource` | fast | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-NodeReadSingleSource.ps1` |
 | `NodeWriteBypass` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-NodeWriteBypass.ps1` |
+| `NoRelationJoin` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-NoRelationJoin.ps1` |
+| `NoRelationLiteral` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-NoRelationLiteral.ps1` |
+| `NoRoleAttribution` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-NoRoleAttribution.ps1` |
 | `ObservabilitySurface` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-ObservabilitySurface.ps1` |
 | `ReferenceExclusion` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-ReferenceExclusion.ps1` |
 | `ReferenceVocabulary` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-ReferenceVocabulary.ps1` |
@@ -254,6 +272,8 @@
 | `StoreReadPayloadRecordForm` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-StoreReadPayloadRecordForm.ps1` |
 | `StoreReadPortSingleTable` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-StoreReadPortSingleTable.ps1` |
 | `TextClipSingleSource` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-TextClipSingleSource.ps1` |
+| `TopologyLineage` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-TopologyLineage.ps1` |
+| `UsharpFirst` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-UsharpFirst.ps1` |
 | `Wiring` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-Wiring.ps1` |
 | `WriteSurface` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Node\Check-WriteSurface.ps1` |
 

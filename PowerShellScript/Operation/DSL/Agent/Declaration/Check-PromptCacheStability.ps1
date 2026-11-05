@@ -20,8 +20,10 @@ param(
 $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\..\Meta\TextOps.psm1') -Force -DisableNameChecking
+# 根锚单源（A4/D-根锚）：并入 GateRuntime，禁自算四级上溯。
+Import-Module (Join-Path $PSScriptRoot '..\..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 }
 
 function Get-Violations {

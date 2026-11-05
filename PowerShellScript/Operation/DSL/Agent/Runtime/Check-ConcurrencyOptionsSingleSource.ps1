@@ -111,7 +111,7 @@ if ($violations.Count -eq 0) {
 }
 # ---- 判据实现（供正/负对照复用） ----
 $csFiles = @([System.IO.Directory]::GetFiles($moduleRoot, '*.cs', [System.IO.SearchOption]::AllDirectories) |
-    Where-Object { $_ -notmatch '\\(obj|bin|BuildOutput)\\' })
+    Where-Object { $_ -notmatch (Get-GateSourceExcludePattern) })
 $moduleText = (@($csFiles | ForEach-Object { Read-Text $_ }) -join "`n")
 
 $forbiddenPatterns = @(

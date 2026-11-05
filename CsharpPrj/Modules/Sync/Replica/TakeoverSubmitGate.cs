@@ -1,3 +1,5 @@
+using Modules.Sync.Contracts;
+
 namespace Modules.Sync.Replica;
 
 /// <summary>
@@ -29,10 +31,9 @@ public enum TakeoverSubmitOutcome
 /// 也不预演权威端会如何裁决——结果只由后续快照决定。
 /// </para>
 /// <para>
-/// 依赖点（SY-00）：<c>TakeoverCommand</c> 消息、<c>Kind(Guard/Overcharge)</c> 枚举、
-/// <c>InputWindowTicks</c> 常量均未存在。本类不定义占位消息，也不猜 <c>CommandId</c> 的线格式；
-/// 窗口宽度由构造参数传入（契约到位后由宿主取 <c>InputWindowTicks</c> 注入），
-/// 幂等键由调用方提供的单调序号充当，契约到位后由适配层映射为 <c>CommandId</c>。
+/// 已接契约：窗口宽度默认取 <see cref="SyncProtocol.InputWindowTicks"/>；
+/// 幂等键就是 <see cref="TakeoverCommand"/> 的 <c>CommandId</c>（int64 单调序号，重试复用）。
+/// 本类只判定窗口与重复，不解释 <see cref="TakeoverKind"/> 语义。
 /// </para>
 /// </summary>
 public sealed class TakeoverSubmitGate
@@ -50,7 +51,7 @@ public sealed class TakeoverSubmitGate
     private long _rejectedDuplicate;
     private long _rejectedNoTimeBase;
 
-    public TakeoverSubmitGate(long windowTicks, int maxPending = DefaultMaxPending)
+    public TakeoverSubmitGate(long windowTicks = SyncProtocol.InputWindowTicks, int maxPending = DefaultMaxPending)
     {
         if (windowTicks < 0)
             throw new ArgumentOutOfRangeException(nameof(windowTicks));
@@ -75,7 +76,7 @@ public sealed class TakeoverSubmitGate
     public long RejectedNoTimeBaseCount => _rejectedNoTimeBase;
 
     /// <summary>
-    /// 分配客户端本地单调序号（1 起，只增不减），作为幂等键的取值来源。
+    /// 分配客户端本地单调 <c>CommandId</c>（1 起，只增不减）。
     /// 重试同一逻辑命令时必须复用已有序号，不得重新分配；禁止随机 id。
     /// </summary>
     public long NextCommandSequence() => ++_nextSequence;
@@ -83,8 +84,8 @@ public sealed class TakeoverSubmitGate
     /// <summary>
     /// 以已应用水位为时间基准判定并登记一条接管上送。
     /// </summary>
-    public TakeoverSubmitOutcome TrySubmit(AppliedState state, long targetTick, long commandSequence)
-        => TrySubmit(state.HasApplied, state.LastAppliedTick, targetTick, commandSequence);
+    public TakeoverSubmitOutcome TrySubmit(AppliedState state, long targetTick, long commandId)
+        => TrySubmit(state.HasApplied, state.LastAppliedTick, targetTick, commandId);
 
     /// <summary>
     /// 判定并登记一条接管上送。
@@ -92,8 +93,8 @@ public sealed class TakeoverSubmitGate
     /// <param name="hasTimeBase">客户端是否已应用过快照（来自 <see cref="AppliedState.HasApplied"/>）。</param>
     /// <param name="currentTick">当前水位（来自 <see cref="AppliedState.LastAppliedTick"/>）。</param>
     /// <param name="targetTick">命令期望生效的决策 tick。</param>
-    /// <param name="commandSequence">幂等键：同一逻辑命令必须复用同一序号。</param>
-    public TakeoverSubmitOutcome TrySubmit(bool hasTimeBase, long currentTick, long targetTick, long commandSequence)
+    /// <param name="commandId">幂等键（<see cref="TakeoverCommand.CommandId"/>）：同一逻辑命令必须复用同一 id。</param>
+    public TakeoverSubmitOutcome TrySubmit(bool hasTimeBase, long currentTick, long targetTick, long commandId)
     {
         if (!hasTimeBase)
         {
@@ -103,7 +104,7 @@ public sealed class TakeoverSubmitGate
 
         Prune(currentTick);
 
-        if (Contains(targetTick, commandSequence))
+        if (Contains(targetTick, commandId))
         {
             _rejectedDuplicate++;
             return TakeoverSubmitOutcome.RejectedDuplicate;
@@ -121,7 +122,7 @@ public sealed class TakeoverSubmitGate
             return TakeoverSubmitOutcome.RejectedFuture;
         }
 
-        _pending.Add(new SubmittedKey(targetTick, commandSequence));
+        _pending.Add(new SubmittedKey(targetTick, commandId));
         EnforceBound();
         _accepted++;
         return TakeoverSubmitOutcome.Accepted;
@@ -130,12 +131,12 @@ public sealed class TakeoverSubmitGate
     /// <summary>当前窗口内已登记（待判定）的命令条数。</summary>
     public int PendingCount => _pending.Count;
 
-    private bool Contains(long targetTick, long commandSequence)
+    private bool Contains(long targetTick, long commandId)
     {
         for (int i = 0; i < _pending.Count; i++)
         {
             SubmittedKey key = _pending[i];
-            if (key.TargetTick == targetTick && key.CommandSequence == commandSequence)
+            if (key.TargetTick == targetTick && key.CommandId == commandId)
                 return true;
         }
 
@@ -163,14 +164,14 @@ public sealed class TakeoverSubmitGate
 
     private readonly struct SubmittedKey
     {
-        internal SubmittedKey(long targetTick, long commandSequence)
+        internal SubmittedKey(long targetTick, long commandId)
         {
             TargetTick = targetTick;
-            CommandSequence = commandSequence;
+            CommandId = commandId;
         }
 
         internal long TargetTick { get; }
 
-        internal long CommandSequence { get; }
+        internal long CommandId { get; }
     }
 }

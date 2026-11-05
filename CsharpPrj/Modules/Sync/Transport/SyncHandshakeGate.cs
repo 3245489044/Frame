@@ -1,71 +1,70 @@
-using System;
-using System.Collections.Generic;
+using System.Text;
+using Modules.Sync.Contracts;
 
 namespace Modules.Sync.Transport;
 
-/// <summary>握手裁决：接受之外的每个值都是一条明确的拒绝原因（对应契约的拒绝路径，不静默失败）。</summary>
-public enum SyncHandshakeOutcome
-{
-    /// <summary>版本与规则集哈希均匹配：可建立会话。</summary>
-    Accepted = 0,
-
-    /// <summary>协议版本不匹配（拒绝，不建会话）。</summary>
-    VersionMismatch = 1,
-
-    /// <summary>规则集哈希不匹配（拒绝，不建会话）：两端规则集不是同一份契约。</summary>
-    RuleSetMismatch = 2,
-
-    /// <summary>握手载荷非法（例如负版本号），无法进入比较。</summary>
-    Malformed = 3,
-}
-
 /// <summary>
-/// 握手窗口校验：只做两件事——协议版本比较、规则集哈希比较；不做认证、加密、多版本兼容。
-/// <para>判定优先级固定为 <b>Malformed → VersionMismatch → RuleSetMismatch</b>：两者都不匹配时先报版本，
-/// 让“版本不符”这条更基础的原因可见。</para>
-/// <para>[契约依赖 · 等待 SY-00] <c>ProtocolVersion</c> 常量与 <c>RulesetHash</c> 字段类型由契约提供；
-/// 本类以构造参数接收期望值、以泛型接收哈希值类型，<b>不定义版本号、不定义哈希函数、不定义消息类型</b>。</para>
+/// 握手窗口校验：协议版本 + 规则集哈希；不做认证、加密、多版本兼容。
+/// <para>两侧入口分开是因为契约消息本身如此分工：<see cref="Hello"/> 由客户端发出、只带版本；
+/// <see cref="Welcome"/> 由权威端发出、才带 <c>RulesetHash</c>。因此
+/// 服务端在 <see cref="EvaluateHello"/> 校验版本与载荷形状，客户端在 <see cref="EvaluateWelcome"/> 校验版本与规则集哈希。</para>
+/// <para>返回 <c>null</c> = 通过；否则返回值即契约 <see cref="RejectReason"/>，拒绝路径不静默。
+/// 优先级固定 <b>Malformed → VersionMismatch → RulesetMismatch</b>。</para>
 /// </summary>
-/// <typeparam name="TRuleSetHash">契约的规则集哈希值类型（本层只做相等比较，不做计算）。</typeparam>
-public sealed class SyncHandshakeGate<TRuleSetHash> where TRuleSetHash : IEquatable<TRuleSetHash>
+public sealed class SyncHandshakeGate
 {
-    private readonly int _expectedProtocolVersion;
-    private readonly TRuleSetHash _expectedRuleSetHash;
+    private readonly ulong _expectedRulesetHash;
 
-    /// <param name="expectedProtocolVersion">权威端期望的协议版本；契约落地后由 <c>ProtocolVersion</c> 传入。</param>
-    /// <param name="expectedRuleSetHash">权威端规则集哈希；契约落地后由规则表本身算出并注入。</param>
-    public SyncHandshakeGate(int expectedProtocolVersion, TRuleSetHash expectedRuleSetHash)
+    /// <param name="expectedRulesetHash">权威端规则集哈希（契约要求由规则表本身算出，不得写死常量）。</param>
+    public SyncHandshakeGate(ulong expectedRulesetHash)
     {
-        if (expectedProtocolVersion < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(expectedProtocolVersion), "协议版本不能为负。");
-        }
-
-        _expectedProtocolVersion = expectedProtocolVersion;
-        _expectedRuleSetHash = expectedRuleSetHash;
+        _expectedRulesetHash = expectedRulesetHash;
     }
 
-    /// <summary>期望的协议版本。</summary>
-    public int ExpectedProtocolVersion => _expectedProtocolVersion;
-
-    /// <summary>判定一次 Hello 携带的版本与规则集哈希。</summary>
-    public SyncHandshakeOutcome Evaluate(int protocolVersion, TRuleSetHash ruleSetHash)
+    /// <summary>服务端入口：校验 <see cref="Hello"/>（版本 + 载荷形状）。</summary>
+    public RejectReason? EvaluateHello(Hello hello)
     {
-        if (protocolVersion < 0)
+        ArgumentNullException.ThrowIfNull(hello);
+
+        if (hello.ClientBuild is null
+            || Encoding.UTF8.GetByteCount(hello.ClientBuild) > SyncMessageLayout.ClientBuildMaxBytes)
         {
-            return SyncHandshakeOutcome.Malformed;
+            return RejectReason.Malformed;
         }
 
-        if (protocolVersion != _expectedProtocolVersion)
+        if (hello.ProtocolVersion < 0)
         {
-            return SyncHandshakeOutcome.VersionMismatch;
+            return RejectReason.Malformed;
         }
 
-        if (!EqualityComparer<TRuleSetHash>.Default.Equals(ruleSetHash, _expectedRuleSetHash))
+        if (hello.ProtocolVersion != SyncProtocol.ProtocolVersion)
         {
-            return SyncHandshakeOutcome.RuleSetMismatch;
+            return RejectReason.VersionMismatch;
         }
 
-        return SyncHandshakeOutcome.Accepted;
+        return null;
+    }
+
+    /// <summary>客户端入口：校验 <see cref="Welcome"/>（版本 + 规则集哈希）。</summary>
+    public RejectReason? EvaluateWelcome(Welcome welcome)
+    {
+        ArgumentNullException.ThrowIfNull(welcome);
+
+        if (welcome.ProtocolVersion < 0)
+        {
+            return RejectReason.Malformed;
+        }
+
+        if (welcome.ProtocolVersion != SyncProtocol.ProtocolVersion)
+        {
+            return RejectReason.VersionMismatch;
+        }
+
+        if (welcome.RulesetHash != _expectedRulesetHash)
+        {
+            return RejectReason.RulesetMismatch;
+        }
+
+        return null;
     }
 }

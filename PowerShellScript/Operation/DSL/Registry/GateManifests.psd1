@@ -227,6 +227,54 @@
         Note   = '声明面漂移：GD1 产品 depends_on 闭合 + 面字段 ⊆ 产品出字段 / GD2 面须有宿主视图层 + owner·channel 双维肯定式白名单 / GD3 视图内容域须有同名 [Gather] 段（缺口仅在基线棘轮在册，只降不升）/ GD5 derives= 血缘闭合（≥1 上游 + 每个字段对逐对闭合）/ GD4 负对照'
     }
 
+    DeclaredFlowConsumers = @{
+        Domain = 'Declarations'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UPC D-F1 声明-消费：每个 [Flow] 入口方法（受控映射表）在生产源码有调用点 ≥1，或行内声明 Dead=<reason>；负对照零调用样本必红'
+    }
+
+    FactProducerSingle = @{
+        Domain = 'Declarations'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UPC D-F2 事实生产者单一：登记事实的 producer 类型定义数=1（MemberWindowReader / TaskRuntimeReportProvider / PortContextAssembler）；负对照重复定义必红'
+    }
+
+    EmptyReasonLiveness = @{
+        Domain = 'Declarations'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UPC D-F3 空因活性：每个 PortContextEmptyCodes 受控码有生产点，且三出口存在 EmptyCode/EmptyReason 透传；负对照丢弃 code 必红'
+    }
+
+    PortContextShapeEquality = @{
+        Domain = 'Declarations'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UPC D-F5 三出口同形：IPortContextConsumer 实现=3 且均调用 PortContextProjection.Project(context)，Consumer 类体无字段裁剪；负对照单侧裁剪必红'
+    }
+
+    SyntheticVisible = @{
+        Domain = 'Declarations'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UPC D-F7 合成壳可见：合成分支调用 AsSynthetic + SyntheticOnly，且不得 rowsEmptyReason=null；卡片模型含 ContextSynthetic；负对照清空因必红'
+    }
+
+    FactFieldCoverage = @{
+        Domain = 'Declarations'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UPC D-F4 事实字段位：face.fields 与 product.out 集合全等 + empty_reason/synthetic/window_digest 必有字段位 + read-paths 数值 == HistoryPortContextSpec 常量；负对照面字段缺位必红'
+    }
+
     NoRoleAttribution = @{
         Domain = 'Node'
         Args   = @{ Check = $true; NegativeControl = $true }

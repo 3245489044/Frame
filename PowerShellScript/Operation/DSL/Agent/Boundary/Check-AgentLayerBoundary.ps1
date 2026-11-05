@@ -61,7 +61,7 @@ foreach ($dir in $runLayerDirs) {
         exit 2
     }
     $runLayerFiles += Get-ChildItem -Path $dir -Recurse -File -Filter *.cs -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' -and $_.FullName -notlike '*\_deprecated\*' }
+        Where-Object { $_.FullName -notmatch (Get-GateSourceExcludePattern) }
 }
 
 if ($runLayerFiles.Count -eq 0) {

@@ -204,8 +204,8 @@ public readonly struct StateHash : IEquatable<StateHash>
     /// <summary>哈希原始值。</summary>
     public ulong Value { get; }
 
-    /// <summary>对投影做规范化编码后哈希。</summary>
-    public static StateHash Compute(SyncStateProjection projection)
+    /// <summary>对投影做规范化编码后哈希（<c>in</c> 传参，避免热路径复制）。</summary>
+    public static StateHash Compute(in SyncStateProjection projection)
     {
         ArgumentNullException.ThrowIfNull(projection);
         return new StateHash(Fnv1a64.Hash(SyncStateProjectionCodec.EncodeToBytes(projection)));

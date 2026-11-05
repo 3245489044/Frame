@@ -94,7 +94,7 @@ function Get-CanonIssues
         {
             $issues.Add("[C2] 节点 '$($node.id)' type='$type' ∉ canon 登记类型（未映射 type 必须拒绝，不得落 Default）")
         }
-        if ($type -eq 'Default' -and $kind -ne 'unrecognized')
+        if ($type -eq 'Default' -and $kind -ne (Get-GateUnrecognizedKind))
         {
             $issues.Add("[C2] 节点 '$($node.id)' 以 Default 冒充已知类别 '$kind'（AX.NoSilentOutlet）")
         }

@@ -33,9 +33,10 @@ internal static class Program
                 "compare-faces" => CompareFacesCommand.Run(options.Faces, options.Ref, options.Out),
                 "transfer-facts" => TransferFactsCommand.Run(options.Ushar, options.Consts, options.Codec, options.Out),
                 "ps-runtime-facts" => PsRuntimeFactsCommand.Run(options.Repo, options.AgentRoot, options.FrameRoot, options.Out),
+                "contract-facts" => ContractFactsCommand.Run(options.Repo, options.AgentRoot, options.Out),
                 "help" or "--help" or "-h" or "" => Help(),
                 _ => Fail($"未知命令 '{options.Command}'"
-                          + "（可用：check | compose | split | set-impl | normalize-key | derive-schema | emit-declaration | lint | entry-check | gather-validate | compare-faces | transfer-facts | ps-runtime-facts | help）"),
+                          + "（可用：check | compose | split | set-impl | normalize-key | derive-schema | emit-declaration | lint | entry-check | gather-validate | compare-faces | transfer-facts | ps-runtime-facts | contract-facts | help）"),
             };
         }
         catch (Exception exception)
@@ -74,6 +75,8 @@ internal static class Program
         Console.WriteLine("                                         转移键事实导出（[Space] 值集 / 生成常量 / Codec 词表边界）");
         Console.WriteLine("  ps-runtime-facts --repo <仓库根> --agent <Agent 根> [--frame-root <Frame 根>] [--out <json>]");
         Console.WriteLine("                                         契约根事实导出（唯一解析实现 = PowerShellHostRoots）");
+        Console.WriteLine("  contract-facts --repo <仓库根> --agent <Agent 根> [--out <json>]");
+        Console.WriteLine("                                         契约事实导出（生成常量 + kind 词表 + 槽键 + 分发相位；含过期断言）");
         Console.WriteLine("  help                                   本帮助");
         Console.WriteLine();
         Console.WriteLine("  开关约束：--bytes 仅 check；--check 仅 normalize-key；--write 不适用于 check / help");
@@ -247,6 +250,8 @@ internal static class Program
                 throw new ArgumentException("transfer-facts 需要 --ushar、--consts、--codec");
             if (command == "ps-runtime-facts" && (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(agentRoot)))
                 throw new ArgumentException("ps-runtime-facts 需要 --repo 与 --agent");
+            if (command == "contract-facts" && (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(agentRoot)))
+                throw new ArgumentException("contract-facts 需要 --repo 与 --agent");
 
             return new Options(command, data, write, bytes, check, impl, project, suite, schemas, family, output, only, bin, kind, dir, faces, reference, ushar, consts, codec, repo, agentRoot, frameRoot);
         }

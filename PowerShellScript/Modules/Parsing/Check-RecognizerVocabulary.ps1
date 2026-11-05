@@ -46,9 +46,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# 根锚 / 未识别 kind 单源（A7）：并入 GateRuntime（与 Get-GateRepoRoot 同一口径）。
+$gateRuntime = Join-Path $PSScriptRoot '..\..\Baselines\GateRuntime.psm1'
+Import-Module $gateRuntime -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root))
 {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+    $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -66,7 +69,7 @@ Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -For
 $g = Import-GateBaseline -Name RecognizerVocabulary
 $kindBaseline = [int]$g.KindCount.Value
 $ruleBaseline = [int]$g.RuleCount.Value
-$fallbackKind = 'unrecognized'
+$fallbackKind = Get-GateUnrecognizedKind   # A7 单源（同 C# RecognizedKinds.Unrecognized）
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan

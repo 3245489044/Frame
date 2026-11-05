@@ -145,7 +145,7 @@ function Test-LedgerMatch {
 $holders = [System.Collections.Generic.List[object]]::new()
 $unowned = [System.Collections.Generic.List[object]]::new()
 $pendingEntries = [System.Collections.Generic.List[object]]::new()
-$files = @(Get-GateFiles -Root $agentSrc -Extension @('cs') -Exclude '\\(obj|bin|BuildOutput)\\' |
+$files = @(Get-GateFiles -Root $agentSrc -Extension @('cs') -Exclude (Get-GateSourceExcludePattern) |
     Where-Object { $_ -notlike '*\_deprecated\*' } |
     ForEach-Object { [System.IO.FileInfo]::new($_) })
 foreach ($file in $files) {

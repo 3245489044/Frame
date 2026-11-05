@@ -12,12 +12,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$repoRoot = $PSScriptRoot
-while ($repoRoot -and -not (Test-Path (Join-Path $repoRoot 'Projects\Plug\Agent'))) {
-    $parent = Split-Path $repoRoot -Parent
-    if ($parent -eq $repoRoot) { $repoRoot = $null; break }
-    $repoRoot = $parent
-}
+# 根锚 / 排除集单源（A4/D5）：并入 GateRuntime，禁自算上溯与自带排除集。
+Import-Module (Join-Path $PSScriptRoot '..\..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$repoRoot = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 if (-not $repoRoot) { Write-Host '[FAIL] 无法定位仓库根'; exit 2 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -27,7 +24,7 @@ function Get-CsFiles([string[]]$roots) {
     foreach ($root in $roots) {
         if (Test-Path -LiteralPath $root) {
             Get-ChildItem -LiteralPath $root -Recurse -File -Filter *.cs |
-                Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' }
+                Where-Object { $_.FullName -notmatch (Get-GateSourceExcludePattern) }
         }
     }
 }

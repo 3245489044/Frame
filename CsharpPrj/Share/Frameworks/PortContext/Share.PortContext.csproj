@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>上行端口上下文内核</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>容器看见成员上下文的唯一装配器（UPC）：规格/装配/空因码/键轴/三出口同形；只读派生，零 IO、零时钟、零 ProjectReference（仅 BCL）。</ModuleRule_Description>
+    <ModuleRule_Keywords>端口上下文;成员;空因;键轴;三出口;上行</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="内核零 ProjectReference：不得引用 Agent.* / Modules.* / Operation.* / Share.*" />
+    <ModuleRule_Rule Include="空因必达出口：Empty(code) 不得压平（NotApplicable 与 Empty 严格区分）" />
+    <ModuleRule_Rule Include="键轴单一：容器事实只读 ContainerKey，成员事实只读 MemberKey；越轴 ⇒ key-axis-mismatch" />
+    <ModuleRule_Rule Include="三出口同源同形：UI/Prompt/Diagnostics 只读同一 PortContext，字段集相等" />
+    <ModuleRule_Rule Include="有界：成员 ≤ MaxMembers、窗口 ≤ WindowTake（禁无界量化）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.PortContexts</RootNamespace>
+    <AssemblyName>Share.PortContext</AssemblyName>
+    <Description>上行端口上下文（UPC）— 容器-成员上下文唯一装配器与三出口同形契约（纯逻辑）</Description>
+  </PropertyGroup>
+
+</Project>

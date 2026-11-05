@@ -100,7 +100,7 @@ function Get-RefPairs {
         ForEach-Object { $_.Groups['src'].Value + '>' + $_.Groups['tgt'].Value } | Sort-Object -Unique)
 }
 
-$mainRoot = Split-Path (Split-Path (Split-Path $AgentRoot -Parent) -Parent) -Parent
+$mainRoot = $Root   # 根锚单源（Get-GateRepoRoot），禁自算三段上溯
 $dataLoopPath = Join-Path $mainRoot 'Data\Agent\Config\history-loop.ushar'
 if (Test-Path -LiteralPath $dataLoopPath) {
     $dataLoop = Get-Content -LiteralPath $dataLoopPath -Raw -Encoding UTF8

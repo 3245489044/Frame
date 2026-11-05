@@ -7,12 +7,12 @@ namespace Modules.Sync.Transport;
 /// 幂等键窗口：按 <c>(决策 tick, commandId)</c> 记录“已受理”项，重复到达只认一次。
 /// <para>有界回收：桶数组固定为 <c>window + 1</c> 个，tick 滑出窗口后复用桶并清空，
 /// <b>不存在</b>按 tick 无限增长的字典；内存上界 = <c>(window + 1) × 单 tick 已受理命令数</c>。</para>
-/// <para>键的稳定性由调用方保证：同一逻辑命令在任何重试/重放路径下必须给出同一 <c>commandId</c> 文本；
+/// <para>键的稳定性由调用方保证：同一逻辑命令在任何重试/重放路径下必须给出同一 <c>CommandId</c>
+/// （契约 <see cref="Modules.Sync.Contracts.TakeoverCommand"/> 已冻结为 <c>long</c> 单调序号）；
 /// 本类不生成键、不做哈希、不做随机化。</para>
-/// <para>[契约依赖 · 等待 SY-00] <c>CommandId</c> 的线上类型由契约决定；本泛型类不选定类型，
-/// 会话层以稳定字符串实例化。</para>
+/// <para>幂等键 = 契约的 <c>(TargetTick, CommandId)</c>，会话层以 <c>long</c> 实例化。</para>
 /// </summary>
-/// <typeparam name="TCommandId">幂等键标识（契约落地后可为契约字段类型或适配后的稳定文本）。</typeparam>
+/// <typeparam name="TCommandId">幂等键标识（契约 <c>TakeoverCommand.CommandId</c> 为 <c>long</c>）。</typeparam>
 public sealed class SyncIdempotencyWindow<TCommandId> where TCommandId : notnull
 {
     private readonly long[] _stamps;

@@ -43,9 +43,12 @@ $rules = @(
     [pscustomobject]@{ Id = 'C5'; Title = 'History 卡片不读消息窗口（A：纯控制台）'
         Ok = { $t = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs')
             -not ($t -match 'ReadWindowAsync|UiReadShape\.WindowContext|FromWindow') } }
-    [pscustomobject]@{ Id = 'C6'; Title = '卡片模型无窗口正文（窗口字段已退场）'
+    [pscustomobject]@{ Id = 'C6'; Title = '卡片模型无对话形态回流（上下文结构字段已放开，UPC）'
         Ok = { $t = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Projection\HistoryBoardModel.cs')
-            -not ($t -match 'WindowContextEntry|WindowContextSummary|ToContextEntry') } }
+            # C6 禁的是"对话形态回流"（卡片记录含 Role/气泡字段），不是"上下文"（UPC 结构字段已放开）。
+            $card = [regex]::Match($t, 'record\s+TaskWindowCard\((?<body>[\s\S]*?)\);')
+            if (-not $card.Success) { return $false }
+            -not ($card.Groups['body'].Value -match 'WindowContextEntry|WindowContextSummary|ToContextEntry|ConversationRole|MessageBinding') } }
     [pscustomobject]@{ Id = 'C7'; Title = '回退可见（模型无 Origin 伪字段 ∧ 回退留痕在册，H39）'
         Ok = { $model = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Projection\HistoryBoardModel.cs')
             $board = Read-Text (Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Orchestration\ConversationViewService.Board.cs')

@@ -41,6 +41,13 @@ $entry    = Join-Path $agentSrc 'Agent.Modules\Response\Intent\Composition\Inten
 
 $violations = $ctx.Violations
 
+# 键集比较单源（A8）：唯一比较器 = C# LedgerKeyClosure(Ordinal)，经 LedgerForge compare-faces。
+$ledgerForge = Get-GateLedgerForge -RepoRoot $Root
+if (-not $ledgerForge) {
+    Write-Host '[FAIL] 无法执行：LedgerForge 未构建（键集比较不可用）' -ForegroundColor Red
+    exit 2
+}
+
 foreach ($file in @($registry, $backend, $entry)) {
     if (-not (Test-Path -LiteralPath $file)) { $violations.Add("缺少 IEF 面文件: $file") }
 }
@@ -103,12 +110,10 @@ if ($violations.Count -eq 0) {
         $violations.Add('[P5] 覆盖面判据无标的：handler/注册表 intent 集为空（判据恒真风险）')
     }
     else {
-        $missingRows = @(Compare-Object -ReferenceObject $handlerIntents -DifferenceObject $registryIntents |
-            Where-Object { $_.SideIndicator -eq '<=' } |
-            ForEach-Object { $_.InputObject })
-        $extraRows = @(Compare-Object -ReferenceObject $handlerIntents -DifferenceObject $registryIntents |
-            Where-Object { $_.SideIndicator -eq '=>' } |
-            ForEach-Object { $_.InputObject })
+        # 键集比较统一到 C# LedgerKeyClosure(Ordinal)（A8）：本门不再自带 Compare-Object（大小写不敏感会假绿）。
+        $diff = Compare-GateKeySet -Reference $handlerIntents -Other $registryIntents -ReferenceLabel 'handler' -OtherLabel 'registry' -RepoRoot $Root
+        $missingRows = @($diff.OnlyLeft)
+        $extraRows = @($diff.OnlyRight)
         if ($missingRows.Count -gt 0) {
             $violations.Add("[P5] 已实现 handler 缺执行绑定: $([string]::Join(',', $missingRows))")
         }

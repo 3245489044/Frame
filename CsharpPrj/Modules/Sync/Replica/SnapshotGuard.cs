@@ -1,3 +1,5 @@
+using Modules.Sync.Contracts;
+
 namespace Modules.Sync.Replica;
 
 /// <summary>
@@ -5,16 +7,12 @@ namespace Modules.Sync.Replica;
 /// <para>
 /// 判据（R2）：仅接受 <c>tick &gt; lastAppliedTick</c> 的快照；
 /// 同 tick 重复到达丢弃；旧 tick（乱序回退）丢弃。首帧没有水位，直接接受（不插值、不补帧）。
+/// 丢弃判定只按 tick 单调，<b>绝不按哈希</b>；哈希只在同 tick 内比对。
 /// </para>
 /// <para>
-/// 依赖点（SY-00）：<c>Snapshot</c> 消息、<c>SyncStateProjection</c>、<c>StateHash</c>、
-/// <c>ISyncReplica</c>、<c>SyncObserver</c> 尚未存在；本类不构造任何占位 DTO，
-/// 只在 tick 水位这一层工作。契约到位后由 <c>SyncClientReplica</c> 在
-/// <c>ApplySnapshot</c> 里先调用 <see cref="Apply"/>，接受后再把投影原样交给上层读取。
-/// </para>
-/// <para>
-/// 传输依赖点：本类不持有 <c>ISyncTransport</c>、不起线程、不排队；收发与线程完全由宿主的
-/// <c>ISyncTransport</c> 实现承担。
+/// 依赖点：契约 <see cref="Snapshot"/> / <see cref="SyncStateProjection"/> / <see cref="StateHash"/>
+/// 已就位；传输（<see cref="ISyncTransport"/>）与观测（<see cref="SyncObserver"/>）由
+/// <see cref="SyncClientReplica"/> 持有，本类不起线程、不排队。
 /// </para>
 /// </summary>
 public sealed class SnapshotGuard
@@ -23,6 +21,7 @@ public sealed class SnapshotGuard
     private long _lastAppliedTick = -1L;
     private bool _hasApplied;
     private long _appliedCount;
+    private StateHash _lastAppliedHash;
 
     public SnapshotGuard(ReplicaTickLedger? ledger = null)
     {
@@ -33,7 +32,7 @@ public sealed class SnapshotGuard
     public ReplicaTickLedger Ledger => _ledger;
 
     /// <summary>当前已应用水位；只由被接受的快照推进。</summary>
-    public AppliedState State => new(_hasApplied, _lastAppliedTick, _appliedCount);
+    public AppliedState State => new(_hasApplied, _lastAppliedTick, _appliedCount, _lastAppliedHash);
 
     /// <summary>
     /// 纯判据：只回答「这条 tick 会不会被接受」，不改变任何水位与计数。
@@ -53,24 +52,26 @@ public sealed class SnapshotGuard
         return ReplicaTickOutcome.Applied;
     }
 
-    /// <summary>
-    /// 应用入口：判据 + 推进水位 + 写台账，一次完成，避免「判了但没提交」的不一致。
-    /// 被接受时返回 <see cref="ReplicaTickOutcome.Applied"/>，否则返回跳过理由。
-    /// </summary>
-    public ReplicaTickOutcome Apply(long snapshotTick)
-    {
-        ReplicaTickOutcome outcome = Decide(snapshotTick);
-        long ordinal = 0L;
+    /// <summary>拒绝路径：只写台账与计数，水位不动（用于旧/重复/哈希不一致）。</summary>
+    internal void RecordSkipped(long snapshotTick, ReplicaTickOutcome outcome)
+        => _ledger.Record(snapshotTick, outcome, 0L, default);
 
-        if (outcome == ReplicaTickOutcome.Applied)
+    /// <summary>
+    /// 提交路径：仅在 <see cref="Decide"/> 返回 <see cref="ReplicaTickOutcome.Applied"/>
+    /// 且同 tick 哈希校验通过后调用；推进水位并记应用序号。
+    /// </summary>
+    internal void CommitApplied(long snapshotTick, StateHash hash)
+    {
+        if (Decide(snapshotTick) != ReplicaTickOutcome.Applied)
         {
-            _lastAppliedTick = snapshotTick;
-            _hasApplied = true;
-            _appliedCount++;
-            ordinal = _appliedCount;
+            throw new InvalidOperationException(
+                $"tick {snapshotTick} 未通过单调判据，不允许提交应用。");
         }
 
-        _ledger.Record(snapshotTick, outcome, ordinal);
-        return outcome;
+        _lastAppliedTick = snapshotTick;
+        _hasApplied = true;
+        _appliedCount++;
+        _lastAppliedHash = hash;
+        _ledger.Record(snapshotTick, ReplicaTickOutcome.Applied, _appliedCount, hash);
     }
 }

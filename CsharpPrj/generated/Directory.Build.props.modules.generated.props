@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-05 12:53:35
+  生成时间: 2026-11-05 13:02:33
 -->
 <Project>
 
@@ -133,6 +133,7 @@
     <Mod_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\</Mod_Share_Conversation>
     <Mod_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\</Mod_Share_Messaging>
     <Mod_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\</Mod_Share_ContextGeometry>
+    <Mod_Share_PortContext>$(CsharpPrjDir)Share\Frameworks\PortContext\</Mod_Share_PortContext>
     <Mod_Diagnostics>$(CsharpPrjDir)Share\Frameworks\Diagnostics\</Mod_Diagnostics>
     <Mod_GraphFramework>$(CsharpPrjDir)Share\Frameworks\GraphFramework\</Mod_GraphFramework>
     <Mod_LayoutAnalysis>$(CsharpPrjDir)Share\Frameworks\LayoutAnalysis\</Mod_LayoutAnalysis>
@@ -264,6 +265,7 @@
     <Proj_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\Share.Conversation.csproj</Proj_Share_Conversation>
     <Proj_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\Share.Messaging.csproj</Proj_Share_Messaging>
     <Proj_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\Share.ContextGeometry.csproj</Proj_Share_ContextGeometry>
+    <Proj_Share_PortContext>$(CsharpPrjDir)Share\Frameworks\PortContext\Share.PortContext.csproj</Proj_Share_PortContext>
     <Proj_Diagnostics>$(CsharpPrjDir)Share\Frameworks\Diagnostics\Diagnostics.csproj</Proj_Diagnostics>
     <Proj_GraphFramework>$(CsharpPrjDir)Share\Frameworks\GraphFramework\GraphFramework.csproj</Proj_GraphFramework>
     <Proj_LayoutAnalysis>$(CsharpPrjDir)Share\Frameworks\LayoutAnalysis\LayoutAnalysis.csproj</Proj_LayoutAnalysis>

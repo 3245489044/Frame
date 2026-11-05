@@ -1,3 +1,5 @@
+using Modules.Sync.Contracts;
+
 namespace Modules.Sync.Authority;
 
 /// <summary>
@@ -13,7 +15,7 @@ namespace Modules.Sync.Authority;
 /// <item>计算本 tick 的可见前摇线索；</item>
 /// <item>3 条规则自上而下短路求值（命中即停，最多 3 条）；</item>
 /// <item>敌方伤害结算与保护裁决（猜中免伤 + 回补，猜错在窗口关闭后进硬直）；</item>
-/// <item>投影捕获（由宿主在 tick 末调用 <see cref="CaptureVisible"/>）。</item>
+/// <item>快照生成（由宿主在 tick 末调用 <see cref="BuildSnapshot"/>，同 tick 恰好一条）。</item>
 /// </list>
 /// </para>
 /// <para>
@@ -21,8 +23,9 @@ namespace Modules.Sync.Authority;
 /// （预测属于客户端，MVP 里客户端也不做）。本类非线程安全，只允许由单一时钟线程驱动。
 /// </para>
 /// <para>
-/// 契约依赖：不定义消息类型、投影结构、哈希函数、指标 id；投影写出只经 <see cref="IVisibleProjectionSink"/> 端口，
-/// 真正的 <c>SyncStateProjection</c>/<c>Snapshot</c>/<c>StateHash</c> 由 SY-00 提供并在集成层组装。
+/// 契约依赖：消息类型、投影结构、哈希函数、指标 id 全部取自 <c>Modules.Sync.Contracts</c>；
+/// 本目录只填 <see cref="SyncStateProjection"/> 的 12 个字段并用 <see cref="StateHash.Compute"/> 生成哈希，
+/// 不新增字段、不自建快照类型、不另写哈希/编码。
 /// </para>
 /// </summary>
 public sealed class AuthorityTickLoop
@@ -35,6 +38,7 @@ public sealed class AuthorityTickLoop
     private readonly EnemyTelegraphScript _enemy;
     private readonly int _hpMax;
     private readonly int _ruleLimit;
+    private readonly SyncObserver _observer;
 
     private readonly List<PendingTakeover> _pending = new List<PendingTakeover>();
     private readonly List<PendingTakeover> _tickInputs = new List<PendingTakeover>();
@@ -52,14 +56,16 @@ public sealed class AuthorityTickLoop
     /// <param name="atbMax">行动条上限（契约 <c>AtbScale</c>，宿主注入）。</param>
     /// <param name="skillSlots">技能槽数（契约 <c>SkillSlots</c>，宿主注入）。</param>
     /// <param name="ppPerSlotMax">单槽 PP 上限（provisional 数值由宿主从 <see cref="MvpTuning"/> 取）。</param>
-    /// <param name="ruleLimit">本局生效的规则条数（1..3，供 ruleCount sweep；求值永远从槽 0 起）。</param>
+    /// <param name="ruleLimit">本局生效的规则条数（1..<see cref="SyncProtocol.MaxRules"/>，供 ruleCount sweep；求值永远从槽 0 起）。</param>
+    /// <param name="observer">观测端口；null 时用 <see cref="NoopSyncObserver"/>。求值耗时由集成层在 tick 外层计时，不在此打点。</param>
     public AuthorityTickLoop(
         AuthorityTickClock clock,
         int hpMax,
         int atbMax,
         int skillSlots,
         int ppPerSlotMax,
-        int ruleLimit)
+        int ruleLimit,
+        SyncObserver? observer = null)
     {
         if (clock is null)
         {
@@ -84,6 +90,7 @@ public sealed class AuthorityTickLoop
         _hpMax = hpMax;
         _hp = hpMax;
         _ruleLimit = ruleLimit;
+        _observer = observer ?? new NoopSyncObserver();
     }
 
     /// <summary>tick 时钟（可读，不提供推进入口，推进只经本类的 <see cref="AdvanceSimTick"/>）。</summary>
@@ -122,6 +129,9 @@ public sealed class AuthorityTickLoop
     /// <summary>最近一个决策 tick 执行的动作。</summary>
     public RuleAction LastAction { get; private set; }
 
+    /// <summary>最近一个决策 tick 短路后实际求值的规则条数（<see cref="SyncObserver.OnTickEvaluated"/> 的入参）。</summary>
+    public int LastEvaluatedRuleCount { get; private set; }
+
     /// <summary>硬直结束 tick（含）；0 = 无硬直。</summary>
     public long StunUntilTick => _stunUntilTick;
 
@@ -159,17 +169,14 @@ public sealed class AuthorityTickLoop
     }
 
     /// <summary>
-    /// 提交一次手动「超频」：在第 <paramref name="targetTick"/> 个决策 tick 提前释放第 <paramref name="slot"/> 个技能，
-    /// 消耗 Sync 与额外 PP，并把 ATB 清零。
+    /// 提交一次手动「超频」：在第 <paramref name="targetTick"/> 个决策 tick 提前释放技能。
+    /// <para>
+    /// 契约的 <see cref="TakeoverCommand"/> 不带槽位，因此槽位在应用时由权威端<b>确定性裁决</b>：
+    /// 取“PP 足够付额外消耗”的最小槽号（与规则 3 的最小可用槽口径一致）。
     /// </summary>
-    public void SubmitOvercharge(long targetTick, int slot)
+    public void SubmitOvercharge(long targetTick)
     {
-        if ((uint)slot >= (uint)_skills.SlotCount)
-        {
-            throw new ArgumentOutOfRangeException(nameof(slot), slot, "技能槽位越界。");
-        }
-
-        Enqueue(targetTick, TakeoverRank.Overcharge, slot);
+        Enqueue(targetTick, TakeoverRank.Overcharge, -1);
     }
 
     /// <summary>
@@ -208,29 +215,40 @@ public sealed class AuthorityTickLoop
     }
 
     /// <summary>
-    /// 把一个决策 tick 的 12 字段可见投影送出入口端口。
-    /// 这个结构<b>不</b>由本目录组装（契约类型归 SY-00）。
+    /// 生成当前决策 tick 的 12 字段可见投影（字段顺序与命名严格取自契约，不增字段）。
     /// </summary>
-    public void CaptureVisible(IVisibleProjectionSink sink)
+    public SyncStateProjection BuildProjection()
     {
-        if (sink is null)
+        return new SyncStateProjection
         {
-            throw new ArgumentNullException(nameof(sink));
-        }
+            Tick = _clock.DecisionTick,
+            Sync = _budget.Value,
+            Smax = _budget.Max,
+            Hp = _hp,
+            AtB = _atb.Value,
+            Pp0 = PpOrZero(0),
+            Pp1 = PpOrZero(1),
+            Pp2 = PpOrZero(2),
+            Pp3 = PpOrZero(3),
+            GuardUntilTick = _guard.VisibleUntilTick,
+            Telegraph = (byte)_telegraph,
+            ExtractActive = _extractActive,
+        };
+    }
 
-        sink.Write(
-            _clock.DecisionTick,
-            _budget.Value,
-            _budget.Max,
-            _hp,
-            _atb.Value,
-            PpOrZero(0),
-            PpOrZero(1),
-            PpOrZero(2),
-            PpOrZero(3),
-            _guard.VisibleUntilTick,
-            (byte)_telegraph,
-            _extractActive);
+    /// <summary>
+    /// 生成当前决策 tick 的完整快照：投影 + 投影的规范化哈希。
+    /// <para>哈希含 <c>Tick</c>，因此同一状态不同 tick 的哈希必然不同（R6 口径）。</para>
+    /// </summary>
+    public Snapshot BuildSnapshot()
+    {
+        var projection = BuildProjection();
+        return new Snapshot
+        {
+            Tick = projection.Tick,
+            Projection = projection,
+            StateHash = StateHash.Compute(projection),
+        };
     }
 
     // ---------------------------------------------------------------- 决策推进
@@ -265,6 +283,9 @@ public sealed class AuthorityTickLoop
 
         // 8. 窗口过期 → 猜错硬直
         ExpireGuard(tick);
+
+        // 9. 观测：一个决策 tick 求值完成（耗时由集成层在 tick 外层计时，不在此打点）
+        _observer.OnTickEvaluated(tick, LastEvaluatedRuleCount);
     }
 
     // ---------------------------------------------------------------- 接管输入
@@ -324,25 +345,31 @@ public sealed class AuthorityTickLoop
                     continue;
                 }
 
-                _guard.Open(tick, MvpTuning.GuardWindowTicks, penaltyOnMiss: true);
+                _guard.Open(tick, SyncProtocol.GuardWindowTicks, penaltyOnMiss: true);
                 guardApplied = true;
                 continue;
             }
 
-            int bit = 1 << item.Slot;
+            // 超频：槽位由权威端确定性裁决（最小可用槽），契约命令里不带槽位
+            int slot = FirstSlotWithPp(MvpTuning.OverchargeExtraPp);
+            if (slot < 0)
+            {
+                continue;
+            }
+
+            int bit = 1 << slot;
             if ((overchargeMask & bit) != 0)
             {
                 continue;
             }
 
-            if (!_budget.CanSpend(MvpTuning.ManualOverchargeCost)
-                || !_skills.CanConsume(item.Slot, MvpTuning.OverchargeExtraPp))
+            if (!_budget.CanSpend(MvpTuning.ManualOverchargeCost))
             {
                 continue;
             }
 
             _budget.TrySpend(MvpTuning.ManualOverchargeCost);
-            _skills.TryConsume(item.Slot, MvpTuning.OverchargeExtraPp);
+            _skills.TryConsume(slot, MvpTuning.OverchargeExtraPp);
             _atb.Clear();
             overchargeMask |= bit;
         }
@@ -387,6 +414,7 @@ public sealed class AuthorityTickLoop
     {
         LastMatchedRule = null;
         LastAction = RuleAction.None;
+        LastEvaluatedRuleCount = 0;
 
         if (IsStunned(tick))
         {
@@ -397,6 +425,7 @@ public sealed class AuthorityTickLoop
         for (int i = 0; i < limit; i++)
         {
             RuleEntry rule = RuleTable.At(i);
+            LastEvaluatedRuleCount++;
             if (!ConditionHolds(rule, tick))
             {
                 continue;
@@ -445,7 +474,7 @@ public sealed class AuthorityTickLoop
             case RuleAction.Guard:
                 // 条件已保证余额足够；自动保护猜错不罚硬直（MVP 不做“被骗长冷却”）
                 _budget.TrySpend(rule.Cost);
-                _guard.Open(tick, MvpTuning.GuardWindowTicks, penaltyOnMiss: false);
+                _guard.Open(tick, SyncProtocol.GuardWindowTicks, penaltyOnMiss: false);
                 break;
 
             case RuleAction.Retreat:
@@ -454,7 +483,7 @@ public sealed class AuthorityTickLoop
                 break;
 
             case RuleAction.Skill:
-                int slot = FirstSlotWithPp();
+                int slot = FirstSlotWithPp(1);
                 if (slot < 0)
                 {
                     return; // 条件已保证 Total > 0，此处不可达
@@ -467,11 +496,11 @@ public sealed class AuthorityTickLoop
         }
     }
 
-    private int FirstSlotWithPp()
+    private int FirstSlotWithPp(int requiredPp)
     {
         for (int slot = 0; slot < _skills.SlotCount; slot++)
         {
-            if (_skills[slot] > 0)
+            if (_skills.CanConsume(slot, requiredPp))
             {
                 return slot;
             }

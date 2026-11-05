@@ -1,3 +1,5 @@
+using Modules.Sync.Contracts;
+
 namespace Modules.Sync.Authority;
 
 /// <summary>

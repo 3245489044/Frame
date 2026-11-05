@@ -99,7 +99,7 @@ if ($contractRoots.Count -eq 0) {
 }
 foreach ($root in $contractRoots) {
     foreach ($file in (Get-ChildItem -LiteralPath $root -Recurse -Filter '*.contracts.json' -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' })) {
+            Where-Object { $_.FullName -notmatch (Get-GateSourceExcludePattern) })) {
         try {
             $doc = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
             foreach ($c in @($doc.contracts)) {

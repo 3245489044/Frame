@@ -157,7 +157,7 @@ public sealed class SyncMetricsObserver : SyncObserver
         _sink?.Sample(SyncObservationPoint.InflightCount, pendingMessages);
     }
 
-    /// <summary>P17：待发队列字节数。字节口径待契约提供（<c>SyncMessage</c> 无尺寸访问器前由宿主传 0 以外的已知值）。</summary>
+    /// <summary>P17：待发队列字节数（宿主按「未转交条数 × 契约冻结的单条 Snapshot 字节」计算，不写假 0）。</summary>
     public void RecordQueueBytes(long pendingBytes)
     {
         Metrics.Gauge(MetricId.SyncQueueBytes).Set(pendingBytes);

@@ -99,7 +99,7 @@ if (Test-Path -LiteralPath $uiRegionsPath) {
 if (Test-Path -LiteralPath $readPathsPath) {
     $paths = Get-Content -LiteralPath $readPathsPath -Raw | ConvertFrom-Json -Depth 16
     foreach ($p in @($paths.paths)) {
-        if ($domains -notcontains [string]$p.domain) {
+        if ($domains -cnotcontains [string]$p.domain) {
             $violations.Add(("[D5] 读路径 '{0}' 域 '{1}' 未在 [Gather] 声明" -f $p.id, $p.domain))
         }
     }

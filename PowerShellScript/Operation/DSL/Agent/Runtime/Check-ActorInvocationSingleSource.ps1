@@ -47,7 +47,7 @@ function Get-RecordCallers([string]$Pattern, [string]$Text = '') {
         return $hits
     }
     if (-not (Test-Path -LiteralPath $src)) { return $hits }
-    foreach ($file in (Get-GateFiles -Root $src -Extension cs -Exclude '\\(obj|bin|BuildOutput)\\')) {
+    foreach ($file in (Get-GateFiles -Root $src -Extension cs -Exclude (Get-GateSourceExcludePattern))) {
         $name = [System.IO.Path]::GetFileName($file)
         if ($name -in @('ActorInvocationLedger.cs', 'ResultObservationLedger.cs')) { continue }
         $text = [System.IO.File]::ReadAllText($file)

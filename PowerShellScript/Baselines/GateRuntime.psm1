@@ -405,6 +405,65 @@ function Assert-GateControls {
 }
 
 
+# 源码扫描排除集（D5 单源）：obj / bin / BuildOutput / _deprecated 统一口径。
+# 此前 6 套写法（缺 BuildOutput、缺 _deprecated、加非捕获组、二次 Where 过滤）导致漂移。
+$script:GateSourceExcludePattern = '\\(obj|bin|BuildOutput|_deprecated)\\'
+
+# 未识别 kind（A7 单源）：与 C# Agent.Contract.Api.RecognizedKinds.Unrecognized 同值；
+# 生成物事实可由 LedgerForge contract-facts 复核（constantsStale=false 时等价）。
+$script:GateUnrecognizedKind = 'unrecognized'
+
+<#
+.SYNOPSIS
+    源码扫描排除集（D5 单源），供 Get-GateFiles -Exclude / Where-Object -notmatch 使用。
+#>
+function Get-GateSourceExcludePattern {
+    return $script:GateSourceExcludePattern
+}
+
+<#
+.SYNOPSIS
+    未识别 kind 常量（A7 单源），替代各门散落的 'unrecognized' 字面量。
+#>
+function Get-GateUnrecognizedKind {
+    return $script:GateUnrecognizedKind
+}
+
+<#
+.SYNOPSIS
+    契约事实（A7）：经 LedgerForge contract-facts 导出 C# 事实；生成常量过期 ⇒ 抛错（不算通过）。
+.DESCRIPTION
+    返回 recognizedKinds / unrecognized / agentRuntimeSlotKeys / dispatchTracePhases。
+    过期断言（用户要求 #4）：生成常量与已提交 manifest 不一致时显性失败，防「读生成文件但生成文件过期」假绿。
+#>
+function Get-GateContractFacts {
+    param([string]$RepoRoot = '')
+
+    $root = if ($RepoRoot) { $RepoRoot } else { Get-GateRepoRoot }
+    $ledgerForge = Get-GateLedgerForge -RepoRoot $root
+    if (-not $ledgerForge) { throw 'LedgerForge 未构建（contract-facts 不可执行）' }
+
+    $outPath = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('contract-facts-' + [guid]::NewGuid().ToString('N') + '.json'))
+    try {
+        & $ledgerForge contract-facts --repo $root --agent (Join-Path $root 'Projects\Plug\Agent') --out $outPath | Out-Null
+        $code = $LASTEXITCODE
+        if ($code -ne 0 -or -not (Test-Path -LiteralPath $outPath)) {
+            throw "contract-facts 不可执行（退出码 $code）"
+        }
+
+        $facts = Get-Content -LiteralPath $outPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($facts.constantsStale) {
+            $detail = (@($facts.constantMismatches) | Select-Object -First 3) -join '；'
+            throw "生成契约常量已过期（与已提交 manifest 不一致）：$detail"
+        }
+        return $facts
+    }
+    finally {
+        if (Test-Path -LiteralPath $outPath) { Remove-Item -LiteralPath $outPath -Force }
+    }
+}
+
+
 # 显式导出面（自有 API + 门禁面向的目录映射 API）：
 #   固定契约，禁依赖「默认全导出」的隐式面（防随导入件漂移）。
 Export-ModuleMember -Function @(
@@ -419,6 +478,9 @@ Export-ModuleMember -Function @(
     'Assert-GatePrerequisite',
     'Assert-GateControls',
     'Get-GateRegionKeyPattern',
+    'Get-GateSourceExcludePattern',
+    'Get-GateUnrecognizedKind',
+    'Get-GateContractFacts',
     'Get-GateLedgerForge',
     'Compare-GateKeySet',
     'Write-GateSkip',

@@ -66,6 +66,11 @@ $companionAllowlist = @{
     'ExceptionGateway'            = '未登记独立门——待登记或销账'
     'FuncCallSingleSource'        = '未登记独立门（含基线 Baselines\Declarations\FuncCallSingleSource.psd1）——待登记或销账'
     'ZeroRetry'                   = '未登记独立门（基线 Registry\zero-retry-baseline.json）：现状超基线（retrySymbolsInFrame +7 / thirdStateReturns +63 等），登记即红；待零重试轴收口后登记'
+    # 既有伴随件（UPC 施工核查发现：DSL 内已存在但未登记为独立门；登记为债务，待后续销账）
+    'UiDeclarationSingleSource'   = '伴随件：UI 声明单源分项判据（未登记为独立门；既有债务，待登记或并入宿主门）'
+    'DeclarationSingleSource'     = '伴随件：声明单源分项判据（未登记为独立门；既有债务，待登记或并入宿主门）'
+    'LogMessageCatalog'           = '伴随件：日志文案目录分项判据（未登记为独立门；既有债务，待登记或并入宿主门）'
+
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()

@@ -26,6 +26,8 @@
   <ItemGroup>
     <!-- 有界缓存/淘汰基元（Modules\Foundations\Compute，BCL-only）：内容寻址存储复用单一实现，禁第二套淘汰算法（CG-02）。 -->
     <ProjectReference Include="$(Proj_Compute)" />
+    <!-- 受控码集 + 诊断出口（Modules\Foundations\ContractFramework，BCL-only）：F1/F2 单一实现。 -->
+    <ProjectReference Include="$(Proj_ContractFramework)" />
   </ItemGroup>
 
 </Project>

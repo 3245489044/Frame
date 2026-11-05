@@ -1,3 +1,5 @@
+using ContractFramework.Diagnostics;
+
 namespace Share.ContextGeometry;
 
 /// <summary>
@@ -9,7 +11,7 @@ public static class PrefixComposer
     /// <summary>组合段集合；<paramref name="blocks"/> 非空时同时登记规范字节并返回 <see cref="ComposedPrefix.CanonicalRef"/>。</summary>
     public static ComposedPrefix Compose(IEnumerable<PrefixSegment>? segments, ISharedBlockStore? blocks = null)
     {
-        var diagnostics = new List<string>();
+        var diagnostics = new DiagnosticBag(GeometryDiagnostics.Codes);
         var ordered = new List<PrefixSegment>();
         var seenKeys = new HashSet<string>(StringComparer.Ordinal);
         var seenBlocks = new HashSet<string>(StringComparer.Ordinal);
@@ -21,19 +23,19 @@ public static class PrefixComposer
             {
                 if (!CacheBandRules.IsPrefixAllowed(segment.Band))
                 {
-                    diagnostics.Add($"{GeometryDiagnostics.UnknownBand}:{segment.Key}");
+                    diagnostics.Add(GeometryDiagnostics.UnknownBand, segment.Key);
                     continue;
                 }
 
                 if (!seenKeys.Add(segment.Key))
                 {
-                    diagnostics.Add($"{GeometryDiagnostics.DuplicateKey}:{segment.Key}");
+                    diagnostics.Add(GeometryDiagnostics.DuplicateKey, segment.Key);
                     continue;
                 }
 
                 if (!string.IsNullOrWhiteSpace(segment.ContentRef) && !seenBlocks.Add(segment.ContentRef!))
                 {
-                    diagnostics.Add($"{GeometryDiagnostics.DuplicateBlock}:{segment.ContentRef}");
+                    diagnostics.Add(GeometryDiagnostics.DuplicateBlock, segment.ContentRef!);
                     continue;
                 }
 
@@ -47,7 +49,7 @@ public static class PrefixComposer
         if (blocks is not null)
             canonicalRef = blocks.Put(digest, canonical);
 
-        return new ComposedPrefix(digest, ordered, canonicalRef, diagnostics);
+        return new ComposedPrefix(digest, ordered, canonicalRef, diagnostics.ToLines());
     }
 
     /// <summary>规范字节（唯一拼接口径）：每段 <c>key|band|hash|contentRef\n</c>。</summary>

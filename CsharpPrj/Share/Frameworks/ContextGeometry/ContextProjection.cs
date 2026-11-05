@@ -1,3 +1,5 @@
+using ContractFramework.Diagnostics;
+
 namespace Share.ContextGeometry;
 
 /// <summary>上下文事件种类（委托事件日志的最小词表）。</summary>
@@ -69,34 +71,53 @@ public static class ContextProjection
         if (log is not { Count: > 0 }) return ProjectedMessages.Empty;
 
         var messages = new List<ProjectedMessage>(log.Count);
-        var diagnostics = new List<string>();
+        var diagnostics = new DiagnosticBag(GeometryDiagnostics.Codes);
         foreach (var evt in log)
         {
             if (string.IsNullOrWhiteSpace(evt.Role))
             {
-                diagnostics.Add($"{GeometryDiagnostics.ProjectionInvalid}:role:{evt.Key}");
+                diagnostics.Add(GeometryDiagnostics.ProjectionInvalid, $"role:{evt.Key}");
                 continue;
             }
 
             if (string.IsNullOrEmpty(evt.Content))
             {
-                diagnostics.Add($"{GeometryDiagnostics.ProjectionInvalid}:content:{evt.Key}");
+                diagnostics.Add(GeometryDiagnostics.ProjectionInvalid, $"content:{evt.Key}");
             }
 
             messages.Add(new ProjectedMessage(evt.Role, evt.Content ?? string.Empty, evt.ToolCallId, evt.ToolCalls));
         }
-        return new ProjectedMessages(messages, diagnostics);
+        return new ProjectedMessages(messages, diagnostics.ToLines());
     }
 
-    /// <summary>按种类映射为角色（表驱动；未知种类 ⇒ 原角色，不猜语义）。</summary>
+    /// <summary>按种类映射为角色（表驱动；未知种类 ⇒ 受控角色 unknown，不猜语义）。</summary>
     public static string RoleFor(ContextEventKind kind)
         => kind switch
         {
-            ContextEventKind.System => "system",
-            ContextEventKind.User => "user",
-            ContextEventKind.Assistant => "assistant",
-            ContextEventKind.Tool => "tool",
-            ContextEventKind.Delegated => "assistant",
-            _ => "user",
+            ContextEventKind.System => ContextRoles.System,
+            ContextEventKind.User => ContextRoles.User,
+            ContextEventKind.Assistant => ContextRoles.Assistant,
+            ContextEventKind.Tool => ContextRoles.Tool,
+            ContextEventKind.Delegated => ContextRoles.Assistant,
+            _ => ContextRoles.Unknown,
         };
+}
+
+/// <summary>角色受控词（未知种类禁伪造为 user）。</summary>
+public static class ContextRoles
+{
+    /// <summary>系统提示。</summary>
+    public const string System = "system";
+
+    /// <summary>用户输入。</summary>
+    public const string User = "user";
+
+    /// <summary>助手输出。</summary>
+    public const string Assistant = "assistant";
+
+    /// <summary>工具结果。</summary>
+    public const string Tool = "tool";
+
+    /// <summary>未知种类（显式可见，不猜语义）。</summary>
+    public const string Unknown = "unknown";
 }

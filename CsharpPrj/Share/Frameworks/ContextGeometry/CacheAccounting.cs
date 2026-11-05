@@ -21,7 +21,10 @@ public static class CacheHitAccounting
         if (sample.CacheReadTokens is null)
             return new CacheHitResult(false, null, GeometryDiagnostics.UsageMissing);
 
-        var read = Math.Max(0, sample.CacheReadTokens.Value);
+        var read = sample.CacheReadTokens.Value;
+        if (read < 0)
+            return new CacheHitResult(false, null, GeometryDiagnostics.InvalidObservation);
+
         if (estimatedPrefixTokens <= 0)
             return new CacheHitResult(true, null, GeometryDiagnostics.EstimateMissing);
 

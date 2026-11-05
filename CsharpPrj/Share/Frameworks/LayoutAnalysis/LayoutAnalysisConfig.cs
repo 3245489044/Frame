@@ -114,6 +114,9 @@ namespace Modules.LayoutAnalysis
             public const string SlightOverlap = "轻微重叠";
             public const string Contact = "接触";
 
+            /// <summary>未知重叠等级（受控词；禁与"接触/零重叠"同文案）。</summary>
+            public const string OverlapUnknown = "overlap_unknown";
+
             public const string TopLeft = "左上方";
             public const string BottomLeft = "左下方";
             public const string TopRight = "右上方";

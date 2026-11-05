@@ -8,7 +8,8 @@ public sealed record CacheTelemetry(
     long CacheReadTokens,
     long PromptTokens,
     double? HitRatio,
-    int PromptUnknown = 0)
+    int PromptUnknown = 0,
+    int InvalidSamples = 0)
 {
     /// <summary>空样本。</summary>
     public static readonly CacheTelemetry Empty = new(0, 0, 0, 0, 0, null);
@@ -28,6 +29,7 @@ public static class CacheTelemetryAggregator
         var observed = 0;
         var unknown = 0;
         var promptUnknown = 0;
+        var invalid = 0;
         long read = 0;
         long prompt = 0;
         foreach (var sample in list)
@@ -38,19 +40,26 @@ public static class CacheTelemetryAggregator
                 continue;
             }
 
+            // E-05：负值 = 非法观测（显式计数，禁 Math.Max(0, …) 归零伪装成"零消耗"）。
+            if (sample.CacheReadTokens.Value < 0 || (sample.PromptTokens is int invalidPrompt && invalidPrompt < 0))
+            {
+                invalid++;
+                continue;
+            }
+
             observed++;
-            read += Math.Max(0, sample.CacheReadTokens.Value);
+            read += sample.CacheReadTokens.Value;
 
             // 用量缺失 ≠ 0（ContextGeometry.md §4.4，原 :41 ?? 0 把"未观测的 prompt"折成 0 计入总量）：
             // prompt 缺失计入 PromptUnknown 并不进总量，避免把未知伪装成零消耗。
             if (sample.PromptTokens is int promptTokens)
-                prompt += Math.Max(0, promptTokens);
+                prompt += promptTokens;
             else
                 promptUnknown++;
         }
 
         var ratio = CacheEconomics.HitRatio(list);
-        return new CacheTelemetry(list.Length, observed, unknown, read, prompt, ratio, promptUnknown);
+        return new CacheTelemetry(list.Length, observed, unknown, read, prompt, ratio, promptUnknown, invalid);
     }
 
     /// <summary>按维度聚合（K7：K 组 / 角色 / 租户；维度 = 声明键，禁从内容猜）。</summary>

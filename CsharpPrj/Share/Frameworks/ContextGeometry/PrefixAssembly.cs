@@ -1,3 +1,5 @@
+using ContractFramework.Diagnostics;
+
 namespace Share.ContextGeometry;
 
 /// <summary>
@@ -35,11 +37,11 @@ public static class PrefixAssembly
     /// <summary>装配前缀（同输入两次 ⇒ 段序与摘要逐字相等）。</summary>
     public static PrefixAssemblyPlan Plan(PrefixAssemblyInput? input, ISharedBlockStore? blocks = null)
     {
-        var diagnostics = new List<string>();
+        var diagnostics = new DiagnosticBag(GeometryDiagnostics.Codes);
         if (input is null)
         {
-            diagnostics.Add(GeometryDiagnostics.PrefixAbsent);
-            return new PrefixAssemblyPlan(string.Empty, Array.Empty<PrefixSegment>(), false, string.Empty, null, diagnostics);
+            diagnostics.Add(GeometryDiagnostics.PrefixAbsent, string.Empty);
+            return new PrefixAssemblyPlan(string.Empty, Array.Empty<PrefixSegment>(), false, string.Empty, null, diagnostics.ToLines());
         }
 
         var segments = new List<PrefixSegment>();
@@ -51,7 +53,7 @@ public static class PrefixAssembly
             if (segment is null) continue;
             if (!input.ToolsExposed && IsToolsSegment(segment.Key))
             {
-                diagnostics.Add($"{GeometryDiagnostics.ToolFaceHidden}:{segment.Key}");
+                diagnostics.Add(GeometryDiagnostics.ToolFaceHidden, segment.Key);
                 continue;
             }
             segments.Add(segment);
@@ -62,7 +64,7 @@ public static class PrefixAssembly
             if (segment is null) continue;
             if (!input.ToolsExposed && IsToolsSegment(segment.Key))
             {
-                diagnostics.Add($"{GeometryDiagnostics.ToolFaceHidden}:{segment.Key}");
+                diagnostics.Add(GeometryDiagnostics.ToolFaceHidden, segment.Key);
                 continue;
             }
             segments.Add(segment);
@@ -71,7 +73,7 @@ public static class PrefixAssembly
         var composed = PrefixComposer.Compose(segments, blocks);
         diagnostics.AddRange(composed.Diagnostics);
         return new PrefixAssemblyPlan(
-            input.Scope, composed.Segments, input.ToolsExposed, composed.Digest, composed.CanonicalRef, diagnostics);
+            input.Scope, composed.Segments, input.ToolsExposed, composed.Digest, composed.CanonicalRef, diagnostics.ToLines());
     }
 
     /// <summary>工具面段计数（结构事实；不读语义）。</summary>

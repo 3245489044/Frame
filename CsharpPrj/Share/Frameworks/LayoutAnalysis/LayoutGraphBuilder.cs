@@ -81,12 +81,10 @@ namespace Modules.LayoutAnalysis
 
         private static LayoutGraphContext Analyze(CoreGraph<string, LayoutNodeData, LayoutEdgeData> graph)
         {
-            var diagnostics = new List<string>();
             var context = new LayoutGraphContext
             {
                 Graph = graph,
                 HasCycle = graph.NodeCount() > 0 && GraphTopology.HasCycle(graph),
-                Diagnostics = diagnostics
             };
 
             var components = GraphTopology.GetConnectedComponents(graph);
@@ -94,7 +92,7 @@ namespace Modules.LayoutAnalysis
                 .Where(c => c.Count > 0)
                 .Select(c =>
                 {
-                    var sorted = SafeTopologicalOrder(graph, c, diagnostics);
+                    var sorted = SafeTopologicalOrder(graph, c, context.DiagnosticBag);
                     return new LayoutCluster { NodeIds = sorted };
                 })
                 .ToList();
@@ -108,7 +106,7 @@ namespace Modules.LayoutAnalysis
         private static List<string> SafeTopologicalOrder(
             IReadOnlyGraph<string, LayoutNodeData, LayoutEdgeData> graph,
             IReadOnlyList<string> componentKeys,
-            List<string> diagnostics)
+            ContractFramework.Diagnostics.DiagnosticBag diagnostics)
         {
             var keySet = new HashSet<string>(componentKeys);
             try
@@ -119,11 +117,12 @@ namespace Modules.LayoutAnalysis
                     return result.SortedNodes.Where(keySet.Contains).ToList();
                 }
 
-                diagnostics.Add($"{LayoutGraphConstants.TopologyCycle}:{componentKeys.Count}");
+                diagnostics.Add(LayoutGraphConstants.TopologyCycle, componentKeys.Count.ToString());
             }
             catch (Exception ex)
             {
-                diagnostics.Add($"{LayoutGraphConstants.TopologyFailed}:{ex.GetType().Name}:{componentKeys.Count}");
+                diagnostics.Add(LayoutGraphConstants.TopologyFailed,
+                    ex.GetType().Name, componentKeys.Count.ToString());
             }
 
             return componentKeys.ToList();
@@ -151,5 +150,12 @@ namespace Modules.LayoutAnalysis
 
         /// <summary>连通分量成环（拓扑序不可用，回退声明序且可见）。</summary>
         public const string TopologyCycle = "layout_topology_cycle";
+
+        /// <summary>元数据抽取失败（保留 null 契约但记录原因）。</summary>
+        public const string MetadataExtractFailed = "layout_metadata_extract_failed";
+
+        /// <summary>布局受控码集（单一实现 = CodeSet）。</summary>
+        public static readonly ContractFramework.Codes.CodeSet Codes = new(
+            "layout-analysis", TopologyFailed, TopologyCycle, MetadataExtractFailed);
     }
 }

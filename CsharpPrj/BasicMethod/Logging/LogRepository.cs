@@ -1,5 +1,6 @@
 
 using System.Collections.Concurrent;
+using Modules.Compute.Formula;
 
 namespace Common.Diagnostics
 {
@@ -33,7 +34,13 @@ namespace Common.Diagnostics
 
         private static long _nextSequence = 0;
 
-    private static readonly ConcurrentDictionary<string, long> _writeDedupCache = new();
+        /// <summary>去重窗口容量（有界；长跑进程不得单调增长）。</summary>
+        public const int DedupCapacity = 4096;
+
+        /// <summary>去重窗口条目数（诊断用）。</summary>
+        public static int DedupCacheCount => _writeDedupCache.Count;
+
+        private static readonly BoundedCache<string, long> _writeDedupCache = new(DedupCapacity);
 
         public static void Write(string level, string category, string module, string message)
         {
@@ -50,15 +57,11 @@ namespace Common.Diagnostics
                 }
             }
 
-            var entry = new LogEntry
-            {
-                Timestamp = DateTime.Now,
-                Level = (level?.ToUpperInvariant()) ?? "INFO",
-                Category = parsedCategory,
-                CategoryString = category,
-                Module = module,
-                Message = message
-            };
+            // 条目创建经工厂端口（默认 DefaultEntryFactory；批次打标适配器由上层注入，DG-4.1 单源）。
+            var entry = LoggingSetup.EntryFactory.CreateEntry(
+                (level?.ToUpperInvariant()) ?? "INFO", parsedCategory, module, message,
+                exception: null, callerFile: null, callerLine: 0, callerMember: null);
+            entry.CategoryString = category;
             Write(entry);
         }
 
@@ -68,36 +71,55 @@ namespace Common.Diagnostics
 
             var formatted = $"[{entry.Timestamp:HH:mm:ss.fff}] [{entry.Level}] [{entry.Module}] {entry.Message}";
 
-            var dedupKey = formatted[(formatted.LastIndexOf("] ") + 2)..];
+            // 去重键必须覆盖被去重维度（level/module/message）：仅用正文会让不同模块同文案被误抑制。
+            var dedupKey = $"{entry.Level}|{entry.Module}|{entry.Message}";
             var nowMs = Environment.TickCount64;
-            if (_writeDedupCache.TryGetValue(dedupKey, out var lastMs) && (nowMs - lastMs) < 100)
-                return;
-            _writeDedupCache[dedupKey] = nowMs;
+            var suppressed = _writeDedupCache.TryGet(dedupKey, out var lastMs)
+                             && (nowMs - lastMs) < 100;
+
+            // E-01：去重只抑制「打印/广播」，不抑制留档（重复本身必须可审计）。
+            if (suppressed)
+            {
+                entry.Extensions["SuppressedDuplicate"] = true;
+            }
+            else
+            {
+                _writeDedupCache.Set(dedupKey, nowMs);
+            }
 
             // 过滤一次、两处共用：Console 打印与 LogWritten 广播必须同口径（否则终端与控制台内容漂移）。
             var printable = LogFilterLoader.ShouldPrint(entry);
 
             if (OutputMode == LogOutputMode.Console)
             {
-                if (printable)
+                if (printable && !suppressed)
                 {
                     LogCollapser.Write(formatted);
                     // Console 模式同样广播：GUI 默认即 Console 模式，不广播则进程内订阅者（UI 终端）永收不到日志。
                     LogWritten?.Invoke(entry);
                 }
 
+                // Console 只决定「是否打印」，不决定「是否留档」：不入内存队列会让批次日志恒为空（DG-4.1）。
+                Record(entry);
                 return;
             }
 
-            if (entry.Level is "Error" or "Warning")
+            if (entry.Level is "Error" or "Warning" && printable && !suppressed)
             {
-                if (printable)
-                {
-                    LogCollapser.Write(formatted);
-                }
+                LogCollapser.Write(formatted);
             }
 
+            Record(entry);
 
+            if (!suppressed)
+            {
+                LogWritten?.Invoke(entry);
+            }
+        }
+
+        /// <summary>入队 + 建索引 + 有界裁剪（唯一写入路径；两种输出模式共用）。</summary>
+        private static void Record(LogEntry entry)
+        {
             entry.SequenceNumber = Interlocked.Increment(ref _nextSequence);
 
             _logs.Enqueue(entry);
@@ -110,8 +132,6 @@ namespace Common.Diagnostics
             {
                 AddToIndex(_moduleIndex, entry.Module, entry);
             }
-
-            LogWritten?.Invoke(entry);
 
             if (_logs.Count > MaxEntries)
             {
@@ -141,6 +161,10 @@ namespace Common.Diagnostics
                 : Enumerable.Empty<LogEntry>();
         }
 
+        /// <summary>
+        /// 仓库查询（唯一筛选轴声明）：<paramref name="category"/> 按枚举判定（<see cref="LogCategory"/>）；
+        /// <see cref="LogEntry.CategoryString"/> 仅用于展示与打印过滤（<c>LogFilterLoader</c>），不参与本查询。
+        /// </summary>
         public static IEnumerable<LogEntry> Query(LogCategory? category = null, string? level = null, string? module = null)
         {
             IEnumerable<LogEntry> result = _logs;
@@ -193,6 +217,7 @@ namespace Common.Diagnostics
             _categoryIndex.Clear();
             _levelIndex.Clear();
             _moduleIndex.Clear();
+            _writeDedupCache.Clear();
             Interlocked.Exchange(ref _nextSequence, 0);
         }
 

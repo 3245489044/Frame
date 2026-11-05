@@ -24,11 +24,15 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-$specPath = Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\PortContext\PortContextSpec.cs'
+# 受控码表已下沉 Modules\Foundations\PortContext（Share 侧仅留装配器）；判据载体随实现位置，禁指向旧路径。
+$specPath = Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\PortContext\PortContextSpec.cs'
 $producerPaths = @(
     (Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\PortContext\PortContextAssembler.cs'),
     (Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\PortContext\PortContextAssembler.Loaders.cs'),
-    (Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\PortContext\PortContextModel.cs'),
+    (Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\PortContext\PortContextModel.cs'),
+    (Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\PortContext\PortContextPage.cs'),
+    (Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\PortContext\PortContextPorts.cs'),
+    (Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\PortContext\PortContextConsumers.cs'),
     (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\Session\PortContextAssembly.cs'),
     (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\Session\PortContextAssembly.Adapters.cs')
 )

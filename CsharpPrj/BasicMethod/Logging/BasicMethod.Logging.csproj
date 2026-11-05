@@ -11,6 +11,10 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_Common)" />
+    <!-- 有界淘汰基元（F3）：去重窗口/日志缓存复用唯一实现。 -->
+    <ProjectReference Include="$(Proj_Compute)" />
+    <!-- 受控码集/诊断出口/时钟端口（F1/F2/F5）：BCL-only 基元。 -->
+    <ProjectReference Include="$(Proj_ContractFramework)" />
   </ItemGroup>
 
   <ItemGroup>

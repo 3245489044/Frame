@@ -76,7 +76,9 @@ namespace Modules.LayoutAnalysis
                 OverlapLevel.Moderate => string.Format(CultureInfo.InvariantCulture, LayoutAnalysisConfig.FormatStrings.OverlapRatioFormat, LayoutAnalysisConfig.RelationDescriptions.ModerateOverlap, ratio),
                 OverlapLevel.Slight => string.Format(CultureInfo.InvariantCulture, LayoutAnalysisConfig.FormatStrings.OverlapRatioFormat, LayoutAnalysisConfig.RelationDescriptions.SlightOverlap, ratio),
                 OverlapLevel.None => LayoutAnalysisConfig.RelationDescriptions.Contact,
-                _ => LayoutAnalysisConfig.RelationDescriptions.Contact
+                // 未知档必须可区分（带等级值），禁复用"接触"文案。
+                _ => string.Format(CultureInfo.InvariantCulture, "{0}:{1}",
+                    LayoutAnalysisConfig.RelationDescriptions.OverlapUnknown, (int)level)
             };
         }
 

@@ -71,6 +71,8 @@ namespace Framework.Tree
         {
             ArgumentNullException.ThrowIfNull(node);
             ArgumentNullException.ThrowIfNull(key);
+            // 同名策略必须生效：allowOverwrite=false ⇒ 先序保留（原实现忽略构造参数，判据假绿）。
+            if (!_allowOverwrite && _store.ContainsKey(key)) return;
             _store[key] = node;
         }
 

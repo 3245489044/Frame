@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ContractFramework.Codes;
 
 namespace Share.PortContexts;
 
@@ -166,18 +167,12 @@ public static class PortContextEmptyCodes
     /// <summary>更早一侧仍有数据，但下一页游标会越过离尾偏移上界（截断显式可见，不再静默压 false）。</summary>
     public const string CursorBoundReached = "cursor-bound-reached";
 
-    /// <summary>全部空因/截断码（门禁遍历单源）。</summary>
-    public static readonly IReadOnlyList<string> All = new[]
-    {
+    /// <summary>受控码集（门禁/诊断遍历单源；单一实现 = <see cref="CodeSet"/>）。</summary>
+    public static readonly CodeSet Codes = new(
+        "port-context-empty",
         NoOwnedMember, EnumeratorNotAttached, EnumeratorFailed,
         StateProviderNotAttached, StateProviderFailed,
         WindowEmpty, WindowProviderNotAttached, WindowFailed,
         SyntheticOnly, KeyAxisMismatch, MemberWindowTruncated,
-        CursorInvalid, CursorBoundReached,
-    };
-
-    /// <summary>空因码是否受控（未登记 ⇒ 判据不可判定）。</summary>
-    /// <param name="code">空因码。</param>
-    public static bool IsKnown(string? code)
-        => !string.IsNullOrWhiteSpace(code) && System.Linq.Enumerable.Contains(All, code!, StringComparer.Ordinal);
+        CursorInvalid, CursorBoundReached);
 }

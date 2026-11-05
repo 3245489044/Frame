@@ -743,6 +743,16 @@ public sealed class WinFormsOutputPort
                 if (_entityManager.TryGetComponent<ScopeComponent>(entity, out var scopeComp)
                     && !string.IsNullOrWhiteSpace(scopeComp.Scope))
                 {
+                    // 用户态落盘（唯一写点）：拖拽真源 → 缓存；配置面保持只读。
+                    var controlName = _entityManager.TryGetComponent<ControlInfoComponent>(entity, out var info)
+                        ? info.Name
+                        : null;
+                    if (!string.IsNullOrWhiteSpace(controlName))
+                    {
+                        AppServiceProvider.Resolve<IUiLayoutStateStore>()
+                            ?.SetSplitterRatio(scopeComp.Scope, controlName!, physicalRatio);
+                    }
+
                     AppServiceProvider.Resolve<FrontEndDriven.ControlRender.Layout.LayoutSubsystem>()
                         ?.RequestReflow(scopeComp.Scope);
                 }

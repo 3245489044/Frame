@@ -1,3 +1,4 @@
+using Modules.Compute.Traversal;
 using Modules.LayoutAnalysis.UIInspector;
 using Modules.LayoutAnalysis.UIOverlapDetector.Core;
 using Modules.LayoutAnalysis.UIOverlapDetector.Models;
@@ -67,7 +68,7 @@ public class OverlapCalculator : IOverlapCalculator
     private Models.OverlapPair? CalculatePairOverlap(
         ControlMetadata a,
         ControlMetadata b,
-        Dictionary<string, ControlMetadata> nameToMetadata)
+        NameIndex<ControlMetadata> nameToMetadata)
     {
         // 唯一坐标口径 = form 相对（含 SplitterPanel 修正），见 ControlMetadata.FormLeft/FormTop。
         var rectA = new Rect(a.FormLeft, a.FormTop, a.Width, a.Height);
@@ -100,10 +101,11 @@ public class OverlapCalculator : IOverlapCalculator
     }
 
     /// <summary>只保留全局唯一名称；同名（多实例）条目全部剔除，避免按名解析到错误实例。</summary>
-    private static Dictionary<string, ControlMetadata> BuildUniqueNameIndex(IReadOnlyList<ControlMetadata> controls)
+    private static NameIndex<ControlMetadata> BuildUniqueNameIndex(IReadOnlyList<ControlMetadata> controls)
     {
-        var byName = new Dictionary<string, ControlMetadata>(StringComparer.OrdinalIgnoreCase);
-        var duplicated = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // 名称索引单源 = NameIndex（大小写不敏感）；本方法只叠加"同名全部剔除"策略。
+        var byName = new NameIndex<ControlMetadata>();
+        var duplicated = new List<string>();
         foreach (var control in controls)
         {
             if (control == null || string.IsNullOrEmpty(control.Name)) continue;
@@ -112,7 +114,7 @@ public class OverlapCalculator : IOverlapCalculator
                 duplicated.Add(control.Name);
                 continue;
             }
-            byName[control.Name] = control;
+            byName.TryAdd(control.Name, control);
         }
         foreach (var name in duplicated) byName.Remove(name);
         return byName;
@@ -121,7 +123,7 @@ public class OverlapCalculator : IOverlapCalculator
     private bool IsParentChildRelation(
         ControlMetadata a,
         ControlMetadata b,
-        Dictionary<string, ControlMetadata> nameToMetadata)
+        NameIndex<ControlMetadata> nameToMetadata)
     {
         // 父子抑制只按"对象身份"判定：同名但不同实例的控件不得因 Name 相等被误抑制（§4.12）。
         if (_entityTreeParentResolver != null)
@@ -166,7 +168,7 @@ public class OverlapCalculator : IOverlapCalculator
     private static bool NameIndexIsAncestorOf(
         ControlMetadata node,
         ControlMetadata possibleAncestor,
-        Dictionary<string, ControlMetadata> nameToMetadata)
+        NameIndex<ControlMetadata> nameToMetadata)
     {
         if (node == null || possibleAncestor == null || ReferenceEquals(node, possibleAncestor))
             return false;
@@ -183,7 +185,7 @@ public class OverlapCalculator : IOverlapCalculator
             if (string.IsNullOrEmpty(parentName))
                 return false;
 
-            if (!nameToMetadata.TryGetValue(parentName, out var parent) || parent == null)
+            if (!nameToMetadata.TryGet(parentName, out var parent) || parent == null)
                 return false;
 
             if (ReferenceEquals(parent, possibleAncestor))

@@ -127,6 +127,6 @@ public static class PortContextShape
         return views.Skip(1).All(view => baseline.SequenceEqual(view.FieldKeys, StringComparer.Ordinal));
     }
 
-    /// <summary>全部受控空因码（门禁/单测遍历；单一来源 = <see cref="PortContextEmptyCodes.All"/>）。</summary>
-    public static IReadOnlyList<string> EmptyCodes => PortContextEmptyCodes.All;
+    /// <summary>全部受控空因码（门禁/单测遍历；单一来源 = <see cref="PortContextEmptyCodes.Codes"/>）。</summary>
+    public static IReadOnlyList<string> EmptyCodes => PortContextEmptyCodes.Codes.All;
 }

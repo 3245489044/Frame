@@ -5,7 +5,9 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using ContractFramework.Diagnostics;
 using Framework.Tree;
+using Modules.Compute.Traversal;
 using Modules.LayoutAnalysis.Models;
 using Modules.LayoutAnalysis.UIInspector;
 
@@ -17,6 +19,9 @@ namespace Modules.LayoutAnalysis
         private readonly LayoutDataCollector _layoutCollector;
         private readonly LayoutReportGenerator _reportGenerator;
         private readonly LayoutValidator _validator;
+
+        /// <summary>布局诊断出口（元数据抽取失败等；唯一实现 = DiagnosticBag）。</summary>
+        public DiagnosticBag Diagnostics { get; } = new(LayoutGraphConstants.Codes);
 
         public UIElementTracker()
             : this(new ReflectionExtractor(), new LayoutDataCollector(), new LayoutReportGenerator(), new LayoutValidator())
@@ -68,8 +73,10 @@ namespace Modules.LayoutAnalysis
                     HasChildren = hasChildren.GetValueOrDefault()
                 };
             }
-            catch
+            catch (Exception ex)
             {
+                // E-06：保留 null 契约，但记录原因（不再静默吞）。
+                Diagnostics.Add(LayoutGraphConstants.MetadataExtractFailed, target.GetType().Name, ex.GetType().Name);
                 return null;
             }
         }
@@ -114,51 +121,39 @@ namespace Modules.LayoutAnalysis
         public LayoutCollectionResult CollectLayoutFromMetadata(List<ControlMetadata> controls, Rectangle referenceBounds)
         {
             var elements = new List<ElementPosition>(controls.Count);
-            var nameToLayoutId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var layoutIdToControl = new Dictionary<string, ControlMetadata>(StringComparer.OrdinalIgnoreCase);
-            var nameCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            // 名称映射单源 = NameIndex<T>（大小写不敏感 + 先序保留 + 唯一名分配）；禁本地字典/计数器。
+            var nameToLayoutId = new NameIndex<string>();
+            var layoutIdToControl = new NameIndex<ControlMetadata>(allowOverwrite: true);
 
             foreach (var c in controls)
             {
                 var baseName = string.IsNullOrEmpty(c.Name) ? c.TypeName : c.Name;
-                string layoutId;
-                if (nameCount.TryGetValue(baseName, out var count))
-                {
-                    nameCount[baseName] = count + 1;
-                    layoutId = baseName + "_" + count;
-                }
-                else
-                {
-                    nameCount[baseName] = 1;
-                    layoutId = baseName;
-                }
+                var layoutId = nameToLayoutId.NextUnique(baseName);
 
-                if (!string.IsNullOrEmpty(c.Name) && !nameToLayoutId.ContainsKey(c.Name))
-                    nameToLayoutId[c.Name] = layoutId;
-                if (!nameToLayoutId.ContainsKey(baseName))
-                    nameToLayoutId[baseName] = layoutId;
+                if (!string.IsNullOrEmpty(c.Name)) nameToLayoutId.TryAdd(c.Name, layoutId);
+                nameToLayoutId.TryAdd(baseName, layoutId);
 
-                layoutIdToControl[layoutId] = c;
+                layoutIdToControl.TryAdd(layoutId, c);
                 // AbsolutePosition 必须是 form 相对（唯一口径，含 SplitterPanel 修正），不得再塞父相对 .Left/.Top（§4.8）。
                 elements.Add(new ElementPosition(layoutId, c.FormLeft, c.FormTop, c.Width, c.Height));
             }
 
             var result = _layoutCollector.Collect(elements, referenceBounds, entity =>
             {
-                if (!layoutIdToControl.TryGetValue(entity.Id, out var metadata))
+                if (!layoutIdToControl.TryGet(entity.Id, out var metadata))
                     return null;
                 if (string.IsNullOrEmpty(metadata.ParentName))
                     return null;
-                return nameToLayoutId.TryGetValue(metadata.ParentName, out var parentId) ? parentId : null;
+                return nameToLayoutId.TryGet(metadata.ParentName, out var parentId) ? parentId : null;
             });
 
             foreach (var entity in result.NormalizedEntities)
             {
-                if (!layoutIdToControl.TryGetValue(entity.Id, out var metadata))
+                if (!layoutIdToControl.TryGet(entity.Id, out var metadata))
                     continue;
                 if (string.IsNullOrEmpty(metadata.ParentName))
                     continue;
-                if (!nameToLayoutId.TryGetValue(metadata.ParentName, out var mappedParentId))
+                if (!nameToLayoutId.TryGet(metadata.ParentName, out var mappedParentId))
                     continue;
 
                 entity.Properties[LayoutAnalysisConfig.PropertyNames.ParentName] = new NormalizedProperty

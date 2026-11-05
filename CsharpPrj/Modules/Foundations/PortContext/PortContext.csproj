@@ -3,7 +3,7 @@
   <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>上行端口上下文内核（分页/游标/词表/值对象）</ModuleRule_Title>
     <ModuleRule_Layer>1</ModuleRule_Layer>
-    <ModuleRule_Description>端口上下文值对象/规格/游标编解码/空因词表/端口契约：纯逻辑、零 IO、零时钟、零 ProjectReference（仅 BCL）。命名空间保持 Share.PortContexts，迁移只换程序集。</ModuleRule_Description>
+    <ModuleRule_Description>端口上下文值对象/规格/游标编解码/空因词表/端口契约：纯逻辑、零 IO、零时钟；唯一 ProjectReference 为 BCL-only 的 ContractFramework（受控码集单一实现）。命名空间保持 Share.PortContexts，迁移只换程序集。</ModuleRule_Description>
     <ModuleRule_Keywords>端口上下文;分页;游标;空因;词表;值对象</ModuleRule_Keywords>
   </PropertyGroup>
 
@@ -15,5 +15,10 @@
     <AssemblyName>PortContext</AssemblyName>
     <Description>上行端口上下文内核 — 值对象/规格/游标/词表/端口契约（纯逻辑，BCL-only）</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 受控码集单一实现（BCL-only，不引入 IO/时钟）。 -->
+    <ProjectReference Include="$(Proj_ContractFramework)" />
+  </ItemGroup>
 
 </Project>

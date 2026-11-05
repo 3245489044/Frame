@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 namespace Modules.Compute.Formula;
 
 /// <summary>
@@ -12,22 +10,20 @@ public sealed class TileCache
 {
     public readonly record struct Key(long Signature, int X, int Y, int Z);
 
-    private readonly ConcurrentDictionary<Key, object?> _entries;
-    private readonly int _capacity;
-    private int _writes;
+    private readonly BoundedCache<Key, object?> _entries;
 
     public TileCache(int capacity = 4096)
     {
         if (capacity <= 0)
             throw new ArgumentOutOfRangeException(nameof(capacity), "容量必须为正");
 
-        _capacity = capacity;
-        _entries = new ConcurrentDictionary<Key, object?>();
+        // 淘汰语义单源：整表清空是显式策略（EvictionPolicy.ClearAll），禁本类自建写计数。
+        _entries = new BoundedCache<Key, object?>(capacity, policy: EvictionPolicy.ClearAll);
     }
 
     public int Count => _entries.Count;
 
-    public int Capacity => _capacity;
+    public int Capacity => _entries.Capacity;
 
     public long Hits { get; private set; }
 
@@ -44,7 +40,7 @@ public sealed class TileCache
 
     public bool TryGet(Key key, out object? value)
     {
-        if (_entries.TryGetValue(key, out value))
+        if (_entries.TryGet(key, out value))
         {
             Hits++;
             return true;
@@ -56,7 +52,7 @@ public sealed class TileCache
 
     public bool TryGet<T>(Key key, out T? value)
     {
-        if (_entries.TryGetValue(key, out object? raw) && raw is T typed)
+        if (_entries.TryGet(key, out object? raw) && raw is T typed)
         {
             value = typed;
             Hits++;
@@ -70,35 +66,17 @@ public sealed class TileCache
 
     public void Put(Key key, object? value)
     {
-        // 注意：ConcurrentDictionary.Count 会锁全部分段（O(n)），绝不能每 Put 调一次；
-        // 这里用写入计数做软上限，满时整表清空（语义与原先一致，只是判断依据不再精确等于条目数）。
-        if (Volatile.Read(ref _writes) >= _capacity)
-        {
-            _entries.Clear();
-            Volatile.Write(ref _writes, 0);
-        }
-
-        _entries[key] = value;
-        Interlocked.Increment(ref _writes);
+        // 写计数 + 整表清空由 BoundedCache(EvictionPolicy.ClearAll) 单点负责。
+        _entries.Set(key, value);
     }
 
     /// <summary>参数/内容签名变化：只保留新签名的条目。</summary>
     public int Invalidate(long signature)
-    {
-        int removed = 0;
-        foreach (var key in _entries.Keys)
-        {
-            if (key.Signature != signature && _entries.TryRemove(key, out _))
-                removed++;
-        }
-
-        return removed;
-    }
+        => _entries.RemoveWhere(key => key.Signature != signature);
 
     public void Clear()
     {
         _entries.Clear();
-        Volatile.Write(ref _writes, 0);
         Hits = 0;
         Misses = 0;
     }

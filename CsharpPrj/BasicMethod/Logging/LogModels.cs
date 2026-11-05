@@ -52,6 +52,10 @@ namespace Common.Diagnostics
 
         public Dictionary<string, object?> Extensions { get; set; } = new();
 
+        /// <summary>
+        /// 原始类别串（展示 + 打印过滤轴；<see cref="LogRepository.Query(LogCategory?, string?, string?)"/> 只按枚举查询）。
+        /// <para>唯一筛选轴声明：仓库查询 = <see cref="Category"/>；本字段不得作为第二查询口径。</para>
+        /// </summary>
         public string? CategoryString { get; set; }
 
         [JsonIgnore]

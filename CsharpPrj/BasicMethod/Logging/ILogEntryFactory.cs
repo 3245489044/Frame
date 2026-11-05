@@ -32,7 +32,8 @@ namespace Common.Diagnostics
         {
             return new LogEntry
             {
-                Timestamp = DateTime.Now,
+                // 时间唯一来源：LoggingSetup.Clock（UTC 存储 → 本地显示单点转换，禁散落本地时钟直读）。
+                Timestamp = LoggingSetup.Clock.UtcNow.LocalDateTime,
                 Level = level,
                 Category = category,
                 Module = module,

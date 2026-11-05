@@ -63,9 +63,11 @@ public static class CacheEconomics
 
         foreach (var sample in samples ?? Enumerable.Empty<CacheUsageSample>())
         {
-            if (sample.CacheReadTokens is null || sample.PromptTokens is null) continue;
-            read += Math.Max(0, sample.CacheReadTokens.Value);
-            prompt += Math.Max(0, sample.PromptTokens.Value);
+            if (sample.CacheReadTokens is not int sampleRead || sample.PromptTokens is not int samplePrompt) continue;
+            // 负值 = 非法观测（显式码 geom_invalid_observation），不参与比率，禁归零伪造"零消耗"。
+            if (sampleRead < 0 || samplePrompt < 0) continue;
+            read += sampleRead;
+            prompt += samplePrompt;
             any = true;
         }
 
@@ -74,9 +76,16 @@ public static class CacheEconomics
         return (double)read / prompt;
     }
 
-    /// <summary>缓存读 token 合计（Unknown 样本不计入；无样本 ⇒ 0）。</summary>
+    /// <summary>缓存读 token 合计（Unknown/非法观测不计入；无样本 ⇒ 0）。</summary>
     public static long TotalCacheRead(IEnumerable<CacheUsageSample>? samples)
-        => (samples ?? Enumerable.Empty<CacheUsageSample>())
-            .Where(s => s.CacheReadTokens is not null)
-            .Sum(s => (long)Math.Max(0, s.CacheReadTokens!.Value));
+    {
+        long total = 0;
+        foreach (var sample in samples ?? Enumerable.Empty<CacheUsageSample>())
+        {
+            if (sample.CacheReadTokens is not int read || read < 0) continue;
+            total += read;
+        }
+
+        return total;
+    }
 }

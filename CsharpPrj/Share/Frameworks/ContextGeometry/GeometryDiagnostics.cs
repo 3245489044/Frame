@@ -1,3 +1,5 @@
+using ContractFramework.Codes;
+
 namespace Share.ContextGeometry;
 
 /// <summary>几何诊断码单源（禁在各处手写字面量）。</summary>
@@ -51,18 +53,15 @@ public static class GeometryDiagnostics
     /// <summary>投影事件序非法（角色/内容缺失；显式诊断，不静默跳过语义）。</summary>
     public const string ProjectionInvalid = "geom_projection_invalid";
 
-    /// <summary>全部受控码（门禁/诊断遍历单源；新增码必须登记，否则 IsKnown 判不可判定）。</summary>
-    public static readonly IReadOnlyList<string> All = new[]
-    {
+    /// <summary>观测值非法（负数等；显式诊断，禁归零伪造成"零消耗"）。</summary>
+    public const string InvalidObservation = "geom_invalid_observation";
+
+    /// <summary>受控码集（单一实现 = <see cref="CodeSet"/>；新增码必须登记，否则不可判定）。</summary>
+    public static readonly CodeSet Codes = new(
+        "context-geometry",
         PrefixDrift, UnknownBand, DuplicateKey, DuplicateBlock,
         UsageMissing, EstimateMissing, RatioOverflow, SnapshotMissing,
         KeepAliveReplay, DelegateExcluded, ToolFaceHidden, ToolFaceViolation,
         ToolFaceCountInvalid, ToolFaceDrift, PrefixAbsent, ProjectionInvalid,
-    };
-
-    /// <summary>码是否受控（未登记 ⇒ 判据不可判定，禁当作"已知错误"放行）。</summary>
-    /// <param name="code">诊断码。</param>
-    public static bool IsKnown(string? code)
-        => !string.IsNullOrWhiteSpace(code)
-           && System.Linq.Enumerable.Contains(All, code!, StringComparer.Ordinal);
+        InvalidObservation);
 }

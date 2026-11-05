@@ -9,6 +9,8 @@ using FrontEndDriven.ECS;
 using FrontEndDriven.ECS.Components;
 using FrontEndDriven.Container;
 using FrontEndDriven.Diagnostics;
+using FrontEndDriven.Abstractions;
+using FrameworkAbstractions.ComponentRegistry;
 
 namespace FrontEndDriven.ECS.Creation;
 
@@ -146,15 +148,26 @@ public class ConfigDrivenControlFactory
             });
         }
 
-        if (string.Equals(control.Type, "splitcontainer", StringComparison.OrdinalIgnoreCase)
-            && control.SplitterDistance.HasValue)
+        if (string.Equals(control.Type, "splitcontainer", StringComparison.OrdinalIgnoreCase))
         {
-            var ratio = new SplitterRatioComponent
-            {
-                Ratio = Math.Clamp(control.SplitterDistance.Value, 0.0, 1.0)
-            };
+            // 用户态优先 > 配置声明 > 0.5（与 LayoutSystem 缺省兜底一致）。
+            // 读缓存在 ECS 真源创建前完成：首次投影即用户比例，无需「先默认后纠正」。
+            double ratioValue = control.SplitterDistance ?? 0.5;
 
-            _entityManager.AddOrSetComponent(entity, ratio);
+            if (!string.IsNullOrWhiteSpace(control.Name)
+                && AppServiceProvider.Resolve<IUiLayoutStateStore>() is { } layoutState
+                && layoutState.TryGetSplitterRatio(_currentScope, control.Name, out var saved))
+            {
+                ratioValue = saved;
+                FrontEndDrivenLog.Log("ConfigDrivenControlFactory_splitter_restored",
+                    new { scope = _currentScope, controlName = control.Name, ratio = saved });
+            }
+
+            // 无条件建组件：无配置项的 splitter 也必须能被拖拽回写/持久化（修「缺组件即不记录」）。
+            _entityManager.AddOrSetComponent(entity, new SplitterRatioComponent
+            {
+                Ratio = Math.Clamp(ratioValue, 0.0, 1.0)
+            });
         }
 
 

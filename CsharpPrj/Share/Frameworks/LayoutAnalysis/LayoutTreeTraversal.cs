@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Framework.Tree;
+using Modules.Compute.Traversal;
 using Modules.LayoutAnalysis.UIInspector;
 
 namespace Modules.LayoutAnalysis
@@ -37,7 +38,7 @@ namespace Modules.LayoutAnalysis
                 if (c == null || string.IsNullOrEmpty(c.ParentName))
                     return null;
 
-                return byName.TryGetValue(c.ParentName, out var parent) ? parent : null;
+                return byName.TryGet(c.ParentName, out var parent) ? parent : null;
             });
         }
 
@@ -46,12 +47,15 @@ namespace Modules.LayoutAnalysis
         {
             ArgumentNullException.ThrowIfNull(controls);
 
+            // 同名策略单源 = NameIndex；TreeIndex 只承担键查找结构。
+            var names = BuildNameIndex(controls, allowOverwrite);
             var index = new TreeIndex<ControlMetadata, string>(
                 StringComparer.OrdinalIgnoreCase, allowOverwrite);
 
             foreach (var c in controls)
             {
-                if (c != null && !string.IsNullOrEmpty(c.Name))
+                if (c == null || string.IsNullOrEmpty(c.Name)) continue;
+                if (names.TryGet(c.Name, out var kept) && ReferenceEquals(kept, c))
                     index.RegisterNode(c, c.Name);
             }
 
@@ -117,17 +121,18 @@ namespace Modules.LayoutAnalysis
         /// <summary>名称索引（同名策略单源：缺省保留先序；<paramref name="allowOverwrite"/>=true 才后序覆盖）。</summary>
         /// <param name="controls">控件集。</param>
         /// <param name="allowOverwrite">同名是否后者覆盖（缺省 false，与 <see cref="CreateIndex"/> 对齐）。</param>
-        public static Dictionary<string, ControlMetadata> BuildNameIndex(
+        public static NameIndex<ControlMetadata> BuildNameIndex(
             IReadOnlyList<ControlMetadata> controls, bool allowOverwrite = false)
         {
-            var dict = new Dictionary<string, ControlMetadata>(StringComparer.OrdinalIgnoreCase);
+            ArgumentNullException.ThrowIfNull(controls);
+
+            var index = new NameIndex<ControlMetadata>(allowOverwrite);
             foreach (var c in controls)
             {
-                if (c == null || string.IsNullOrEmpty(c.Name)) continue;
-                if (!allowOverwrite && dict.ContainsKey(c.Name)) continue;
-                dict[c.Name] = c;
+                if (c is null) continue;
+                index.TryAdd(c.Name, c);
             }
-            return dict;
+            return index;
         }
     }
 }

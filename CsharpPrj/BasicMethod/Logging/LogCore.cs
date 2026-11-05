@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using ContractFramework.Time;
 
 namespace Common.Diagnostics
 {
@@ -239,6 +240,12 @@ namespace Common.Diagnostics
 
         public static bool IsOutputEnabled(LogCategory category) => GlobalCategories.HasFlag(category);
 
+        /// <summary>条目工厂端口（默认 <see cref="DefaultEntryFactory"/>；批次打标等适配器由上层装配点注入）。</summary>
+        public static ILogEntryFactory EntryFactory { get; set; } = DefaultEntryFactory.Instance;
+
+        /// <summary>时钟端口（默认系统时钟；时间戳唯一来源，禁业务侧直读本地时钟）。</summary>
+        public static IClock Clock { get; set; } = SystemClock.Instance;
+
         public static void Configure(LogCategory categories) => GlobalCategories = categories;
 
         public static void Initialize(LogCategory categories = LogCategory.None)
@@ -262,6 +269,8 @@ namespace Common.Diagnostics
         {
             LogCollapser.Reset();
             GlobalCategories = LogCategory.All;
+            EntryFactory = DefaultEntryFactory.Instance;
+            Clock = SystemClock.Instance;
             lock (_initLock)
             {
                 _initialized = false;

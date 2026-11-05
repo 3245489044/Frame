@@ -1,4 +1,3 @@
-#requires -Version 7.0
 <#
 .SYNOPSIS
     视图容器所有权守卫（ViewContainerOwnership）——每容器恰一个 ownerView，框架不引入领域区域词。

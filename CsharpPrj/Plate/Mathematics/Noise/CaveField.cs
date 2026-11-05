@@ -39,6 +39,9 @@ public sealed class CaveField
     private readonly int _cheeseSeed;
     private readonly int _blendSeed;
 
+    // 线程私有角值 scratch：与本类实例一一对应，避免同线程两个 CaveField 互相覆盖 sampler。
+    private readonly ThreadLocal<CaveScratch> _scratch = new(static () => new CaveScratch());
+
     public CaveField(CaveSettings settings, int seed, int unitsPerMeter, int seaLevelCm)
     {
         if (unitsPerMeter <= 0)
@@ -116,5 +119,76 @@ public sealed class CaveField
         float cheese = NoisePrimitives.ValueNoise3D(
             x / cheeseCell, y / cheeseCell, z / cheeseCell, _cheeseSeed);
         return cheese > _settings.CheeseThreshold;
+    }
+
+    /// <summary>
+    /// 为一个 chunk 预取角值，返回可逐体素求值的 sampler（与单点 <see cref="IsCarved"/> 逐位同值）。
+    /// <para>sampler 只对本次调用线程、最近一次 Prepare 有效；下一次调用会覆盖同一线程 scratch。</para>
+    /// </summary>
+    public CaveSampler PrepareChunk(int originX, int originY, int originZ, int size)
+    {
+        if (size <= 0)
+            throw new ArgumentOutOfRangeException(nameof(size), "chunk 边长必须为正");
+
+        var scratch = _scratch.Value!;
+        scratch.TunnelA.Prepare(originX, originY, originZ, size, _tunnelCellCm, _tunnelSeed);
+        scratch.TunnelB.Prepare(originX, originY, originZ, size, _tunnelCellCm, _blendSeed);
+        scratch.Cheese.Prepare(originX, originY, originZ, size, _cheeseCellCm, _cheeseSeed);
+        return new CaveSampler(this, scratch.TunnelA, scratch.TunnelB, scratch.Cheese);
+    }
+
+    private sealed class CaveScratch
+    {
+        public readonly LatticeNoise3D TunnelA = new();
+        public readonly LatticeNoise3D TunnelB = new();
+        public readonly LatticeNoise3D Cheese = new();
+    }
+
+    /// <summary>chunk 级洞穴判定（角值已预取）；判据与单点 <see cref="CaveField.IsCarved"/> 逐字相同。</summary>
+    public readonly struct CaveSampler
+    {
+        private readonly CaveField _owner;
+        private readonly LatticeNoise3D _tunnelA;
+        private readonly LatticeNoise3D _tunnelB;
+        private readonly LatticeNoise3D _cheese;
+
+        internal CaveSampler(
+            CaveField owner, LatticeNoise3D tunnelA, LatticeNoise3D tunnelB, LatticeNoise3D cheese)
+        {
+            _owner = owner;
+            _tunnelA = tunnelA;
+            _tunnelB = tunnelB;
+            _cheese = cheese;
+        }
+
+        /// <summary>该格是否被洞穴刻蚀成空气（调用方负责只在实心带询问）。</summary>
+        public bool IsCarved(int localX, int localY, int localZ, int worldY, int groundYCm)
+        {
+            int depth = groundYCm - worldY;
+            if (depth < _owner._minDepthCm || depth > _owner._maxDepthCm)
+                return false;
+
+            // 海床/湖床下方留保护层，避免把水直接开洞到水柱底部。
+            if (groundYCm <= _owner._seaLevelCm && depth < _owner._minDepthCm + _owner._guardCm)
+                return false;
+
+            // 接近地表时隧道收窄，避免地表被戳成筛子。
+            float fade = MathF.Min(1f, (depth - _owner._minDepthCm) / (float)_owner._guardCm);
+            float width = _owner._settings.TunnelWidth * fade;
+
+            float n1 = _tunnelA.Sample(localX, localY, localZ);
+            float n2 = _tunnelB.Sample(localX, localY, localZ);
+            float tunnel = MathF.Abs(0.65f * n1 + 0.35f * n2);
+
+            // 隧道零等值面：两层噪声组合后的绝对值为小 ⇒ 形成互相连通的管状空腔。
+            if (tunnel < width)
+                return true;
+
+            // 深部大洞厅：只在中深层生效。
+            if (depth < _owner._minDepthCm + _owner._guardCm)
+                return false;
+
+            return _cheese.Sample(localX, localY, localZ) > _owner._settings.CheeseThreshold;
+        }
     }
 }

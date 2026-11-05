@@ -26,6 +26,9 @@ public sealed class OreField
     private readonly int[] _seeds;
     private readonly int _seed;
 
+    // 线程私有角值 scratch（每条带一条 lattice），与实例一一对应。
+    private readonly ThreadLocal<OreScratch> _scratch = new(static () => new OreScratch());
+
     public OreField(IReadOnlyList<OreBand> bands, int seed, int unitsPerMeter)
     {
         ArgumentNullException.ThrowIfNull(bands);
@@ -97,5 +100,70 @@ public sealed class OreField
         }
 
         return -1;
+    }
+
+    /// <summary>
+    /// 为一个 chunk 预取各条带的角值，返回可逐体素求值的 sampler（与单点 <see cref="BandAt"/> 逐位同值）。
+    /// <para>sampler 只对本次调用线程、最近一次 Prepare 有效；下一次调用会覆盖同一线程 scratch。</para>
+    /// </summary>
+    public OreSampler PrepareChunk(int originX, int originY, int originZ, int size)
+    {
+        if (size <= 0)
+            throw new ArgumentOutOfRangeException(nameof(size), "chunk 边长必须为正");
+
+        var scratch = _scratch.Value!;
+        scratch.Ensure(_bands.Length);
+        for (int i = 0; i < _bands.Length; i++)
+            scratch.Lattices[i].Prepare(originX, originY, originZ, size, _cellsCm[i], _seeds[i]);
+
+        return new OreSampler(this, scratch.Lattices, _bands.Length);
+    }
+
+    private sealed class OreScratch
+    {
+        public LatticeNoise3D[] Lattices = Array.Empty<LatticeNoise3D>();
+
+        public void Ensure(int count)
+        {
+            if (Lattices.Length >= count)
+                return;
+
+            var grown = new LatticeNoise3D[Math.Max(count, 4)];
+            Array.Copy(Lattices, grown, Lattices.Length);
+            for (int i = Lattices.Length; i < grown.Length; i++)
+                grown[i] = new LatticeNoise3D();
+            Lattices = grown;
+        }
+    }
+
+    /// <summary>chunk 级矿带判定（角值已预取）；判据与单点 <see cref="OreField.BandAt"/> 逐字相同。</summary>
+    public readonly struct OreSampler
+    {
+        private readonly OreField _owner;
+        private readonly LatticeNoise3D[] _lattices;
+        private readonly int _count;
+
+        internal OreSampler(OreField owner, LatticeNoise3D[] lattices, int count)
+        {
+            _owner = owner;
+            _lattices = lattices;
+            _count = count;
+        }
+
+        /// <summary>返回命中的矿带下标；未命中返回 -1（严格按 <see cref="OreField.Bands"/> 顺序，首个命中即返回）。</summary>
+        public int BandAt(int localX, int localY, int localZ, int worldY, int groundYCm)
+        {
+            int depth = groundYCm - worldY;
+            for (int i = 0; i < _count; i++)
+            {
+                if (depth < _owner._minDepthCm[i] || depth > _owner._maxDepthCm[i])
+                    continue;
+
+                if (_lattices[i].Sample(localX, localY, localZ) > _owner._bands[i].Threshold)
+                    return i;
+            }
+
+            return -1;
+        }
     }
 }

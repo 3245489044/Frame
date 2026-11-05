@@ -77,7 +77,9 @@ if (Test-Path -LiteralPath $currentPtr) {
         if (Test-Path -LiteralPath $genPath) {
             $genFacts = Get-GateKeyspaceFactsText -BundlePath $bundle -InputPath $genPath -Mode 'keyspace-facts-json'
             if (-not (Test-GateFactTextEqual -Expected $repoFacts -Actual $genFacts)) {
-                $violations.Add("仓库声明 vs Gen($generation) 键空间事实漂移（Ordinal 文本不等；按 families/ports 规范化后比较）")
+                # Runtime 资产为 gitignored，本门是唯一守卫；红必须给出「需重生成」与 5.1 可执行命令。
+                $regenCmd = 'powershell.exe -File Frame\PowerShellScript\Share\Usharp\Generate-DeclaredBundle.ps1 -ConfigRoot Projects\Plug\Agent\Config -Kind keyspace -OutFile "{0}"' -f $genPath
+                $violations.Add("Gen($generation) 键空间资产陈旧：与仓库声明事实不一致（Ordinal）；需重生成。5.1 重生成：$regenCmd")
             }
         }
         else {

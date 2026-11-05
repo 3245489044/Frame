@@ -177,8 +177,172 @@ public sealed class VegetationField
         return TreePart.None;
     }
 
+    /// <summary>
+    /// 把本 chunk footprint 内的树按闭式覆盖写回 <paramref name="parts"/>（0=无，1=树干，2=树冠）。
+    /// <para>与逐体素 <see cref="PartAt"/> 同值：先写树冠、后写树干（后写覆盖 ⇒ 树干优先，复刻原两遍扫描的优先级）。</para>
+    /// <para><paramref name="groundYCmByColumn"/> 索引为 <c>x + size*z</c>，与 chunk 体素数组同布局。</para>
+    /// </summary>
+    public void Rasterize(
+        int originX, int originY, int originZ, int size,
+        ReadOnlySpan<int> groundYCmByColumn,
+        Span<byte> parts)
+    {
+        if (size <= 0)
+            throw new ArgumentOutOfRangeException(nameof(size), "chunk 边长必须为正");
+
+        int columns = size * size;
+        int volume = columns * size;
+        if (groundYCmByColumn.Length < columns)
+            throw new ArgumentException(
+                $"列高表不足 size²：需要 {columns}，实际 {groundYCmByColumn.Length}", nameof(groundYCmByColumn));
+        if (parts.Length < volume)
+            throw new ArgumentException(
+                $"parts 缓冲不足 size³：需要 {volume}，实际 {parts.Length}", nameof(parts));
+
+        var volumeSlice = parts[..volume];
+        volumeSlice.Clear();
+
+        int minGround = int.MaxValue, maxGround = int.MinValue;
+        for (int i = 0; i < columns; i++)
+        {
+            int ground = groundYCmByColumn[i];
+            if (ground < minGround) minGround = ground;
+            if (ground > maxGround) maxGround = ground;
+        }
+
+        int maxTreeTop = MaxTreeTopAboveGroundCm;
+        int chunkMaxY = originY + size - 1;
+        // 该 chunk 完全落在地表以下或树冠之上 ⇒ 无体素会被改写。
+        if (chunkMaxY < minGround + 1 || originY > maxGround + maxTreeTop)
+            return;
+
+        int cellX0 = FloorDiv(originX - _maxSearchRadiusCm, _cellCm);
+        int cellX1 = FloorDiv(originX + size - 1 + _maxSearchRadiusCm, _cellCm);
+        int cellZ0 = FloorDiv(originZ - _maxSearchRadiusCm, _cellCm);
+        int cellZ1 = FloorDiv(originZ + size - 1 + _maxSearchRadiusCm, _cellCm);
+
+        for (int cellZ = cellZ0; cellZ <= cellZ1; cellZ++)
+        for (int cellX = cellX0; cellX <= cellX1; cellX++)
+        {
+            var tree = Placement(cellX, cellZ);
+            if (tree.Exists)
+                WriteCanopy(tree, originX, originY, originZ, size, groundYCmByColumn, maxTreeTop, volumeSlice);
+        }
+
+        for (int cellZ = cellZ0; cellZ <= cellZ1; cellZ++)
+        for (int cellX = cellX0; cellX <= cellX1; cellX++)
+        {
+            var tree = Placement(cellX, cellZ);
+            if (tree.Exists)
+                WriteTrunk(tree, originX, originY, originZ, size, groundYCmByColumn, maxTreeTop, volumeSlice);
+        }
+    }
+
+    private static void WriteCanopy(
+        in TreePlacement tree,
+        int originX, int originY, int originZ, int size,
+        ReadOnlySpan<int> groundYCmByColumn,
+        int maxTreeTopAboveGroundCm,
+        Span<byte> parts)
+    {
+        int radius = tree.CanopyRadiusCm;
+        int verticalRadius = tree.VerticalRadiusCm;
+        if (radius <= 0 || verticalRadius <= 0)
+            return;
+
+        int x0 = Math.Max(0, tree.CenterX - radius - originX);
+        int x1 = Math.Min(size - 1, tree.CenterX + radius - originX);
+        int z0 = Math.Max(0, tree.CenterZ - radius - originZ);
+        int z1 = Math.Min(size - 1, tree.CenterZ + radius - originZ);
+        int y0 = Math.Max(originY, tree.CanopyCenterY - verticalRadius);
+        int y1 = Math.Min(originY + size - 1, tree.CanopyCenterY + verticalRadius);
+
+        if (x0 > x1 || z0 > z1 || y0 > y1)
+            return;
+
+        float radiusSq = (float)(radius * radius);
+        float verticalSq = (float)(verticalRadius * verticalRadius);
+
+        for (int z = z0; z <= z1; z++)
+        {
+            int dz = originZ + z - tree.CenterZ;
+            int dzSq = dz * dz;
+            for (int x = x0; x <= x1; x++)
+            {
+                int dx = originX + x - tree.CenterX;
+                float horizontal = (dx * dx + dzSq) / radiusSq;
+                if (horizontal > 1f)
+                    continue;
+
+                int ground = groundYCmByColumn[x + size * z];
+                int low = Math.Max(y0, ground + 1);
+                int high = Math.Min(y1, ground + maxTreeTopAboveGroundCm);
+
+                for (int y = low; y <= high; y++)
+                {
+                    int dy = originY + y - tree.CanopyCenterY;
+                    float vertical = (dy * dy) / verticalSq;
+                    if (horizontal + vertical <= 1f)
+                        parts[x + size * (y + size * z)] = 2;
+                }
+            }
+        }
+    }
+
+    private static void WriteTrunk(
+        in TreePlacement tree,
+        int originX, int originY, int originZ, int size,
+        ReadOnlySpan<int> groundYCmByColumn,
+        int maxTreeTopAboveGroundCm,
+        Span<byte> parts)
+    {
+        int radius = tree.TrunkRadiusCm;
+        if (radius <= 0)
+            return;
+
+        int x0 = Math.Max(0, tree.CenterX - radius - originX);
+        int x1 = Math.Min(size - 1, tree.CenterX + radius - originX);
+        int z0 = Math.Max(0, tree.CenterZ - radius - originZ);
+        int z1 = Math.Min(size - 1, tree.CenterZ + radius - originZ);
+        int y0 = Math.Max(originY, tree.BaseY + 1);
+        int y1 = Math.Min(originY + size - 1, tree.TrunkTopY);
+
+        if (x0 > x1 || z0 > z1 || y0 > y1)
+            return;
+
+        int radiusSq = radius * radius;
+        for (int z = z0; z <= z1; z++)
+        {
+            int dz = originZ + z - tree.CenterZ;
+            int dzSq = dz * dz;
+            for (int x = x0; x <= x1; x++)
+            {
+                int dx = originX + x - tree.CenterX;
+                if (dx * dx + dzSq > radiusSq)
+                    continue;
+
+                int ground = groundYCmByColumn[x + size * z];
+                int low = Math.Max(y0, ground + 1);
+                int high = Math.Min(y1, ground + maxTreeTopAboveGroundCm);
+
+                for (int y = low; y <= high; y++)
+                    parts[x + size * (y + size * z)] = 1;
+            }
+        }
+    }
+
+    /// <summary>诊断计数：<see cref="Placement"/> 的缓存查询次数（≈ ThreadLocal 访问次数；探针单线程读）。</summary>
+    public long PlacementLookupCount;
+
+    /// <summary>诊断计数：<see cref="FloorDiv"/> 调用次数。</summary>
+    public long FloorDivCallCount;
+
+    /// <summary>诊断计数：真正计算 placement 的次数（缓存未命中）。</summary>
+    public long ComputePlacementCallCount;
+
     private TreePlacement Placement(int cellX, int cellZ)
     {
+        PlacementLookupCount++;
         long key = ((long)cellX << 32) ^ (uint)cellZ;
         var cache = _cache.Value!;
         if (cache.TryGetValue(key, out var cached))
@@ -206,6 +370,7 @@ public sealed class VegetationField
 
     private TreePlacement ComputePlacement(int cellX, int cellZ)
     {
+        ComputePlacementCallCount++;
         int span = _cellCm - 2 * _marginCm;
         int centerX = cellX * _cellCm + _marginCm + (int)(Random01(cellX, cellZ, 0) * span);
         int centerZ = cellZ * _cellCm + _marginCm + (int)(Random01(cellX, cellZ, 1) * span);
@@ -240,8 +405,9 @@ public sealed class VegetationField
     private float Random01(int cellX, int cellZ, int channel) =>
         NoisePrimitives.HashToFloat(NoisePrimitives.Hash2D(cellX, cellZ, _seed + channel * 7919));
 
-    private static int FloorDiv(int value, int divisor)
+    private int FloorDiv(int value, int divisor)
     {
+        FloorDivCallCount++;
         int quotient = value / divisor;
         if (value % divisor != 0 && (value < 0) != (divisor < 0))
             quotient--;

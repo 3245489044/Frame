@@ -6,6 +6,11 @@ namespace MathematicalAlgorithms.Noise;
 /// </summary>
 public static class NoisePrimitives
 {
+    /// <summary>
+    /// <see cref="Hash3D"/> 调用次数（只增诊断计数，运行时不读）。探针单线程使用，不做线程安全保证。
+    /// </summary>
+    public static long Hash3DCallCount;
+
     public static float Fbm(float x, float z, int octaves, int seed)
     {
         float total = 0f, amplitude = 1f, frequency = 1f, max = 0f;
@@ -79,6 +84,7 @@ public static class NoisePrimitives
 
     public static uint Hash3D(int x, int y, int z, int seed)
     {
+        Hash3DCallCount++;
         uint h = (uint)((x * 374761393) ^ (y * 668265263) ^ (z * 1274126177) ^ (seed * 2147483647));
         h = (h ^ (h >> 13)) * 1274126177u;
         return h ^ (h >> 16);

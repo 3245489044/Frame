@@ -25,7 +25,8 @@ public sealed record SignalLedgerOptions(
     TimeSpan? LeaseTtl = null,
     TimeSpan? QueuedTtl = null,
     TimeSpan? TerminalTtl = null,
-    string SignalExecutorId = "SignalFlush")
+    string SignalExecutorId = "SignalFlush",
+    int ScanLimit = 1000)
 {
     public long LeaseTtlMs => (long)(LeaseTtl ?? TimeSpan.FromSeconds(120)).TotalMilliseconds;
     public long QueuedTtlMs => (long)(QueuedTtl ?? TimeSpan.FromSeconds(300)).TotalMilliseconds;

@@ -38,11 +38,25 @@ public sealed class SyntaxToConversionIrMapper : ISyntaxToIrMapper
     }
 
     /// <summary>
-    /// 唯一映射入口：查规则表 → 未命中报 <c>RJ1006</c> → 兜底映射。递归子节点也必经此入口，
-    /// 否则规则表对非根节点形同死代码、未映射诊断恒 ≤1 条（S0 spike 实测暴露）。
+    /// 唯一映射入口：深度预算判定（含规则命中分支）→ 查规则表 → 未命中报 <c>RJ1006</c> → 兜底映射。
+    /// 递归子节点也必经此入口，否则规则表对非根节点形同死代码、未映射诊断恒 ≤1 条（S0 spike 实测暴露）。
     /// </summary>
     private ConversionNode MapCore(SyntaxNode node, ConversionContext context, int depth)
     {
+        var maxDepth = context.Options.MaxDepth;
+        if (depth > maxDepth)
+        {
+            // 规则命中同样受预算约束：预算必须由入口统一执行，不能因规则分支跳过。
+            context.Diagnostics.Report(ConversionDiagnostic.Warning(
+                RoslynJsonDiagnosticCodes.MapMaxDepth,
+                $"语法映射深度超过上限 {maxDepth}，已截断子节点",
+                SourceLocation.ToSpan(node)));
+
+            return new ConversionObject()
+                .Add("kind", node.Kind().ToString())
+                .Add("truncated", true);
+        }
+
         if (_rules.TryGet(node.Kind(), out var mapper))
             return mapper(node, context);
 
@@ -62,16 +76,7 @@ public sealed class SyntaxToConversionIrMapper : ISyntaxToIrMapper
         var result = new ConversionObject()
             .Add("kind", node.Kind().ToString());
 
-        if (depth > _options.MaxDepth)
-        {
-            result.Add("truncated", true);
-            context.Diagnostics.Report(ConversionDiagnostic.Warning(
-                RoslynJsonDiagnosticCodes.MapMaxDepth,
-                $"语法映射深度超过上限 {_options.MaxDepth}，已截断子节点",
-                SourceLocation.ToSpan(node)));
-            return result;
-        }
-
+        // 深度判定已在 MapCore 入口统一执行（含规则命中分支），此处不再重复。
         if (_options.IncludeLocation)
         {
             var span = SourceLocation.ToSpan(node);

@@ -1,8 +1,10 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
+using Modules.LayoutAnalysis.Formatting;
 using Modules.LayoutAnalysis.Models;
 
 namespace Modules.LayoutAnalysis
@@ -65,22 +67,13 @@ namespace Modules.LayoutAnalysis
             return sb.ToString();
         }
 
+        /// <summary>
+        /// JSON 出口唯一化（LayoutAnalysis.md §4.16）：不再就地手写第三套 JSON，
+        /// 统一复用 <see cref="JsonLayoutFormatter"/>（System.Text.Json + InvariantCulture + 控制字符转义）。
+        /// </summary>
         private static string GenerateJson(List<NormalizedEntity> entities)
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("[");
-            for (int i = 0; i < entities.Count; i++)
-            {
-                var e = entities[i];
-                sb.AppendLine("  {");
-                sb.AppendLine($"    \"id\": \"{e.Id}\",");
-                sb.AppendLine($"    \"position\": {{ \"left\": {e.RelativePosition.Left}, \"top\": {e.RelativePosition.Top}, \"width\": {e.RelativePosition.Width}, \"height\": {e.RelativePosition.Height} }}");
-                sb.Append("  }");
-                if (i < entities.Count - 1) sb.AppendLine(",");
-                else sb.AppendLine();
-            }
-            sb.AppendLine("]");
-            return sb.ToString();
+            return new JsonLayoutFormatter().Format(entities);
         }
 
         private static string GenerateText(List<NormalizedEntity> entities)
@@ -88,7 +81,9 @@ namespace Modules.LayoutAnalysis
             var sb = new StringBuilder();
             foreach (var e in entities)
             {
-                sb.AppendLine($"{e.Id}: ({e.RelativePosition.Left:F2}, {e.RelativePosition.Top:F2}) [{e.RelativePosition.Width:F2}x{e.RelativePosition.Height:F2}]");
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture,
+                    "{0}: ({1:F2}, {2:F2}) [{3:F2}x{4:F2}]",
+                    e.Id, e.RelativePosition.Left, e.RelativePosition.Top, e.RelativePosition.Width, e.RelativePosition.Height));
             }
             return sb.ToString();
         }
@@ -100,7 +95,9 @@ namespace Modules.LayoutAnalysis
             sb.AppendLine("|----|------|-----|-------|--------|");
             foreach (var e in entities)
             {
-                sb.AppendLine($"| {e.Id} | {e.RelativePosition.Left:F2} | {e.RelativePosition.Top:F2} | {e.RelativePosition.Width:F2} | {e.RelativePosition.Height:F2} |");
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture,
+                    "| {0} | {1:F2} | {2:F2} | {3:F2} | {4:F2} |",
+                    e.Id, e.RelativePosition.Left, e.RelativePosition.Top, e.RelativePosition.Width, e.RelativePosition.Height));
             }
             return sb.ToString();
         }

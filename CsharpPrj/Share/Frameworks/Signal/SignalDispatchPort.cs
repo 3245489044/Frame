@@ -1,4 +1,6 @@
 using System;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Share.Signal;
@@ -38,6 +40,7 @@ public sealed class SignalDispatchPort
         return new SignalReceipt(envelope.Id, LeaseIdOf(envelope), SignalState.Dispatched, "dispatched");
     }
 
+    /// <summary>租约号：由 SignalKey 的 SHA256 前缀派生，跨进程/跨运行稳定（不使用 GetHashCode）。</summary>
     private static string LeaseIdOf(SignalEnvelopeContract envelope)
-        => $"lease-{envelope.Key.Value.GetHashCode():x}-{envelope.Attempt}";
+        => $"lease-{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(envelope.Key.Value)).AsSpan(0, 8)).ToLowerInvariant()}-{envelope.Attempt}";
 }

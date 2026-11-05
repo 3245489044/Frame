@@ -30,19 +30,36 @@ public static class SignalKinds
     public static string Normalize(string? kind)
     {
         if (string.IsNullOrWhiteSpace(kind)) return Unknown;
-        var k = kind.Trim();
-        if (k.Contains('_')) return k.ToLowerInvariant();
-        return k.ToLowerInvariant() switch
+        var k = kind.Trim().ToLowerInvariant();
+
+        // 已知映射必须先于下划线透传判定，否则 "tool_success"/"tool_failure" 会被原样返回（永不归一）。
+        switch (k)
         {
-            "externalinput" => ExternalInput,
-            "subagentcompleted" => SubAgentCompleted,
-            "nodeproduced" => NodeProduced,
-            "toolresult" => ToolResult,
-            "tool_success" or "toolsucceeded" => ToolResult,
-            "tool_failure" or "toolfailed" or "tooltimedout" => ToolResult,
-            "taskstate" or "taskstatus" => TaskState,
-            "done" or "error" or "retry" => SubAgentCompleted,
-            _ => Unknown,
-        };
+            case "externalinput":
+            case "external_input":
+                return ExternalInput;
+            case "subagentcompleted":
+            case "subagent_completed":
+            case "done":
+            case "error":
+            case "retry":
+                return SubAgentCompleted;
+            case "nodeproduced":
+            case "node_produced":
+                return NodeProduced;
+            case "toolresult":
+            case "tool_success":
+            case "toolsucceeded":
+            case "tool_failure":
+            case "toolfailed":
+            case "tooltimedout":
+                return ToolResult;
+            case "taskstate":
+            case "taskstatus":
+            case "task_state":
+                return TaskState;
+        }
+
+        return k.Contains('_') ? k : Unknown;
     }
 }

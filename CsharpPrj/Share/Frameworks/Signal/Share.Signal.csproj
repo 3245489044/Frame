@@ -19,6 +19,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- 信号词表/判定/状态机内核（Modules\Frameworks\Signal，BCL-only）：命名空间保持 Share.Signal 以兼容消费端 -->
+    <ProjectReference Include="$(Proj_Modules_Frameworks_Signal)" />
     <ProjectReference Include="$(Proj_TaskStatusPool)" />
     <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
     <ProjectReference Include="$(Proj_BasicMethod_Declarative)" />

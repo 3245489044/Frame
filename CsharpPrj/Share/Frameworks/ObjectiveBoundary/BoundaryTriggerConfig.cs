@@ -13,7 +13,10 @@ public sealed class BoundaryTriggerConfig
     public ProactiveTriggerConfig Proactive { get; set; } = new();
 }
 
-/// <summary>反应式（脊神经）通道配置。硬信号短路永远可用；enabled=false 时边界框架退化为健康（由仲裁器处理）。</summary>
+/// <summary>
+/// 反应式（脊神经）通道配置。<c>Enabled=false</c> 只关闭"软阈值"触发（上下文/信息增益/复杂度），
+/// 硬信号（协议硬断 / token 耗尽 / 错误熔断）永远短路可用（ObjectiveBoundary.md §4.15）。
+/// </summary>
 public sealed class ReactiveTriggerConfig
 {
     public bool Enabled { get; set; } = true;

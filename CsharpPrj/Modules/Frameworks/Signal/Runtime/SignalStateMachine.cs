@@ -64,20 +64,6 @@ public static class SignalStateMachine
         return f is { } fs && t is { } ts && CanTransition(fs, ts);
     }
 
-    /// <summary>单后继（仅当该状态在声明中只有一个后继；多后继 ⇒ null）。</summary>
-    public static SignalState? Next(SignalState from)
-    {
-        var prefix = SignalStateNames.Of(from) + ">";
-        string? found = null;
-        foreach (var edge in _edges)
-        {
-            if (!edge.StartsWith(prefix, StringComparison.Ordinal)) continue;
-            if (found is not null) return null;
-            found = edge[prefix.Length..];
-        }
-        return found is null ? null : SignalStateNames.Parse(found);
-    }
-
     /// <summary>终态判定（Failed 可重试，不算最终态）。</summary>
     public static bool IsTerminal(SignalState state) => SignalStateNames.IsTerminal(state);
 

@@ -19,9 +19,9 @@ public enum RegionIterationKind
     UntilTrue,
 
     /// <summary>
-    /// 自引用有界递归（M2 降级）：子计划重复执行直至基例端口为真（do-while 语义），
+    /// 自引用有界递归（M2 降级）：**先判基例、成立即不下钻**，否则执行子计划后按反馈基例继续，
+    /// 直至基例为真或达上限（基例前置 ≠ <see cref="UntilTrue"/> 的 do-while）。
     /// 基例载体 = 端口键（<see cref="JudgePort"/>，须在承载节点入/出端口双端声明）；环封在区域节点内，父图仍为 DAG。
-    /// 执行同形于 <see cref="UntilTrue"/>；差异在符号视图（RecursionSymbol + BaseCase）与基例端口的双端声明要求。
     /// </summary>
     Recursion,
 }

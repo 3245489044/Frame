@@ -39,7 +39,12 @@ public static class MessageFlowGuard
         var fanout = CheckFanout(fanoutTargets, policy);
         if (!fanout.Ok) return fanout;
 
-        var ttl = CheckTtl(message, nowUtc);
+        // TTL 判据自带截止时刻：缺省 DeadlineUtc 时在此按 TtlSeconds/策略缺省补齐，
+        // 不依赖调用方是否先调 ComputeDeadlineUtc（否则 TTL 会静默失效）。
+        var effective = string.IsNullOrWhiteSpace(message.DeadlineUtc)
+            ? message with { DeadlineUtc = ComputeDeadlineUtc(message, policy, nowUtc) }
+            : message;
+        var ttl = CheckTtl(effective, nowUtc);
         if (!ttl.Ok) return ttl;
 
         return CheckQueue(queueDepth, policy);

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using Share.LogicComposition.Conversion.Abstractions;
+using Share.LogicComposition.Conversion.Diagnostics;
 using Share.LogicComposition.Conversion.Models;
 using Share.LogicComposition.Conversion.Models.Ir;
 
@@ -27,7 +28,7 @@ namespace Share.LogicComposition.Conversion.Emitters
 
             var opts = options ?? ConversionOptions.Default;
             if (opts.MaxDepth <= 0)
-                return ConversionResult<string>.Failure("CVT-EMIT-MAXDEPTH", $"非法 MaxDepth：{opts.MaxDepth}");
+                return ConversionResult<string>.Failure(RoslynJsonDiagnosticCodes.MapMaxDepth, $"非法 MaxDepth：{opts.MaxDepth}");
 
             var diagnostics = new List<ConversionDiagnostic>();
             var builder = new StringBuilder(512);
@@ -54,7 +55,7 @@ namespace Share.LogicComposition.Conversion.Emitters
             if (depth > options.MaxDepth)
             {
                 diagnostics.Add(ConversionDiagnostic.Error(
-                    "CVT-EMIT-MAXDEPTH",
+                    RoslynJsonDiagnosticCodes.MapMaxDepth,
                     $"IR 深度超过上限 {options.MaxDepth}（疑似畸形/自引用结构）",
                     SourceSpan.None));
                 builder.Append("null");

@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
 using Modules.Node;
-using Modules.Node.Diagnostics;
-using Modules.Node.Materialization;
 using Modules.Node.Placement;
 using Modules.Node.Projection;
 using Modules.Node.Read;
@@ -18,20 +16,17 @@ public sealed partial class NodeDocumentPort : INodeDocumentPort
     private readonly NodeScopeResolver _resolver;
     private readonly NodePayloadSchemaRegistry _schemas;
     private readonly NodeDocumentProjectionRegistry _projections;
-    private readonly NodeWriteGate _rmwGate;
     private readonly ConcurrentDictionary<string, NodeStreamRun> _runs = new(StringComparer.Ordinal);
 
     public NodeDocumentPort(
         NodeFramework framework,
         NodePayloadSchemaRegistry? schemas = null,
-        NodeWriteGate? readModifyWriteGate = null,
         NodeDocumentProjectionRegistry? projections = null)
     {
         _framework = framework ?? throw new ArgumentNullException(nameof(framework));
         _resolver = new NodeScopeResolver(_framework);
         _schemas = schemas ?? new NodePayloadSchemaRegistry();
         _projections = projections ?? new NodeDocumentProjectionRegistry();
-        _rmwGate = readModifyWriteGate ?? new NodeWriteGate("node-io:rmw", TimeSpan.Zero, _framework.Diagnostics);
     }
 
     public NodeFramework Framework => _framework;

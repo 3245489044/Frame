@@ -109,19 +109,19 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
         {
             // fail-safe：导演异常 → stay，但失败可见（不中断调用方）。
             LastDirectorStop = new DirectorDecision.Stop(DirectorStops.NoProposal, ex.Message);
-            return Stay(ctx, null, SchedulerAction.Continue);
+            return Stay(ctx, null);
         }
 
         if (decision is DirectorDecision.Stop stop)
         {
             LastDirectorStop = stop;
-            return Stay(ctx, null, SchedulerAction.Continue);
+            return Stay(ctx, null);
         }
 
         LastDirectorStop = null;
         var proposal = ((DirectorDecision.Proposal)decision).Value;
         if (proposal.Confidence < _minConfidence)
-            return Stay(ctx, proposal, proposal.Action);
+            return Stay(ctx, proposal);
 
         var verdict = _guard.Verify(proposal, ctx);
         if (verdict == TransitionVerdict.Reject)
@@ -141,11 +141,18 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
         var decision = Apply(ctx, p, verdict);
 
         // 确定性核心不变式（防御性断言）：Apply 不得触碰预算/进度/控制位/轮次。
-        // 核心字段经 IStateFacet 只读，Apply 无法经门面改写；一旦被改写说明宿主/守卫实现破坏不变式，且无法经门面回滚，
-        // 故显式抛错（而非返回误导性的 Reject——Reject 语义=未施加，此处状态已无法保证）。
+        // 契约（类注释 :13/:15 + TransitionVerdict.Reject）要求 fail-safe：违反即回退 Reject 并留下可见诊断，
+        // 不抛异常中断调用方（无法回滚时至少让调用方看到"未施加"而非整轮崩溃）。
         if (_state.BudgetLevel != b0 || _state.TokenValue != t0 || _state.Halt != h0 || _state.Round != r0)
-            throw new InvalidOperationException(
-                $"Apply violated deterministic-core invariant (budget/token/halt/round mutated): budget {b0}->{_state.BudgetLevel}, token {t0}->{_state.TokenValue}, halt {h0}->{_state.Halt}, round {r0}->{_state.Round}.");
+        {
+            var violation =
+                $"deterministic-core invariant violated: budget {b0}->{_state.BudgetLevel}, token {t0}->{_state.TokenValue}, halt {h0}->{_state.Halt}, round {r0}->{_state.Round}";
+            RecordTransition($"invariant-violation:{p.Action} | {violation}");
+            return Decide(
+                applied: false, action: SchedulerAction.Continue, verdict: TransitionVerdict.Reject,
+                intent: p.Intent, reason: violation, confidence: p.Confidence, arbitrationKey: _arbitrationKey);
+        }
+
         return decision;
     }
 
@@ -158,18 +165,22 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
             SchedulerAction.AdvanceRun or SchedulerAction.Retry => ApplyRunStatus(ctx, p, toPaused: false),
             SchedulerAction.PauseRun => ApplyRunStatus(ctx, p, toPaused: true),
             SchedulerAction.Replan or SchedulerAction.Explore => Record(ctx, p, verdict, applied: true, newStatus: null, targetStrategy: null),
-            _ => Stay(ctx, p, SchedulerAction.Continue),
+            _ => Stay(ctx, p),
         };
 
     private SchedulerDecision ApplySwitch(SchedulerDirectorContext ctx, StateTransitionProposal p)
     {
         var target = p.TargetStrategyId;
         if (string.IsNullOrWhiteSpace(target))
-            return Stay(ctx, p, SchedulerAction.SwitchStrategy);
+            return Stay(ctx, p);
 
         var same = string.Equals(_state.CurrentStrategyId, target, StringComparison.Ordinal);
-        _state.CurrentStrategyId = target;
-        RecordTransition($"strategy:{target} | {p.Reason}");
+        if (!same)
+        {
+            _state.CurrentStrategyId = target;
+            RecordTransition($"strategy:{target} | {p.Reason}");
+        }
+
         return Decide(
             applied: !same, action: SchedulerAction.SwitchStrategy,
             verdict: same ? TransitionVerdict.Held : TransitionVerdict.Pass,
@@ -179,10 +190,16 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
 
     private SchedulerDecision ApplyRunStatus(SchedulerDirectorContext ctx, StateTransitionProposal p, bool toPaused)
     {
-        var executor = p.TargetExecutorId ?? ctx.AgentStatus.Keys.FirstOrDefault();
+        // 目标执行器：显式非空优先；缺省回退按序数排序取首个非空键（同一输入恒得同一目标，禁用字典遍历序）。
+        var executor = !string.IsNullOrWhiteSpace(p.TargetExecutorId)
+            ? p.TargetExecutorId
+            : ctx.AgentStatus.Keys
+                .Where(static key => !string.IsNullOrWhiteSpace(key))
+                .OrderBy(static key => key, StringComparer.Ordinal)
+                .FirstOrDefault();
         var target = p.TargetRunStatusId ?? (toPaused ? PausedRunStatus : null);
         if (executor is null || string.IsNullOrWhiteSpace(target))
-            return Stay(ctx, p, p.Action);
+            return Stay(ctx, p);
 
         var from = ctx.AgentStatus.TryGetValue(executor, out var f) && !string.IsNullOrWhiteSpace(f) ? f : DefaultRunStatus;
 
@@ -214,19 +231,18 @@ public sealed class AiSchedulerStateMachine<TState> : ISchedulerStateMachine
     private SchedulerDecision Fallback(SchedulerDirectorContext ctx, StateTransitionProposal p)
     {
         // 非法/越界提案：回退确定性默认动作（continue），不施加，记录为 Reject。
+        // 未施加的决策不得携带目标（否则消费端只看 Action/Target 会绕过 Applied 施加非法转移）。
         RecordTransition($"reject:{p.Action} | {p.Reason}");
         return Decide(
-            applied: false, action: p.Action, verdict: TransitionVerdict.Reject,
-            targetStrategy: p.TargetStrategyId, targetRunStatus: p.TargetRunStatusId,
-            targetExecutor: p.TargetExecutorId, intent: p.Intent, reason: p.Reason,
+            applied: false, action: SchedulerAction.Continue, verdict: TransitionVerdict.Reject,
+            intent: p.Intent, reason: p.Reason,
             confidence: p.Confidence, arbitrationKey: _arbitrationKey);
     }
 
-    private SchedulerDecision Stay(SchedulerDirectorContext ctx, StateTransitionProposal? p, SchedulerAction action)
+    private SchedulerDecision Stay(SchedulerDirectorContext ctx, StateTransitionProposal? p)
         => Decide(
-            applied: false, action: action, verdict: TransitionVerdict.Held,
-            targetStrategy: p?.TargetStrategyId, targetRunStatus: p?.TargetRunStatusId,
-            targetExecutor: p?.TargetExecutorId, intent: p?.Intent, reason: p?.Reason,
+            applied: false, action: SchedulerAction.Continue, verdict: TransitionVerdict.Held,
+            intent: p?.Intent, reason: p?.Reason,
             confidence: p?.Confidence ?? 0.0, arbitrationKey: _arbitrationKey,
             directorDegraded: p is null);   // E4：无提议（导演 null/异常）→ 降级事实
 

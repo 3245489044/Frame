@@ -20,6 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_AiScheduling)" />
+    <!-- 触发仲裁唯一内核（OB-03）与路径边界唯一内核（OB-04）：禁止在本工程内保留平行实现 -->
+    <ProjectReference Include="$(Proj_Concurrency)" />
+    <ProjectReference Include="$(Proj_PathBoundary)" />
     <ProjectReference Include="$(Proj_TaskStatusPool)" />
     <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
   </ItemGroup>

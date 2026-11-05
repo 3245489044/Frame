@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
-    <ModuleRule_Rule Include="内核零 ProjectReference：不得引用 Agent.* / Modules.* / Operation.*，禁存储/网络/时钟依赖（时间一律由参数传入）" />
+    <ModuleRule_Rule Include="内核零 ProjectReference：不得引用 Agent.* / Operation.*，禁存储/网络/时钟依赖（时间一律由参数传入）；唯一例外为 BCL-only 的 Modules.Frameworks.Messaging（生命周期迁移表本体，见下方 ProjectReference 注释）" />
     <ModuleRule_Rule Include="唯一状态机 MessageState：适配器只做映射，不新增第三套状态枚举" />
     <ModuleRule_Rule Include="唯一键面：内核只给逻辑 MessageId 与 StableToken，物理键（xfer:/sig:/会话键）留在适配器" />
   </ItemGroup>
@@ -21,5 +21,11 @@
     <AssemblyName>Share.Messaging</AssemblyName>
     <Description>通用信息传递内核 — 信封 + 地址 + 状态机 + 路由策略 + 流控 + 闭包（纯逻辑）</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 生命周期迁移表本体（Modules\Frameworks\Messaging，BCL-only）：命名空间保持 Share.Messaging，
+         迁移只换程序集、不改任何消费端类型全名（MS-01）。 -->
+    <ProjectReference Include="$(Proj_Modules_Frameworks_Messaging)" />
+  </ItemGroup>
 
 </Project>

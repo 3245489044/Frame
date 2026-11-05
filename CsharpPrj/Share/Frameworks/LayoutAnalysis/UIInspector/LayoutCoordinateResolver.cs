@@ -8,9 +8,11 @@ namespace Modules.LayoutAnalysis.UIInspector;
 /// <summary>
 /// 坐标换算单一出口（S2·SingleImplementation）：窗体相对 / 屏幕绝对 的统一换算。
 /// 三个消费方（可见性检查 / 重叠检测 ControlTreeWalker / 位置报告）一律经此换算，禁止各自手写累加。
-/// 基准语义：
-///   - <see cref="ToFormRelative"/>：父链 .Location 累加（不含窗体自身）——不依赖控件句柄/窗体屏幕位置，SetBounds 后立即可靠；
-///   - <see cref="ToScreen"/>：handle 已创建 → 控件自身 PointToScreen；未创建 → ToFormRelative + 所属窗体屏幕偏移
+/// 唯一口径（LayoutAnalysis.md §4.10）：
+///   - form 相对 = 父链 .Location 累加（不含窗体自身），并做 SplitterPanel 修正（SplitterPanel .Left/.Top 恒 0，
+///     实际位置由 SplitContainer.SplitterDistance/SplitterWidth 决定）。<see cref="ToFormRelative"/> 与
+///     <see cref="ToFormRelativeAccurate"/> 共用本口径，不再存在"含/不含 SplitterPanel 修正"两条路径。
+///   - <see cref="ToScreen"/>：handle 已创建 → 控件自身 PointToScreen；未创建 → form 相对 + 所属窗体屏幕偏移
 ///     （显式回退策略，杜绝「已创建/未创建控件混合基准」导致的手工累加伪影）。
 /// 注：ECS form 相对（ComputedLayoutComponent）为 ECS 原生语义直读（Left/Top 即 form 相对），无需换算出口，
 /// 由消费方（LayoutInspectSystem）直接读取——本类不承载 ECS 类型依赖（Share.LayoutAnalysis 不引用 TConfig）。
@@ -18,29 +20,11 @@ namespace Modules.LayoutAnalysis.UIInspector;
 public static class LayoutCoordinateResolver
 {
     /// <summary>
-    /// 窗体相对边界：沿 Parent 链累加 .Location（不含窗体自身——窗体 .Left/.Top 是屏幕坐标，非布局坐标）。
+    /// 窗体相对边界（唯一口径）：递归父链，不含窗体自身（窗体 .Left/.Top 是屏幕坐标，非布局坐标），
+    /// 遇 SplitterPanel 经 SplitterDistance/SplitterWidth 修正（SplitterPanel .Left/.Top 恒 0）。
     /// 与窗体屏幕位置/控件句柄无关，SetBounds 后立即可靠。
     /// </summary>
     public static Rectangle ToFormRelative(Control control)
-    {
-        if (control == null)
-            throw new System.ArgumentNullException(nameof(control));
-
-        int left = 0, top = 0;
-        for (Control? c = control; c != null && c.Parent != null; c = c.Parent)
-        {
-            left += c.Left;
-            top += c.Top;
-        }
-        return new Rectangle(left, top, control.Width, control.Height);
-    }
-
-    /// <summary>
-    /// 控件 form 相对边界（SplitterPanel 感知版本）：递归父链，遇 SplitterPanel 经 SplitterDistance 换算
-    /// （SplitterPanel .Left/.Top 恒 0，ToFormRelative 累加对其失真）。供 LayoutInspectSystem 物理对照使用，
-    /// 与 ECS ComputedLayoutComponent（form 相对累积）同基准比对。
-    /// </summary>
-    public static Rectangle ToFormRelativeAccurate(Control control)
     {
         if (control == null)
             throw new System.ArgumentNullException(nameof(control));
@@ -50,13 +34,18 @@ public static class LayoutCoordinateResolver
     }
 
     /// <summary>
+    /// 控件 form 相对边界（历史名保留）：与 <see cref="ToFormRelative"/> 同一口径（已含 SplitterPanel 修正），
+    /// 保留此入口以兼容既有调用方。
+    /// </summary>
+    public static Rectangle ToFormRelativeAccurate(Control control) => ToFormRelative(control);
+
+    /// <summary>
     /// 父相对换算（M1·D7 修复）：将 ECS form 相对（累积）坐标换算为 WinForms 父相对应用坐标——布局应用层单一权威。
     /// 普通父链：rel = ecs - 父 form 相对位置（沿父链递归累加）；
     /// SplitterPanel 父特例：SplitterPanel 的 .Left/.Top 恒 0（位置由 SplitContainer 管理），
     ///   经 SplitContainer 的 SplitterDistance + SplitterWidth 换算面板 form 位置；
     /// 父为 null（顶层控件/宿主注入前）：返回原值（父相对 == form 相对，零偏移）。
-    /// 注：ToFormRelative 累加 .Left/.Top 对 SplitterPanel 链失真，本换算内部使用
-    ///   <see cref="GetFormRelativeLocation"/>（递归处理 SplitterPanel），不修改 ToFormRelative（消费方兼容）。
+    /// 注：本换算内部使用 <see cref="GetFormRelativeLocation"/>，与 ToFormRelative 同口径（均已做 SplitterPanel 修正）。
     /// </summary>
     public static Point ToParentRelative(Control control, int left, int top)
     {

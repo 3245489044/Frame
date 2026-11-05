@@ -27,7 +27,7 @@ public sealed partial class NodeDocumentPort
 
         return change.Mode switch
         {
-            NodeChangeMode.Delete => await DeleteAsync(resolved, cancellationToken).ConfigureAwait(false),
+            NodeChangeMode.Delete => await DeleteAsync(change, resolved, cancellationToken).ConfigureAwait(false),
             NodeChangeMode.Patch => await PatchAsync(change, resolved, cancellationToken).ConfigureAwait(false),
             _ => await UpsertAsync(change, resolved, cancellationToken).ConfigureAwait(false),
         };

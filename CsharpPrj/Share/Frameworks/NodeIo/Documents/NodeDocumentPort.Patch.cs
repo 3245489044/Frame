@@ -1,88 +1,62 @@
-using Modules.Node.Carriers;
-using Modules.Node.Diagnostics;
 using Modules.Node.Materialization;
+using Modules.Node.Placement;
 
 namespace Share.NodeIo;
 
 public sealed partial class NodeDocumentPort
 {
-    private async Task<NodeMaterializationResult> PatchAsync(
+    private Task<NodeMaterializationResult> PatchAsync(
         NodeDocumentChange change,
         ResolvedScope resolved,
         CancellationToken cancellationToken)
     {
         if (change.Patches is not { Count: > 0 })
         {
-            return Rejected(change.Scope, new[] { NodeDocumentReasons.PatchEmpty });
+            return Task.FromResult(Rejected(change.Scope, new[] { NodeDocumentReasons.PatchEmpty }));
         }
 
-        var results = new List<NodePlacementResult>();
-        var diagnostics = new List<NodeDiagnostic>();
-        foreach (var placement in resolved.Placements)
-        {
-            if (!_framework.Carriers.TryGet(placement.CarrierId, out var carrier))
-            {
-                results.Add(new NodePlacementResult(
-                    placement.PlacementId, placement.PositionKey, null, NodeDocumentReasons.CarrierUnbound));
-                continue;
-            }
-
-            var outcome = await _rmwGate.RunAsync(
-                    $"{placement.CarrierId}|{placement.PositionKey}",
-                    () => PatchOneAsync(change, placement, carrier, cancellationToken),
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            results.Add(new NodePlacementResult(
-                placement.PlacementId, placement.PositionKey, outcome.Status, outcome.Reason));
-            if (outcome.Status == CarrierWriteStatus.Rejected)
-            {
-                diagnostics.Add(new NodeDiagnostic(
-                    "patch.rejected",
-                    NodeDiagnosticSeverity.Error,
-                    outcome.Reason ?? NodeDocumentReasons.PatchApplyFailed,
-                    placement.PlacementId));
-            }
-        }
-
-        Report(diagnostics);
-        return new NodeMaterializationResult(Aggregate(results), change.Scope.KeyContext, results, diagnostics);
+        // 写路径收敛：补丁不再自建读写门、不再直连载体；
+        // 由框架 MutateAsync 在门内读-改-写，键形门 / 运行域门 / 缺省合并 / 载体异常隔离与 Upsert 同源。
+        return _framework.Materializer.MutateAsync(
+            new NodeMaterializeRequest(
+                change.Scope.KeyContext,
+                change.PayloadJson ?? string.Empty,
+                change.Scope.Domain,
+                resolved.PlacementIds,
+                Meta: change.RecordMeta),
+            (placement, currentJson) => PatchPlacement(change, placement, currentJson),
+            cancellationToken);
     }
 
-    private async Task<(CarrierWriteStatus Status, string? Reason)> PatchOneAsync(
+    private NodePlacementMutation PatchPlacement(
         NodeDocumentChange change,
-        ResolvedPlacement placement,
-        INodeCarrier carrier,
-        CancellationToken cancellationToken)
+        PlacementSpec placement,
+        string? currentJson)
     {
-        var record = await carrier.ReadAsync(placement.PositionKey, cancellationToken).ConfigureAwait(false);
-        if (record is null)
+        if (currentJson is null)
         {
-            return (CarrierWriteStatus.Rejected, NodeDocumentReasons.PatchKeyMissing);
+            return NodePlacementMutation.Reject(NodeDocumentReasons.PatchKeyMissing, "patch.rejected");
         }
 
         if (change.ExpectedDigest is { Length: > 0 } expected &&
-            !string.Equals(NodeDocumentDigest.Of(record.Json), expected, StringComparison.Ordinal))
+            !string.Equals(NodeDocumentDigest.Of(currentJson), expected, StringComparison.Ordinal))
         {
-            return (CarrierWriteStatus.Rejected, NodeDocumentReasons.PatchDigestMismatch);
+            return NodePlacementMutation.Reject(NodeDocumentReasons.PatchDigestMismatch, "patch.rejected");
         }
 
-        if (!NodeDocumentPatcher.TryApply(record.Json, change.Patches!, out var patched, out var patchReason))
+        if (!NodeDocumentPatcher.TryApply(currentJson, change.Patches!, out var patched, out var patchReason))
         {
-            return (CarrierWriteStatus.Rejected, NodeDocumentReasons.PatchApplyFailed + ":" + patchReason);
+            return NodePlacementMutation.Reject(
+                NodeDocumentReasons.PatchApplyFailed + ":" + patchReason, "patch.rejected");
         }
 
         var validation = NodePayloadValidator.Validate(
             _schemas.Resolve(placement.PayloadSchemaId), placement.Form, patched, change.Scope.KeyContext);
         if (!validation.Ok)
         {
-            return (CarrierWriteStatus.Rejected, validation.Reason);
+            return NodePlacementMutation.Reject(validation.Reason, "patch.rejected");
         }
 
-        var payload = _framework.FormCodec.Encode(placement.Form, patched);
-        var write = await carrier
-            .UpsertAsync(placement.PositionKey, payload, cancellationToken, change.RecordMeta)
-            .ConfigureAwait(false);
-        return (write.Status, write.Reason);
+        return NodePlacementMutation.Accept(patched);
     }
 }

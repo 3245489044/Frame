@@ -24,7 +24,10 @@ public enum NodeChangeMode
 /// <param name="PayloadJson">整文档载荷（Upsert/Append 必填；Patch/Delete 可空）。</param>
 /// <param name="Mode">变更模式。</param>
 /// <param name="Patches">字段补丁集（Patch 模式必填）。</param>
-/// <param name="ExpectedDigest">期望摘要（乐观并发；可空 = 不校验）。</param>
+/// <param name="ExpectedDigest">
+/// 期望摘要（乐观并发；可空 = 不校验）。口径 = <see cref="NodeDocumentDigest.Of"/> / 载体 <c>Digest</c>：
+/// SHA256 大写 hex（64 字符），逐字符 Ordinal 比较。
+/// </param>
 public sealed record NodeDocumentChange(
     NodeDocumentScope Scope,
     string? PayloadJson = null,

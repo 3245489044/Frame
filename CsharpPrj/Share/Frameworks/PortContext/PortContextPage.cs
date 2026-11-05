@@ -14,6 +14,7 @@ public sealed record PortContextPageRequest(string MemberKey, string? Cursor, in
 /// 单成员一页窗口（双向无状态游标）：<paramref name="HasOlder"/> / <paramref name="OlderCursor"/> 指向更早，
 /// <paramref name="HasNewer"/> / <paramref name="NewerCursor"/> 指向更晚；<paramref name="OffsetFromEnd"/> = 离尾偏移
 /// （0 = 最近一页），<paramref name="Take"/> = 本页请求条数。<paramref name="EmptyCode"/> 非空 ⇒ 空页且空因可见。
+/// <paramref name="TruncationCode"/> 非空 ⇒ 存在但不可继续导航的原因可见（如离尾偏移上界）。
 /// </summary>
 public sealed record PortContextPage(
     string ContainerKey,
@@ -26,7 +27,8 @@ public sealed record PortContextPage(
     int OffsetFromEnd,
     int Take,
     string? EmptyCode,
-    bool Truncated)
+    bool Truncated,
+    string? TruncationCode = null)
 {
     /// <summary>是否带空因。</summary>
     public bool IsEmpty => !string.IsNullOrWhiteSpace(EmptyCode);

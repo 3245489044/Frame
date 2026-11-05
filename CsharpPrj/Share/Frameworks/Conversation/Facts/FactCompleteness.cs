@@ -68,7 +68,10 @@ public sealed record FactCompleteness(
                     if (!FactPayload.ReadBool(fact.PayloadJson, true, FactKeys.Ok)) toolFailures++;
                     break;
                 case FactKindNames.FinalAnswer:
-                    finalAnswer = fact;
+                    // 终答选取按权威级（A1 > A2 > A3 > A4）；同级才 last-wins。
+                    // 禁「最后写入者胜」：后续 Streamed/Error 不得覆盖先前的权威交付。
+                    if (finalAnswer is null || AuthorityRank(fact.Authority) >= AuthorityRank(finalAnswer.Authority))
+                        finalAnswer = fact;
                     break;
                 case FactKindNames.RoundTerminate:
                     terminate = fact;
@@ -135,8 +138,22 @@ public sealed record FactCompleteness(
         }
 
         var explicitPartial = FactPayload.ReadBool(finalAnswer.PayloadJson, false, FactKeys.Partial);
-        return explicitPartial
-            ? (true, PartialReasons.NoFinalAnswer)
-            : (false, PartialReasons.None);
+        if (!explicitPartial) return (false, PartialReasons.None);
+
+        // 显式 partial：保留载荷里的受控原因（存在终答 ⇒ 不得报 no_final_answer）。
+        var explicitReason = FactPayload.ReadString(finalAnswer.PayloadJson, FactKeys.PartialReason);
+        return (true, PartialReasons.IsControlled(explicitReason) && explicitReason != PartialReasons.None
+            ? explicitReason!
+            : PartialReasons.NoFinalAnswer);
     }
+
+    /// <summary>终答权威级排序（数值越大越权威；A1 &gt; A2 &gt; A3 &gt; A4 &gt; 未分级）。</summary>
+    internal static int AuthorityRank(FactAuthority authority) => authority switch
+    {
+        FactAuthority.Authoritative => 4,
+        FactAuthority.Session => 3,
+        FactAuthority.Streamed => 2,
+        FactAuthority.Error => 1,
+        _ => 0,
+    };
 }

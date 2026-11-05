@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using Share.ObjectiveBoundary;
-
+using Modules.PathBoundary;
 
 namespace Share.ObjectiveBoundary;
 
@@ -11,29 +9,44 @@ namespace Share.ObjectiveBoundary;
 /// 空间边界评估器（纯函数，无副作用）。校验目标工作根目录是否在 AllowedRoots 白名单内、
 /// 未命中 DenyPaths、深度未超限；越界时按 ExpandPolicy 决定拒绝（回退安全根）或扩界。
 /// 输出 BoundaryAssessment 的空间维度（EffectiveRoot / SpatialAllowed / SpatialDenyReason）。
+/// 根包含与拒绝匹配统一走 <see cref="PathBoundary"/> 的路径段模型（ObjectiveBoundary.md §4.12）。
 /// </summary>
 public static class SpatialBoundaryEvaluator
 {
     public static BoundaryAssessment Resolve(SpatialBoundaryConfig config, string? requestedRoot)
+        => Resolve(config, requestedRoot, prior: null);
+
+    /// <summary>
+    /// 带上一轮状态的解析：显式请求根缺失时用 <paramref name="prior"/>.<c>EffectiveRoot</c> 作为请求根，
+    /// 打通"扩界后有效根可在后续轮继承"的闭环（§4.13：原实现无任何请求根写入者，expand 分支不可达）。
+    /// </summary>
+    public static BoundaryAssessment Resolve(
+        SpatialBoundaryConfig config, string? requestedRoot, BoundaryContext? prior)
     {
+        if (config == null)
+            throw new ArgumentNullException(nameof(config));
+
         // 过滤无效白名单项，避免 Path.GetFullPath(null/空) 崩溃（C3 防御）。
         var allowed = ResolveAllowedRoots(config)
             .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Select(PathBoundary.Normalize)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (allowed.Count == 0)
             throw new InvalidOperationException(
                 "空间边界配置缺少有效允许根目录（AllowedRoots/BaseRoot 未配置）。");
 
-        var safeRoot = Path.GetFullPath(allowed[0]);
+        var safeRoot = allowed[0];
 
-        var target = string.IsNullOrWhiteSpace(requestedRoot)
-            ? safeRoot
-            : Path.GetFullPath(requestedRoot);
+        // 请求根优先级：显式请求 → 上一轮有效根 → 安全根（不再回退进程 CWD，§4.11：CWD 不可复现）。
+        var target = !string.IsNullOrWhiteSpace(requestedRoot)
+            ? PathBoundary.Normalize(requestedRoot)
+            : !string.IsNullOrWhiteSpace(prior?.EffectiveRoot)
+                ? PathBoundary.Normalize(prior!.EffectiveRoot!)
+                : safeRoot;
 
-        var withinAllowed = allowed.Any(root => IsWithin(Path.GetFullPath(root), target));
-        var denyHit = config.DenyPaths
-            .Where(d => !string.IsNullOrWhiteSpace(d))
-            .Any(d => IsDenied(target, d));
+        var withinAllowed = allowed.Any(root => PathBoundary.IsWithin(root, target));
+        var denyHit = PathBoundary.IsDenied(target, config.DenyPaths ?? new List<string>());
 
         // 越界判定：不在允许根内，或命中禁用路径
         bool allowedPath = withinAllowed && !denyHit;
@@ -42,9 +55,6 @@ public static class SpatialBoundaryEvaluator
             return new BoundaryAssessment(false, 0d, 0d, 1d, 0d,
                 BoundaryActionKind.None, null, target, true, null, 0d);
 
-        // 越界 → 按 ExpandPolicy：
-        //   deny（默认）→ 拒绝并回退安全根；expand → 目标未命中禁用路径时扩界至目标。
-        // （C1 修复：原实现 expand 误引用已提前返回的 allowedPath，导致此分支恒为 false、扩界永不生效。）
         if (config.ExpandPolicy?.Equals("expand", StringComparison.OrdinalIgnoreCase) == true && !denyHit)
             return new BoundaryAssessment(false, 0d, 0d, 1d, 0d,
                 BoundaryActionKind.ExpandRoot, $"扩界至 {target}", target, true, null, 0d);
@@ -56,41 +66,14 @@ public static class SpatialBoundaryEvaluator
             BoundaryActionKind.None, $"空间越界，回退安全根 {safeRoot}", safeRoot, false, reason, 0d);
     }
 
+    /// <summary>
+    /// 允许根来源：显式白名单 → BaseRoot；两者都缺失时返回空，由调用方抛出配置错误。
+    /// 原实现回退 <see cref="Directory.GetCurrentDirectory"/>，使"缺少配置"变成不可复现的隐式放行（§4.11）。
+    /// </summary>
     private static List<string> ResolveAllowedRoots(SpatialBoundaryConfig config)
     {
-        if (config.AllowedRoots.Count > 0) return config.AllowedRoots;
+        if (config.AllowedRoots is { Count: > 0 }) return config.AllowedRoots;
         if (!string.IsNullOrWhiteSpace(config.BaseRoot)) return new List<string> { config.BaseRoot };
-        return new List<string> { Directory.GetCurrentDirectory() };
-    }
-
-    private static bool IsWithin(string root, string path)
-    {
-        if (string.Equals(root, path, StringComparison.OrdinalIgnoreCase)) return true;
-        var prefix = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                        + Path.DirectorySeparatorChar;
-        return path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// 禁用路径判定（C2 修复：替代子串 Contains，避免误伤 ".gitignore"/"mynode_modules" 等非真实目录段）。
-    /// deny 以分隔符开头（如 "\.git"）→ 视为目录段名，按路径段精确匹配（忽略大小写）；
-    /// 否则按子串包含匹配（绝对/相对路径表达式）。
-    /// </summary>
-    private static bool IsDenied(string path, string deny)
-    {
-        // 归一化分隔符（统一 Windows 分隔符），便于段边界匹配
-        var p = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-        var d = deny.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-        if (d.Length == 0) return false;
-
-        if (d[0] == Path.DirectorySeparatorChar)
-        {
-            var segment = d.TrimStart(Path.DirectorySeparatorChar);
-            return segment.Length > 0
-                && p.Split(Path.DirectorySeparatorChar)
-                    .Any(s => string.Equals(s, segment, StringComparison.OrdinalIgnoreCase));
-        }
-
-        return p.Contains(d, StringComparison.OrdinalIgnoreCase);
+        return new List<string>();
     }
 }

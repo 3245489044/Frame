@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用压力口径内核</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>上下文估算 / 信息增益速率 / 复杂度压力 / 三维加权 Score / 迟滞保持 / 标量归一 / 跨轮进度追踪的唯一内核：BCL-only、零 ProjectReference、纯函数（进度追踪器为显式有状态对象）；配置一律经参数注入，禁读进程静态全局。</ModuleRule_Description>
+    <ModuleRule_Keywords>压力;上下文;信息增益;复杂度;EWMA;迟滞;标量归一;进度;纯函数</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="内核只依赖 BCL；不得 using Share.* / Operation.* / Agent.*（宿主能力一律参数注入）" />
+    <ModuleRule_Rule Include="纯数值口径：压力公式与迟滞语义单源，消费端只做类型映射，禁复制公式" />
+    <ModuleRule_Rule Include="空/非法输入按显式契约收敛（未知不回退为 0 冒充有效值）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Modules.Regulation</AssemblyName>
+    <RootNamespace>Modules.Regulation</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Description>通用压力口径内核 — 上下文估算 / EWMA / 三维压力 / 迟滞 / 标量归一 / 进度追踪（BCL-only）</Description>
+  </PropertyGroup>
+
+</Project>

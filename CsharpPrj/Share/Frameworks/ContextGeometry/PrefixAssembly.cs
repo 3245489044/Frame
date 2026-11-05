@@ -43,8 +43,19 @@ public static class PrefixAssembly
         }
 
         var segments = new List<PrefixSegment>();
-        if (input.SharedBlocks is { Count: > 0 })
-            segments.AddRange(input.SharedBlocks);
+
+        // 共享块与专属段走同一工具面裁剪（ContextGeometry.md §4.10，原 :46-47 AddRange 绕过 ToolsExposed=false：
+        // 声明"不暴露工具"却仍可经 SharedBlocks 注入 prefix.tools 段，工具面过滤形同虚设）。
+        foreach (var segment in input.SharedBlocks ?? Array.Empty<PrefixSegment>())
+        {
+            if (segment is null) continue;
+            if (!input.ToolsExposed && IsToolsSegment(segment.Key))
+            {
+                diagnostics.Add($"{GeometryDiagnostics.ToolFaceHidden}:{segment.Key}");
+                continue;
+            }
+            segments.Add(segment);
+        }
 
         foreach (var segment in input.Segments ?? Array.Empty<PrefixSegment>())
         {

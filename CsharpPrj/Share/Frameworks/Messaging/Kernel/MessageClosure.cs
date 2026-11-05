@@ -33,8 +33,8 @@ public sealed record MessageObservation(
     string? Diagnostic = null,
     string? Payload = null)
 {
-    /// <summary>是否已闭环（Ready/Failed）。</summary>
-    public bool IsClosed => State is MessageObservationState.Ready or MessageObservationState.Failed;
+    /// <summary>是否已闭环（Ready/Failed/Expired —— 与 <see cref="IsTerminal"/> 同口径，终态即闭环）。</summary>
+    public bool IsClosed => IsTerminal;
 
     /// <summary>是否终态（Ready/Failed/Expired）。</summary>
     public bool IsTerminal => State is MessageObservationState.Ready or MessageObservationState.Failed

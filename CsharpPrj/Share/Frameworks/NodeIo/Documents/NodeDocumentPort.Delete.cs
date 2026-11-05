@@ -1,4 +1,3 @@
-using Modules.Node.Carriers;
 using Modules.Node.Diagnostics;
 using Modules.Node.Materialization;
 
@@ -6,46 +5,21 @@ namespace Share.NodeIo;
 
 public sealed partial class NodeDocumentPort
 {
-    private async Task<NodeMaterializationResult> DeleteAsync(
+    private Task<NodeMaterializationResult> DeleteAsync(
+        NodeDocumentChange change,
         ResolvedScope resolved,
         CancellationToken cancellationToken)
     {
-        var results = new List<NodePlacementResult>();
-        var diagnostics = new List<NodeDiagnostic>();
-        foreach (var placement in resolved.Placements)
-        {
-            if (!_framework.Carriers.TryGet(placement.CarrierId, out var carrier))
-            {
-                results.Add(new NodePlacementResult(
-                    placement.PlacementId, placement.PositionKey, null, NodeDocumentReasons.CarrierUnbound));
-                continue;
-            }
-
-            var deleted = await _rmwGate.RunAsync(
-                    $"{placement.CarrierId}|{placement.PositionKey}",
-                    () => carrier.DeleteAsync(placement.PositionKey, cancellationToken),
-                    cancellationToken)
-                .ConfigureAwait(false);
-            if (deleted)
-            {
-                results.Add(new NodePlacementResult(
-                    placement.PlacementId, placement.PositionKey, CarrierWriteStatus.Written, null));
-                continue;
-            }
-
-            results.Add(new NodePlacementResult(
-                placement.PlacementId, placement.PositionKey, CarrierWriteStatus.Rejected,
-                NodeDocumentReasons.DeleteKeyMissing));
-            diagnostics.Add(new NodeDiagnostic(
-                "delete.key-missing",
-                NodeDiagnosticSeverity.Warning,
-                NodeDocumentReasons.DeleteKeyMissing,
-                placement.PlacementId));
-        }
-
-        Report(diagnostics);
-        return new NodeMaterializationResult(
-            Aggregate(results), resolved.Scope.KeyContext, results, diagnostics);
+        // 写路径收敛：删除不再自建写门、不再直连载体；
+        // 由框架 DeleteAsync 在同一写门内执行，键形门 / 运行域门 / 载体异常隔离与 Upsert 同源。
+        return _framework.Materializer.DeleteAsync(
+            new NodeMaterializeRequest(
+                change.Scope.KeyContext,
+                string.Empty,
+                change.Scope.Domain,
+                resolved.PlacementIds,
+                Meta: change.RecordMeta),
+            cancellationToken);
     }
 
     private NodeMaterializationResult Rejected(NodeDocumentScope scope, IReadOnlyList<string> reasons)
@@ -64,25 +38,4 @@ public sealed partial class NodeDocumentPort
         }
     }
 
-    private static MaterializeStatus Aggregate(IReadOnlyList<NodePlacementResult> results)
-    {
-        if (results.Any(result => result.Status == CarrierWriteStatus.Conflict))
-        {
-            return MaterializeStatus.Conflict;
-        }
-
-        if (results.Any(result => result.Status == CarrierWriteStatus.Rejected))
-        {
-            return MaterializeStatus.Rejected;
-        }
-
-        if (results.Any(result => result.Status is null))
-        {
-            return MaterializeStatus.Unbound;
-        }
-
-        return results.Any(result => result.Status == CarrierWriteStatus.Written)
-            ? MaterializeStatus.Written
-            : MaterializeStatus.Unchanged;
-    }
 }

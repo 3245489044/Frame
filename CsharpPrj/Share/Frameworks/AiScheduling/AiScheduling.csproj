@@ -19,6 +19,8 @@
   <ItemGroup>
     <!-- 状态宿主契约（IStateFacet / SnapshotTelemetry）下沉至 Share.StateManagement，调度层依赖状态层 -->
     <ProjectReference Include="$(Proj_StateManagement)" />
+    <!-- 压力口径纯函数单源（Modules\Foundations\Regulation，BCL-only）：本工程 Regulation 仅为兼容门面 -->
+    <ProjectReference Include="$(Proj_Regulation)" />
   </ItemGroup>
 
 

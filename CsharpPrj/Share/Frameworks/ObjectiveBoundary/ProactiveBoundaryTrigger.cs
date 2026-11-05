@@ -20,11 +20,11 @@ public sealed class ProactiveBoundaryTrigger : IBoundaryTrigger
     public int Priority => 10;
 
     // DD8：健康哨兵集中到 BoundaryAssessment.Healthy，经 with 派生通道属性（消除手工重建记录 D3）。
+    // 健康哨兵不得携带触发种类（§4.5：健康评估的 Kind 必须为 None）；触发时再显式赋 LlmSelfAssessment。
     private static readonly BoundaryAssessment HealthyProactive =
         BoundaryAssessment.Healthy with
         {
             Channel = TriggerChannel.Proactive,
-            TriggerKind = BoundaryTriggerKind.LlmSelfAssessment,
         };
 
     public BoundaryAssessment Evaluate(
@@ -67,6 +67,7 @@ public sealed class ProactiveBoundaryTrigger : IBoundaryTrigger
             ComplexityPressure = 0d,
             Action = intent.Action,
             Reason = $"主动边界触发[{intent.Action}](源={intent.Source},置信={intent.Confidence:0.00})",
+            TriggerKind = BoundaryTriggerKind.LlmSelfAssessment,
             PhiOld = contextPressure,
         };
     }

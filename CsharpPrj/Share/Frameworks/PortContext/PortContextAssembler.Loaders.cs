@@ -9,10 +9,15 @@ namespace Share.PortContexts;
 /// <summary>装配器辅助（供数加载/归一/字段族过滤；唯一实现）。</summary>
 public sealed partial class PortContextAssembler
 {
-    private async Task<Dictionary<string, IReadOnlyList<PortContextField>>?> LoadStateAsync(
+    /// <summary>供数端口状态：未装配 / 已装配但失败 / 成功，三者互斥（失败不伪装成"未装配"或"空"）。</summary>
+    private readonly record struct SourceLoad<T>(bool Attached, bool Failed, T Rows);
+
+    private async Task<SourceLoad<Dictionary<string, IReadOnlyList<PortContextField>>>> LoadStateAsync(
         string containerKey, IReadOnlyList<string> memberKeys, CancellationToken ct)
     {
-        if (_states is null) return null;
+        var empty = new Dictionary<string, IReadOnlyList<PortContextField>>(StringComparer.Ordinal);
+        if (_states is null) return new SourceLoad<Dictionary<string, IReadOnlyList<PortContextField>>>(false, false, empty);
+
         try
         {
             var rows = await _states.GetStateAsync(containerKey, memberKeys, ct).ConfigureAwait(false);
@@ -23,7 +28,7 @@ public sealed partial class PortContextAssembler
                 map[row.MemberKey.Trim()] = row.Fields ?? Array.Empty<PortContextField>();
             }
 
-            return map;
+            return new SourceLoad<Dictionary<string, IReadOnlyList<PortContextField>>>(true, false, map);
         }
         catch (OperationCanceledException)
         {
@@ -31,15 +36,16 @@ public sealed partial class PortContextAssembler
         }
         catch
         {
-            return null;
+            // 失败 ⇒ 受控失败（StateProviderFailed），调用方保留容器键上下文并可见化。
+            return new SourceLoad<Dictionary<string, IReadOnlyList<PortContextField>>>(true, true, empty);
         }
     }
 
-    private async Task<Dictionary<string, IReadOnlyList<PortContextWindowItem>>> LoadWindowAsync(
+    private async Task<SourceLoad<Dictionary<string, IReadOnlyList<PortContextWindowItem>>>> LoadWindowAsync(
         string containerKey, IReadOnlyList<string> memberKeys, int take, CancellationToken ct)
     {
         var map = new Dictionary<string, IReadOnlyList<PortContextWindowItem>>(StringComparer.Ordinal);
-        if (_windows is null) return map;
+        if (_windows is null) return new SourceLoad<Dictionary<string, IReadOnlyList<PortContextWindowItem>>>(false, false, map);
 
         try
         {
@@ -52,6 +58,8 @@ public sealed partial class PortContextAssembler
                     ? existing.Concat(new[] { item }).ToArray()
                     : new[] { item };
             }
+
+            return new SourceLoad<Dictionary<string, IReadOnlyList<PortContextWindowItem>>>(true, false, map);
         }
         catch (OperationCanceledException)
         {
@@ -60,9 +68,8 @@ public sealed partial class PortContextAssembler
         catch
         {
             map.Clear();
+            return new SourceLoad<Dictionary<string, IReadOnlyList<PortContextWindowItem>>>(true, true, map);
         }
-
-        return map;
     }
 
     private static IReadOnlyList<string> Normalize(IReadOnlyList<string> keys)

@@ -68,13 +68,11 @@ namespace Modules.LayoutAnalysis.UIInspector
             {
                 var metadata = state.Extract(_extractor);
 
-                // S2·坐标换算单一出口：统一经 LayoutCoordinateResolver.ToFormRelative（父链 .Location 累加，不含窗体）——
-                // 与可见性检查/位置报告同基准（form 相对），消除 RectangleToScreen 的 handle 状态敏感
-                // 与嵌套重复累加伪影（terminalPanel 屏幕坐标 1832→2469 的根因）。
-                // 字段名 ScreenLeft/ScreenTop 保留（兼容既有消费方），语义 = form 相对统一基准（平移不变量，重叠判定等价）。
+                // S2·坐标换算单一出口：唯一口径 = form 相对（含 SplitterPanel 修正），见 LayoutCoordinateResolver。
+                // 与可见性检查/位置报告同基准，消除 RectangleToScreen 的 handle 状态敏感与嵌套重复累加伪影。
                 var formRelative = LayoutCoordinateResolver.ToFormRelative(state.Control);
-                metadata.ScreenLeft = formRelative.Left;
-                metadata.ScreenTop = formRelative.Top;
+                metadata.FormLeft = formRelative.Left;
+                metadata.FormTop = formRelative.Top;
 
                 result.Add(metadata);
             }, new TraversalOptions { Strategy = strategy });

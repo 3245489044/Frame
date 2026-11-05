@@ -36,17 +36,6 @@ public static class SignalOutcomes
         _ => SignalState.Failed,
     };
 
-    /// <summary>状态 → 回执（非终态 ⇒ null）。</summary>
-    public static SignalOutcome? FromState(SignalState state) => state switch
-    {
-        SignalState.Completed => SignalOutcome.Completed,
-        SignalState.Failed => SignalOutcome.Failed,
-        SignalState.Cancelled => SignalOutcome.Cancelled,
-        SignalState.Expired => SignalOutcome.Expired,
-        SignalState.DeadLetter => SignalOutcome.DeadLetter,
-        _ => null,
-    };
-
     /// <summary>声明词 → 回执（判定表标签；未知 ⇒ null）。</summary>
     public static SignalOutcome? Parse(string? label) => label?.Trim().ToLowerInvariant() switch
     {

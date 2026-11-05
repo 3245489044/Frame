@@ -1,19 +1,15 @@
 using Share.AiScheduling.Regulation;
 using Share.TaskStatusPool.Loops;
 using System;
-using Share.ObjectiveBoundary;
-using System.Collections.Generic;
 using System.Linq;
-using Share.ObjectiveBoundary;
-using Share.ObjectiveBoundary;
 
 namespace Share.ObjectiveBoundary;
 
 /// <summary>
 /// 逻辑边界评估器（二级评估的纯函数，无副作用）。由每轮 BoundarySignal + 上下文估算 + 上一轮产物长度
 /// 计算三维压力（上下文/信息增益/复杂度），加权 Score ≈ 文档 Φ(Ω,J;Context) 的工程近似；
-/// 触发判定 = 任一维度压力越界 或 加权 Score≥阈值，并从 Actions 顺序选取建议动作。
-/// stopReason=model_context_window_exceeded 为强信号短路（对齐协议级硬截断语义）。
+/// 触发判定 = 硬信号短路，或（无迟滞保持时）任一维度按各自量纲越界 / Score≥阈值；
+/// 建议动作按触发种类从 Actions 白名单选取（非恒取 Actions[0]）。
 /// </summary>
 public static class LogicalBoundaryEvaluator
 {
@@ -25,12 +21,12 @@ public static class LogicalBoundaryEvaluator
         BoundaryConfig config,
         ContextEstimate estimate,
         int priorResultLength,
-        bool wasTriggered = false)
+        bool wasTriggered = false,
+        double priorPhi = 0d)
     {
         var logical = config.Logical;
 
-        // 三维压力 + 加权 Score 的纯数值计算收敛到计算内核（Agent.Calculate，单一实现）；
-        // 本层仅保留触发判定与动作选择（逻辑运算）。
+        // 压力数值计算仍收敛于单一计算内核（AS-01 口径合并由独立会话负责，此处不改换算）。
         var p = BoundaryPressureCalculator.Compute(
             signal, estimate, priorResultLength,
             logical.ContextLimitChars, logical.ContextWatermark,
@@ -41,23 +37,36 @@ public static class LogicalBoundaryEvaluator
             complexityMaxSteps: logical.ComplexityMaxSteps);
 
         bool stopBreach = signal.StopReason?.Equals(StopReasonContextExceeded, StringComparison.OrdinalIgnoreCase) == true;
-        double threshold = Math.Clamp(logical.ReconstructThreshold, 0d, 1d);
-        // 触发判定（对齐文档"信息增益速率低于阈值即触发重构"）：任一维度压力越界，或加权总分越界，即触发。
-        bool anyDimension = p.ContextPressure >= threshold || p.InfoGainPressure >= threshold || p.ComplexityPressure >= threshold;
-        // 迟滞：刚重构后（wasTriggered）Score 未回落到复位阈值 → 抑制非强信号触发（防打转）。
-        bool triggered = stopBreach || (!p.HysteresisHeld && (anyDimension || p.Score >= threshold));
+        bool tokenExhaust = signal.TokenMax > 0 && signal.TokenValue >= signal.TokenMax && signal.Eval != EvalOutcome.Pass;
+        bool errorClass = signal.ErrorClass is ErrorClass.Irrecoverable or ErrorClass.ExecutionFailure;
 
-        string action = BoundaryActionKind.None;
-        if (triggered)
-        {
-            action = stopBreach
-                ? BoundaryActionKind.Compact
-                : logical.Actions.FirstOrDefault(a => !string.Equals(a, BoundaryActionKind.None, StringComparison.OrdinalIgnoreCase))
-                    ?? config.Policy.Fallback ?? BoundaryActionKind.Compact;
-        }
+        // 分维度阈值（ObjectiveBoundary.md §4.1：同一 threshold 判三种量纲是错的）。
+        // 上下文/复杂度：压力越大越坏；信息增益：速率越小越坏（对齐 §4.7 与 InfoGainMinRate 名称语义）。
+        double scoreThreshold = Math.Clamp(logical.ReconstructThreshold, 0d, 1d);
+        double contextThreshold = ResolveThreshold(logical.ContextThreshold, scoreThreshold);
+        double complexityThreshold = ResolveThreshold(logical.ComplexityThreshold, scoreThreshold);
+        bool contextBreach = p.ContextPressure >= contextThreshold;
+        bool infoGainBreach = p.InfoGainRate <= logical.InfoGainMinRate;
+        bool complexityBreach = p.ComplexityPressure >= complexityThreshold;
+
+        // 硬信号（协议硬断 / token 耗尽 / 错误熔断）不受迟滞抑制（§4.2：迟滞只应压软阈值，不能压硬信号）。
+        bool hardSignal = stopBreach || tokenExhaust || errorClass;
+        bool softBreach = contextBreach || infoGainBreach || complexityBreach || p.Score >= scoreThreshold;
+        bool triggered = hardSignal || (!p.HysteresisHeld && softBreach);
+
+        BoundaryTriggerKind kind = triggered
+            ? ClassifyKind(stopBreach, tokenExhaust, errorClass, contextBreach, infoGainBreach)
+            : BoundaryTriggerKind.None;
+
+        string action = triggered
+            ? SelectAction(kind, config)
+            : BoundaryActionKind.None;
 
         var reason = triggered
-            ? BuildReason(stopBreach, p.ContextPressure, p.InfoGainPressure, p.ComplexityPressure, p.Score)
+            ? BuildReason(stopBreach, tokenExhaust, errorClass,
+                contextBreach, infoGainBreach, complexityBreach,
+                p.ContextPressure, p.InfoGainRate, p.ComplexityPressure, p.Score,
+                contextThreshold, complexityThreshold, logical.InfoGainMinRate)
             : null;
 
         return new BoundaryAssessment(
@@ -71,34 +80,87 @@ public static class LogicalBoundaryEvaluator
             EffectiveRoot: null,
             SpatialAllowed: true,
             SpatialDenyReason: null,
-            PhiOld: p.Score,
-            HysteresisHeld: p.HysteresisHeld,
-            // 种类归类与触发判定同源（同一 threshold/pressure）：Reactive 侧不再重算阈值（D5 单源）。
-            TriggerKind: ClassifyKind(signal, threshold, p, stopBreach));
+            // 上一轮 Φ 由调用方传入；不得用本轮分数覆盖（§4.4）。
+            PhiOld: priorPhi,
+            Channel: TriggerChannel.Reactive,
+            TriggerKind: kind,
+            HysteresisHeld: p.HysteresisHeld);
     }
 
-    /// <summary>脊神经短路口归类（判定顺序与触发/动作选择一致：硬信号短路优先）。</summary>
+    private static double ResolveThreshold(double configured, double fallback)
+        => configured > 0d ? Math.Clamp(configured, 0d, 1d) : fallback;
+
+    /// <summary>脊神经短路口归类（判定顺序与触发判定一致：硬信号优先，随后按分维度阈值）。</summary>
     private static BoundaryTriggerKind ClassifyKind(
-        BoundarySignal signal, double threshold, BoundaryPressures p, bool stopBreach)
+        bool stopBreach, bool tokenExhaust, bool errorClass,
+        bool contextBreach, bool infoGainBreach)
     {
         if (stopBreach) return BoundaryTriggerKind.ProtocolStop;
-        if (signal.TokenMax > 0 && signal.TokenValue >= signal.TokenMax && signal.Eval != EvalOutcome.Pass)
-            return BoundaryTriggerKind.TokenExhaust;
-        if (signal.ErrorClass is ErrorClass.Irrecoverable or ErrorClass.ExecutionFailure)
-            return BoundaryTriggerKind.ErrorClass;
-        if (p.ContextPressure >= threshold) return BoundaryTriggerKind.ContextPressure;
-        if (p.InfoGainPressure >= threshold) return BoundaryTriggerKind.InfoGain;
+        if (tokenExhaust) return BoundaryTriggerKind.TokenExhaust;
+        if (errorClass) return BoundaryTriggerKind.ErrorClass;
+        if (contextBreach) return BoundaryTriggerKind.ContextPressure;
+        if (infoGainBreach) return BoundaryTriggerKind.InfoGain;
         return BoundaryTriggerKind.Complexity;
     }
 
+    /// <summary>
+    /// 按触发种类选取动作（§4.3：原实现恒取 Actions[0]，使其余动作与 Fallback 永不可达）。
+    /// 首选动作不在允许清单时回退 Policy.Fallback；再不行取清单首个非 None。
+    /// </summary>
+    private static string SelectAction(BoundaryTriggerKind kind, BoundaryConfig config)
+    {
+        var logical = config.Logical;
+        var actions = logical.Actions ?? new System.Collections.Generic.List<string>();
+        string preferred = kind switch
+        {
+            BoundaryTriggerKind.ProtocolStop or BoundaryTriggerKind.TokenExhaust or BoundaryTriggerKind.ContextPressure
+                => BoundaryActionKind.Compact,
+            BoundaryTriggerKind.InfoGain => BoundaryActionKind.ResubmitWithInfo,
+            BoundaryTriggerKind.Complexity => BoundaryActionKind.Rescope,
+            BoundaryTriggerKind.ErrorClass => BoundaryActionKind.Escalate,
+            _ => config.Policy.Fallback ?? BoundaryActionKind.Compact,
+        };
+
+        if (IsAllowed(actions, preferred)) return preferred;
+
+        // Fallback 可达：首选动作被配置移出白名单时，按策略兜底。
+        var fallback = config.Policy.Fallback;
+        if (!string.IsNullOrWhiteSpace(fallback) && IsAllowed(actions, fallback)) return fallback;
+
+        return actions.FirstOrDefault(a => !IsNone(a)) ?? BoundaryActionKind.Compact;
+    }
+
+    private static bool IsAllowed(System.Collections.Generic.List<string> actions, string? action)
+        => !string.IsNullOrWhiteSpace(action)
+           && !IsNone(action)
+           && actions.Any(a => string.Equals(a, action, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsNone(string? action)
+        => string.Equals(action, BoundaryActionKind.None, StringComparison.OrdinalIgnoreCase);
+
     private static string? BuildReason(
-        bool stopBreach, double ctxP, double infoP, double compP, double score)
+        bool stopBreach, bool tokenExhaust, bool errorClass,
+        bool contextBreach, bool infoGainBreach, bool complexityBreach,
+        double ctxP, double infoRate, double compP, double score,
+        double contextThreshold, double complexityThreshold, double infoGainMinRate)
     {
         if (stopBreach) return "模型上下文窗口已满（model_context_window_exceeded），需压缩/重构边界";
-        var parts = new List<string>();
-        if (ctxP >= 0.9) parts.Add($"上下文压力高({ctxP:0.00})");
-        if (infoP >= 0.9) parts.Add($"信息增益趋零({infoP:0.00})");
-        if (compP >= 0.9) parts.Add($"复杂度超界({compP:0.00})");
-        return parts.Count > 0 ? string.Join("；", parts) + $"，压力总分 {score:0.00}" : $"边界压力 {score:0.00} 达阈值";
+        if (tokenExhaust) return "token 耗尽且本轮未通过，需压缩/重构边界";
+        if (errorClass) return "错误熔断（不可恢复/执行失败），需升级边界";
+
+        var parts = new System.Collections.Generic.List<string>();
+        if (contextBreach)
+            parts.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "上下文压力超阈({0:0.00}≥{1:0.00})", ctxP, contextThreshold));
+        if (infoGainBreach)
+            parts.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "信息增益趋零(rate {0:0.00}≤{1:0.00})", infoRate, infoGainMinRate));
+        if (complexityBreach)
+            parts.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "复杂度超阈({0:0.00}≥{1:0.00})", compP, complexityThreshold));
+
+        return parts.Count > 0
+            ? string.Join("；", parts) + string.Format(System.Globalization.CultureInfo.InvariantCulture, "，压力总分 {0:0.00}", score)
+            : string.Format(System.Globalization.CultureInfo.InvariantCulture, "边界压力 {0:0.00} 达阈值", score);
     }
 }

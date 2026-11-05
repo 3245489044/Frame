@@ -15,13 +15,30 @@ namespace Modules.LayoutAnalysis.UIInspector
         public int Height { get; set; }
 
         /// <summary>
-        /// 统一基准坐标（S2·LayoutCoordinateResolver.ToFormRelative 产出）：form 相对（父链 .Location 累加，不含窗体）。
-        /// 字段名保留历史名 ScreenLeft/ScreenTop，语义已由「屏幕绝对」收敛为「form 相对统一基准」——
-        /// 与可见性检查/位置报告同基准（平移不变量，OverlapCalculator 重叠判定等价）。
+        /// 唯一坐标口径：form 相对（父链累加，不含窗体自身；SplitterPanel 经 SplitterDistance 修正）。
+        /// 由 <see cref="LayoutCoordinateResolver.ToFormRelative"/> 产出，全项目（含重叠判定/可见性/位置报告）只认此基准。
         /// </summary>
-        public int ScreenLeft { get; set; }
+        public int FormLeft { get; set; }
 
-        public int ScreenTop { get; set; }
+        /// <summary>唯一坐标口径的纵轴，见 <see cref="FormLeft"/>。</summary>
+        public int FormTop { get; set; }
+
+        /// <summary>
+        /// 历史兼容别名（LayoutAnalysis.md §4.9：名为 Screen 实为 form 相对）。
+        /// 语义等同 <see cref="FormLeft"/>，新代码一律用 FormLeft；保留 setter 以兼容既有的对象初始化器。
+        /// </summary>
+        public int ScreenLeft
+        {
+            get => FormLeft;
+            set => FormLeft = value;
+        }
+
+        /// <summary>历史兼容别名，见 <see cref="ScreenLeft"/>。</summary>
+        public int ScreenTop
+        {
+            get => FormTop;
+            set => FormTop = value;
+        }
 
         public string Text { get; set; } = string.Empty;
         public string ParentName { get; set; } = string.Empty;

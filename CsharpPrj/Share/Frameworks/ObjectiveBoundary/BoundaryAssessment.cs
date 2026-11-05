@@ -18,12 +18,11 @@ public sealed record BoundaryAssessment(
     string? SpatialDenyReason,
     double PhiOld,
     TriggerChannel Channel = TriggerChannel.Reactive,
-    BoundaryTriggerKind TriggerKind = BoundaryTriggerKind.ContextPressure,
+    // 健康/未触发评估不得携带触发种类（ObjectiveBoundary.md §4.5）；非健康评估由归类方显式赋值。
+    BoundaryTriggerKind TriggerKind = BoundaryTriggerKind.None,
     bool HysteresisHeld = false)
 {
     /// <summary>健康（无触发、空间允许）的静态空评估。</summary>
     public static BoundaryAssessment Healthy { get; } =
         new(false, 0d, 0d, 1d, 0d, BoundaryActionKind.None, null, null, true, null, 0d);
-
-    public BoundaryAssessment WithPhi(double phi) => this with { PhiOld = phi };
 }

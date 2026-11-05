@@ -129,7 +129,7 @@ public sealed class RegionNodeBase : ICircuitNode
         for (var i = 0; i < max && judge; i++)
         {
             last = await RunChildAsync(inputs, cancellationToken).ConfigureAwait(false);
-            judge = FeedbackJudge(last, judge);
+            judge = FeedbackJudge(last);
         }
         return last;
     }
@@ -144,20 +144,33 @@ public sealed class RegionNodeBase : ICircuitNode
         for (var i = 0; i < max; i++)
         {
             last = await RunChildAsync(inputs, cancellationToken).ConfigureAwait(false);
-            judge = FeedbackJudge(last, judge);
+            judge = FeedbackJudge(last);
             if (judge) break;
         }
         return last;
     }
 
     /// <summary>
-    /// 自引用有界递归（<c>Recursion</c>，F3）：先执行一次子计划（do-while），基例端口为真即停；
+    /// 自引用有界递归（<c>Recursion</c>，F3）：**先判基例、成立即不下钻**（与
+    /// <see cref="RegionIterationKind.UntilTrue"/> 的 do-while 语义区别所在）；
     /// 迭代间基例由出映射反馈自持（出映射中 <c>ParentPort == 基例端口</c> 的项提供下一轮值）。
-    /// 执行同形于 <see cref="RegionIterationKind.UntilTrue"/>（M2 降级：递归封在区域节点内，父图仍为 DAG）。
+    /// 环封在区域节点内，父图仍为 DAG。
     /// </summary>
-    private Task<IReadOnlyDictionary<string, object?>?> RunRecursionAsync(
+    private async Task<IReadOnlyDictionary<string, object?>?> RunRecursionAsync(
         IReadOnlyDictionary<string, object?> inputs, CancellationToken cancellationToken)
-        => RunUntilAsync(inputs, cancellationToken);
+    {
+        // 基例前置判定：进入时基例已成立 ⇒ 不执行子计划，返回 null（下游按声明补空）。
+        if (SeedJudge(inputs)) return null;
+
+        var max = MaxIterations();
+        IReadOnlyDictionary<string, object?>? last = null;
+        for (var i = 0; i < max; i++)
+        {
+            last = await RunChildAsync(inputs, cancellationToken).ConfigureAwait(false);
+            if (FeedbackJudge(last)) break;
+        }
+        return last;
+    }
 
     /// <summary>首轮判定：父入端口键（缺失 ⇒ false = 不进入循环，不伪造）。</summary>
     private bool SeedJudge(IReadOnlyDictionary<string, object?> inputs)
@@ -167,7 +180,7 @@ public sealed class RegionNodeBase : ICircuitNode
 
     /// <summary>迭代间反馈：出映射中 <c>ParentPort == JudgePort</c> 的项提供下一轮判定；
     /// 缺失判定端口 / 无反馈映射 / 反馈缺该端口 ⇒ <b>false（fail-closed：判定端口缺失即停）</b>。</summary>
-    private bool FeedbackJudge(IReadOnlyDictionary<string, object?>? childResult, bool current)
+    private bool FeedbackJudge(IReadOnlyDictionary<string, object?>? childResult)
     {
         if (childResult is null || _plan.JudgePort is not { Length: > 0 } judge)
             return false;
@@ -196,14 +209,12 @@ public sealed class RegionNodeBase : ICircuitNode
     {
         RegionIterationKind.Once => 1,
         RegionIterationKind.FixedRepeats => _plan.MaxIterations ?? Math.Max(0, _plan.Repeats),
-        RegionIterationKind.WhileTrue or RegionIterationKind.UntilTrue or RegionIterationKind.Recursion => _plan.MaxIterations ?? 0,
+        RegionIterationKind.WhileTrue or RegionIterationKind.UntilTrue or RegionIterationKind.Recursion
+            => _plan.MaxIterations ?? throw new InvalidOperationException(
+                $"区域节点 '{NodeType}' 的条件迭代未声明迭代上限（MaxIterations 缺失）：R1 有界量化要求上限必填，执行面拒绝无界执行。"),
         _ => throw new NotSupportedException(
             $"区域节点 '{NodeType}' 的迭代方式 {_plan.Kind} 尚未落地执行面（声明可编译，执行面后续批次接入）。"),
     };
-
-    /// <summary>父入端口 → 子 EntryPort（共享内核 <see cref="SubCircuitNode.BuildEntry"/>；缺失即跳过，不伪造 null）。</summary>
-    private IReadOnlyDictionary<string, object?> BuildEntry(IReadOnlyDictionary<string, object?> inputs)
-        => SubCircuitNode.BuildEntry(_inBindings, inputs);
 
     /// <summary>子出口 → 父出端口（共享内核 <see cref="SubCircuitNode.BuildOutputs"/>；零次迭代时按声明给 null）。</summary>
     private IReadOnlyDictionary<string, object?> BuildOutputs(IReadOnlyDictionary<string, object?>? childResult)

@@ -70,7 +70,8 @@ public static class CacheEconomics
         }
 
         if (!any || prompt <= 0) return null;
-        return Math.Clamp((double)read / prompt, 0d, 1d);
+        // 不夹取：Σread/Σprompt > 1 表示估计失真，必须原样暴露（ContextGeometry.md §4.4，原 :73 Clamp 掩盖异常）。
+        return (double)read / prompt;
     }
 
     /// <summary>缓存读 token 合计（Unknown 样本不计入；无样本 ⇒ 0）。</summary>

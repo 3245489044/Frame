@@ -8,6 +8,7 @@ namespace Share.Messaging;
 /// Failed → Published（重试） | DeadLetter
 /// </code>
 /// <para>终态（Acked/Expired/DeadLetter/Cancelled）不可出边（禁复活）。</para>
+/// <para>同状态重放是幂等无操作，不是非法迁移（<see cref="TryTransition"/> 返回 true）。</para>
 /// </summary>
 public static class MessageStateMachine
 {
@@ -39,17 +40,17 @@ public static class MessageStateMachine
     public static IReadOnlyList<MessageState> Next(MessageState state)
         => Edges.TryGetValue(state, out var next) ? next : Array.Empty<MessageState>();
 
-    /// <summary>迁移是否合法。</summary>
+    /// <summary>迁移是否合法（同状态 = 幂等保持，合法）。</summary>
     public static bool CanTransition(MessageState from, MessageState to)
-        => Edges.TryGetValue(from, out var next) && Array.IndexOf(next, to) >= 0;
+        => from == to || (Edges.TryGetValue(from, out var next) && Array.IndexOf(next, to) >= 0);
 
-    /// <summary>迁移判定（失败给出可读原因；不抛）。</summary>
+    /// <summary>迁移判定（失败给出可读原因；不抛）。<para>同状态 ⇒ true + 空原因（幂等成功）。</para></summary>
     public static bool TryTransition(MessageState from, MessageState to, out string reason)
     {
         if (from == to)
         {
-            reason = $"状态未变化（{from}）。";
-            return false;
+            reason = string.Empty;
+            return true;
         }
 
         if (IsTerminal(from))

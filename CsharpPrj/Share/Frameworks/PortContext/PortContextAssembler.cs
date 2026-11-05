@@ -19,7 +19,7 @@ public sealed partial class PortContextAssembler : IPortContextPort
 
     /// <param name="members">成员键枚举端口（可空 ⇒ Empty(enumerator-not-attached)）。</param>
     /// <param name="states">成员状态供数端口（可空 ⇒ Empty(state-provider-not-attached)）。</param>
-    /// <param name="windows">成员窗口供数端口（可空 ⇒ 窗口段空 + Empty(window-empty)）。</param>
+    /// <param name="windows">成员窗口供数端口（可空 ⇒ 窗口段空 + Empty(window-provider-not-attached)；已装配但失败 ⇒ window-failed）。</param>
     public PortContextAssembler(
         IPortMemberKeySource? members = null,
         IPortStateSource? states = null,
@@ -60,7 +60,8 @@ public sealed partial class PortContextAssembler : IPortContextPort
         }
         catch
         {
-            return PortContext.Empty(containerKey, PortContextEmptyCodes.EnumeratorNotAttached);
+            // 已装配但取数失败 ≠ 未装配：受控码区分，容器键保留为上下文（禁静默压成 not-attached）。
+            return PortContext.Empty(containerKey, PortContextEmptyCodes.EnumeratorFailed);
         }
 
         var memberKeys = Normalize(enumerated);
@@ -71,12 +72,15 @@ public sealed partial class PortContextAssembler : IPortContextPort
         var truncated = memberKeys.Count > spec.EffectiveMaxMembers;
         var selected = truncated ? memberKeys.Take(spec.EffectiveMaxMembers).ToArray() : memberKeys;
 
-        var stateByMember = await LoadStateAsync(containerKey, selected, ct).ConfigureAwait(false);
-        var stateAttached = stateByMember is not null;
-        stateByMember ??= new Dictionary<string, IReadOnlyList<PortContextField>>(StringComparer.Ordinal);
+        var stateLoad = await LoadStateAsync(containerKey, selected, ct).ConfigureAwait(false);
+        var stateAttached = stateLoad.Attached;
+        var stateFailed = stateLoad.Failed;
+        var stateByMember = stateLoad.Rows;
 
-        var windowByMember = await LoadWindowAsync(containerKey, selected, spec.EffectiveWindowTake, ct)
+        var windowLoad = await LoadWindowAsync(containerKey, selected, spec.EffectiveWindowTake, ct)
             .ConfigureAwait(false);
+        var windowFailed = windowLoad.Failed;
+        var windowByMember = windowLoad.Rows;
 
         var members = new List<PortContextMember>(selected.Count);
         var merged = new List<PortContextField>();
@@ -104,9 +108,13 @@ public sealed partial class PortContextAssembler : IPortContextPort
 
             if (memberFields.Count > 0) anyFact = true;
 
-            var emptyCode = !stateAttached
-                ? PortContextEmptyCodes.StateProviderNotAttached
-                : (memberFields.Count == 0 ? PortContextEmptyCodes.WindowEmpty : null);
+            var emptyCode = stateFailed
+                ? PortContextEmptyCodes.StateProviderFailed
+                : !stateAttached
+                    ? PortContextEmptyCodes.StateProviderNotAttached
+                    : (memberFields.Count == 0
+                        ? (windowFailed ? PortContextEmptyCodes.WindowFailed : PortContextEmptyCodes.WindowEmpty)
+                        : null);
 
             members.Add(new PortContextMember(memberKey, stateFields, windows, emptyCode, truncated));
             merged.AddRange(memberFields);
@@ -115,9 +123,11 @@ public sealed partial class PortContextAssembler : IPortContextPort
         // 变化频率升序（排序单点 = PortContextOrdering：静态/慢变前置、追加流置尾，供前缀缓存最大化）。
         var ordered = PortContextOrdering.Order(merged);
 
-        var contextEmpty = !stateAttached
-            ? PortContextEmptyCodes.StateProviderNotAttached
-            : (anyFact ? null : PortContextEmptyCodes.WindowEmpty);
+        var contextEmpty = stateFailed
+            ? PortContextEmptyCodes.StateProviderFailed
+            : !stateAttached
+                ? PortContextEmptyCodes.StateProviderNotAttached
+                : (anyFact ? null : (windowFailed ? PortContextEmptyCodes.WindowFailed : PortContextEmptyCodes.WindowEmpty));
 
         return new PortContext(
             containerKey,
@@ -157,7 +167,8 @@ public sealed partial class PortContextAssembler : IPortContextPort
             return PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.CursorInvalid);
 
         if (_windows is null)
-            return PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.StateProviderNotAttached);
+            // 契约对齐：窗口端口未装配 ⇒ window-provider-not-attached（窗口内容为空才是 window-empty）。
+            return PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.WindowProviderNotAttached);
 
         var take = request.Take > 0 ? Math.Min(request.Take, spec.EffectiveWindowTake) : spec.EffectiveWindowTake;
 
@@ -175,19 +186,26 @@ public sealed partial class PortContextAssembler : IPortContextPort
         }
         catch
         {
-            return PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.WindowEmpty);
+            // 已装配但取数失败 ≠ 窗口为空：受控失败码 + 成员键上下文（禁静默压成 window-empty）。
+            return PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.WindowFailed);
         }
 
         // 多读 1 条在更早一侧（Older 探测）：多出的首条须跳过，窗口本体 = Skip(1).Take(take)。
         var hasOlderProbe = fetched.Count > take;
-        var hasOlder = hasOlderProbe
-                       && skipFromEnd + take <= PortContextCursor.MaxOffsetFromEnd;
+        var nextOffset = skipFromEnd + take;
+        // 有界不伪造事实：更早一侧确实有数据时 HasOlder 保持 true；越界只影响「能否继续导航」。
+        var olderNavigable = nextOffset <= PortContextCursor.MaxOffsetFromEnd;
+        var hasOlder = hasOlderProbe;
+        var boundReached = hasOlderProbe && !olderNavigable;
         var items = hasOlderProbe ? fetched.Skip(1).Take(take).ToArray() : fetched;
         var hasNewer = skipFromEnd > 0;
-        var olderCursor = hasOlder ? PortContextCursor.Encode(memberKey, skipFromEnd + take) : null;
+        var olderCursor = hasOlderProbe && olderNavigable
+            ? PortContextCursor.Encode(memberKey, nextOffset)
+            : null;
         var newerCursor = hasNewer
             ? PortContextCursor.Encode(memberKey, Math.Max(0, skipFromEnd - take))
             : null;
+        var truncationCode = boundReached ? PortContextEmptyCodes.CursorBoundReached : null;
 
         if (items.Count == 0)
         {
@@ -209,6 +227,7 @@ public sealed partial class PortContextAssembler : IPortContextPort
             skipFromEnd,
             take,
             EmptyCode: null,
-            Truncated: hasOlder);
+            Truncated: hasOlder,
+            TruncationCode: truncationCode);
     }
 }

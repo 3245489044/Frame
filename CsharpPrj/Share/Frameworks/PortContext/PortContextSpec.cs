@@ -133,11 +133,23 @@ public static class PortContextEmptyCodes
     /// <summary>成员枚举端口未装配。</summary>
     public const string EnumeratorNotAttached = "enumerator-not-attached";
 
+    /// <summary>成员枚举端口已装配但取数失败（异常已收敛为受控失败，非静默空）。</summary>
+    public const string EnumeratorFailed = "enumerator-failed";
+
     /// <summary>运行态供数未装配。</summary>
     public const string StateProviderNotAttached = "state-provider-not-attached";
 
+    /// <summary>运行态供数已装配但取数失败（异常已收敛为受控失败，非静默空）。</summary>
+    public const string StateProviderFailed = "state-provider-failed";
+
     /// <summary>有成员但窗口为空。</summary>
     public const string WindowEmpty = "window-empty";
+
+    /// <summary>成员窗口供数端口未装配（区别于「已装配但窗口内容为空」）。</summary>
+    public const string WindowProviderNotAttached = "window-provider-not-attached";
+
+    /// <summary>成员窗口供数端口已装配但取数失败（异常已收敛为受控失败，非静默空）。</summary>
+    public const string WindowFailed = "window-failed";
 
     /// <summary>仅合成壳（无真实行）。</summary>
     public const string SyntheticOnly = "synthetic-only";
@@ -151,12 +163,17 @@ public static class PortContextEmptyCodes
     /// <summary>分页游标非法（解不出「成员键|偏移」或越界）。</summary>
     public const string CursorInvalid = "cursor-invalid";
 
-    /// <summary>全部空因码（门禁遍历单源）。</summary>
+    /// <summary>更早一侧仍有数据，但下一页游标会越过离尾偏移上界（截断显式可见，不再静默压 false）。</summary>
+    public const string CursorBoundReached = "cursor-bound-reached";
+
+    /// <summary>全部空因/截断码（门禁遍历单源）。</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
-        NoOwnedMember, EnumeratorNotAttached, StateProviderNotAttached,
-        WindowEmpty, SyntheticOnly, KeyAxisMismatch, MemberWindowTruncated,
-        CursorInvalid,
+        NoOwnedMember, EnumeratorNotAttached, EnumeratorFailed,
+        StateProviderNotAttached, StateProviderFailed,
+        WindowEmpty, WindowProviderNotAttached, WindowFailed,
+        SyntheticOnly, KeyAxisMismatch, MemberWindowTruncated,
+        CursorInvalid, CursorBoundReached,
     };
 
     /// <summary>空因码是否受控（未登记 ⇒ 判据不可判定）。</summary>

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Modules.Frameworks.Messaging - 消息生命周期迁移表</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>领域无关的显式状态迁移表（纯函数，BCL-only）：状态枚举、终态判定、合法后继、幂等迁移判定。命名空间保持 Share.Messaging 以兼容既有消费端类型全名（迁移只换程序集，不改调用点）。</ModuleRule_Description>
+    <ModuleRule_Keywords>消息;生命周期;状态机;迁移表;终态;幂等</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="BCL-only：禁止引用 Share / Operation / Strategy / 任何宿主工程" />
+    <ModuleRule_Rule Include="零时钟/零 IO：时间一律由参数传入，状态机只做纯判定" />
+    <ModuleRule_Rule Include="命名空间固定 Share.Messaging（兼容消费端的全名引用）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.Messaging</RootNamespace>
+    <AssemblyName>Modules.Frameworks.Messaging</AssemblyName>
+    <Description>消息生命周期迁移表（BCL-only，命名空间 Share.Messaging 保持兼容）</Description>
+  </PropertyGroup>
+
+</Project>

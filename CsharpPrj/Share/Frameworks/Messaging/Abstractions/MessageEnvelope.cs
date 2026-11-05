@@ -46,9 +46,10 @@ public sealed record MessageEnvelope(
     public MessageEnvelope WithDigest()
         => string.IsNullOrWhiteSpace(PayloadDigest) ? this with { PayloadDigest = EffectiveDigest } : this;
 
-    /// <summary>状态迁移（非法迁移抛 <see cref="InvalidOperationException"/>；合法则 Revision+1）。</summary>
+    /// <summary>状态迁移（同状态重放 = 幂等无操作、Revision 不变；非法迁移抛 <see cref="InvalidOperationException"/>；合法则 Revision+1）。</summary>
     public MessageEnvelope Transition(MessageState next)
     {
+        if (State == next) return this;
         if (!MessageStateMachine.TryTransition(State, next, out var reason))
             throw new InvalidOperationException($"{MessageId}: {reason}");
         return this with { State = next, Revision = Revision + 1 };

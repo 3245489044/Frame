@@ -7,7 +7,6 @@ using GraphFoundation.Abstractions;
 using GraphFramework.Models;
 using GraphFramework.Directives;
 using GraphFramework.Snapshots;
-using GraphFramework.Analysis;
 using GraphFramework.Execution;
 
 namespace GraphFramework
@@ -117,14 +116,6 @@ namespace GraphFramework
             where TEdge : class
             => GraphSnapshot<TKey, TNode, TEdge>.CreateFrom(graph, graphId, version);
 
-        public static GraphDiff<TKey, TNode, TEdge> DiffSnapshots<TKey, TNode, TEdge>(
-            GraphSnapshot<TKey, TNode, TEdge>? before,
-            GraphSnapshot<TKey, TNode, TEdge>? after)
-            where TKey : notnull
-            where TNode : class
-            where TEdge : class
-            => GraphDiff<TKey, TNode, TEdge>.Compare(before, after);
-
         public static bool ValidateSnapshot<TKey, TNode, TEdge>(
             this GraphSnapshot<TKey, TNode, TEdge> snapshot,
             out IReadOnlyList<string> errors)
@@ -132,62 +123,6 @@ namespace GraphFramework
             where TNode : class
             where TEdge : class
             => snapshot.Validate(out errors);
-    }
-
-
-    public static partial class GraphFrameworkUsage
-    {
-        public static GraphStatistics<TKey> AnalyzeGraph<TKey, TNode, TEdge>(
-            this IGraph<TKey, TNode, TEdge> graph)
-            where TKey : notnull
-            where TNode : class
-            where TEdge : class
-        {
-            var analyzer = new DefaultGraphAnalyzer<TKey, TNode, TEdge>();
-            return analyzer.Analyze(graph);
-        }
-
-        public static Result<List<TKey>> TopologicalSort<TKey, TNode, TEdge>(
-            this IGraph<TKey, TNode, TEdge> graph)
-            where TKey : notnull
-            where TNode : class
-            where TEdge : class
-        {
-            var analyzer = new DefaultGraphAnalyzer<TKey, TNode, TEdge>();
-            return analyzer.TopologicalSort(graph);
-        }
-
-        public static List<List<TKey>> FindAllPaths<TKey, TNode, TEdge>(
-            this IGraph<TKey, TNode, TEdge> graph,
-            TKey start, TKey end)
-            where TKey : notnull
-            where TNode : class
-            where TEdge : class
-        {
-            var analyzer = new DefaultGraphAnalyzer<TKey, TNode, TEdge>();
-            return analyzer.FindAllPaths(graph, start, end);
-        }
-
-        public static List<Chain<TKey, TNode>> FindChains<TKey, TNode, TEdge>(
-            this IGraph<TKey, TNode, TEdge> graph)
-            where TKey : notnull
-            where TNode : class
-            where TEdge : class
-        {
-            var analyzer = new DefaultGraphAnalyzer<TKey, TNode, TEdge>();
-            return analyzer.FindChains(graph);
-        }
-
-        public static bool HasCycle<TKey, TNode, TEdge>(
-            this IGraph<TKey, TNode, TEdge> graph,
-            out List<TKey>? cycleNodes)
-            where TKey : notnull
-            where TNode : class
-            where TEdge : class
-        {
-            var analyzer = new DefaultGraphAnalyzer<TKey, TNode, TEdge>();
-            return analyzer.HasCycle(graph, out cycleNodes);
-        }
     }
 
 

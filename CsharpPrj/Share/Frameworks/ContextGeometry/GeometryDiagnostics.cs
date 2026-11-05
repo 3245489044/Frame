@@ -21,6 +21,9 @@ public static class GeometryDiagnostics
     /// <summary>估计前缀 token 不可用（比率不可算，非未命中）。</summary>
     public const string EstimateMissing = "geom_estimate_missing";
 
+    /// <summary>估计前缀 token 偏小导致命中率 &gt; 1（显式可见，禁压成 1）。</summary>
+    public const string RatioOverflow = "geom_ratio_overflow";
+
     /// <summary>快照缺失（无法继承冻结字节）。</summary>
     public const string SnapshotMissing = "geom_snapshot_missing";
 

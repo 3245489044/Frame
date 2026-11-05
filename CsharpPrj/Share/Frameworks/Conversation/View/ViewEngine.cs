@@ -47,7 +47,7 @@ public interface IFrameSource
 public sealed record ViewQuery(string View, string Container);
 
 /// <summary>
-/// 运行时唯一装配器：查表 + 调端口 + 拼快照，**零语义判断**。
+/// 运行时唯一装配器：查表 + 调端口 + 拼快照，**零业务判断**。
 /// <para>不做「谁是答案」（读事实派生状态）、不做「哪个面」（查 <see cref="FrameTable"/>）。</para>
 /// </summary>
 public sealed class ViewEngine
@@ -94,14 +94,22 @@ public sealed class ViewEngine
             ["planFingerprint"] = plan.Fingerprint,
             ["framesFingerprint"] = frames.Fingerprint,
         };
-        var rows = new List<ViewRow>();
         var unavailable = 0;
-        var sawFrame = false;
-        var answered = false;
-        var hasAnchor = false;
+        var spineChosen = false;
+        var spineFrames = new List<(ReadSource Source, ViewFrame Frame)>();
+        var supplementFrames = new List<(ReadSource Source, ViewFrame Frame)>();
 
         foreach (var source in plan.Sources.OrderBy(static s => s.Precedence))
         {
+            var isSpine = source.Role == ReadSourceRoles.Spine;
+
+            // spine：首非空即用——一旦采用，后续 spine 源不再读取（不参与合并）。
+            if (isSpine && spineChosen)
+            {
+                meta[$"source.{source.Domain}"] = "skipped:spine-satisfied";
+                continue;
+            }
+
             if (!_sources.TryGetValue(source.Domain, out var port))
             {
                 unavailable++;
@@ -126,47 +134,133 @@ public sealed class ViewEngine
             }
 
             meta[$"source.{source.Domain}"] = $"frames={framesRead.Count}";
-            foreach (var frame in framesRead)
+
+            if (isSpine)
             {
-                sawFrame = true;
-                frames.TryGet(frame.Kind, out var row);
-                var isTerminal = frame.Terminal is true;
-                var presentation = isTerminal && !string.IsNullOrWhiteSpace(plan.Answer.TerminalPresentation)
-                    ? plan.Answer.TerminalPresentation
-                    : frame.Presentation ?? row?.Presentation ?? string.Empty;
-
-                if (string.IsNullOrWhiteSpace(presentation))
-                {
-                    // 未声明呈现 ⇒ 可见占位（禁静默丢行/静默取默认）。
-                    meta[$"unknown-kind.{frame.Kind}"] = "presentation-missing";
-                    presentation = "unknown";
-                }
-
-                answered |= isTerminal;
-                hasAnchor |= row?.Anchor is AnchorPolicy.Always or AnchorPolicy.IfAnswer;
-
-                rows.Add(new ViewRow(
-                    $"{source.Domain}:{frame.Round}:{frame.Seq}:{frame.Kind}",
-                    frame.Kind,
-                    presentation,
-                    frame.Text,
-                    frame.Round,
-                    Array.Empty<ViewRow>(),
-                    row?.Fold ?? "none"));
+                if (framesRead.Count == 0) continue;   // 空脊梁：继续尝试下一个 spine
+                spineChosen = true;
+                foreach (var frame in framesRead) spineFrames.Add((source, frame));
+                continue;                              // 补位源仍需读取合并
             }
+
+            // supplement：始终合并（去重/归位），不参与首非空短路。
+            foreach (var frame in framesRead) supplementFrames.Add((source, frame));
         }
 
+        // 去重：spine 优先；补位仅补齐 spine 未覆盖的帧（键 = 类别+轮次+域内序）。
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var collected = new List<(ReadSource Source, ViewFrame Frame)>(spineFrames.Count + supplementFrames.Count);
+        foreach (var entry in spineFrames)
+        {
+            if (seen.Add(FrameKey(entry.Frame))) collected.Add(entry);
+        }
+        foreach (var entry in supplementFrames)
+        {
+            if (seen.Add(FrameKey(entry.Frame))) collected.Add(entry);
+        }
+
+        // 终答候选：terminal=true 且满足 Authority + Eligible；Select 顺序即优先级（同级 last-wins）。
+        var answer = plan.Answer;
+        var candidates = collected
+            .Where(entry => IsTerminalCandidate(answer, entry.Frame))
+            .OrderBy(entry => SelectRank(answer, entry.Frame.Kind))
+            .ThenByDescending(entry => entry.Frame.Round)
+            .ThenByDescending(entry => entry.Frame.Seq)
+            .ToList();
+        var winner = candidates.Count > 0 ? candidates[0] : default;
+        var answered = candidates.Count > 0;
+
+        var rows = new List<ViewRow>(collected.Count);
+        var hasAnchorAlways = false;
+        var hasAnchorIfAnswer = false;
+
+        foreach (var entry in collected)
+        {
+            var frame = entry.Frame;
+            var source = entry.Source;
+            frames.TryGet(frame.Kind, out var row);
+
+            // 锚点能力由读源声明（AnchorCapable）与帧锚点策略共同决定；
+            // IfAnswer 仅在存在合格终答时才算锚点（否则过程行不得铺成气泡）。
+            if (source.AnchorCapable)
+            {
+                if (row?.Anchor is AnchorPolicy.Always) hasAnchorAlways = true;
+                else if (row?.Anchor is AnchorPolicy.IfAnswer) hasAnchorIfAnswer = true;
+            }
+
+            var isWinner = winner.Frame is not null
+                && winner.Source.Domain == source.Domain
+                && FrameKey(winner.Frame) == FrameKey(frame);
+            var presentation = isWinner && !string.IsNullOrWhiteSpace(answer.TerminalPresentation)
+                ? answer.TerminalPresentation
+                : frame.Presentation ?? row?.Presentation ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(presentation))
+            {
+                // 未声明呈现 ⇒ 可见占位（禁静默丢行/静默取默认）。
+                meta[$"unknown-kind.{frame.Kind}"] = "presentation-missing";
+                presentation = "unknown";
+            }
+
+            rows.Add(new ViewRow(
+                $"{source.Domain}:{frame.Round}:{frame.Seq}:{frame.Kind}",
+                frame.Kind,
+                presentation,
+                frame.Text,
+                frame.Round,
+                Array.Empty<ViewRow>(),
+                row?.Fold ?? "none"));
+        }
+
+        var sawFrame = collected.Count > 0;
+        var hasAnchor = hasAnchorAlways || (answered && hasAnchorIfAnswer);
         var ordered = rows.OrderBy(static r => r.Round).ToArray();
         var status = answered
             ? AnswerStatus.Answered
             : !sawFrame && unavailable > 0
                 ? AnswerStatus.Unknown
                 : !sawFrame
-                    ? plan.Answer.Absent
+                    ? answer.Absent
                     : hasAnchor
                         ? AnswerStatus.NoAnswer
                         : AnswerStatus.ProcessOnly;
 
         return new ViewSnapshot(query.View, status, ordered, meta, plan.Fingerprint);
+    }
+
+    private static string FrameKey(ViewFrame frame)
+        => $"{frame.Kind}\u001F{frame.Round}\u001F{frame.Seq}";
+
+    /// <summary>终答资格：terminal=true 且权威级允许、帧类别可投影。</summary>
+    private static bool IsTerminalCandidate(AnswerRule rule, ViewFrame frame)
+        => frame.Terminal is true
+           && IsAuthorityAllowed(rule, frame)
+           && (rule.Eligible.Count == 0 || rule.Eligible.Contains(frame.Kind, StringComparer.Ordinal));
+
+    /// <summary>权威级：规则未声明 ⇒ 不限制；声明后帧缺权威事实 ⇒ 不合格（未知不冒充合格）。</summary>
+    private static bool IsAuthorityAllowed(AnswerRule rule, ViewFrame frame)
+    {
+        if (rule.Authority.Count == 0) return true;
+        var authority = ReadAuthority(frame);
+        return !string.IsNullOrWhiteSpace(authority)
+               && rule.Authority.Contains(authority, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string? ReadAuthority(ViewFrame frame)
+    {
+        if (frame.Fields is null) return null;
+        if (frame.Fields.TryGetValue("authority", out var lower)) return lower;
+        return frame.Fields.TryGetValue("Authority", out var upper) ? upper : null;
+    }
+
+    /// <summary>选择优先级：Select 顺序即优先级；未列出的合格帧排最后（仍可被选中）。</summary>
+    private static int SelectRank(AnswerRule rule, string kind)
+    {
+        for (var index = 0; index < rule.Select.Count; index++)
+        {
+            if (string.Equals(rule.Select[index], kind, StringComparison.Ordinal)) return index;
+        }
+
+        return int.MaxValue;
     }
 }

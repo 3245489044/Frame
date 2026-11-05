@@ -11,7 +11,11 @@ public readonly record struct CacheHitResult(bool Observed, double? Ratio, strin
 /// <summary>命中核算（纯函数；口径唯一，禁平行实现）。</summary>
 public static class CacheHitAccounting
 {
-    /// <summary>比率 = cacheRead / 估计前缀 token（夹在 [0,1]）；任一缺失 ⇒ 显式 Unknown。</summary>
+    /// <summary>
+    /// 比率 = cacheRead / 估计前缀 token（不夹取）；任一缺失 ⇒ 显式 Unknown。
+    /// <para>区分三种"未知"（ContextGeometry.md §4.4，原 :24 Clamp 把"估计偏小"伪造成满命中）：
+    /// 用量缺失 = 未观测；估计缺失 = 已观测但不可算；比率 &gt; 1 = 估计失真（显式诊断，不压成 1）。</para>
+    /// </summary>
     public static CacheHitResult Evaluate(CacheUsageSample sample, int estimatedPrefixTokens)
     {
         if (sample.CacheReadTokens is null)
@@ -21,7 +25,8 @@ public static class CacheHitAccounting
         if (estimatedPrefixTokens <= 0)
             return new CacheHitResult(true, null, GeometryDiagnostics.EstimateMissing);
 
-        var ratio = Math.Clamp((double)read / estimatedPrefixTokens, 0d, 1d);
-        return new CacheHitResult(true, ratio, "ok");
+        var ratio = (double)read / estimatedPrefixTokens;
+        var code = ratio > 1d ? GeometryDiagnostics.RatioOverflow : "ok";
+        return new CacheHitResult(true, ratio, code);
     }
 }

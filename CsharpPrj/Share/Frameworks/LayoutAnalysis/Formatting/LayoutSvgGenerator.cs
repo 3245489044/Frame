@@ -103,30 +103,56 @@ namespace Modules.LayoutAnalysis.Formatting
                 list.Add(e.From);
             }
 
-            // 最长路径分层：layer[n]=0，若无入边；否则 max(layer[p]+1)。DAG 下迭代松弛收敛。
+            // 最长路径分层（Kahn 拓扑序 + 环兜底）：
+            // 入度 0 的节点出队时其全部父节点已定层，layer[n]=max(layer[p]+1) 一次算定，DAG 下 O(V+E)；
+            // 原 while(changed) 松弛在含环图上每轮仍有节点增长、永不收敛（LayoutAnalysis.md §4.1，原 :110-130）。
+            // 环上残留节点（Kahn 无法出队）统一落到"已定层最大层 +1"的尾带，保证终止且布局确定。
             var layer = new Dictionary<string, int>();
-            foreach (var n in nodeKeys) layer[n] = 0;
+            var layerIndegree = new Dictionary<string, int>();
+            var layerOut = new Dictionary<string, List<string>>();
+            foreach (var n in nodeKeys)
             {
-                bool changed = true;
-                while (changed)
+                layerIndegree[n] = 0;
+                layerOut[n] = new List<string>();
+            }
+            foreach (var e in edges)
+            {
+                if (e.From == e.To) continue; // 自环不计入入度（仍作为边绘制），否则该节点永不出队
+                layerIndegree[e.To] = layerIndegree.TryGetValue(e.To, out var d) ? d + 1 : 1;
+                layerOut[e.From].Add(e.To);
+            }
+
+            var layerQueue = new Queue<string>();
+            foreach (var n in nodeKeys)
+                if (layerIndegree[n] == 0) layerQueue.Enqueue(n);
+
+            int resolved = 0;
+            while (layerQueue.Count > 0)
+            {
+                var n = layerQueue.Dequeue();
+                int best = -1;
+                if (fromMap.TryGetValue(n, out var parents))
+                    foreach (var p in parents)
+                        if (layer.TryGetValue(p, out var pl) && pl > best) best = pl;
+                layer[n] = best + 1;
+                resolved++;
+                foreach (var to in layerOut[n])
                 {
-                    changed = false;
-                    foreach (var n in nodeKeys)
+                    if (layerIndegree.TryGetValue(to, out var d2) && d2 > 0)
                     {
-                        int best = -1;
-                        if (fromMap.TryGetValue(n, out var parents))
-                        {
-                            foreach (var p in parents)
-                                if (layer[p] > best) best = layer[p];
-                        }
-                        int target = best + 1;
-                        if (target > layer[n])
-                        {
-                            layer[n] = target;
-                            changed = true;
-                        }
+                        d2--;
+                        layerIndegree[to] = d2;
+                        if (d2 == 0) layerQueue.Enqueue(to);
                     }
                 }
+            }
+
+            if (resolved < nodeKeys.Count)
+            {
+                // 含环（或自环）：剩余节点按确定顺序落入尾带，不再迭代，杜绝死循环。
+                int trailing = layer.Count == 0 ? 0 : layer.Values.Max() + 1;
+                foreach (var n in nodeKeys)
+                    if (!layer.ContainsKey(n)) layer[n] = trailing;
             }
 
             // 按层分组

@@ -21,14 +21,12 @@ public static class CircuitEngine
     /// 执行已编译电路。外部输入按 Entry 端口名提供，返回按 Exit 端口名收集的结果。
     /// </summary>
     /// <param name="resolveNode">按节点 Kind 解析黑盒实现。</param>
-    /// <param name="skeleton">兼容参数（旧 StagePipeline 注入点）；执行体已统一到 BlockPipeline，本参数不再参与执行。</param>
     public static async Task<IReadOnlyDictionary<string, object?>> ExecuteAsync(
         Circuit circuit,
         ExecutionPlan plan,
         Func<string, ICircuitNode> resolveNode,
         IReadOnlyDictionary<string, object?>? entryInputs = null,
-        CancellationToken cancellationToken = default,
-        StagePipeline<PipelineContext>? skeleton = null)
+        CancellationToken cancellationToken = default)
     {
         var index = plan.Index ?? CircuitRuntimeIndex.Build(circuit);
         var context = new BlockContext(cancellationToken);

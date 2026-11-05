@@ -35,6 +35,11 @@
     <!-- 通用并发策略内核（Modules\Foundations\Concurrency，L1、BCL-only）：复杂度/拆分/成本门禁/组键/成本记账；
          价格/容量/成本账经端口反转由宿主注入（零 Frame 依赖） -->
     <ProjectReference Include="$(Proj_Concurrency)" />
+    <!-- 路径边界校验内核（Modules\Foundations\PathBoundary，L1、BCL-only）：允许根包含 / 拒绝段匹配统一为路径段模型 -->
+    <ProjectReference Include="$(Proj_PathBoundary)" />
+    <!-- 通用压力口径内核（Modules\Foundations\Regulation，L1、BCL-only）：上下文估算/EWMA/三维压力/
+         迟滞/标量归一/跨轮进度追踪；零 ProjectReference，纯数值单源 -->
+    <ProjectReference Include="$(Proj_Regulation)" />
     <!-- 契约框架（Modules\Foundations\ContractFramework，BCL-only）：契约身份/注册/对账/执行/取证内核 -->
     <ProjectReference Include="$(Proj_ContractFramework)" />
     <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
@@ -66,6 +71,10 @@
     <ProjectReference Include="$(Proj_Wiring)" />
     <ProjectReference Include="$(Proj_ValidationFramework)" />
     <ProjectReference Include="$(Proj_Observe)" />
+    <!-- 信号词表/判定/状态机内核（Modules\Frameworks\Signal，BCL-only，命名空间 Share.Signal 兼容既有消费端） -->
+    <ProjectReference Include="$(Proj_Modules_Frameworks_Signal)" />
+    <!-- 消息生命周期迁移表（Modules\Frameworks\Messaging，BCL-only，命名空间 Share.Messaging 兼容既有消费端） -->
+    <ProjectReference Include="$(Proj_Modules_Frameworks_Messaging)" />
     <!-- 同步协议 MVP（Modules\Frameworks\Sync）：协议 v1 契约 + 进程内三端环路；下游仅经本聚合工程消费 -->
     <ProjectReference Include="$(Proj_Sync)" />
   </ItemGroup>
@@ -75,6 +84,8 @@
     <Compile Remove="Data\ComponentData\**\*.cs" />
     <Compile Remove="Foundations\Compute\**\*.cs" />
     <Compile Remove="Foundations\Concurrency\**\*.cs" />
+    <Compile Remove="Foundations\PathBoundary\**\*.cs" />
+    <Compile Remove="Foundations\Regulation\**\*.cs" />
     <Compile Remove="Foundations\ContractFramework\**\*.cs" />
     <Compile Remove="Data\DeclarativeDataflow\**\*.cs" />
     <Compile Remove="Foundations\DiagnosticContext\**\*.cs" />
@@ -98,6 +109,8 @@
     <Compile Remove="Frameworks\ValidationFramework\**\*.cs" />
     <Compile Remove="Frameworks\EventFramework\**\*.cs" />
     <Compile Remove="Frameworks\Observe\**\*.cs" />
+    <Compile Remove="Frameworks\Signal\**\*.cs" />
+    <Compile Remove="Frameworks\Messaging\**\*.cs" />
     <Compile Remove="Frameworks\Sync\**\*.cs" />
   </ItemGroup>
 

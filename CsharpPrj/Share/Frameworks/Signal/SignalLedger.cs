@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Share.Foundations.Diagnostics;
@@ -37,8 +36,7 @@ public class SignalLedger<TRecord> where TRecord : ITaskPoolItem
             if (record is not null)
             {
                 var state = record.State;
-                if (state is SignalState.Completed or SignalState.Cancelled or SignalState.Expired or SignalState.DeadLetter)
-                    return new SignalAdmitResult(false, true, record.Id, key, state, record.Attempt);
+                // 单一判定：非 Failed（含全部终态）⇒ 去重命中；仅 Failed 进入重试预算。
                 if (state is not SignalState.Failed)
                     return new SignalAdmitResult(false, true, record.Id, key, state, record.Attempt);
                 if (record.Attempt >= _options.MaxAttempts)
@@ -53,13 +51,22 @@ public class SignalLedger<TRecord> where TRecord : ITaskPoolItem
                 await SaveAsync(existing, record.With(SignalState.Accepted, nextAttempt, null, 0), ct).ConfigureAwait(false);
                 return new SignalAdmitResult(true, false, record.Id, key, SignalState.Accepted, nextAttempt);
             }
-            return new SignalAdmitResult(false, true, id, key, SignalState.Accepted, 0);
+
+            // 载荷损坏/未知状态：可见化后覆盖为新 Accepted（可重新进入扫描），不静默判重。
+            _diagnostics.Report("SignalLedger_corrupt", new { key = key.Value, ledgerId = LedgerId(key) });
+            var fresh = new SignalLedgerRecord(id, key, SignalState.Accepted, 0, null,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), envelope, 0);
+            await SaveAsync(existing, fresh, ct).ConfigureAwait(false);
+            return new SignalAdmitResult(true, false, id, key, SignalState.Accepted, 0);
         }
 
-        var item = NewItem(envelope, key, id, SignalState.Accepted, 0, null);
+        // E11/Created 可达：先以 Created 落库（enqueue），再在同一接纳流程内保存为 Accepted。
+        var created = new SignalLedgerRecord(id, key, SignalState.Created, 0, null,
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), envelope, 0);
+        var item = NewItem(created, envelope);
         await _store.EnqueueAsync(item, ct).ConfigureAwait(false);
-        Trace(new SignalLedgerRecord(id, key, SignalState.Created, 0, null,
-            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), envelope, 0), SignalState.Accepted, 0, null);
+        Trace(created, SignalState.Accepted, 0, null);
+        await SaveAsync(item, created.With(SignalState.Accepted, 0, null, 0), ct).ConfigureAwait(false);
         return new SignalAdmitResult(true, false, id, key, SignalState.Accepted, 0);
     }
 
@@ -100,7 +107,7 @@ public class SignalLedger<TRecord> where TRecord : ITaskPoolItem
         if (item is null) return false;
         var record = SignalLedgerRecord.Parse(_codec.ReadPayload(item));
         if (record is null) return false;
-        if (record.State is SignalState.Completed or SignalState.Cancelled or SignalState.Expired or SignalState.DeadLetter)
+        if (SignalStateNames.IsTerminal(record.State))
             return false;
         var terminal = SignalOutcomes.ToState(outcome);
         if (!SignalStateMachine.CanTransition(record.State, terminal))
@@ -123,7 +130,9 @@ public class SignalLedger<TRecord> where TRecord : ITaskPoolItem
         var now = nowMs ?? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var changes = new List<SignalSweepChange>();
         var deleted = 0;
-        var items = await _store.ListAsync(TaskExecutionStatus.NotStarted, 500, ct).ConfigureAwait(false);
+        var items = await _store.ListAsync(TaskExecutionStatus.NotStarted, _options.ScanLimit, ct).ConfigureAwait(false);
+        if (items.Count == _options.ScanLimit)
+            _diagnostics.Report("SignalLedger_scan_truncated", new { operation = "sweep", limit = _options.ScanLimit });
         foreach (var item in items)
         {
             var record = SignalLedgerRecord.Parse(_codec.ReadPayload(item));
@@ -134,7 +143,7 @@ public class SignalLedger<TRecord> where TRecord : ITaskPoolItem
                     changes.Add(new SignalSweepChange(record.Key, SignalState.Expired));
                 continue;
             }
-            if (record.State is SignalState.Dispatched or SignalState.Claimed or SignalState.Running
+            if (SignalStateNames.IsInFlight(record.State)
                 && record.LeaseExpiresAt > 0 && now >= record.LeaseExpiresAt)
             {
                 var target = record.State == SignalState.Dispatched ? SignalState.Expired : SignalState.Failed;
@@ -156,7 +165,9 @@ public class SignalLedger<TRecord> where TRecord : ITaskPoolItem
     public async Task<IReadOnlyList<PendingSignal>> ListPendingAsync(
         string? scope, string? coalesceKey, CancellationToken ct = default)
     {
-        var items = await _store.ListAsync(TaskExecutionStatus.NotStarted, 500, ct).ConfigureAwait(false);
+        var items = await _store.ListAsync(TaskExecutionStatus.NotStarted, _options.ScanLimit, ct).ConfigureAwait(false);
+        if (items.Count == _options.ScanLimit)
+            _diagnostics.Report("SignalLedger_scan_truncated", new { operation = "list_pending", limit = _options.ScanLimit });
         var result = new List<PendingSignal>();
         foreach (var item in items)
         {
@@ -175,18 +186,20 @@ public class SignalLedger<TRecord> where TRecord : ITaskPoolItem
     public async Task<bool> HasInFlightAsync(SignalKey key, CancellationToken ct = default)
     {
         var record = await GetAsync(key, ct).ConfigureAwait(false);
-        return record is not null && record.State is SignalState.Dispatched or SignalState.Claimed or SignalState.Running;
+        return record is not null && SignalStateNames.IsInFlight(record.State);
     }
 
     public async Task<IReadOnlyList<SignalLedgerRecord>> ListInFlightAsync(CancellationToken ct = default)
     {
-        var items = await _store.ListAsync(TaskExecutionStatus.NotStarted, 500, ct).ConfigureAwait(false);
+        var items = await _store.ListAsync(TaskExecutionStatus.NotStarted, _options.ScanLimit, ct).ConfigureAwait(false);
+        if (items.Count == _options.ScanLimit)
+            _diagnostics.Report("SignalLedger_scan_truncated", new { operation = "list_in_flight", limit = _options.ScanLimit });
         var result = new List<SignalLedgerRecord>();
         foreach (var item in items)
         {
             var record = SignalLedgerRecord.Parse(_codec.ReadPayload(item));
             if (record is null) continue;
-            if (record.State is SignalState.Dispatched or SignalState.Claimed or SignalState.Running)
+            if (SignalStateNames.IsInFlight(record.State))
                 result.Add(record);
         }
         return result;
@@ -198,13 +211,8 @@ public class SignalLedger<TRecord> where TRecord : ITaskPoolItem
     public static SignalKey KeyOf(SignalEnvelope envelope)
         => SignalKey.Of(envelope.Scope, envelope.Target, SignalKinds.Normalize(envelope.Kind));
 
-    private TRecord NewItem(SignalEnvelope envelope, SignalKey key, SignalId id,
-        SignalState state, int attempt, string? leaseId)
-    {
-        var record = new SignalLedgerRecord(id, key, state, attempt, leaseId,
-            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), envelope, 0);
-        return _codec.Create(LedgerId(key), record.ToText(), envelope, envelope.Priority, _options.SignalExecutorId);
-    }
+    private TRecord NewItem(SignalLedgerRecord record, SignalEnvelope envelope)
+        => _codec.Create(LedgerId(record.Key), record.ToText(), envelope, envelope.Priority, _options.SignalExecutorId);
 
     private Task SaveAsync(TRecord item, SignalLedgerRecord record, CancellationToken ct)
     {
@@ -230,11 +238,37 @@ public class SignalLedger<TRecord> where TRecord : ITaskPoolItem
     public static string LedgerId(SignalKey key)
         => $"sigledger_{Slug(key.Scope)}_{Slug(key.Target)}_{Slug(key.Kind)}";
 
+    /// <summary>
+    /// 账本主键片段清洗：字母数字原样保留（常见 ≤32 位纯字母数字 key 的 LedgerId 保持不变，
+    /// 避免已有持久化键失配）；其它字符编码为 <c>~</c> + 4 位十六进制（UTF-16 码元），
+    /// 使 "task-a" 与 "taska" 不再撞键。超长时保留前 32 字符 + <c>~</c> + 稳定哈希（FNV-1a 64）。
+    /// </summary>
     private static string Slug(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return "x";
-        var chars = value.Where(char.IsLetterOrDigit).Take(32).ToArray();
-        return chars.Length == 0 ? "x" : new string(chars);
+        var sb = new System.Text.StringBuilder(value.Length);
+        foreach (var c in value)
+        {
+            if (char.IsLetterOrDigit(c)) sb.Append(c);
+            else sb.Append('~').Append(((int)c).ToString("x4"));
+        }
+
+        var slug = sb.ToString();
+        if (slug.Length == 0) return "x";
+        return slug.Length <= 32 ? slug : slug.Substring(0, 32) + "~" + StableHash(value);
+    }
+
+    private static string StableHash(string value)
+    {
+        const ulong offset = 14695981039346656037UL;
+        const ulong prime = 1099511628211UL;
+        var hash = offset;
+        foreach (var c in value)
+        {
+            hash ^= c;
+            hash *= prime;
+        }
+        return hash.ToString("x16");
     }
 }
 

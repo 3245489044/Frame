@@ -98,7 +98,8 @@ public static class RenderSurfaceCatalog
         }
 
         var declared = new List<RenderSurface>(Order.Count);
-        foreach (var spec in regions.Surfaces.Where(spec => spec.Enabled)
+        var explicitlyDeclared = new HashSet<RenderSurface>();
+        foreach (var spec in regions.Surfaces
                      .OrderBy(spec => spec.Order)
                      .ThenBy(spec => spec.Band))
         {
@@ -108,12 +109,17 @@ public static class RenderSurfaceCatalog
                 continue;
             }
 
+            // 显式声明（无论启用/禁用）都记账：禁用的面不得在末尾被结构序补回。
+            explicitlyDeclared.Add(surface);
+            if (!spec.Enabled) continue;
+
             if (!declared.Contains(surface)) declared.Add(surface);
         }
 
+        // 只有「完全未登记」的面才按结构序补在末尾；显式 enabled=false 保持裁剪。
         foreach (var surface in Order)
         {
-            if (!declared.Contains(surface)) declared.Add(surface);
+            if (!declared.Contains(surface) && !explicitlyDeclared.Contains(surface)) declared.Add(surface);
         }
 
         return declared;

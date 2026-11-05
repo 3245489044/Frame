@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-05 13:52:09
+  生成时间: 2026-11-06 00:10:19
 -->
 <Project>
 
@@ -49,6 +49,7 @@
     <Mod_ComponentData>$(CsharpPrjDir)Modules\Data\ComponentData\</Mod_ComponentData>
     <Mod_Compute>$(CsharpPrjDir)Modules\Foundations\Compute\</Mod_Compute>
     <Mod_Concurrency>$(CsharpPrjDir)Modules\Foundations\Concurrency\</Mod_Concurrency>
+    <Mod_PathBoundary>$(CsharpPrjDir)Modules\Foundations\PathBoundary\</Mod_PathBoundary>
     <Mod_ContractFramework>$(CsharpPrjDir)Modules\Foundations\ContractFramework\</Mod_ContractFramework>
     <Mod_DeclarativeDataflow>$(CsharpPrjDir)Modules\Data\DeclarativeDataflow\</Mod_DeclarativeDataflow>
     <Mod_DiagnosticContext>$(CsharpPrjDir)Modules\Foundations\DiagnosticContext\</Mod_DiagnosticContext>
@@ -66,6 +67,8 @@
     <Mod_PluginHost>$(CsharpPrjDir)Modules\Orchestration\PluginHost\</Mod_PluginHost>
     <Mod_MetaCommand>$(CsharpPrjDir)Modules\Composition\MetaCommand\</Mod_MetaCommand>
     <Mod_Modules>$(CsharpPrjDir)Modules\</Mod_Modules>
+    <Mod_Modules_Frameworks_Messaging>$(CsharpPrjDir)Modules\Frameworks\Messaging\</Mod_Modules_Frameworks_Messaging>
+    <Mod_Modules_Frameworks_Signal>$(CsharpPrjDir)Modules\Frameworks\Signal\</Mod_Modules_Frameworks_Signal>
     <Mod_Node>$(CsharpPrjDir)Modules\Data\Node\</Mod_Node>
     <Mod_Observe>$(CsharpPrjDir)Modules\Frameworks\Observe\</Mod_Observe>
     <Mod_ParameterResolver>$(CsharpPrjDir)Modules\Composition\ParameterResolver\</Mod_ParameterResolver>
@@ -73,6 +76,7 @@
     <Mod_Parsing_Keys>$(CsharpPrjDir)Modules\Data\Parsing\Keys\</Mod_Parsing_Keys>
     <Mod_Pipeline>$(CsharpPrjDir)Modules\Composition\Pipeline\</Mod_Pipeline>
     <Mod_Registry>$(CsharpPrjDir)Modules\Composition\Registry\</Mod_Registry>
+    <Mod_Regulation>$(CsharpPrjDir)Modules\Foundations\Regulation\</Mod_Regulation>
     <Mod_Sync>$(CsharpPrjDir)Modules\Frameworks\Sync\</Mod_Sync>
     <Mod_Threading>$(CsharpPrjDir)Modules\Foundations\Threading\</Mod_Threading>
     <Mod_ValidationFramework>$(CsharpPrjDir)Modules\Frameworks\ValidationFramework\</Mod_ValidationFramework>
@@ -182,6 +186,7 @@
     <Proj_ComponentData>$(CsharpPrjDir)Modules\Data\ComponentData\ComponentData.csproj</Proj_ComponentData>
     <Proj_Compute>$(CsharpPrjDir)Modules\Foundations\Compute\Compute.csproj</Proj_Compute>
     <Proj_Concurrency>$(CsharpPrjDir)Modules\Foundations\Concurrency\Concurrency.csproj</Proj_Concurrency>
+    <Proj_PathBoundary>$(CsharpPrjDir)Modules\Foundations\PathBoundary\PathBoundary.csproj</Proj_PathBoundary>
     <Proj_ContractFramework>$(CsharpPrjDir)Modules\Foundations\ContractFramework\ContractFramework.csproj</Proj_ContractFramework>
     <Proj_DeclarativeDataflow>$(CsharpPrjDir)Modules\Data\DeclarativeDataflow\DeclarativeDataflow.csproj</Proj_DeclarativeDataflow>
     <Proj_DiagnosticContext>$(CsharpPrjDir)Modules\Foundations\DiagnosticContext\DiagnosticContext.csproj</Proj_DiagnosticContext>
@@ -199,6 +204,8 @@
     <Proj_PluginHost>$(CsharpPrjDir)Modules\Orchestration\PluginHost\PluginHost.csproj</Proj_PluginHost>
     <Proj_MetaCommand>$(CsharpPrjDir)Modules\Composition\MetaCommand\MetaCommand.csproj</Proj_MetaCommand>
     <Proj_Modules>$(CsharpPrjDir)Modules\Modules.csproj</Proj_Modules>
+    <Proj_Modules_Frameworks_Messaging>$(CsharpPrjDir)Modules\Frameworks\Messaging\Modules.Frameworks.Messaging.csproj</Proj_Modules_Frameworks_Messaging>
+    <Proj_Modules_Frameworks_Signal>$(CsharpPrjDir)Modules\Frameworks\Signal\Modules.Frameworks.Signal.csproj</Proj_Modules_Frameworks_Signal>
     <Proj_Node>$(CsharpPrjDir)Modules\Data\Node\Modules.Node.csproj</Proj_Node>
     <Proj_Observe>$(CsharpPrjDir)Modules\Frameworks\Observe\Observe.csproj</Proj_Observe>
     <Proj_ParameterResolver>$(CsharpPrjDir)Modules\Composition\ParameterResolver\ParameterResolver.csproj</Proj_ParameterResolver>
@@ -206,6 +213,7 @@
     <Proj_Parsing_Keys>$(CsharpPrjDir)Modules\Data\Parsing\Keys\Modules.Parsing.Keys.csproj</Proj_Parsing_Keys>
     <Proj_Pipeline>$(CsharpPrjDir)Modules\Composition\Pipeline\Pipeline.csproj</Proj_Pipeline>
     <Proj_Registry>$(CsharpPrjDir)Modules\Composition\Registry\Registry.csproj</Proj_Registry>
+    <Proj_Regulation>$(CsharpPrjDir)Modules\Foundations\Regulation\Regulation.csproj</Proj_Regulation>
     <Proj_Sync>$(CsharpPrjDir)Modules\Frameworks\Sync\Sync.csproj</Proj_Sync>
     <Proj_Threading>$(CsharpPrjDir)Modules\Foundations\Threading\Threading.csproj</Proj_Threading>
     <Proj_ValidationFramework>$(CsharpPrjDir)Modules\Frameworks\ValidationFramework\ValidationFramework.csproj</Proj_ValidationFramework>

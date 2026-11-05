@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Modules.Node;
 
 namespace Share.NodeIo;
 
@@ -11,14 +12,9 @@ public static class NodeDocumentPatcher
         reason = string.Empty;
         if (patches is not { Count: > 0 }) { reason = "patch-empty"; return false; }
 
-        JsonNode? root;
-        try
+        if (!NodeJson.TryParse(json, out var root, out var parseError))
         {
-            root = JsonNode.Parse(json);
-        }
-        catch (System.Text.Json.JsonException ex)
-        {
-            reason = "payload-not-json:" + ex.Message;
+            reason = "payload-not-json:" + parseError;
             return false;
         }
 
@@ -31,7 +27,7 @@ public static class NodeDocumentPatcher
             document = next;
         }
 
-        result = document.ToJsonString();
+        result = NodeJson.ToCompact(document);
         return true;
     }
 
@@ -44,7 +40,7 @@ public static class NodeDocumentPatcher
         if (segments.Length == 0)
         {
             if (patch.Op != NodePatchOp.Set || patch.ValueJson is null) { reason = "patch-root-op"; return false; }
-            var parsed = JsonNode.Parse(patch.ValueJson);
+            if (!TryParseValue(patch.ValueJson, out var parsed, out reason)) return false;
             if (parsed is null) { reason = "patch-value-null"; return false; }
             result = parsed;
             return true;
@@ -71,7 +67,8 @@ public static class NodeDocumentPatcher
                 return true;
             case NodePatchOp.Merge:
             {
-                if (JsonNode.Parse(patch.ValueJson ?? "null") is not JsonObject incoming)
+                if (!TryParseValue(patch.ValueJson ?? "null", out var incomingNode, out reason)) return false;
+                if (incomingNode is not JsonObject incoming)
                 { reason = "patch-merge-value-not-object"; return false; }
                 if (target[leaf] is not JsonObject existing)
                 { target[leaf] = incoming.DeepClone(); return true; }
@@ -81,14 +78,14 @@ public static class NodeDocumentPatcher
             case NodePatchOp.Append:
             {
                 if (target[leaf] is not JsonArray array) { array = new JsonArray(); target[leaf] = array; }
-                var value = JsonNode.Parse(patch.ValueJson ?? "null");
-                if (value is null) { reason = "patch-value-null"; return false; }
+                if (!TryParseValue(patch.ValueJson ?? "null", out var value, out reason)) return false;
                 array.Add(value);
                 return true;
             }
             default:
                 if (patch.ValueJson is null) { reason = "patch-value-missing"; return false; }
-                target[leaf] = JsonNode.Parse(patch.ValueJson);
+                if (!TryParseValue(patch.ValueJson, out var parsed, out reason)) return false;
+                target[leaf] = parsed;
                 return true;
         }
     }
@@ -106,8 +103,7 @@ public static class NodeDocumentPatcher
                 return true;
             case NodePatchOp.Append:
             {
-                var appended = JsonNode.Parse(patch.ValueJson ?? "null");
-                if (appended is null) { reason = "patch-value-null"; return false; }
+                if (!TryParseValue(patch.ValueJson ?? "null", out var appended, out reason)) return false;
                 target.Add(appended);
                 return true;
             }
@@ -117,13 +113,26 @@ public static class NodeDocumentPatcher
             default:
             {
                 if (patch.ValueJson is null) { reason = "patch-value-missing"; return false; }
-                var value = JsonNode.Parse(patch.ValueJson);
+                if (!TryParseValue(patch.ValueJson, out var value, out reason)) return false;
                 if (index == target.Count) { target.Add(value); return true; }
                 if (index > target.Count) { reason = "patch-array-index-invalid"; return false; }
                 target[index] = value;
                 return true;
             }
         }
+    }
+
+    /// <summary>补丁值解析（宽容度与框架解析单源一致；非法 JSON ⇒ false + 原因，禁异常穿透）。</summary>
+    private static bool TryParseValue(string json, out JsonNode? node, out string reason)
+    {
+        if (NodeJson.TryParse(json, out node, out var error))
+        {
+            reason = string.Empty;
+            return true;
+        }
+
+        reason = "patch-value-not-json:" + error;
+        return false;
     }
 
     private static JsonNode? Traverse(JsonNode current, string[] segments, bool create, out string reason)

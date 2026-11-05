@@ -74,6 +74,8 @@ public static class FactPayload
         {
             JsonValueKind.True => true,
             JsonValueKind.False => false,
+            // 数字布尔（0/1 及 0.0/非零）：ok:0 必须读成 false，不得回落到缺省（缺省为 true）。
+            JsonValueKind.Number when element.TryGetDouble(out var number) => number != 0d,
             JsonValueKind.String when bool.TryParse(element.GetString(), out var parsed) => parsed,
             _ => (bool?)null,
         }) ?? fallback;

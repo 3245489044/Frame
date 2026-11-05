@@ -59,6 +59,13 @@ public sealed class LogicalBoundaryConfig
     /// <summary>触发边界重构的压力阈值（Score ≥ 该值即 Triggered，作为迟滞触发档 engage）。</summary>
     public double ReconstructThreshold { get; set; } = 0.8;
 
+    /// <summary>上下文压力维度的独立阈值（0~1；≤0 时回退 <see cref="ReconstructThreshold"/>）。
+    /// 三量纲不得共用一个阈值（ObjectiveBoundary.md §4.1）：上下文/复杂度是压力（越大越坏），信息增益是速率（越小越坏）。</summary>
+    public double ContextThreshold { get; set; } = 0d;
+
+    /// <summary>复杂度压力维度的独立阈值（0~1；≤0 时回退 <see cref="ReconstructThreshold"/>）。</summary>
+    public double ComplexityThreshold { get; set; } = 0d;
+
     /// <summary>迟滞复位阈值（release）：刚重构后 Score 需回落到该值以下才解除迟滞，
     /// 允许再次触发；否则抑制重构后立刻再次触发（防打转，每次重构有 token 成本）。默认 0.6。</summary>
     public double HysteresisReleaseThreshold { get; set; } = 0.6;

@@ -25,15 +25,24 @@ public class SignalLedgerSweep<TRecord> where TRecord : ITaskPoolItem
 
     public async Task<SignalSweepResult> RunAsync(long? nowMs = null, CancellationToken ct = default)
     {
-        if (!_enabled())
+        try
         {
-            _diagnostics.Report("SignalLedgerSweep_skipped", new { reason = "Signal.SweepEnabled=false" });
+            if (!_enabled())
+            {
+                _diagnostics.Report("SignalLedgerSweep_skipped", new { reason = "Signal.SweepEnabled=false" });
+                return new SignalSweepResult(Array.Empty<SignalSweepChange>(), 0);
+            }
+
+            var result = await _ledger.SweepAsync(nowMs, ct).ConfigureAwait(false);
+            foreach (var change in result.Changes)
+                _observer.RecordState(change.Key.Scope, change.Key, change.State);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            // 扫掠是清理动作：失败只可见化，不向上抛、不阻断接纳。
+            _diagnostics.Report("SignalLedgerSweep_failed", ex.Message);
             return new SignalSweepResult(Array.Empty<SignalSweepChange>(), 0);
         }
-
-        var result = await _ledger.SweepAsync(nowMs, ct).ConfigureAwait(false);
-        foreach (var change in result.Changes)
-            _observer.RecordState(change.Key.Scope, change.Key, change.State);
-        return result;
     }
 }

@@ -28,6 +28,22 @@ public sealed record NodePlacementResult(
     CarrierWriteStatus? Status,
     string? Reason);
 
+/// <summary>
+/// 读-改-写结果：<see cref="Ok"/> 时 <see cref="Json"/> 为变换后的载荷；
+/// 否则 <see cref="Reason"/> 进入位置结果、<see cref="DiagnosticCode"/> 进入诊断（缺省 <c>write.mutation-rejected</c>）。
+/// </summary>
+public sealed record NodePlacementMutation(
+    bool Ok,
+    string? Json = null,
+    string? Reason = null,
+    string? DiagnosticCode = null)
+{
+    public static NodePlacementMutation Accept(string json) => new(true, json);
+
+    public static NodePlacementMutation Reject(string? reason, string? diagnosticCode = null)
+        => new(false, null, reason, diagnosticCode);
+}
+
 public sealed record NodeMaterializationResult(
     MaterializeStatus Status,
     string Key,
@@ -235,9 +251,41 @@ public sealed class NodeMaterializer
             : request.Key;
     }
 
-    public async Task<NodeMaterializationResult> MaterializeAsync(
+    public Task<NodeMaterializationResult> MaterializeAsync(
         NodeMaterializeRequest request,
         CancellationToken cancellationToken = default)
+        => MaterializeCoreAsync(request, null, cancellationToken, delete: false);
+
+    /// <summary>
+    /// 读-改-写单一入口：与 <see cref="MaterializeAsync"/> 共用同一写门、键形门、运行域门、缺省合并与载体异常隔离，
+    /// 差异仅在载荷来源——在门内读取当前记录后交由 <paramref name="mutate"/> 产出新载荷。
+    /// <paramref name="mutate"/> 收到 <c>null</c> 表示记录不存在（由调用方决定是否拒绝）。
+    /// </summary>
+    public Task<NodeMaterializationResult> MutateAsync(
+        NodeMaterializeRequest request,
+        Func<PlacementSpec, string?, NodePlacementMutation> mutate,
+        CancellationToken cancellationToken = default)
+    {
+        if (mutate is null) throw new ArgumentNullException(nameof(mutate));
+
+        return MaterializeCoreAsync(request, mutate, cancellationToken, delete: false);
+    }
+
+    /// <summary>
+    /// 删除单一入口：与 <see cref="MaterializeAsync"/> 共用同一写门、键形门、运行域门与载体异常隔离，
+    /// 差异仅在写动作——门内 <see cref="INodeCarrier.DeleteAsync"/> 而非形态编码 + upsert。
+    /// 键缺失 ⇒ 该位置 <see cref="CarrierWriteStatus.Rejected"/> + 可见化诊断（不阻断其它位置）。
+    /// </summary>
+    public Task<NodeMaterializationResult> DeleteAsync(
+        NodeMaterializeRequest request,
+        CancellationToken cancellationToken = default)
+        => MaterializeCoreAsync(request, null, cancellationToken, delete: true);
+
+    private async Task<NodeMaterializationResult> MaterializeCoreAsync(
+        NodeMaterializeRequest request,
+        Func<PlacementSpec, string?, NodePlacementMutation>? mutate,
+        CancellationToken cancellationToken,
+        bool delete)
     {
         var collected = new List<NodeDiagnostic>();
         var results = new List<NodePlacementResult>();
@@ -303,11 +351,14 @@ public sealed class NodeMaterializer
         // 缺省补齐只作用于"规范化载荷"：raw 位置按 N11 原样整存调用方原文，故惰性计算（缺省为空 ⇒ 原样）
         var mergedPayload = (string?)null;
 
-        string PayloadSourceFor(PlacementSpec spec)
+        string PayloadSourceFor(PlacementSpec spec, string sourceJson)
         {
             if (spec.Form != PlacementForm.Raw)
             {
-                return mergedPayload ??= _defaults.Merge(request.Json);
+                // 纯写路径的源载荷恒定，可整批复用；读-改-写逐位置源不同，必须各自合并。
+                return mutate is null
+                    ? mergedPayload ??= _defaults.Merge(sourceJson)
+                    : _defaults.Merge(sourceJson);
             }
 
             if (_defaults.FieldCount > 0)
@@ -319,7 +370,7 @@ public sealed class NodeMaterializer
                     spec.PlacementId));
             }
 
-            return request.Json;
+            return sourceJson;
         }
 
         foreach (var spec in candidates)
@@ -369,7 +420,7 @@ public sealed class NodeMaterializer
             }
 
             var placementKey = KeyTemplateEvaluator.Evaluate(spec.KeyTemplate, values);
-            if (!_codec.IsLossless(spec.Form))
+            if (!delete && !_codec.IsLossless(spec.Form))
             {
                 collected.Add(new NodeDiagnostic(
                     "form.lossy",
@@ -378,7 +429,6 @@ public sealed class NodeMaterializer
                     spec.PlacementId));
             }
 
-            var payload = _codec.Encode(spec.Form, PayloadSourceFor(spec));
             var target = $"{spec.CarrierId}|{placementKey}";
 
             CarrierWriteResult write;
@@ -387,7 +437,53 @@ public sealed class NodeMaterializer
                 write = await _writeGate
                     .RunAsync(
                         target,
-                        () => carrier.UpsertAsync(placementKey, payload, cancellationToken, request.Meta),
+                        async () =>
+                        {
+                            if (delete)
+                            {
+                                // 删除与 Upsert 同一写门：载体异常由下方统一隔离开关捕获，不半静默穿透。
+                                var deleted = await carrier
+                                    .DeleteAsync(placementKey, cancellationToken)
+                                    .ConfigureAwait(false);
+                                if (deleted)
+                                {
+                                    return CarrierWriteResult.Written();
+                                }
+
+                                collected.Add(new NodeDiagnostic(
+                                    "delete.key-missing",
+                                    NodeDiagnosticSeverity.Warning,
+                                    "删除目标不存在：键缺失（该位置无记录，未变更）",
+                                    spec.PlacementId));
+                                return CarrierWriteResult.Rejected("delete-key-missing");
+                            }
+
+                            var sourceJson = request.Json;
+                            if (mutate is not null)
+                            {
+                                // 门内读取 ⇒ 与其它写路径的 Upsert 互斥，读-改-写不丢更新。
+                                var record = await carrier
+                                    .ReadAsync(placementKey, cancellationToken)
+                                    .ConfigureAwait(false);
+                                var mutation = mutate(spec, record?.Json);
+                                if (!mutation.Ok)
+                                {
+                                    collected.Add(new NodeDiagnostic(
+                                        mutation.DiagnosticCode ?? "write.mutation-rejected",
+                                        NodeDiagnosticSeverity.Error,
+                                        mutation.Reason ?? "mutation-rejected",
+                                        spec.PlacementId));
+                                    return CarrierWriteResult.Rejected(mutation.Reason ?? "mutation-rejected");
+                                }
+
+                                sourceJson = mutation.Json!;
+                            }
+
+                            var payload = _codec.Encode(spec.Form, PayloadSourceFor(spec, sourceJson));
+                            return await carrier
+                                .UpsertAsync(placementKey, payload, cancellationToken, request.Meta)
+                                .ConfigureAwait(false);
+                        },
                         cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -465,7 +561,8 @@ public sealed class NodeMaterializer
             : _placements.ByDomain(domain).ToArray();
     }
 
-    private static MaterializeStatus Aggregate(IReadOnlyList<NodePlacementResult> results)
+    /// <summary>位置结果 → 整体状态（写侧单一归并口径，供所有写路径复用）。</summary>
+    public static MaterializeStatus Aggregate(IReadOnlyList<NodePlacementResult> results)
     {
         if (results.Any(r => r.Status == CarrierWriteStatus.Conflict))
         {

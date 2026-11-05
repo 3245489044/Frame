@@ -141,7 +141,7 @@ public static class CircuitValidator
     }
 
     /// <summary>
-    /// 受控边判定键校验（CFG-025，G3）：判定载体须可解析 —— 节点端口键（NodeId.Port 存在）/ 入口端口（已声明）。
+    /// 受控边判定键校验（CFG-025，G3）：与分支判定（CFG-026）共用 <see cref="CheckJudgeKeyResolvable"/> 唯一口径。
     /// 使「编译绿 ⇒ 运行期不再有判定载体类错误」，不留静默失效的门控。
     /// </summary>
     private static void CheckControlEdges(Circuit circuit, IReadOnlyDictionary<string, CircuitNode> nodes, List<CircuitDiagnostic> d)
@@ -152,52 +152,8 @@ public static class CircuitValidator
         foreach (var wire in circuit.Wires)
         {
             if (string.IsNullOrWhiteSpace(wire.When)) continue;
-            var when = wire.When!;
-
-            if (when.StartsWith('$'))
-            {
-                // $ 前缀 = 上下文键（执行端 ResolveJudgeKey 原样保留），与分支侧 CheckJudgeKeyResolvable（CFG-026）同口径：
-                // 任意 $键 放行，交执行期「缺失即不激活」；仅 $entry.X 须校验入口已声明。
-                var body = when[1..];
-                if (body.StartsWith("entry.", StringComparison.Ordinal)
-                    && !entries.Contains(body["entry.".Length..]))
-                    d.Add(new(DiagnosticSeverity.Error, "CFG-025",
-                        $"受控边判定键 '{when}' 引用了未声明的入口端口。", wire.To.NodeId));
-            }
-            else if (when.Contains('.'))
-            {
-                CheckJudgeNodePort(when, wire, nodes, d);
-            }
-            else if (!entries.Contains(when))
-            {
-                d.Add(new(DiagnosticSeverity.Error, "CFG-025",
-                    $"受控边判定端口 '{when}' 既非入口端口也非节点端口键（判定载体不可解析）。", wire.To.NodeId));
-            }
+            CheckJudgeKeyResolvable(wire.When!, wire.To.NodeId, "CFG-025", "受控边", nodes, entries, d);
         }
-    }
-
-    private static void CheckJudgeNodePort(
-        string nodePort, CircuitWire wire, IReadOnlyDictionary<string, CircuitNode> nodes, List<CircuitDiagnostic> d)
-    {
-        var parts = nodePort.Split('.', 2);
-        if (parts.Length != 2 || parts[0].Trim().Length == 0 || parts[1].Trim().Length == 0)
-        {
-            d.Add(new(DiagnosticSeverity.Error, "CFG-025",
-                $"受控边判定键 '{nodePort}' 格式非法（须为 \"NodeId.Port\"）。", wire.To.NodeId));
-            return;
-        }
-
-        var nodeId = parts[0].Trim();
-        var portName = parts[1].Trim();
-        if (!nodes.TryGetValue(nodeId, out var judgeNode))
-        {
-            d.Add(new(DiagnosticSeverity.Error, "CFG-025",
-                $"受控边判定键 '{nodePort}' 引用不存在的节点 '{nodeId}'。", wire.To.NodeId));
-            return;
-        }
-        if (judgeNode.OutPorts.All(p => p.Name != portName))
-            d.Add(new(DiagnosticSeverity.Error, "CFG-025",
-                $"受控边判定键 '{nodePort}' 引用的输出端口 '{portName}' 不存在于节点 '{nodeId}'。", wire.To.NodeId));
     }
 
     /// <summary>容错策略目标校验（CFG-024，G4）：Retry/Fallback/CatchRoute/TryGuard 指向的节点必须存在（编译期判红）。</summary>
@@ -249,7 +205,7 @@ public static class CircuitValidator
                 d.Add(new(DiagnosticSeverity.Error, "CFG-026",
                     $"Branch 符号（{branch.ConditionNodeId}）缺少判定键（执行面不可门控）。", branch.ConditionNodeId));
             else
-                CheckJudgeKeyResolvable(branch.JudgeKey!, branch.ConditionNodeId, nodes, entries, d);
+                CheckJudgeKeyResolvable(branch.JudgeKey!, branch.ConditionNodeId, "CFG-026", "分支", nodes, entries, d);
 
             if (!nodes.ContainsKey(branch.ThenNodeId))
                 d.Add(new(DiagnosticSeverity.Error, "CFG-026",
@@ -272,7 +228,7 @@ public static class CircuitValidator
                 d.Add(new(DiagnosticSeverity.Error, "CFG-026",
                     $"Switch 符号（{sw.SelectorNodeId}）缺少选择键（执行面不可路由）。", sw.SelectorNodeId));
             else
-                CheckJudgeKeyResolvable(sw.SelectorKey!, sw.SelectorNodeId, nodes, entries, d);
+                CheckJudgeKeyResolvable(sw.SelectorKey!, sw.SelectorNodeId, "CFG-026", "分支", nodes, entries, d);
 
             if (sw.Routes.Count == 0 && string.IsNullOrWhiteSpace(sw.DefaultNodeId))
                 d.Add(new(DiagnosticSeverity.Error, "CFG-026",
@@ -288,12 +244,24 @@ public static class CircuitValidator
         }
     }
 
-    /// <summary>判定/选择键可解析（CFG-026，口径同 CFG-025）：$ 前缀原样 / 含点 ⇒ 节点端口键 / 否则 ⇒ 入口端口。</summary>
+    /// <summary>
+    /// 判定/选择键可解析（CFG-025 / CFG-026 唯一口径）：
+    /// <c>$</c> 前缀原样（仅 <c>$entry.X</c> 校验入口声明）/ 含点 ⇒ 节点端口键 / 否则 ⇒ 入口端口。
+    /// </summary>
     private static void CheckJudgeKeyResolvable(
-        string key, string ownerNodeId, IReadOnlyDictionary<string, CircuitNode> nodes,
-        HashSet<string> entries, List<CircuitDiagnostic> d)
+        string key, string ownerNodeId, string code, string label,
+        IReadOnlyDictionary<string, CircuitNode> nodes, HashSet<string> entries, List<CircuitDiagnostic> d)
     {
-        if (key.StartsWith('$')) return; // 原样上下文键（装配侧供给；执行期缺失 ⇒ 不激活）
+        if (key.StartsWith('$'))
+        {
+            // 原样上下文键（装配侧供给；执行期缺失 ⇒ 不激活）；仅 $entry.X 须校验入口已声明。
+            var body = key[1..];
+            if (body.StartsWith("entry.", StringComparison.Ordinal)
+                && !entries.Contains(body["entry.".Length..]))
+                d.Add(new(DiagnosticSeverity.Error, code,
+                    $"{label}判定键 '{key}' 引用了未声明的入口端口。", ownerNodeId));
+            return;
+        }
 
         if (key.Contains('.'))
         {
@@ -302,22 +270,22 @@ public static class CircuitValidator
             var portName = parts[1].Trim();
             if (parts.Length != 2 || nodeId.Length == 0 || portName.Length == 0)
             {
-                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
-                    $"分支判定键 '{key}' 格式非法（须为 \"NodeId.Port\"）。", ownerNodeId));
+                d.Add(new(DiagnosticSeverity.Error, code,
+                    $"{label}判定键 '{key}' 格式非法（须为 \"NodeId.Port\"）。", ownerNodeId));
                 return;
             }
             if (!nodes.TryGetValue(nodeId, out var judgeNode))
-                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
-                    $"分支判定键 '{key}' 引用不存在的节点 '{nodeId}'。", ownerNodeId));
+                d.Add(new(DiagnosticSeverity.Error, code,
+                    $"{label}判定键 '{key}' 引用不存在的节点 '{nodeId}'。", ownerNodeId));
             else if (judgeNode.OutPorts.All(p => p.Name != portName))
-                d.Add(new(DiagnosticSeverity.Error, "CFG-026",
-                    $"分支判定键 '{key}' 引用的输出端口 '{portName}' 不存在于节点 '{nodeId}'。", ownerNodeId));
+                d.Add(new(DiagnosticSeverity.Error, code,
+                    $"{label}判定键 '{key}' 引用的输出端口 '{portName}' 不存在于节点 '{nodeId}'。", ownerNodeId));
             return;
         }
 
         if (!entries.Contains(key))
-            d.Add(new(DiagnosticSeverity.Error, "CFG-026",
-                $"分支判定键 '{key}' 既非入口端口也非节点端口键（判定载体不可解析）。", ownerNodeId));
+            d.Add(new(DiagnosticSeverity.Error, code,
+                $"{label}判定键 '{key}' 既非入口端口也非节点端口键（判定载体不可解析）。", ownerNodeId));
     }
 
 

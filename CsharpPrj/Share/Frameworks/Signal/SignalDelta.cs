@@ -1,7 +1,8 @@
 namespace Share.Signal;
 
 /// <summary>
-/// 本轮信号终态增量（SCF SC-I4：唯一推进源）。
+/// 本轮信号终态增量（SCF SC-I4：唯一推进源）——除 <c>InFlight</c> 外均为本轮增量（读取后清零）；
+/// <c>InFlight</c> 为当前在途数（不清零）。
 /// <para>由 Observe 段写；投递次数 / 目标集指纹变化**不构成推进**。</para>
 /// </summary>
 public readonly record struct SignalDelta(

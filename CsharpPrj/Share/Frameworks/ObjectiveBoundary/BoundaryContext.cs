@@ -20,7 +20,8 @@ public sealed record BoundaryContext(
         {
             EffectiveRoot = newRoot ?? EffectiveRoot,
             LastAction = a.Action,
-            PhiOld = a.PhiOld,
+            // 本轮 Score 成为"上一轮 Φ"（不得把 a.PhiOld 再存一遍，那是更早一轮的参照，§4.4）。
+            PhiOld = a.Score,
             ReconstructCount = a.Triggered ? ReconstructCount + 1 : ReconstructCount,
             DataDir = dataDir ?? DataDir,
         };

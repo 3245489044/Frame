@@ -566,7 +566,14 @@ public static class ViewCompiler
         {
             using var document = JsonDocument.Parse(json);
             root = document.RootElement.Clone();
-            return root.ValueKind == JsonValueKind.Object;
+            // fail-closed：根必须是 JSON 对象；否则必须记 error，禁「返回 false 但无诊断」的静默空表。
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                errors?.Add($"[{label}] 声明根必须为 JSON 对象（实际 {root.ValueKind}）");
+                return false;
+            }
+
+            return true;
         }
         catch (JsonException ex)
         {

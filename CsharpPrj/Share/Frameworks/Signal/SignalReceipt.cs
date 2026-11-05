@@ -7,11 +7,12 @@ public readonly record struct SignalReceipt(
     SignalId Id,
     string LeaseId,
     SignalState State,
-    string Reason)
+    string Reason,
+    bool IsDuplicate = false)
 {
     /// <summary>是否被受理（Accepted/Dispatched；不代表目标完成）。</summary>
     public bool Accepted => State is SignalState.Accepted or SignalState.Dispatched;
 
-    /// <summary>是否去重命中（未二次发）。</summary>
-    public bool Duplicate => string.Equals(Reason, "duplicate", System.StringComparison.OrdinalIgnoreCase);
+    /// <summary>是否去重命中（接纳结果显式标记，或 reason 为 duplicate）。</summary>
+    public bool Duplicate => IsDuplicate || string.Equals(Reason, "duplicate", System.StringComparison.OrdinalIgnoreCase);
 }

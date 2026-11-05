@@ -4,9 +4,9 @@ using System.Collections.Generic;
 namespace Share.Signal;
 
 /// <summary>
-/// 信号生命周期状态（SCF 10 态）—— 与声明面 <c>Config/nodes/signal.ushar</c> 的
+/// 信号生命周期状态（SCF 11 态）—— 与声明面 <c>Config/nodes/signal.ushar</c> 的
 /// <c>[Space] SignalState</c> 逐项同名；迁移合法边唯一权威 = <c>[Matrix] SignalLifecycle</c>。
-/// <para>本枚举只承载类型面；禁止在 C# 侧写第二份迁移边（<c>SignalStateMachine</c> 只查声明表）。</para>
+/// <para>本枚举只承载类型面；禁止在 C# 侧写第二份迁移边（<c>SignalStateMachine</c> 只查声明表，默认边为 fail-safe）。</para>
 /// </summary>
 public enum SignalState
 {

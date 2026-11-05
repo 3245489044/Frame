@@ -30,17 +30,33 @@ public sealed class InMemorySharedBlockStore : ISharedBlockStore
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// 返回值恒为"规范字节"（命中与未命中返回同一类键：内容本身），
+    /// 原实现未命中返回 contentKey、命中返回规范字节，导致 PrefixAssemblyPlan.CanonicalRef 在前缀缓存键中不可比
+    /// （ContextGeometry.md §4.8，原 :33-44）。登记用 TryAdd 原子完成，消除 check-then-act 竞态（§4.9，原 :38-44）。
+    /// </remarks>
     public string Put(string contentKey, string canonicalBytes)
     {
         if (string.IsNullOrWhiteSpace(contentKey))
             throw new ArgumentException("内容键不得为空。", nameof(contentKey));
 
-        if (_blocks.TryGetValue(contentKey, out var existing)) return existing;
+        var value = canonicalBytes ?? string.Empty;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            if (_blocks.TryAdd(contentKey, value))
+            {
+                _order.Enqueue(contentKey);
+                Trim();
+                return value;
+            }
 
-        _blocks[contentKey] = canonicalBytes ?? string.Empty;
-        _order.Enqueue(contentKey);
-        Trim();
-        return contentKey;
+            // 同键已存在 ⇒ 同键同引用（首次写入的规范字节为准）。
+            if (_blocks.TryGetValue(contentKey, out var existing))
+                return existing;
+        }
+
+        // 并发 Trim 清掉后仍未登记成功：仍返回本次规范字节（调用方比较的是内容，不是驻留状态）。
+        return value;
     }
 
     private void Trim()

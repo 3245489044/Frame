@@ -10,7 +10,7 @@ namespace Modules.Node;
 /// <see cref="JsonNode"/> → 文本投影只在本类声明一处，读写两侧共用（禁各件自写一套）。
 /// 语义与既有散落实现逐项一致：尾逗号/注释跳过、紧凑输出、SHA256 大写 hex。
 /// </summary>
-internal static class NodeJson
+public static class NodeJson
 {
     /// <summary>解析宽容度单源（尾逗号 / 注释跳过）：读写路径必须一致，禁逐处各配一份。</summary>
     internal static readonly JsonDocumentOptions DocumentOptions = new()
@@ -20,14 +20,17 @@ internal static class NodeJson
     };
 
     /// <summary>紧凑输出单源（落库/端口值一致，禁装饰性空白）。</summary>
-    internal static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = false };
+    public static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = false };
+
+    /// <summary>紧凑序列化（写侧落库与端口值共用同一输出口径）。</summary>
+    public static string ToCompact(JsonNode node) => node.ToJsonString(WriteOptions);
 
     /// <summary>内容摘要（N4 幂等 / N5 冲突判据）：SHA256 → 大写 hex（64 字符）。</summary>
-    internal static string Sha256Hex(string text) =>
+    public static string Sha256Hex(string text) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
     /// <summary>宽松解析：失败 ⇒ false 并回传原因（调用方决定诊断/兜底，禁 JsonException 穿透）。</summary>
-    internal static bool TryParse(string? json, out JsonNode? node, out string? error)
+    public static bool TryParse(string? json, out JsonNode? node, out string? error)
     {
         node = null;
         error = null;

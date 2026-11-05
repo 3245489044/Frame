@@ -200,6 +200,9 @@ namespace GraphFramework.Bridge
             newNodes = PortGuard.Required(newNodes, nameof(newNodes));
             nodeDataFactory = PortGuard.Required(nodeDataFactory, nameof(nodeDataFactory));
 
+            // 空插入列表 = 无操作（禁 newNodes[0] 下标越界）。
+            if (newNodes.Count == 0) return;
+
             var incomingEdges = graph.GetIncomingEdges(targetNodeKey).ToList();
 
             foreach (var edge in incomingEdges)
@@ -207,8 +210,17 @@ namespace GraphFramework.Bridge
                 graph.RemoveEdge(edge.EdgeId);
             }
 
-            TKey firstNewNode = newNodes[0];
-            TKey previous = firstNewNode;
+            // 首节点与后续节点一视同仁：全部按工厂创建（旧实现从 i = 1 循环，首节点从不创建）。
+            foreach (var newNode in newNodes)
+            {
+                if (!graph.ContainsNode(newNode))
+                {
+                    var nodeData = nodeDataFactory(newNode);
+                    graph.AddNode(newNode, nodeData!);
+                }
+            }
+
+            TKey previous = newNodes[0];
 
             foreach (var edge in incomingEdges)
             {
@@ -222,12 +234,6 @@ namespace GraphFramework.Bridge
             for (int i = 1; i < newNodes.Count; i++)
             {
                 var newNode = newNodes[i];
-                if (!graph.ContainsNode(newNode))
-                {
-                    var nodeData = nodeDataFactory(newNode);
-                    graph.AddNode(newNode, nodeData!);
-                }
-
                 var edgeId = $"{previous}->{newNode}";
                 if (!graph.ContainsEdge(edgeId))
                 {

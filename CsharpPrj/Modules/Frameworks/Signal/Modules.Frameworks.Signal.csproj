@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Modules.Frameworks.Signal - 信号词表与状态机内核</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>信号领域的中性内核（BCL-only）：11 态枚举与声明词双向映射、终态/在途纯判定、kind 归一、显式合法边集状态机。命名空间保持 Share.Signal 以兼容既有消费端类型全名（迁移只换程序集，不改调用点）。</ModuleRule_Description>
+    <ModuleRule_Keywords>信号;状态;词表;状态机;迁移边;kind 归一</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="BCL-only：禁止引用 Share / Operation / Strategy / 任何宿主工程" />
+    <ModuleRule_Rule Include="迁移边唯一权威 = 声明面；C# 侧默认边仅 fail-safe" />
+    <ModuleRule_Rule Include="命名空间固定 Share.Signal（兼容消费端的全名引用）" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.Signal</RootNamespace>
+    <AssemblyName>Modules.Frameworks.Signal</AssemblyName>
+    <Description>信号词表/判定/状态机内核（BCL-only，命名空间 Share.Signal 保持兼容）</Description>
+  </PropertyGroup>
+
+</Project>

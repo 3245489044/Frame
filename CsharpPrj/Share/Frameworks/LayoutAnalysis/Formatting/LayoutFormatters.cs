@@ -2,8 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using Modules.LayoutAnalysis.Models;
 
 namespace Modules.LayoutAnalysis.Formatting
@@ -41,20 +44,34 @@ namespace Modules.LayoutAnalysis.Formatting
                     case '\n': sb.Append("\\n"); break;
                     case '\r': sb.Append("\\r"); break;
                     case '\t': sb.Append("\\t"); break;
-                    default: sb.Append(c); break;
+                    case '\b': sb.Append("\\b"); break;
+                    case '\f': sb.Append("\\f"); break;
+                    default:
+                        // 其余控制字符（U+0000–U+001F）必须转义为 \uXXXX，否则产出非法 JSON（§4.18）。
+                        if (c < '\u0020')
+                            sb.Append("\\u").Append(((int)c).ToString("X4", CultureInfo.InvariantCulture));
+                        else
+                            sb.Append(c);
+                        break;
                 }
             }
             return sb.ToString();
         }
 
+        /// <summary>数值统一 InvariantCulture（§4.17：禁止按区域文化输出 "1,5" 这类数字）。</summary>
+        protected static string FormatNumber(double value)
+        {
+            return value.ToString("R", CultureInfo.InvariantCulture);
+        }
+
         protected static string FormatPercent(double value)
         {
-            return (value * 100).ToString(LayoutAnalysisConfig.FormatStrings.PercentFormat) + "%";
+            return (value * 100).ToString(LayoutAnalysisConfig.FormatStrings.PercentFormat, CultureInfo.InvariantCulture) + "%";
         }
 
         protected static string FormatDateTime(DateTime dateTime)
         {
-            return dateTime.ToString(LayoutAnalysisConfig.FormatStrings.DateTimeFormat);
+            return dateTime.ToString(LayoutAnalysisConfig.FormatStrings.DateTimeFormat, CultureInfo.InvariantCulture);
         }
     }
 
@@ -92,76 +109,56 @@ namespace Modules.LayoutAnalysis.Formatting
     {
         public override string Name => LayoutAnalysisConfig.FormatterNames.Json;
 
+        /// <summary>仅实体列表：保持历史顶层数组形状（避免改变既有 JSON 消费方的解析契约）。</summary>
         public override string Format(List<NormalizedEntity> entities)
-        {
-            return FormatWithRelations(entities, new List<SpatialRelation>(), new List<HierarchyRelation>());
-        }
+            => JsonSerializer.Serialize((entities ?? new List<NormalizedEntity>()).Select(ToJsonEntity).ToList(), JsonOptions);
 
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            WriteIndented = true,
+            // 中文等非 ASCII 保持原样；控制字符仍由 STJ 转义为 \uXXXX（§4.18）。
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        /// <summary>
+        /// 全仓唯一 JSON 序列化实现（System.Text.Json）：数字由 STJ 以 InvariantCulture 输出，
+        /// 控制字符自动转义。DataOrganizer.GenerateJson 直接复用本实现（§4.16 三套 JSON 收敛为一套）。
+        /// </summary>
         public override string FormatWithRelations(List<NormalizedEntity> entities, List<SpatialRelation> spatialRelations, List<HierarchyRelation> hierarchyRelations)
         {
-            var sb = CreateBuilder();
-            sb.AppendLine(LayoutAnalysisConfig.FormatTemplates.JsonOpenBrace);
-            sb.AppendLine(LayoutAnalysisConfig.FormatTemplates.JsonEntitiesArray);
-
-            for (int i = 0; i < entities.Count; i++)
+            var payload = new Dictionary<string, object?>
             {
-                var entity = entities[i];
-                sb.AppendLine(LayoutAnalysisConfig.FormatTemplates.JsonEntityOpen);
-                sb.AppendLine("      \"id\": \"" + EscapeJson(entity.Id) + "\",");
-                sb.AppendLine(LayoutAnalysisConfig.FormatTemplates.JsonPositionOpen);
-                sb.AppendLine("        \"left\": " + entity.RelativePosition.Left + ",");
-                sb.AppendLine("        \"top\": " + entity.RelativePosition.Top + ",");
-                sb.AppendLine("        \"width\": " + entity.RelativePosition.Width + ",");
-                sb.AppendLine("        \"height\": " + entity.RelativePosition.Height);
-                sb.AppendLine("      },");
-                sb.AppendLine("      \"tags\": [" + string.Join(", ", entity.Tags.Select(t => "\"" + EscapeJson(t) + "\"")) + "]");
-                sb.Append("    }");
-                if (i < entities.Count - 1)
-                    sb.AppendLine(",");
-                else
-                    sb.AppendLine();
-            }
+                ["entities"] = entities.Select(ToJsonEntity).ToList(),
+                ["spatialRelations"] = spatialRelations.Select(r => new
+                {
+                    from = r.From,
+                    to = r.To,
+                    type = r.Type,
+                    description = r.Description
+                }).ToList(),
+                ["hierarchyRelations"] = hierarchyRelations.Select(r => new
+                {
+                    childId = r.ChildId,
+                    parentId = r.ParentId,
+                    childType = r.ChildType
+                }).ToList()
+            };
 
-            sb.AppendLine("  ],");
-            sb.AppendLine(LayoutAnalysisConfig.FormatTemplates.JsonSpatialArray);
-
-            for (int i = 0; i < spatialRelations.Count; i++)
-            {
-                var rel = spatialRelations[i];
-                sb.AppendLine("    {");
-                sb.AppendLine("      \"from\": \"" + EscapeJson(rel.From) + "\",");
-                sb.AppendLine("      \"to\": \"" + EscapeJson(rel.To) + "\",");
-                sb.AppendLine("      \"type\": \"" + EscapeJson(rel.Type) + "\",");
-                sb.AppendLine("      \"description\": \"" + EscapeJson(rel.Description) + "\"");
-                sb.Append("    }");
-                if (i < spatialRelations.Count - 1)
-                    sb.AppendLine(",");
-                else
-                    sb.AppendLine();
-            }
-
-            sb.AppendLine("  ],");
-            sb.AppendLine(LayoutAnalysisConfig.FormatTemplates.JsonHierarchyArray);
-
-            for (int i = 0; i < hierarchyRelations.Count; i++)
-            {
-                var rel = hierarchyRelations[i];
-                sb.AppendLine("    {");
-                sb.AppendLine("      \"childId\": \"" + EscapeJson(rel.ChildId) + "\",");
-                sb.AppendLine("      \"parentId\": \"" + EscapeJson(rel.ParentId) + "\",");
-                sb.AppendLine("      \"childType\": \"" + EscapeJson(rel.ChildType) + "\"");
-                sb.Append("    }");
-                if (i < hierarchyRelations.Count - 1)
-                    sb.AppendLine(",");
-                else
-                    sb.AppendLine();
-            }
-
-            sb.AppendLine("  ]");
-            sb.AppendLine(LayoutAnalysisConfig.FormatTemplates.JsonCloseBrace);
-
-            return sb.ToString();
+            return JsonSerializer.Serialize(payload, JsonOptions);
         }
+
+        private static Dictionary<string, object?> ToJsonEntity(NormalizedEntity e) => new()
+        {
+            ["id"] = e.Id,
+            ["position"] = new Dictionary<string, object?>
+            {
+                ["left"] = e.RelativePosition.Left,
+                ["top"] = e.RelativePosition.Top,
+                ["width"] = e.RelativePosition.Width,
+                ["height"] = e.RelativePosition.Height
+            },
+            ["tags"] = e.Tags
+        };
     }
 
     public class MarkdownLayoutFormatter : FormatterBase, ILayoutFormatter
@@ -351,10 +348,10 @@ namespace Modules.LayoutAnalysis.Formatting
             {
                 sb.AppendLine("  - id: \"" + EscapeJson(entity.Id) + "\"");
                 sb.AppendLine("    position:");
-                sb.AppendLine("      left: " + entity.RelativePosition.Left);
-                sb.AppendLine("      top: " + entity.RelativePosition.Top);
-                sb.AppendLine("      width: " + entity.RelativePosition.Width);
-                sb.AppendLine("      height: " + entity.RelativePosition.Height);
+                sb.AppendLine("      left: " + FormatNumber(entity.RelativePosition.Left));
+                sb.AppendLine("      top: " + FormatNumber(entity.RelativePosition.Top));
+                sb.AppendLine("      width: " + FormatNumber(entity.RelativePosition.Width));
+                sb.AppendLine("      height: " + FormatNumber(entity.RelativePosition.Height));
                 if (entity.Tags.Any())
                 {
                     sb.AppendLine("    tags: [" + string.Join(", ", entity.Tags.Select(t => "\"" + EscapeJson(t) + "\"")) + "]");
@@ -408,14 +405,15 @@ namespace Modules.LayoutAnalysis.Formatting
             {
                 sb.AppendLine("    <entity id=\"" + XmlEscapeHelper.EscapeXml(entity.Id) + "\">");
                 sb.AppendLine("      <position>");
-                sb.AppendLine("        <left>" + entity.RelativePosition.Left + "</left>");
-                sb.AppendLine("        <top>" + entity.RelativePosition.Top + "</top>");
-                sb.AppendLine("        <width>" + entity.RelativePosition.Width + "</width>");
-                sb.AppendLine("        <height>" + entity.RelativePosition.Height + "</height>");
+                sb.AppendLine("        <left>" + FormatNumber(entity.RelativePosition.Left) + "</left>");
+                sb.AppendLine("        <top>" + FormatNumber(entity.RelativePosition.Top) + "</top>");
+                sb.AppendLine("        <width>" + FormatNumber(entity.RelativePosition.Width) + "</width>");
+                sb.AppendLine("        <height>" + FormatNumber(entity.RelativePosition.Height) + "</height>");
                 sb.AppendLine("      </position>");
                 if (entity.Tags.Any())
                 {
-                    sb.AppendLine("      <tags>" + string.Join(", ", entity.Tags.Select(t => "<tag>" + XmlEscapeHelper.EscapeXml(t) + "</tag>")) + "</tags>");
+                    // 标签以元素序列表达，不用逗号拼接（§4.20：原 ", " 会让 tag 文本与分隔符无法区分）。
+                    sb.AppendLine("      <tags>" + string.Concat(entity.Tags.Select(t => "<tag>" + XmlEscapeHelper.EscapeXml(t) + "</tag>")) + "</tags>");
                 }
                 sb.AppendLine("    </entity>");
             }

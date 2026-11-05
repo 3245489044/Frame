@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
-    <ModuleRule_Rule Include="内核零 ProjectReference：不得引用 Agent.* / Modules.* / Operation.* / Share.*" />
+    <ModuleRule_Rule Include="内核零 ProjectReference：不得引用 Agent.* / Operation.* / Share.*，禁存储/网络/时钟依赖（时间一律由参数传入）；唯一例外为 BCL-only 的 Modules.* 内核模块（仅程序集迁移、命名空间保持 Share.*，见下方 ProjectReference 注释）" />
     <ModuleRule_Rule Include="空因必达出口：Empty(code) 不得压平（NotApplicable 与 Empty 严格区分）" />
     <ModuleRule_Rule Include="键轴单一：容器事实只读 ContainerKey，成员事实只读 MemberKey；越轴 ⇒ key-axis-mismatch" />
     <ModuleRule_Rule Include="三出口同源同形：UI/Prompt/Diagnostics 只读同一 PortContext，字段集相等" />
@@ -23,5 +23,11 @@
     <AssemblyName>Share.PortContext</AssemblyName>
     <Description>上行端口上下文（UPC）— 容器-成员上下文唯一装配器与三出口同形契约（纯逻辑）</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 分页/失败建模/游标/词表/值对象内核（Modules\Foundations\PortContext，BCL-only）：命名空间保持 Share.PortContexts，
+         迁移只换程序集、不改任何消费端类型全名（PC-01）。 -->
+    <ProjectReference Include="$(Proj_PortContext)" />
+  </ItemGroup>
 
 </Project>

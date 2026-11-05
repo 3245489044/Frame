@@ -28,6 +28,8 @@
     <ProjectReference Include="$(Proj_Parsing_Keys)" />
     <ProjectReference Include="$(Proj_KeySpace)" />
     <ProjectReference Include="$(Proj_Node)" />
+    <!-- 文本段组合内核（Modules\Data\NodeText，BCL-only）：声明的块/模板/计划/摘要单源（CV-03）。 -->
+    <ProjectReference Include="$(Proj_Modules_Data_NodeText)" />
   </ItemGroup>
 
 </Project>

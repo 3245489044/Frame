@@ -42,5 +42,8 @@ namespace Modules.LayoutAnalysis.Models
         public IReadOnlyList<string> ExitNodeIds { get; set; } = new List<string>();
 
         public bool HasCycle { get; set; }
+
+        /// <summary>分析期诊断（拓扑排序失败/成环回退等；空 ⇒ 无异常，禁静默吞）。</summary>
+        public IList<string> Diagnostics { get; set; } = new List<string>();
     }
 }

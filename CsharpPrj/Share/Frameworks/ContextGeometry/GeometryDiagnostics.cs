@@ -39,6 +39,9 @@ public static class GeometryDiagnostics
     /// <summary>工具面结构性违约（exposes=false 却仍有 schema）。</summary>
     public const string ToolFaceViolation = "geom_toolface_violation";
 
+    /// <summary>工具数观测非法（负数 ⇒ 显式违约，禁归零伪造"零工具"）。</summary>
+    public const string ToolFaceCountInvalid = "geom_toolface_count_invalid";
+
     /// <summary>工具面冻结字节漂移（当前工具面 ≠ 快照冻结面；拒绝静默复用）。</summary>
     public const string ToolFaceDrift = "geom_toolface_drift";
 
@@ -47,4 +50,19 @@ public static class GeometryDiagnostics
 
     /// <summary>投影事件序非法（角色/内容缺失；显式诊断，不静默跳过语义）。</summary>
     public const string ProjectionInvalid = "geom_projection_invalid";
+
+    /// <summary>全部受控码（门禁/诊断遍历单源；新增码必须登记，否则 IsKnown 判不可判定）。</summary>
+    public static readonly IReadOnlyList<string> All = new[]
+    {
+        PrefixDrift, UnknownBand, DuplicateKey, DuplicateBlock,
+        UsageMissing, EstimateMissing, RatioOverflow, SnapshotMissing,
+        KeepAliveReplay, DelegateExcluded, ToolFaceHidden, ToolFaceViolation,
+        ToolFaceCountInvalid, ToolFaceDrift, PrefixAbsent, ProjectionInvalid,
+    };
+
+    /// <summary>码是否受控（未登记 ⇒ 判据不可判定，禁当作"已知错误"放行）。</summary>
+    /// <param name="code">诊断码。</param>
+    public static bool IsKnown(string? code)
+        => !string.IsNullOrWhiteSpace(code)
+           && System.Linq.Enumerable.Contains(All, code!, StringComparer.Ordinal);
 }

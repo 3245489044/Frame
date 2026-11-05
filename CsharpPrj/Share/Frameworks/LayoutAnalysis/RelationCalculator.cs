@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using Modules.LayoutAnalysis.Models;
 using UniversalLayoutMath;
@@ -67,12 +68,13 @@ namespace Modules.LayoutAnalysis
 
         private static string MapOverlapLevelToDescription(OverlapLevel level, double ratio)
         {
+            // 文案口径固定为 InvariantCulture：否则中文/欧洲区域设置下小数分隔符漂移，同一几何出两种文案。
             return level switch
             {
                 OverlapLevel.Complete => LayoutAnalysisConfig.RelationDescriptions.CompleteOverlap,
-                OverlapLevel.Severe => string.Format(LayoutAnalysisConfig.FormatStrings.OverlapRatioFormat, LayoutAnalysisConfig.RelationDescriptions.SevereOverlap, ratio),
-                OverlapLevel.Moderate => string.Format(LayoutAnalysisConfig.FormatStrings.OverlapRatioFormat, LayoutAnalysisConfig.RelationDescriptions.ModerateOverlap, ratio),
-                OverlapLevel.Slight => string.Format(LayoutAnalysisConfig.FormatStrings.OverlapRatioFormat, LayoutAnalysisConfig.RelationDescriptions.SlightOverlap, ratio),
+                OverlapLevel.Severe => string.Format(CultureInfo.InvariantCulture, LayoutAnalysisConfig.FormatStrings.OverlapRatioFormat, LayoutAnalysisConfig.RelationDescriptions.SevereOverlap, ratio),
+                OverlapLevel.Moderate => string.Format(CultureInfo.InvariantCulture, LayoutAnalysisConfig.FormatStrings.OverlapRatioFormat, LayoutAnalysisConfig.RelationDescriptions.ModerateOverlap, ratio),
+                OverlapLevel.Slight => string.Format(CultureInfo.InvariantCulture, LayoutAnalysisConfig.FormatStrings.OverlapRatioFormat, LayoutAnalysisConfig.RelationDescriptions.SlightOverlap, ratio),
                 OverlapLevel.None => LayoutAnalysisConfig.RelationDescriptions.Contact,
                 _ => LayoutAnalysisConfig.RelationDescriptions.Contact
             };

@@ -77,6 +77,12 @@ public static class ContextProjection
                 diagnostics.Add($"{GeometryDiagnostics.ProjectionInvalid}:role:{evt.Key}");
                 continue;
             }
+
+            if (string.IsNullOrEmpty(evt.Content))
+            {
+                diagnostics.Add($"{GeometryDiagnostics.ProjectionInvalid}:content:{evt.Key}");
+            }
+
             messages.Add(new ProjectedMessage(evt.Role, evt.Content ?? string.Empty, evt.ToolCallId, evt.ToolCalls));
         }
         return new ProjectedMessages(messages, diagnostics);

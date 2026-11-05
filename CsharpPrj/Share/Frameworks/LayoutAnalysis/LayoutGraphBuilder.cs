@@ -64,7 +64,10 @@ namespace Modules.LayoutAnalysis
             {
                 if (string.IsNullOrEmpty(rel.From) || string.IsNullOrEmpty(rel.To)) continue;
                 if (!graph.ContainsNode(rel.From) || !graph.ContainsNode(rel.To)) continue;
-                AddUniqueEdge(graph, $"{SemanticEdgePrefix}:{rel.From}->{rel.To}",
+                var semanticEdgeId = string.IsNullOrWhiteSpace(rel.RelationType)
+                    ? $"{SemanticEdgePrefix}:{rel.From}->{rel.To}"
+                    : $"{SemanticEdgePrefix}:{rel.From}->{rel.To}:{rel.RelationType}";
+                AddUniqueEdge(graph, semanticEdgeId,
                     rel.From, rel.To, new LayoutEdgeData
                     {
                         Kind = LayoutGraphConstants.KindSemantic,
@@ -78,10 +81,12 @@ namespace Modules.LayoutAnalysis
 
         private static LayoutGraphContext Analyze(CoreGraph<string, LayoutNodeData, LayoutEdgeData> graph)
         {
+            var diagnostics = new List<string>();
             var context = new LayoutGraphContext
             {
                 Graph = graph,
-                HasCycle = graph.NodeCount() > 0 && GraphTopology.HasCycle(graph)
+                HasCycle = graph.NodeCount() > 0 && GraphTopology.HasCycle(graph),
+                Diagnostics = diagnostics
             };
 
             var components = GraphTopology.GetConnectedComponents(graph);
@@ -89,7 +94,7 @@ namespace Modules.LayoutAnalysis
                 .Where(c => c.Count > 0)
                 .Select(c =>
                 {
-                    var sorted = SafeTopologicalOrder(graph, c);
+                    var sorted = SafeTopologicalOrder(graph, c, diagnostics);
                     return new LayoutCluster { NodeIds = sorted };
                 })
                 .ToList();
@@ -102,7 +107,8 @@ namespace Modules.LayoutAnalysis
 
         private static List<string> SafeTopologicalOrder(
             IReadOnlyGraph<string, LayoutNodeData, LayoutEdgeData> graph,
-            IReadOnlyList<string> componentKeys)
+            IReadOnlyList<string> componentKeys,
+            List<string> diagnostics)
         {
             var keySet = new HashSet<string>(componentKeys);
             try
@@ -112,10 +118,14 @@ namespace Modules.LayoutAnalysis
                 {
                     return result.SortedNodes.Where(keySet.Contains).ToList();
                 }
+
+                diagnostics.Add($"{LayoutGraphConstants.TopologyCycle}:{componentKeys.Count}");
             }
-            catch
+            catch (Exception ex)
             {
+                diagnostics.Add($"{LayoutGraphConstants.TopologyFailed}:{ex.GetType().Name}:{componentKeys.Count}");
             }
+
             return componentKeys.ToList();
         }
 
@@ -135,5 +145,11 @@ namespace Modules.LayoutAnalysis
         public const string KindSpatial = "spatial";
         public const string KindSemantic = "semantic";
         public const string RelationHierarchy = "parent-child";
+
+        /// <summary>拓扑排序抛异常（已收敛为可见诊断，禁静默吞）。</summary>
+        public const string TopologyFailed = "layout_topology_failed";
+
+        /// <summary>连通分量成环（拓扑序不可用，回退声明序且可见）。</summary>
+        public const string TopologyCycle = "layout_topology_cycle";
     }
 }

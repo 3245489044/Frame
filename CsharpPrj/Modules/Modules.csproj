@@ -114,6 +114,18 @@
     <Compile Remove="Frameworks\Sync\**\*.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 上行端口上下文内核（Modules\Foundations\PortContext，L1、BCL-only，命名空间 Share.PortContexts 兼容既有消费端） -->
+    <ProjectReference Include="$(Proj_PortContext)" />
+    <Compile Remove="Foundations\PortContext\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 文本段组合内核（Modules\Data\NodeText，L1、BCL-only，命名空间 Share.Composition.Text 兼容既有消费端） -->
+    <ProjectReference Include="$(Proj_Modules_Data_NodeText)" />
+    <Compile Remove="Data\NodeText\**\*.cs" />
+  </ItemGroup>
+
 </Project>
 
 

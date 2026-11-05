@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-06 00:10:19
+  生成时间: 2026-11-06 01:36:46
 -->
 <Project>
 
@@ -50,6 +50,7 @@
     <Mod_Compute>$(CsharpPrjDir)Modules\Foundations\Compute\</Mod_Compute>
     <Mod_Concurrency>$(CsharpPrjDir)Modules\Foundations\Concurrency\</Mod_Concurrency>
     <Mod_PathBoundary>$(CsharpPrjDir)Modules\Foundations\PathBoundary\</Mod_PathBoundary>
+    <Mod_PortContext>$(CsharpPrjDir)Modules\Foundations\PortContext\</Mod_PortContext>
     <Mod_ContractFramework>$(CsharpPrjDir)Modules\Foundations\ContractFramework\</Mod_ContractFramework>
     <Mod_DeclarativeDataflow>$(CsharpPrjDir)Modules\Data\DeclarativeDataflow\</Mod_DeclarativeDataflow>
     <Mod_DiagnosticContext>$(CsharpPrjDir)Modules\Foundations\DiagnosticContext\</Mod_DiagnosticContext>
@@ -70,6 +71,7 @@
     <Mod_Modules_Frameworks_Messaging>$(CsharpPrjDir)Modules\Frameworks\Messaging\</Mod_Modules_Frameworks_Messaging>
     <Mod_Modules_Frameworks_Signal>$(CsharpPrjDir)Modules\Frameworks\Signal\</Mod_Modules_Frameworks_Signal>
     <Mod_Node>$(CsharpPrjDir)Modules\Data\Node\</Mod_Node>
+    <Mod_Modules_Data_NodeText>$(CsharpPrjDir)Modules\Data\NodeText\</Mod_Modules_Data_NodeText>
     <Mod_Observe>$(CsharpPrjDir)Modules\Frameworks\Observe\</Mod_Observe>
     <Mod_ParameterResolver>$(CsharpPrjDir)Modules\Composition\ParameterResolver\</Mod_ParameterResolver>
     <Mod_Parsing>$(CsharpPrjDir)Modules\Data\Parsing\</Mod_Parsing>
@@ -187,6 +189,7 @@
     <Proj_Compute>$(CsharpPrjDir)Modules\Foundations\Compute\Compute.csproj</Proj_Compute>
     <Proj_Concurrency>$(CsharpPrjDir)Modules\Foundations\Concurrency\Concurrency.csproj</Proj_Concurrency>
     <Proj_PathBoundary>$(CsharpPrjDir)Modules\Foundations\PathBoundary\PathBoundary.csproj</Proj_PathBoundary>
+    <Proj_PortContext>$(CsharpPrjDir)Modules\Foundations\PortContext\PortContext.csproj</Proj_PortContext>
     <Proj_ContractFramework>$(CsharpPrjDir)Modules\Foundations\ContractFramework\ContractFramework.csproj</Proj_ContractFramework>
     <Proj_DeclarativeDataflow>$(CsharpPrjDir)Modules\Data\DeclarativeDataflow\DeclarativeDataflow.csproj</Proj_DeclarativeDataflow>
     <Proj_DiagnosticContext>$(CsharpPrjDir)Modules\Foundations\DiagnosticContext\DiagnosticContext.csproj</Proj_DiagnosticContext>
@@ -207,6 +210,7 @@
     <Proj_Modules_Frameworks_Messaging>$(CsharpPrjDir)Modules\Frameworks\Messaging\Modules.Frameworks.Messaging.csproj</Proj_Modules_Frameworks_Messaging>
     <Proj_Modules_Frameworks_Signal>$(CsharpPrjDir)Modules\Frameworks\Signal\Modules.Frameworks.Signal.csproj</Proj_Modules_Frameworks_Signal>
     <Proj_Node>$(CsharpPrjDir)Modules\Data\Node\Modules.Node.csproj</Proj_Node>
+    <Proj_Modules_Data_NodeText>$(CsharpPrjDir)Modules\Data\NodeText\Modules.Data.NodeText.csproj</Proj_Modules_Data_NodeText>
     <Proj_Observe>$(CsharpPrjDir)Modules\Frameworks\Observe\Observe.csproj</Proj_Observe>
     <Proj_ParameterResolver>$(CsharpPrjDir)Modules\Composition\ParameterResolver\ParameterResolver.csproj</Proj_ParameterResolver>
     <Proj_Parsing>$(CsharpPrjDir)Modules\Data\Parsing\Parsing.csproj</Proj_Parsing>

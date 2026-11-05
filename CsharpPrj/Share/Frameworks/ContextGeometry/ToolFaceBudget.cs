@@ -13,7 +13,8 @@ public static class ToolFaceBudget
     public static ToolFaceVerdict Evaluate(string? agent, int toolCount, bool exposes)
     {
         var name = agent ?? string.Empty;
-        if (toolCount < 0) toolCount = 0;
+        if (toolCount < 0)
+            return new ToolFaceVerdict(false, name, 0, GeometryDiagnostics.ToolFaceCountInvalid);
         if (exposes) return new ToolFaceVerdict(true, name, toolCount, "ok");
         if (toolCount == 0) return new ToolFaceVerdict(true, name, 0, "ok");
         return new ToolFaceVerdict(false, name, toolCount, GeometryDiagnostics.ToolFaceViolation);

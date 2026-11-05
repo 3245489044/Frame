@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>文本段组合内核（块模型/模板/计划/摘要）</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>声明式文本段组合的纯逻辑内核：段块模型、模板与占位规则、计划构建、拼接、判定与内容摘要；零 IO、零时钟、零 ProjectReference（仅 BCL）。命名空间保持 Share.Composition.Text，迁移只换程序集。</ModuleRule_Description>
+    <ModuleRule_Keywords>文本;段;模板;计划;摘要;声明式</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.Composition.Text</RootNamespace>
+    <AssemblyName>Modules.Data.NodeText</AssemblyName>
+    <Description>文本段组合内核 — 块模型/模板/计划/拼接/判定/摘要（纯逻辑，BCL-only）</Description>
+  </PropertyGroup>
+
+</Project>

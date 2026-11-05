@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
-    <ModuleRule_Rule Include="内核零 ProjectReference：不得引用 Agent.* / Modules.* / Operation.*" />
+    <ModuleRule_Rule Include="内核零 ProjectReference：不得引用 Agent.* / Operation.* / Share.*，禁存储/网络/时钟依赖（时间一律由参数传入）；唯一例外为 BCL-only 的 Modules.* 内核模块（仅程序集迁移、命名空间保持 Share.*，见下方 ProjectReference 注释）" />
     <ModuleRule_Rule Include="内核禁时钟/网络/存储：时间一律由参数传入（禁 DateTime.UtcNow / DateTimeOffset.UtcNow / HttpClient）" />
     <ModuleRule_Rule Include="段序即语义：组合只做稳定排序（Band→声明序），禁按字典序归一" />
     <ModuleRule_Rule Include="未知用量禁按 0 计：缺字段 = Observed=false（Unknown 与 0 严格区分）" />
@@ -22,5 +22,10 @@
     <AssemblyName>Share.ContextGeometry</AssemblyName>
     <Description>上下文几何内核 — 缓存带/前缀段/快照/组合/内容寻址/命中核算/策略判据（纯逻辑）</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 有界缓存/淘汰基元（Modules\Foundations\Compute，BCL-only）：内容寻址存储复用单一实现，禁第二套淘汰算法（CG-02）。 -->
+    <ProjectReference Include="$(Proj_Compute)" />
+  </ItemGroup>
 
 </Project>

@@ -7,6 +7,10 @@
     <ModuleRule_Keywords>信号;账本;状态机;幂等;租约;TTL;攒批;通用框架</ModuleRule_Keywords>
   </PropertyGroup>
 
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="内核零 ProjectReference：不得引用 Agent.* / Operation.* / Share.*，禁存储/网络/时钟依赖（时间一律由参数传入）；唯一例外为 BCL-only 的 Modules.* 内核模块（仅程序集迁移、命名空间保持 Share.*，见下方 ProjectReference 注释）" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

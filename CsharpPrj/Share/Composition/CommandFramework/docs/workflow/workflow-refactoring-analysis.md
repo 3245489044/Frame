@@ -1,6 +1,6 @@
 # WorkflowExecution 优化重构分析报告
 
-> **分析目标**：识别 `CsharpPrj/Share/WorkflowExecution` 中哪些逻辑应基于 `CsharpPrj/Modules/ExecutionFramework` 进行优化重构
+> **分析目标**：识别 `CsharpPrj/Share/WorkflowExecution` 中哪些逻辑应基于 `CsharpPrj/Modules/Frameworks/ExecutionFramework` 进行优化重构
 >
 > **分析日期**：2026-06-28
 >
@@ -68,7 +68,7 @@ CsharpPrj/Share/WorkflowExecution/
 ### ExecutionFramework（Modules 层）
 
 ```
-CsharpPrj/Modules/ExecutionFramework/
+CsharpPrj/Modules/Frameworks/ExecutionFramework/
 ├── Abstractions/
 │   ├── IExecutionContext.cs     # 执行上下文接口
 │   ├── IExecutionEngine.cs      # 执行引擎接口
@@ -453,7 +453,7 @@ CsharpPrj/Modules/ExecutionFramework/
 
 ```xml
 <ItemGroup>
-  <ProjectReference Include="..\..\Modules\ExecutionFramework\ExecutionFramework.csproj" />
+  <ProjectReference Include="..\..\Modules\Frameworks\ExecutionFramework\ExecutionFramework.csproj" />
 </ItemGroup>
 ```
 

@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-05T05:15:00.9227539Z",
+  "builtAt": "2026-11-05T05:32:38.6993199Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -42,28 +42,28 @@
       "hits": [
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 25,
           "role": "Code",
           "text": "/// <summary>checkpoint 节点键文法（<c>checkpoint.{threadId}.{ns}.{checkpointId}</c>）。</summary>"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 27,
           "role": "Code",
           "text": "KeyGrammar.Create(\"nodes.checkpoint\", \"checkpoint.{threadId}.{ns}.{checkpointId}\", familyPrefix: \"checkpoint.\");"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 90,
           "role": "Code",
           "text": "/// <summary>checkpoint 节点键前缀（checkpoint.{threadId}.{ns}.{checkpointId}）。</summary>"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 102,
           "role": "Code",
           "text": "/// <summary>checkpoint 节点键（<c>checkpoint.{threadId}.{ns}.{checkpointId}</c>）。</summary>"
@@ -298,14 +298,14 @@
       "hits": [
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Parsing/Keys/KeySegment.cs",
+          "file": "CsharpPrj/Modules/Data/Parsing/Keys/KeySegment.cs",
           "line": 18,
           "role": "Code",
           "text": "/// <para>形状存在理由：<c>.+?</c> 通用形状会让数值段吞掉分隔符（如 <c>#R1/cline</c> 的轮号段），"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Parsing/Keys/KeyTemplate.cs",
+          "file": "CsharpPrj/Modules/Data/Parsing/Keys/KeyTemplate.cs",
           "line": 18,
           "role": "Code",
           "text": "/// 嵌套语义 = 前区在场方可出现的尾段（正好表达 FactId 的 <c>#R&lt;n&gt;/step#attempt/iter/call</c> 层级尾部）。"
@@ -1226,28 +1226,28 @@
       "hits": [
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 29,
           "role": "Code",
           "text": "/// <summary>KeyMapping 节点键文法（<c>keymapping.{category}.{nodeLevelKey}</c>）。</summary>"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 31,
           "role": "Code",
           "text": "KeyGrammar.Create(\"nodes.keymapping\", \"keymapping.{category}.{nodeLevelKey}\", familyPrefix: \"keymapping.\");"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 93,
           "role": "Code",
           "text": "/// <summary>KeyMapping 节点键前缀（keymapping.{category}.{nodeLevelKey}）。</summary>"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 106,
           "role": "Code",
           "text": "/// <summary>KeyMapping 节点键（<c>keymapping.{category}.{nodeLevelKey}</c>）。</summary>"
@@ -1545,35 +1545,35 @@
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 57,
           "role": "Code",
           "text": "/// 过程域节点键文法（<c>proc.{container}.r{round}.{kind}.{ordinal}</c>；legacy <c>…r{round}.step{ordinal}</c> 只读反解）。"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 66,
           "role": "Code",
           "text": "\"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\","
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 67,
           "role": "Code",
           "text": "familyPrefix: \"proc.\","
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 68,
           "role": "Code",
           "text": "legacyTemplates: new[] { \"proc.{container}.r{round:digits}.step{ordinal:digits}\" },"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/PlacementKeyPrefix.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/PlacementKeyPrefix.cs",
           "line": 12,
           "role": "Code",
           "text": "/// ⇒ 载体全量枚举 + 跨域混读。前缀必须由**位置键模板**派生（<c>proc.{container}</c> ⇒ <c>proc.</c>）。"
@@ -4349,38 +4349,38 @@
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/InternalStorage/Extensions/StorageRelationExtensions.cs",
-          "line": 108,
-          "role": "Code",
-          "text": "var snapshot = relations.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToList());"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 33,
           "role": "Code",
           "text": "/// <summary>声明关系节点键文法（<c>relations.{workflowId}.{relationId}</c>）。</summary>"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 35,
           "role": "Code",
           "text": "KeyGrammar.Create(\"nodes.relations\", \"relations.{workflowId}.{relationId}\", familyPrefix: \"relations.\");"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 96,
           "role": "Code",
           "text": "/// <summary>声明关系节点键前缀（relations.{workflowId}.{relationId}）。</summary>"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 110,
           "role": "Code",
           "text": "/// <summary>声明关系节点键（<c>relations.{workflowId}.{relationId}</c>）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Foundations/InternalStorage/Extensions/StorageRelationExtensions.cs",
+          "line": 108,
+          "role": "Code",
+          "text": "var snapshot = relations.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToList());"
         },
         {
           "repo": "Frame",
@@ -5704,521 +5704,521 @@
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 56,
-          "role": "Code",
-          "text": "session.MarkRunning();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 66,
-          "role": "Code",
-          "text": "session.MarkCancelled();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 72,
-          "role": "Code",
-          "text": "session.MarkFailed(ex.Message, ex);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 95,
-          "role": "Code",
-          "text": "session.MarkCancelled();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 117,
-          "role": "Code",
-          "text": "session.MarkPaused();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 137,
-          "role": "Code",
-          "text": "session.MarkRunning();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 163,
-          "role": "Code",
-          "text": "session.MarkCompleted();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 164,
-          "role": "Code",
-          "text": "_logger?.LogExecutionComplete(session.WorkflowId, session.GetExecutionTime());"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 168,
-          "role": "Code",
-          "text": "session.MarkCancelled();"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 169,
-          "role": "Code",
-          "text": "_logger?.LogExecutionError(session.WorkflowId, result.ErrorMessage ?? \"Execution was cancelled\");"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 173,
-          "role": "Code",
-          "text": "session.MarkFailed(result.ErrorMessage, result.Exception);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
-          "line": 174,
-          "role": "Code",
-          "text": "_logger?.LogExecutionError(session.WorkflowId, result.ErrorMessage ?? \"Unknown error\", result.Exception);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Session/SessionManager.cs",
-          "line": 37,
-          "role": "Code",
-          "text": "_sessions[session.SessionId] = session;"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/ExecutionFramework/Session/SessionManager.cs",
-          "line": 44,
-          "role": "Code",
-          "text": "_sessions[session.SessionId] = session;"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-表层语言与Usharp接入-实施记录.md",
-          "line": 37,
-          "role": "Doc",
-          "text": "| U17 | loc 词表分层 | 单值 → 多值 + 分层（`session.*` / `cline.session.*` / `archive.*`）；落地前维持现状单值 |"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-表层语言与Usharp接入.md",
-          "line": 255,
-          "role": "Doc",
-          "text": "session.{container}"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-表层语言与Usharp接入.md",
-          "line": 256,
-          "role": "Doc",
-          "text": "cline.session.{container}       （示例；实测现状只有 workflowId 一值，需先扩成受控词集 → U17）"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-表层语言与Usharp接入.md",
-          "line": 327,
-          "role": "Doc",
-          "text": "| **U17** | loc 受控词集与层级：现状 `Location = workflowId` **单值**，是否升为分层坐标（`session.*` / `cline.session.*` / `archive.*`）+ 是否允许多值 loc | 决定反解表规模与\"一轮多位置\"能力 | A 单值→多值 + 分层（推荐，与应用篇 placement 清单一致）／B 保持单值（表达力不足）／C"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-与位置无关的设计.md",
-          "line": 15,
-          "role": "Doc",
-          "text": "Key        ：节点身份（键）—— 全系统唯一、载体无关（如 session.{c}.r{r}.msg.{seq}）"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-与位置无关的设计.md",
-          "line": 206,
-          "role": "Doc",
-          "text": "\"key\": \"session.{container}.r{round}\", \"form\": \"view\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-与位置无关的设计.md",
-          "line": 209,
-          "role": "Doc",
-          "text": "\"key\": \"cline.session.{container}.round.{round}\", \"form\": \"raw\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 18,
-          "role": "Doc",
-          "text": "| `ur_nodes` L-B | `session.{c}.r{r}.msg.{s}` | 单条 `ConversationMessage`（终答内联） | `HistoryProjector.ProjectMarkedAsync:97` | LLM wire `RenderPriorWireAsync:289` → `BuildSessionAsync:103` | `session-vie"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 19,
-          "role": "Doc",
-          "text": "| `ur_nodes` L-C | `cline.session.{k}.round.{n}` | `messages.json` 全文 | `HistoryClineMessageArchive.ArchiveAsync:47`（由 `ClineDaemonEndpoint.TryArchiveRoundAsync:259` 调） | `IClineMessageArchive.LoadAsy"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 105,
-          "role": "Doc",
-          "text": "{ \"NodeKey\": \"session.work.r2.msg1\", \"WorkflowId\": \"agent-round\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 143,
-          "role": "Doc",
-          "text": "\"key\": \"cline.session.{container}.round.{round}\", \"form\": \"raw\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 146,
-          "role": "Doc",
-          "text": "\"key\": \"session.{container}.r{round}\", \"form\": \"view\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 173,
-          "role": "Doc",
-          "text": "| ① 归档 | `messages.json` 全文 | `ur_nodes/cline_messages`（`cline.session.{k}.round.{r}`） | `ClineDaemonEndpoint.TryArchiveRoundAsync:259-276` |"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 175,
-          "role": "Doc",
-          "text": "| ③ 入史投影 | 终答 + 标记中间项 | `ur_nodes/conversation_message`（`session.{k}.r{r}.msg.{s}`） | `HistoryProjector.ProjectMarkedAsync:97` |"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 185,
-          "role": "Doc",
-          "text": "Key = session.{container}.r{round}                    ← 身份（§4 identity）"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 187,
-          "role": "Doc",
-          "text": "├── Placement: archive-raw   form=raw   → cline.session.{c}.round.{r}   （原文，audit）"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 188,
-          "role": "Doc",
-          "text": "├── Placement: session-view  form=view  → session.{c}.r{r}              （规范化 + mark，contextual）"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 207,
-          "role": "Doc",
-          "text": "{ \"NodeKey\": \"cline.session.work.round.2\", \"ThreadId\": \"work\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 212,
-          "role": "Doc",
-          "text": "{ \"NodeKey\": \"session.work.r2\", \"ThreadId\": \"agent-round\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 220,
-          "role": "Doc",
-          "text": "> 现有 `conversation_message` 载荷是**单条消息**；上例为 U1 案 A（轮粒度）下的\"轮载荷\"。若维持消息粒度，则 Key 退为 `session.{c}.r{r}.msg{s}`、`items` 退为单条——**由 U1 决定**，其余不变。"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-Agent应用篇.md",
-          "line": 274,
-          "role": "Doc",
-          "text": "| 会话下拉 / 存在性 | 会话根枚举 | `ListSessionsAsync:200-206`（`ur_histories` 行） | 改枚举 `session.*` placement |"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/下一步计划.md",
-          "line": 177,
-          "role": "Doc",
-          "text": "| **U17** | `loc` 受控词集与层级：单值 → 多值 + 分层（`session.*` / `cline.session.*` / `archive.*`） | A 多值分层 / B 单值 / C 多值不分层 | **A** | 反解表规模与\"一轮多位置\"能力（与 U5 多载体镜像互为约束） |"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/Agent应用篇-后续阶段细化方案.md",
-          "line": 91,
-          "role": "Doc",
-          "text": "> **重要更正（本轮实测）**：`KeyHierarchyFormat`（`KeyHierarchyFormat.cs:12-19`）= 层次化**后缀**格式 `{Prefix}{层次}{Suffix}`（默认 `_` / `_` / 无分隔 / 十进制无填充），服务 `KeyProcessor` 的 **`_cN` 家族**键；而 Agent 会话键族（`cline.session.{k}."
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/Agent应用篇-后续阶段细化方案.md",
-          "line": 149,
-          "role": "Doc",
-          "text": "| **D1′** | `Agent.Launcher\\Modules\\Libraries\\ConversationViewService.cs`（`ListSessionsAsync:200-206`）改枚举 `session.*` 位置 | 新旧会话均可枚举 |"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/Agent应用篇-实施步骤.md",
-          "line": 44,
-          "role": "Doc",
-          "text": "- **验收**：新增 `ClineArchiveRoundPolicyTests`（3 例）—— 调用方优先 / 无会话上下文回退且来源可辨 / **L-C 键轮次 == L-B 键轮次 == 调用方轮次**（`cline.session.work.round.7` ↔ `session.work.r7.msg.1`）。"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/Agent应用篇-实施步骤.md",
-          "line": 313,
-          "role": "Doc",
-          "text": "**结论**：Agent 会话键族（`cline.session.{k}.round.{r}` / `session.{k}.r{r}.msg.{s}`，由 `HistoryClineMessageArchive.BuildNodeKey` / `SessionMessageKeys.Build` 单源生成）**不含 `_cN` 结构** ⇒ **两族不同族**，强行接入即改写存量键形态（D6 静"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/Agent应用篇-实施步骤.md",
-          "line": 343,
-          "role": "Doc",
-          "text": "| 2 | `HistoryMarkPolicyTests.cs:90` | 断言仍用**旧无轮次键** `session.sess-1.msg.1`，实际键已含轮次段 ⇒ 既存失败 | ✅ 改为 `session.sess-1.r2.msg.1`（`SessionMessageKeys` 权威） |"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/Agent应用篇-实施步骤.md",
-          "line": 395,
-          "role": "Doc",
-          "text": "| **B1-A** | 声明增位置 `stream-frame`（`key: cline.session.{container}.round.{round}.f{frameSeq}`、`writer: writer-stream`、`carrier: sql-nodes-archive`）；identity 扩为 `{container}.r{round}.f{frameSeq}`（`seque"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
-          "line": 56,
-          "role": "Code",
-          "text": "\"session.{sessionName}\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
-          "line": 57,
-          "role": "Code",
-          "text": "\"session.\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/HierarchyKeyFamilies.cs",
-          "line": 67,
-          "role": "Code",
-          "text": "KeySurface.Endpoint, new[] { \"session.{sessionName}\" }, \"session.\"),"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 54,
-          "role": "Code",
-          "text": "/// <summary>会话根端点文法（<c>session.{sessionName}</c>）。</summary>"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 117,
-          "role": "Code",
-          "text": "/// <summary>会话根身份归一（<c>session:</c> / <c>session.</c> 幂等剥净）。</summary>"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 121,
-          "role": "Code",
-          "text": "/// <summary>会话根端点 Id（<c>session.{name}</c>；空身份即抛）。</summary>"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 128,
-          "role": "Code",
-          "text": "\"会话身份为空（session: / session. 不是身份）。\", nameof(sessionName));"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 198,
-          "role": "Code",
-          "text": "/// <summary>已知的其它族（<c>history.*</c> / <c>session.*</c> / <c>history:</c> / <c>session:</c>）判据（结构事实，禁手列前缀）。</summary>"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeEndpointIds.cs",
-          "line": 359,
-          "role": "Code",
-          "text": "// 外来族（history./session./history:/session:）不得落入节点身份兜底；node:/task: 等含类型前缀的裸键同样拒绝。"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 38,
-          "role": "Code",
-          "text": "/// 会话消息节点键文法（<c>session.{container}.r{round}.{kind}.{ordinal}</c>；兼容模板只读反解存量键）。"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 47,
-          "role": "Code",
-          "text": "\"session.{container}.r{round:digits}.{kind}.{ordinal:digits}\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 48,
-          "role": "Code",
-          "text": "familyPrefix: \"session.\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 51,
-          "role": "Code",
-          "text": "\"session.{container}.r{round:digits}.msg.{ordinal:digits}\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
-          "line": 52,
-          "role": "Code",
-          "text": "\"session.{container}.msg.{ordinal:digits}\","
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Ports/NodeCollectPorts.cs",
-          "line": 6,
-          "role": "Code",
-          "text": "/// （如 <c>session.sess-1.msg.1</c>），从键串反解 node/port 不可靠 ⇒ 读侧投影（按节点前缀裁剪 /"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Read/NodeKeySet.cs",
-          "line": 67,
-          "role": "Code",
-          "text": "/// <summary>外来族（history./session. 等）。</summary>"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Read/NodeReadReason.cs",
-          "line": 29,
-          "role": "Code",
-          "text": "/// <summary>外来族（history./session. 等）。</summary>"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Relations/NodeRelation.cs",
-          "line": 56,
-          "role": "Code",
-          "text": "/// <summary>会话根资源类型（方案 C：会话图子图锚点；Id = \"session.{name}\"）。</summary>"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Relations/ReferenceTypes.cs",
-          "line": 29,
-          "role": "Code",
-          "text": "/// <summary>会话根资源类型（会话图子图锚点；Id = \"session.{name}\"）。</summary>"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
-          "line": 44,
-          "role": "Code",
-          "text": "tcs.TrySetResult(new ObserveOutcome(id, key, version, session.HighestAck, TimeSpan.Zero, ChangeResult.Failed)));"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
-          "line": 58,
-          "role": "Code",
-          "text": "return new ObserveOutcome(id, key, version, session.HighestAck, TimeSpan.Zero, ChangeResult.Failed);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
-          "line": 65,
-          "role": "Code",
-          "text": "return new ObserveOutcome(id, key, version, session.HighestAck, TimeSpan.Zero, ChangeResult.Committed);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
-          "line": 76,
-          "role": "Code",
-          "text": "return new ObserveOutcome(id, key, version, session.HighestAck, TimeSpan.Zero, ChangeResult.Failed);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
-          "line": 93,
-          "role": "Code",
-          "text": "return new ObserveOutcome(id, key, version, session.HighestAck,"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
-          "line": 94,
-          "role": "Code",
-          "text": "(session.ConvergedAt - session.StartedAt) ?? TimeSpan.Zero, ChangeResult.Degraded);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
-          "line": 105,
-          "role": "Code",
-          "text": "session.Upgrade(ack.Level, DateTimeOffset.UtcNow);"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
-          "line": 109,
-          "role": "Code",
-          "text": "session.ChangeId, session.Key, session.Version, session.HighestAck,"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
-          "line": 110,
-          "role": "Code",
-          "text": "(session.ConvergedAt - session.StartedAt) ?? TimeSpan.Zero, ChangeResult.Committed));"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Parsing/Keys/KeyGrammar.cs",
-          "line": 128,
-          "role": "Code",
-          "text": "/// 与各域既有「拼串」实现逐字一致（保留历史键族的既有退化行为，如空会话名 → <c>session..r3.msg.7</c>）。"
-        },
-        {
-          "repo": "Frame",
-          "file": "CsharpPrj/Modules/Pipeline/Models.cs",
+          "file": "CsharpPrj/Modules/Composition/Pipeline/Models.cs",
           "line": 211,
           "role": "Code",
           "text": "session.OnDispose += s => _sessions.Remove(target);"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Pipeline/Models.cs",
+          "file": "CsharpPrj/Modules/Composition/Pipeline/Models.cs",
           "line": 217,
           "role": "Code",
           "text": "if (_sessions.TryGet(target, out var session) && session.Status == SessionStatus.Active)"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Pipeline/Models.cs",
+          "file": "CsharpPrj/Modules/Composition/Pipeline/Models.cs",
           "line": 226,
           "role": "Code",
           "text": "session.Dispose();"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-表层语言与Usharp接入-实施记录.md",
+          "line": 37,
+          "role": "Doc",
+          "text": "| U17 | loc 词表分层 | 单值 → 多值 + 分层（`session.*` / `cline.session.*` / `archive.*`）；落地前维持现状单值 |"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-表层语言与Usharp接入.md",
+          "line": 255,
+          "role": "Doc",
+          "text": "session.{container}"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-表层语言与Usharp接入.md",
+          "line": 256,
+          "role": "Doc",
+          "text": "cline.session.{container}       （示例；实测现状只有 workflowId 一值，需先扩成受控词集 → U17）"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-表层语言与Usharp接入.md",
+          "line": 327,
+          "role": "Doc",
+          "text": "| **U17** | loc 受控词集与层级：现状 `Location = workflowId` **单值**，是否升为分层坐标（`session.*` / `cline.session.*` / `archive.*`）+ 是否允许多值 loc | 决定反解表规模与\"一轮多位置\"能力 | A 单值→多值 + 分层（推荐，与应用篇 placement 清单一致）／B 保持单值（表达力不足）／C"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-与位置无关的设计.md",
+          "line": 15,
+          "role": "Doc",
+          "text": "Key        ：节点身份（键）—— 全系统唯一、载体无关（如 session.{c}.r{r}.msg.{seq}）"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-与位置无关的设计.md",
+          "line": 206,
+          "role": "Doc",
+          "text": "\"key\": \"session.{container}.r{round}\", \"form\": \"view\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-与位置无关的设计.md",
+          "line": 209,
+          "role": "Doc",
+          "text": "\"key\": \"cline.session.{container}.round.{round}\", \"form\": \"raw\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 18,
+          "role": "Doc",
+          "text": "| `ur_nodes` L-B | `session.{c}.r{r}.msg.{s}` | 单条 `ConversationMessage`（终答内联） | `HistoryProjector.ProjectMarkedAsync:97` | LLM wire `RenderPriorWireAsync:289` → `BuildSessionAsync:103` | `session-vie"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 19,
+          "role": "Doc",
+          "text": "| `ur_nodes` L-C | `cline.session.{k}.round.{n}` | `messages.json` 全文 | `HistoryClineMessageArchive.ArchiveAsync:47`（由 `ClineDaemonEndpoint.TryArchiveRoundAsync:259` 调） | `IClineMessageArchive.LoadAsy"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 105,
+          "role": "Doc",
+          "text": "{ \"NodeKey\": \"session.work.r2.msg1\", \"WorkflowId\": \"agent-round\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 143,
+          "role": "Doc",
+          "text": "\"key\": \"cline.session.{container}.round.{round}\", \"form\": \"raw\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 146,
+          "role": "Doc",
+          "text": "\"key\": \"session.{container}.r{round}\", \"form\": \"view\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 173,
+          "role": "Doc",
+          "text": "| ① 归档 | `messages.json` 全文 | `ur_nodes/cline_messages`（`cline.session.{k}.round.{r}`） | `ClineDaemonEndpoint.TryArchiveRoundAsync:259-276` |"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 175,
+          "role": "Doc",
+          "text": "| ③ 入史投影 | 终答 + 标记中间项 | `ur_nodes/conversation_message`（`session.{k}.r{r}.msg.{s}`） | `HistoryProjector.ProjectMarkedAsync:97` |"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 185,
+          "role": "Doc",
+          "text": "Key = session.{container}.r{round}                    ← 身份（§4 identity）"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 187,
+          "role": "Doc",
+          "text": "├── Placement: archive-raw   form=raw   → cline.session.{c}.round.{r}   （原文，audit）"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 188,
+          "role": "Doc",
+          "text": "├── Placement: session-view  form=view  → session.{c}.r{r}              （规范化 + mark，contextual）"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 207,
+          "role": "Doc",
+          "text": "{ \"NodeKey\": \"cline.session.work.round.2\", \"ThreadId\": \"work\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 212,
+          "role": "Doc",
+          "text": "{ \"NodeKey\": \"session.work.r2\", \"ThreadId\": \"agent-round\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 220,
+          "role": "Doc",
+          "text": "> 现有 `conversation_message` 载荷是**单条消息**；上例为 U1 案 A（轮粒度）下的\"轮载荷\"。若维持消息粒度，则 Key 退为 `session.{c}.r{r}.msg{s}`、`items` 退为单条——**由 U1 决定**，其余不变。"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-Agent应用篇.md",
+          "line": 274,
+          "role": "Doc",
+          "text": "| 会话下拉 / 存在性 | 会话根枚举 | `ListSessionsAsync:200-206`（`ur_histories` 行） | 改枚举 `session.*` placement |"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/下一步计划.md",
+          "line": 177,
+          "role": "Doc",
+          "text": "| **U17** | `loc` 受控词集与层级：单值 → 多值 + 分层（`session.*` / `cline.session.*` / `archive.*`） | A 多值分层 / B 单值 / C 多值不分层 | **A** | 反解表规模与\"一轮多位置\"能力（与 U5 多载体镜像互为约束） |"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/Agent应用篇-后续阶段细化方案.md",
+          "line": 91,
+          "role": "Doc",
+          "text": "> **重要更正（本轮实测）**：`KeyHierarchyFormat`（`KeyHierarchyFormat.cs:12-19`）= 层次化**后缀**格式 `{Prefix}{层次}{Suffix}`（默认 `_` / `_` / 无分隔 / 十进制无填充），服务 `KeyProcessor` 的 **`_cN` 家族**键；而 Agent 会话键族（`cline.session.{k}."
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/Agent应用篇-后续阶段细化方案.md",
+          "line": 149,
+          "role": "Doc",
+          "text": "| **D1′** | `Agent.Launcher\\Modules\\Libraries\\ConversationViewService.cs`（`ListSessionsAsync:200-206`）改枚举 `session.*` 位置 | 新旧会话均可枚举 |"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/Agent应用篇-实施步骤.md",
+          "line": 44,
+          "role": "Doc",
+          "text": "- **验收**：新增 `ClineArchiveRoundPolicyTests`（3 例）—— 调用方优先 / 无会话上下文回退且来源可辨 / **L-C 键轮次 == L-B 键轮次 == 调用方轮次**（`cline.session.work.round.7` ↔ `session.work.r7.msg.1`）。"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/Agent应用篇-实施步骤.md",
+          "line": 313,
+          "role": "Doc",
+          "text": "**结论**：Agent 会话键族（`cline.session.{k}.round.{r}` / `session.{k}.r{r}.msg.{s}`，由 `HistoryClineMessageArchive.BuildNodeKey` / `SessionMessageKeys.Build` 单源生成）**不含 `_cN` 结构** ⇒ **两族不同族**，强行接入即改写存量键形态（D6 静"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/Agent应用篇-实施步骤.md",
+          "line": 343,
+          "role": "Doc",
+          "text": "| 2 | `HistoryMarkPolicyTests.cs:90` | 断言仍用**旧无轮次键** `session.sess-1.msg.1`，实际键已含轮次段 ⇒ 既存失败 | ✅ 改为 `session.sess-1.r2.msg.1`（`SessionMessageKeys` 权威） |"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/docs/Agent应用篇-实施步骤.md",
+          "line": 395,
+          "role": "Doc",
+          "text": "| **B1-A** | 声明增位置 `stream-frame`（`key: cline.session.{container}.round.{round}.f{frameSeq}`、`writer: writer-stream`、`carrier: sql-nodes-archive`）；identity 扩为 `{container}.r{round}.f{frameSeq}`（`seque"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/HierarchyKeyFamilies.cs",
+          "line": 56,
+          "role": "Code",
+          "text": "\"session.{sessionName}\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/HierarchyKeyFamilies.cs",
+          "line": 57,
+          "role": "Code",
+          "text": "\"session.\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/HierarchyKeyFamilies.cs",
+          "line": 67,
+          "role": "Code",
+          "text": "KeySurface.Endpoint, new[] { \"session.{sessionName}\" }, \"session.\"),"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeEndpointIds.cs",
+          "line": 54,
+          "role": "Code",
+          "text": "/// <summary>会话根端点文法（<c>session.{sessionName}</c>）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeEndpointIds.cs",
+          "line": 117,
+          "role": "Code",
+          "text": "/// <summary>会话根身份归一（<c>session:</c> / <c>session.</c> 幂等剥净）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeEndpointIds.cs",
+          "line": 121,
+          "role": "Code",
+          "text": "/// <summary>会话根端点 Id（<c>session.{name}</c>；空身份即抛）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeEndpointIds.cs",
+          "line": 128,
+          "role": "Code",
+          "text": "\"会话身份为空（session: / session. 不是身份）。\", nameof(sessionName));"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeEndpointIds.cs",
+          "line": 198,
+          "role": "Code",
+          "text": "/// <summary>已知的其它族（<c>history.*</c> / <c>session.*</c> / <c>history:</c> / <c>session:</c>）判据（结构事实，禁手列前缀）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeEndpointIds.cs",
+          "line": 359,
+          "role": "Code",
+          "text": "// 外来族（history./session./history:/session:）不得落入节点身份兜底；node:/task: 等含类型前缀的裸键同样拒绝。"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
+          "line": 38,
+          "role": "Code",
+          "text": "/// 会话消息节点键文法（<c>session.{container}.r{round}.{kind}.{ordinal}</c>；兼容模板只读反解存量键）。"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
+          "line": 47,
+          "role": "Code",
+          "text": "\"session.{container}.r{round:digits}.{kind}.{ordinal:digits}\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
+          "line": 48,
+          "role": "Code",
+          "text": "familyPrefix: \"session.\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
+          "line": 51,
+          "role": "Code",
+          "text": "\"session.{container}.r{round:digits}.msg.{ordinal:digits}\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
+          "line": 52,
+          "role": "Code",
+          "text": "\"session.{container}.msg.{ordinal:digits}\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Ports/NodeCollectPorts.cs",
+          "line": 6,
+          "role": "Code",
+          "text": "/// （如 <c>session.sess-1.msg.1</c>），从键串反解 node/port 不可靠 ⇒ 读侧投影（按节点前缀裁剪 /"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Read/NodeKeySet.cs",
+          "line": 67,
+          "role": "Code",
+          "text": "/// <summary>外来族（history./session. 等）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Read/NodeReadReason.cs",
+          "line": 29,
+          "role": "Code",
+          "text": "/// <summary>外来族（history./session. 等）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Relations/NodeRelation.cs",
+          "line": 56,
+          "role": "Code",
+          "text": "/// <summary>会话根资源类型（方案 C：会话图子图锚点；Id = \"session.{name}\"）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Node/Relations/ReferenceTypes.cs",
+          "line": 29,
+          "role": "Code",
+          "text": "/// <summary>会话根资源类型（会话图子图锚点；Id = \"session.{name}\"）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Data/Parsing/Keys/KeyGrammar.cs",
+          "line": 128,
+          "role": "Code",
+          "text": "/// 与各域既有「拼串」实现逐字一致（保留历史键族的既有退化行为，如空会话名 → <c>session..r3.msg.7</c>）。"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 56,
+          "role": "Code",
+          "text": "session.MarkRunning();"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 66,
+          "role": "Code",
+          "text": "session.MarkCancelled();"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 72,
+          "role": "Code",
+          "text": "session.MarkFailed(ex.Message, ex);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 95,
+          "role": "Code",
+          "text": "session.MarkCancelled();"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 117,
+          "role": "Code",
+          "text": "session.MarkPaused();"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 137,
+          "role": "Code",
+          "text": "session.MarkRunning();"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 163,
+          "role": "Code",
+          "text": "session.MarkCompleted();"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 164,
+          "role": "Code",
+          "text": "_logger?.LogExecutionComplete(session.WorkflowId, session.GetExecutionTime());"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 168,
+          "role": "Code",
+          "text": "session.MarkCancelled();"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 169,
+          "role": "Code",
+          "text": "_logger?.LogExecutionError(session.WorkflowId, result.ErrorMessage ?? \"Execution was cancelled\");"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 173,
+          "role": "Code",
+          "text": "session.MarkFailed(result.ErrorMessage, result.Exception);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+          "line": 174,
+          "role": "Code",
+          "text": "_logger?.LogExecutionError(session.WorkflowId, result.ErrorMessage ?? \"Unknown error\", result.Exception);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Session/SessionManager.cs",
+          "line": 37,
+          "role": "Code",
+          "text": "_sessions[session.SessionId] = session;"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Session/SessionManager.cs",
+          "line": 44,
+          "role": "Code",
+          "text": "_sessions[session.SessionId] = session;"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
+          "line": 44,
+          "role": "Code",
+          "text": "tcs.TrySetResult(new ObserveOutcome(id, key, version, session.HighestAck, TimeSpan.Zero, ChangeResult.Failed)));"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
+          "line": 58,
+          "role": "Code",
+          "text": "return new ObserveOutcome(id, key, version, session.HighestAck, TimeSpan.Zero, ChangeResult.Failed);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
+          "line": 65,
+          "role": "Code",
+          "text": "return new ObserveOutcome(id, key, version, session.HighestAck, TimeSpan.Zero, ChangeResult.Committed);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
+          "line": 76,
+          "role": "Code",
+          "text": "return new ObserveOutcome(id, key, version, session.HighestAck, TimeSpan.Zero, ChangeResult.Failed);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
+          "line": 93,
+          "role": "Code",
+          "text": "return new ObserveOutcome(id, key, version, session.HighestAck,"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
+          "line": 94,
+          "role": "Code",
+          "text": "(session.ConvergedAt - session.StartedAt) ?? TimeSpan.Zero, ChangeResult.Degraded);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
+          "line": 105,
+          "role": "Code",
+          "text": "session.Upgrade(ack.Level, DateTimeOffset.UtcNow);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
+          "line": 109,
+          "role": "Code",
+          "text": "session.ChangeId, session.Key, session.Version, session.HighestAck,"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
+          "line": 110,
+          "role": "Code",
+          "text": "(session.ConvergedAt - session.StartedAt) ?? TimeSpan.Zero, ChangeResult.Committed));"
         },
         {
           "repo": "Frame",
@@ -11200,21 +11200,21 @@
       "hits": [
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-表层语言与Usharp接入.md",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-表层语言与Usharp接入.md",
           "line": 353,
           "role": "Doc",
           "text": "agent_round"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-表层语言与Usharp接入.md",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-表层语言与Usharp接入.md",
           "line": 356,
           "role": "Doc",
           "text": "agent_round"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/docs/节点通用框架-表层语言与Usharp接入.md",
+          "file": "CsharpPrj/Modules/Data/Node/docs/节点通用框架-表层语言与Usharp接入.md",
           "line": 361,
           "role": "Doc",
           "text": "archive_raw = agent_round        ← 行 = ⟨位置 id = loc 值⟩"
@@ -11526,7 +11526,7 @@
       "hits": [
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Modules/Node/Identity/NodeStoreKeyGrammars.cs",
+          "file": "CsharpPrj/Modules/Data/Node/Identity/NodeStoreKeyGrammars.cs",
           "line": 65,
           "role": "Code",
           "text": "\"process-node\","

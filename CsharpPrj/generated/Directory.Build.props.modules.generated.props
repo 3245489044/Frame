@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-05 13:02:33
+  生成时间: 2026-11-05 13:31:21
 -->
 <Project>
 
@@ -46,35 +46,36 @@
     <Mod_ReactiveData>$(CsharpPrjDir)BasicMethod\ReactiveData\</Mod_ReactiveData>
     <Mod_ReflectionMethod>$(CsharpPrjDir)BasicMethod\RefectionMethod\</Mod_ReflectionMethod>
     <Mod_UniversalLayoutMath>$(CsharpPrjDir)BasicMethod\UniversalLayout\</Mod_UniversalLayoutMath>
-    <Mod_ComponentData>$(CsharpPrjDir)Modules\ComponentData\</Mod_ComponentData>
-    <Mod_Compute>$(CsharpPrjDir)Modules\Compute\</Mod_Compute>
-    <Mod_Concurrency>$(CsharpPrjDir)Modules\Concurrency\</Mod_Concurrency>
-    <Mod_ContractFramework>$(CsharpPrjDir)Modules\ContractFramework\</Mod_ContractFramework>
-    <Mod_DeclarativeDataflow>$(CsharpPrjDir)Modules\DeclarativeDataflow\</Mod_DeclarativeDataflow>
-    <Mod_DiagnosticContext>$(CsharpPrjDir)Modules\DiagnosticContext\</Mod_DiagnosticContext>
-    <Mod_EventFramework>$(CsharpPrjDir)Modules\EventFramework\</Mod_EventFramework>
-    <Mod_ExecutionFramework>$(CsharpPrjDir)Modules\ExecutionFramework\</Mod_ExecutionFramework>
-    <Mod_GraphProcessing>$(CsharpPrjDir)Modules\GraphProcessing\</Mod_GraphProcessing>
-    <Mod_Governance>$(CsharpPrjDir)Modules\Governance\</Mod_Governance>
-    <Mod_Gather>$(CsharpPrjDir)Modules\Gather\</Mod_Gather>
-    <Mod_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\</Mod_InternalStorage>
-    <Mod_KeySpace>$(CsharpPrjDir)Modules\KeySpace\</Mod_KeySpace>
-    <Mod_Wiring>$(CsharpPrjDir)Modules\Wiring\</Mod_Wiring>
-    <Mod_LogicComposition>$(CsharpPrjDir)Modules\LogicComposition\</Mod_LogicComposition>
-    <Mod_LogicComposition_Conversion>$(CsharpPrjDir)Modules\LogicComposition\Conversion\</Mod_LogicComposition_Conversion>
-    <Mod_Maintain>$(CsharpPrjDir)Modules\Maintain\</Mod_Maintain>
-    <Mod_MetaCommand>$(CsharpPrjDir)Modules\MetaCommand\</Mod_MetaCommand>
+    <Mod_ComponentData>$(CsharpPrjDir)Modules\Data\ComponentData\</Mod_ComponentData>
+    <Mod_Compute>$(CsharpPrjDir)Modules\Foundations\Compute\</Mod_Compute>
+    <Mod_Concurrency>$(CsharpPrjDir)Modules\Foundations\Concurrency\</Mod_Concurrency>
+    <Mod_ContractFramework>$(CsharpPrjDir)Modules\Foundations\ContractFramework\</Mod_ContractFramework>
+    <Mod_DeclarativeDataflow>$(CsharpPrjDir)Modules\Data\DeclarativeDataflow\</Mod_DeclarativeDataflow>
+    <Mod_DiagnosticContext>$(CsharpPrjDir)Modules\Foundations\DiagnosticContext\</Mod_DiagnosticContext>
+    <Mod_EventFramework>$(CsharpPrjDir)Modules\Frameworks\EventFramework\</Mod_EventFramework>
+    <Mod_ExecutionFramework>$(CsharpPrjDir)Modules\Frameworks\ExecutionFramework\</Mod_ExecutionFramework>
+    <Mod_GraphProcessing>$(CsharpPrjDir)Modules\Data\GraphProcessing\</Mod_GraphProcessing>
+    <Mod_Governance>$(CsharpPrjDir)Modules\Foundations\Governance\</Mod_Governance>
+    <Mod_Gather>$(CsharpPrjDir)Modules\Orchestration\Gather\</Mod_Gather>
+    <Mod_InternalStorage>$(CsharpPrjDir)Modules\Foundations\InternalStorage\</Mod_InternalStorage>
+    <Mod_KeySpace>$(CsharpPrjDir)Modules\Data\KeySpace\</Mod_KeySpace>
+    <Mod_Wiring>$(CsharpPrjDir)Modules\Composition\Wiring\</Mod_Wiring>
+    <Mod_LogicComposition>$(CsharpPrjDir)Modules\Frameworks\LogicComposition\</Mod_LogicComposition>
+    <Mod_LogicComposition_Conversion>$(CsharpPrjDir)Modules\Frameworks\LogicComposition\Conversion\</Mod_LogicComposition_Conversion>
+    <Mod_Maintain>$(CsharpPrjDir)Modules\Orchestration\Maintain\</Mod_Maintain>
+    <Mod_PluginHost>$(CsharpPrjDir)Modules\Orchestration\PluginHost\</Mod_PluginHost>
+    <Mod_MetaCommand>$(CsharpPrjDir)Modules\Composition\MetaCommand\</Mod_MetaCommand>
     <Mod_Modules>$(CsharpPrjDir)Modules\</Mod_Modules>
-    <Mod_Node>$(CsharpPrjDir)Modules\Node\</Mod_Node>
-    <Mod_Observe>$(CsharpPrjDir)Modules\Observe\</Mod_Observe>
-    <Mod_ParameterResolver>$(CsharpPrjDir)Modules\ParameterResolver\</Mod_ParameterResolver>
-    <Mod_Parsing>$(CsharpPrjDir)Modules\Parsing\</Mod_Parsing>
-    <Mod_Parsing_Keys>$(CsharpPrjDir)Modules\Parsing\Keys\</Mod_Parsing_Keys>
-    <Mod_Pipeline>$(CsharpPrjDir)Modules\Pipeline\</Mod_Pipeline>
-    <Mod_Registry>$(CsharpPrjDir)Modules\Registry\</Mod_Registry>
-    <Mod_Sync>$(CsharpPrjDir)Modules\Sync\</Mod_Sync>
-    <Mod_Threading>$(CsharpPrjDir)Modules\Threading\</Mod_Threading>
-    <Mod_ValidationFramework>$(CsharpPrjDir)Modules\ValidationFramework\</Mod_ValidationFramework>
+    <Mod_Node>$(CsharpPrjDir)Modules\Data\Node\</Mod_Node>
+    <Mod_Observe>$(CsharpPrjDir)Modules\Frameworks\Observe\</Mod_Observe>
+    <Mod_ParameterResolver>$(CsharpPrjDir)Modules\Composition\ParameterResolver\</Mod_ParameterResolver>
+    <Mod_Parsing>$(CsharpPrjDir)Modules\Data\Parsing\</Mod_Parsing>
+    <Mod_Parsing_Keys>$(CsharpPrjDir)Modules\Data\Parsing\Keys\</Mod_Parsing_Keys>
+    <Mod_Pipeline>$(CsharpPrjDir)Modules\Composition\Pipeline\</Mod_Pipeline>
+    <Mod_Registry>$(CsharpPrjDir)Modules\Composition\Registry\</Mod_Registry>
+    <Mod_Sync>$(CsharpPrjDir)Modules\Frameworks\Sync\</Mod_Sync>
+    <Mod_Threading>$(CsharpPrjDir)Modules\Foundations\Threading\</Mod_Threading>
+    <Mod_ValidationFramework>$(CsharpPrjDir)Modules\Frameworks\ValidationFramework\</Mod_ValidationFramework>
     <Mod_BackEndDriven>$(CsharpPrjDir)Operation\BackEndDriven\</Mod_BackEndDriven>
     <Mod_DataStoreDriven>$(CsharpPrjDir)Operation\DataStoreDriven\</Mod_DataStoreDriven>
     <Mod_DataStoreDriven_Instances>$(CsharpPrjDir)Operation\DataStoreDriven\Instances\</Mod_DataStoreDriven_Instances>
@@ -178,35 +179,36 @@
     <Proj_ReactiveData>$(CsharpPrjDir)BasicMethod\ReactiveData\ReactiveData.csproj</Proj_ReactiveData>
     <Proj_ReflectionMethod>$(CsharpPrjDir)BasicMethod\RefectionMethod\ReflectionMethod.csproj</Proj_ReflectionMethod>
     <Proj_UniversalLayoutMath>$(CsharpPrjDir)BasicMethod\UniversalLayout\UniversalLayoutMath.csproj</Proj_UniversalLayoutMath>
-    <Proj_ComponentData>$(CsharpPrjDir)Modules\ComponentData\ComponentData.csproj</Proj_ComponentData>
-    <Proj_Compute>$(CsharpPrjDir)Modules\Compute\Compute.csproj</Proj_Compute>
-    <Proj_Concurrency>$(CsharpPrjDir)Modules\Concurrency\Concurrency.csproj</Proj_Concurrency>
-    <Proj_ContractFramework>$(CsharpPrjDir)Modules\ContractFramework\ContractFramework.csproj</Proj_ContractFramework>
-    <Proj_DeclarativeDataflow>$(CsharpPrjDir)Modules\DeclarativeDataflow\DeclarativeDataflow.csproj</Proj_DeclarativeDataflow>
-    <Proj_DiagnosticContext>$(CsharpPrjDir)Modules\DiagnosticContext\DiagnosticContext.csproj</Proj_DiagnosticContext>
-    <Proj_EventFramework>$(CsharpPrjDir)Modules\EventFramework\EventFramework.csproj</Proj_EventFramework>
-    <Proj_ExecutionFramework>$(CsharpPrjDir)Modules\ExecutionFramework\ExecutionFramework.csproj</Proj_ExecutionFramework>
-    <Proj_GraphProcessing>$(CsharpPrjDir)Modules\GraphProcessing\GraphProcessing.csproj</Proj_GraphProcessing>
-    <Proj_Governance>$(CsharpPrjDir)Modules\Governance\Governance.csproj</Proj_Governance>
-    <Proj_Gather>$(CsharpPrjDir)Modules\Gather\Gather.csproj</Proj_Gather>
-    <Proj_InternalStorage>$(CsharpPrjDir)Modules\InternalStorage\InternalStorage.csproj</Proj_InternalStorage>
-    <Proj_KeySpace>$(CsharpPrjDir)Modules\KeySpace\Modules.KeySpace.csproj</Proj_KeySpace>
-    <Proj_Wiring>$(CsharpPrjDir)Modules\Wiring\Modules.Wiring.csproj</Proj_Wiring>
-    <Proj_LogicComposition>$(CsharpPrjDir)Modules\LogicComposition\LogicComposition.csproj</Proj_LogicComposition>
-    <Proj_LogicComposition_Conversion>$(CsharpPrjDir)Modules\LogicComposition\Conversion\LogicComposition.Conversion.csproj</Proj_LogicComposition_Conversion>
-    <Proj_Maintain>$(CsharpPrjDir)Modules\Maintain\Maintain.csproj</Proj_Maintain>
-    <Proj_MetaCommand>$(CsharpPrjDir)Modules\MetaCommand\MetaCommand.csproj</Proj_MetaCommand>
+    <Proj_ComponentData>$(CsharpPrjDir)Modules\Data\ComponentData\ComponentData.csproj</Proj_ComponentData>
+    <Proj_Compute>$(CsharpPrjDir)Modules\Foundations\Compute\Compute.csproj</Proj_Compute>
+    <Proj_Concurrency>$(CsharpPrjDir)Modules\Foundations\Concurrency\Concurrency.csproj</Proj_Concurrency>
+    <Proj_ContractFramework>$(CsharpPrjDir)Modules\Foundations\ContractFramework\ContractFramework.csproj</Proj_ContractFramework>
+    <Proj_DeclarativeDataflow>$(CsharpPrjDir)Modules\Data\DeclarativeDataflow\DeclarativeDataflow.csproj</Proj_DeclarativeDataflow>
+    <Proj_DiagnosticContext>$(CsharpPrjDir)Modules\Foundations\DiagnosticContext\DiagnosticContext.csproj</Proj_DiagnosticContext>
+    <Proj_EventFramework>$(CsharpPrjDir)Modules\Frameworks\EventFramework\EventFramework.csproj</Proj_EventFramework>
+    <Proj_ExecutionFramework>$(CsharpPrjDir)Modules\Frameworks\ExecutionFramework\ExecutionFramework.csproj</Proj_ExecutionFramework>
+    <Proj_GraphProcessing>$(CsharpPrjDir)Modules\Data\GraphProcessing\GraphProcessing.csproj</Proj_GraphProcessing>
+    <Proj_Governance>$(CsharpPrjDir)Modules\Foundations\Governance\Governance.csproj</Proj_Governance>
+    <Proj_Gather>$(CsharpPrjDir)Modules\Orchestration\Gather\Gather.csproj</Proj_Gather>
+    <Proj_InternalStorage>$(CsharpPrjDir)Modules\Foundations\InternalStorage\InternalStorage.csproj</Proj_InternalStorage>
+    <Proj_KeySpace>$(CsharpPrjDir)Modules\Data\KeySpace\Modules.KeySpace.csproj</Proj_KeySpace>
+    <Proj_Wiring>$(CsharpPrjDir)Modules\Composition\Wiring\Modules.Wiring.csproj</Proj_Wiring>
+    <Proj_LogicComposition>$(CsharpPrjDir)Modules\Frameworks\LogicComposition\LogicComposition.csproj</Proj_LogicComposition>
+    <Proj_LogicComposition_Conversion>$(CsharpPrjDir)Modules\Frameworks\LogicComposition\Conversion\LogicComposition.Conversion.csproj</Proj_LogicComposition_Conversion>
+    <Proj_Maintain>$(CsharpPrjDir)Modules\Orchestration\Maintain\Maintain.csproj</Proj_Maintain>
+    <Proj_PluginHost>$(CsharpPrjDir)Modules\Orchestration\PluginHost\PluginHost.csproj</Proj_PluginHost>
+    <Proj_MetaCommand>$(CsharpPrjDir)Modules\Composition\MetaCommand\MetaCommand.csproj</Proj_MetaCommand>
     <Proj_Modules>$(CsharpPrjDir)Modules\Modules.csproj</Proj_Modules>
-    <Proj_Node>$(CsharpPrjDir)Modules\Node\Modules.Node.csproj</Proj_Node>
-    <Proj_Observe>$(CsharpPrjDir)Modules\Observe\Observe.csproj</Proj_Observe>
-    <Proj_ParameterResolver>$(CsharpPrjDir)Modules\ParameterResolver\ParameterResolver.csproj</Proj_ParameterResolver>
-    <Proj_Parsing>$(CsharpPrjDir)Modules\Parsing\Parsing.csproj</Proj_Parsing>
-    <Proj_Parsing_Keys>$(CsharpPrjDir)Modules\Parsing\Keys\Modules.Parsing.Keys.csproj</Proj_Parsing_Keys>
-    <Proj_Pipeline>$(CsharpPrjDir)Modules\Pipeline\Pipeline.csproj</Proj_Pipeline>
-    <Proj_Registry>$(CsharpPrjDir)Modules\Registry\Registry.csproj</Proj_Registry>
-    <Proj_Sync>$(CsharpPrjDir)Modules\Sync\Sync.csproj</Proj_Sync>
-    <Proj_Threading>$(CsharpPrjDir)Modules\Threading\Threading.csproj</Proj_Threading>
-    <Proj_ValidationFramework>$(CsharpPrjDir)Modules\ValidationFramework\ValidationFramework.csproj</Proj_ValidationFramework>
+    <Proj_Node>$(CsharpPrjDir)Modules\Data\Node\Modules.Node.csproj</Proj_Node>
+    <Proj_Observe>$(CsharpPrjDir)Modules\Frameworks\Observe\Observe.csproj</Proj_Observe>
+    <Proj_ParameterResolver>$(CsharpPrjDir)Modules\Composition\ParameterResolver\ParameterResolver.csproj</Proj_ParameterResolver>
+    <Proj_Parsing>$(CsharpPrjDir)Modules\Data\Parsing\Parsing.csproj</Proj_Parsing>
+    <Proj_Parsing_Keys>$(CsharpPrjDir)Modules\Data\Parsing\Keys\Modules.Parsing.Keys.csproj</Proj_Parsing_Keys>
+    <Proj_Pipeline>$(CsharpPrjDir)Modules\Composition\Pipeline\Pipeline.csproj</Proj_Pipeline>
+    <Proj_Registry>$(CsharpPrjDir)Modules\Composition\Registry\Registry.csproj</Proj_Registry>
+    <Proj_Sync>$(CsharpPrjDir)Modules\Frameworks\Sync\Sync.csproj</Proj_Sync>
+    <Proj_Threading>$(CsharpPrjDir)Modules\Foundations\Threading\Threading.csproj</Proj_Threading>
+    <Proj_ValidationFramework>$(CsharpPrjDir)Modules\Frameworks\ValidationFramework\ValidationFramework.csproj</Proj_ValidationFramework>
     <Proj_BackEndDriven>$(CsharpPrjDir)Operation\BackEndDriven\BackEndDriven.csproj</Proj_BackEndDriven>
     <Proj_DataStoreDriven>$(CsharpPrjDir)Operation\DataStoreDriven\DataStoreDriven.csproj</Proj_DataStoreDriven>
     <Proj_DataStoreDriven_Instances>$(CsharpPrjDir)Operation\DataStoreDriven\Instances\DataStoreDriven.Instances.csproj</Proj_DataStoreDriven_Instances>

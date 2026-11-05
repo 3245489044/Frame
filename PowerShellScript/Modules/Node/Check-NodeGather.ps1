@@ -8,7 +8,7 @@
     框架零领域知识、域差异全部由业务侧注入、装配点唯一。检查项（命中即违规）：
       G1 声明闭合：Config\nodes\node-gather-*.json 的 kind-shaping[*].family ⊆ families
          （族闭合：塑形声明的归宿族必须在 families 中声明；task-node 等空 families 域跳过）；有 families 却无 '*' 默认塑形 ⇒ 未知 kind 无归宿。
-      G2 零领域：Frame\CsharpPrj\Modules\Node\Gather\*.cs 零上层 using（Operation/Share/Agent/Usharp）且零域键字面量
+      G2 零领域：Frame\CsharpPrj\Modules\Data\Node\Gather\*.cs 零上层 using（Operation/Share/Agent/Usharp）且零域键字面量
          （process/task-node/conversation/segment/message —— 域键属业务侧，框架不得硬编码）。
       G3 接线唯一：INodeGatherService 注册点恰 1（= NodeGatherHosting.TryAttachAll）；读适配**实现**不得落在框架层
          （§1.3：契约在框架、实现在业务）。
@@ -40,7 +40,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
 
 $violations = [System.Collections.Generic.List[string]]::new()
 
-$gatherDir     = Join-Path $Root 'Frame\CsharpPrj\Modules\Node\Gather'
+$gatherDir     = Join-Path $Root 'Frame\CsharpPrj\Modules\Data\Node\Gather'
 $agentNodesDir = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
 $agentSrc      = Join-Path $Root 'Projects\Plug\Agent\src'
 

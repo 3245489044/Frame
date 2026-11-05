@@ -89,7 +89,7 @@ if ($gateNews.Count -ne 1) {
 }
 
 # C9：SplitPlan 未落节点不得拆分（受控码存在；实现单源 = Modules\Concurrency）。
-$pipelineFile = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Concurrency\Decision\ConcurrencyDecisionPipeline.cs'
+$pipelineFile = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Foundations\Concurrency\Decision\ConcurrencyDecisionPipeline.cs'
 $pipelineText = if (Test-Path -LiteralPath $pipelineFile) { Get-Content -LiteralPath $pipelineFile -Raw } else { '' }
 if ($pipelineText -notmatch 'CONCURRENCY_PLAN_NOT_PERSISTED') {
     Add-Violation 'C9' '缺少计划未落库拒绝（CONCURRENCY_PLAN_NOT_PERSISTED）'
@@ -103,7 +103,7 @@ if (($poolText + $groupPolicyText) -notmatch 'GROUP_MEMBER_ALREADY_ENROLLED') {
 }
 
 # C11：容量单源（池实现 IGroupCapacitySource；通用门禁读同形 IConcurrencyCapacitySource；Agent 适配器桥接两者）。
-$gateFile = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Concurrency\Gate\ConcurrencyBudgetGate.cs'
+$gateFile = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Foundations\Concurrency\Gate\ConcurrencyBudgetGate.cs'
 $gateText = if (Test-Path -LiteralPath $gateFile) { Get-Content -LiteralPath $gateFile -Raw } else { '' }
 $capacityAdapterFile = Join-Path $repoRoot 'Projects\Plug\Agent\src\Agent.Core\Engine\Concurrency\Adapters\TaskPoolCapacityAdapter.cs'
 $capacityAdapterText = if (Test-Path -LiteralPath $capacityAdapterFile) { Get-Content -LiteralPath $capacityAdapterFile -Raw } else { '' }

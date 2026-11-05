@@ -124,7 +124,7 @@ PowerShellScript/
 
 - 编译产物 = `Operation\DSL\Registry\index.generated.md`（按域分组，标记圈定，**禁手改**），由 `Build-GateIndex.ps1` 生成（改域/增删门后重跑，幂等）。
 - 守卫 = `Operation\DSL\Meta\Check-GateTaxonomy.ps1`（门禁 `GateTaxonomy`，`Tier=fast`）：清单 ⇄ 索引 ⇄ 脚本文件三方对账（T1 域合法 / T2 落点在位 / T3 脚本归属可达 / T4 索引复算等价 / T5 正负对照）。
-- 注：域门可就近下沉（如 `Modules\Node\`、`Modules\Parsing\`、`Projects\BuildFramework\`、`Environment\CentralTest\Tools\`）；此时清单登记项以 `Path` 指位，`Domain` 只描述归属轴。
+- 注：域门可就近下沉（如 `Modules\Data\Node\`、`Modules\Parsing\`、`Projects\BuildFramework\`、`Environment\CentralTest\Tools\`）；此时清单登记项以 `Path` 指位，`Domain` 只描述归属轴。
 
 ---
 

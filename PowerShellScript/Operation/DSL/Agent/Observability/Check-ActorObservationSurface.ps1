@@ -184,7 +184,7 @@ function Get-StageTokens([string]$Text) {
     # 禁管道枚举：把 HashSet 作为单个对象返回（否则退化为字符串数组，SetEquals 不可用）。
     return ,$set
 }
-$frameworkStage = Join-Path $Root 'Frame\CsharpPrj\Modules\DeclarativeDataflow\RunState\RunStateStage.cs'
+$frameworkStage = Join-Path $Root 'Frame\CsharpPrj\Modules\Data\DeclarativeDataflow\RunState\RunStateStage.cs'
 if ((Test-Path -LiteralPath $frameworkStage) -and (Test-Path -LiteralPath $contracts)) {
     $frameworkText = [System.IO.File]::ReadAllText($frameworkStage)
     $contractText = [System.IO.File]::ReadAllText($contracts)

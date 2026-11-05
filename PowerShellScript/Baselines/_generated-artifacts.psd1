@@ -129,7 +129,7 @@
         }
         @{
             Name               = 'ConcurrencyOptionsCs'
-            Artifact           = 'Frame\CsharpPrj\Modules\Concurrency\Generated\ConcurrencyOptions.g.cs'
+            Artifact           = 'Frame\CsharpPrj\Modules\Foundations\Concurrency\Generated\ConcurrencyOptions.g.cs'
             Generator          = 'Frame\PowerShellScript\Share\Concurrency\Generate-ConcurrencyOptions.ps1'
             GeneratorArgs      = @{ Target = 'cs'; OutFile = '{TEMP}' }
             Kind               = 'Text'

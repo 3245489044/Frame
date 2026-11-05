@@ -1,6 +1,6 @@
 # StateBus 并发冲突治理与线程通用框架提取设计
 
-> 版本：1.6（P1–P4 + 并发原语优化 + P6 上下文边界已实施；P5 部分记档）｜ 模块：`CsharpPrj/Modules/Threading`（`Modules.Threading`）｜ 依赖：无外部依赖（独立叶子模块；Channels inbox + AsyncLock 内建）
+> 版本：1.6（P1–P4 + 并发原语优化 + P6 上下文边界已实施；P5 部分记档）｜ 模块：`CsharpPrj/Modules/Foundations/Threading`（`Modules.Threading`）｜ 依赖：无外部依赖（独立叶子模块；Channels inbox + AsyncLock 内建）
 > 定位：与《AsyncExecutionFramework-扩展设计.md》（异步长任务执行，AEF）**互补**的**共享状态并发（StateBus）治理层**。
 > AEF 管『长任务怎么跑、如何被打断』；本文管『共享可变状态被多线程同写同读 + 同步广播，怎么隔离、如何把 Agent 与 StateManagement 的线程逻辑提取成通用框架』。
 
@@ -60,7 +60,7 @@
 新增子目录（全部**无外部依赖**，仅 System / Collections.Concurrent / Threading.Tasks）：
 
 ```
-CsharpPrj/Modules/Threading/
+CsharpPrj/Modules/Foundations/Threading/
 ├── AsyncLocalContext.cs / ExecutionScope.cs / ThreadContext.cs / ThreadingBridge.cs / ReentryGuard.cs   (既有，保留)
 ├── Scope/
 │   ├── AmbientSlot.cs        # 显式命名、可嵌套、只读快照纪律的作用域槽（统一 AsyncLocal 用法）

@@ -1,5 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>Roslyn→JSON 转换框架</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>Roslyn 语法树到转换 IR 的映射、规则表与发射器；转换内核复用 Modules.LogicComposition.Conversion，Roslyn 低层能力复用 RoslynMethod.Core。</ModuleRule_Description>
+    <ModuleRule_Keywords>Roslyn;语法树;转换IR;规则表;发射器;JSON</ModuleRule_Keywords>
+  </PropertyGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <LangVersion>latest</LangVersion>

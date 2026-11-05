@@ -44,19 +44,22 @@ function Compare-Set {
     return (Compare-GateKeySet -Reference $Left -Other $Right -ReferenceLabel 'left' -OtherLabel 'right' -RepoRoot $repoRoot)
 }
 
-# ---- M1/M2 输入：映射表 ----
+# ---- M1/M2 输入：映射表（单源 = Agent.Contract 的 PsRuntimeToolMap.ActionToTool）----
+# 定性（第三步）：旧规则在 PsRuntimeCallableTrack.cs 里找「new Dictionary 块」，
+# 但产品侧该映射早已上收为 PsRuntimeToolMap（PsRuntimeCapability.cs:87），轨文件只做别名引用。
+# ⇒ 门规则与产品结构不符（门错），不是产品缺映射；此处改读唯一事实源，并断言轨文件只允许别名。
+$mapSource = Join-Path $AgentRoot 'src\Agent.Contract\Runtime\PsRuntime\PsRuntimeCapability.cs'
 $trackFile = Join-Path $AgentRoot 'src\Agent.McpRegistryHost\Tracks\PsRuntimeCallableTrack.cs'
-if (-not (Test-Path -LiteralPath $trackFile)) {
-    $violations.Add("缺映射单源 PsRuntimeCallableTrack.cs：$trackFile")
-}
+if (-not (Test-Path -LiteralPath $mapSource)) { $violations.Add("缺映射单源 PsRuntimeToolMap：$mapSource") }
+if (-not (Test-Path -LiteralPath $trackFile)) { $violations.Add("缺映射消费方 PsRuntimeCallableTrack.cs：$trackFile") }
 $mapActions = @()
 $mapTools = @()
-if (Test-Path -LiteralPath $trackFile) {
-    $trackText = Get-Content -LiteralPath $trackFile -Raw -Encoding UTF8
-    # 只解析 ActionToTool 字典块（避免误抓同文件其它索引器/类型字面量）。
-    $block = [regex]::Match($trackText, '(?s)ActionToTool\s*=\s*new\s+Dictionary<string,\s*string>[^\{]*\{(?<body>.*?)\};')
+if (Test-Path -LiteralPath $mapSource) {
+    $mapText = Get-Content -LiteralPath $mapSource -Raw -Encoding UTF8
+    # 只解析 ActionToTool 字典块（比较器参数可有可无；避免误抓 ToolToAction 的 ToDictionary 派生行）。
+    $block = [regex]::Match($mapText, '(?s)ActionToTool\s*=\s*new\s+Dictionary<string,\s*string>\s*(?:\([^)]*\)\s*)?\{(?<body>.*?)\};')
     if (-not $block.Success) {
-        $violations.Add('ActionToTool 字典块不可解析（映射表结构变更？）')
+        $violations.Add('ActionToTool 字典块不可解析（PsRuntimeToolMap 结构变更？）')
     }
     else {
         foreach ($m in [regex]::Matches($block.Groups['body'].Value, '\[\s*"(?<action>[^"]+)"\s*\]\s*=\s*"(?<tool>[^"]+)"')) {
@@ -64,7 +67,17 @@ if (Test-Path -LiteralPath $trackFile) {
             $mapTools += $m.Groups['tool'].Value
         }
     }
-    if ($mapActions.Count -eq 0) { $violations.Add('ActionToTool 解析为空（映射表结构变更？）') }
+    if ($mapActions.Count -eq 0) { $violations.Add('ActionToTool 解析为空（PsRuntimeToolMap 结构变更？）') }
+}
+if (Test-Path -LiteralPath $trackFile) {
+    # 单源断言：轨文件只能别名引用，不得再出现第二份字典块。
+    $trackText = Get-Content -LiteralPath $trackFile -Raw -Encoding UTF8
+    if ($trackText -notmatch 'PsRuntimeToolMap\.ActionToTool') {
+        $violations.Add('[M1] PsRuntimeCallableTrack 未引用 PsRuntimeToolMap.ActionToTool（映射表可能已有第二份）')
+    }
+    if ($trackText -match '(?s)ActionToTool\s*=\s*new\s+Dictionary<string,\s*string>') {
+        $violations.Add('[M1] PsRuntimeCallableTrack 仍自带 ActionToTool 字典副本（应只做别名引用）')
+    }
 }
 
 # ---- M1 输入：契约 action 集（AgentRoot 下全量 *.contracts.json）----

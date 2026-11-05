@@ -117,7 +117,7 @@
     {
       "id": "C1-Pipeline-Core-errorcollector",
       "type": "C1",
-      "file": "Modules/Pipeline/Core.cs",
+      "file": "Modules/Composition/Pipeline/Core.cs",
       "exit": "N",
       "target": "ErrorCollector",
       "reason": "PipelineResult 空错误累积器默认（值对象归一，非隐藏服务）",
@@ -127,7 +127,7 @@
     {
       "id": "C1-Pipeline-Core-context",
       "type": "C1",
-      "file": "Modules/Pipeline/Core.cs",
+      "file": "Modules/Composition/Pipeline/Core.cs",
       "exit": "N",
       "target": "PipelineContext",
       "reason": "PipelineResult 空上下文默认 / SkeletonContext 适配兜底（值对象归一）",
@@ -167,7 +167,7 @@
     {
       "id": "C1-Extractors-delegatefactory",
       "type": "C1",
-      "file": "Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "exit": "N",
       "target": "DelegateFactory",
       "reason": "提取器缺省委托工厂（无状态工厂，可选默认；调用点众多，登记为合法默认）",
@@ -387,7 +387,7 @@
     {
       "id": "C1-P1b-22",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ComponentData/ContextDriven/EcsSkeletonContext.cs",
+      "file": "CsharpPrj/Modules/Data/ComponentData/ContextDriven/EcsSkeletonContext.cs",
       "exit": "N",
       "target": "ContextBase",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -397,7 +397,7 @@
     {
       "id": "C1-P1b-23",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ComponentData/Enhanced/NotificationCenter.cs",
+      "file": "CsharpPrj/Modules/Data/ComponentData/Enhanced/NotificationCenter.cs",
       "exit": "N",
       "target": "ThreadPoolSynchronizationContext",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -407,7 +407,7 @@
     {
       "id": "C1-P1b-24",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ComponentData/Lifecycle/ComponentLifecycleManager.cs",
+      "file": "CsharpPrj/Modules/Data/ComponentData/Lifecycle/ComponentLifecycleManager.cs",
       "exit": "N",
       "target": "DefaultExecutionStrategy",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -417,7 +417,7 @@
     {
       "id": "C1-P1b-25",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ComponentData/Skeleton/SkeletonBase.cs",
+      "file": "CsharpPrj/Modules/Data/ComponentData/Skeleton/SkeletonBase.cs",
       "exit": "N",
       "target": "SkeletonContext",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -427,7 +427,7 @@
     {
       "id": "C1-P1b-26",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ComponentData/Skeleton/SkeletonContext.cs",
+      "file": "CsharpPrj/Modules/Data/ComponentData/Skeleton/SkeletonContext.cs",
       "exit": "N",
       "target": "ContextBase",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -437,7 +437,7 @@
     {
       "id": "C1-P1b-27",
       "type": "C1",
-      "file": "CsharpPrj/Modules/EventFramework/Bus/EventBusFacade.cs",
+      "file": "CsharpPrj/Modules/Frameworks/EventFramework/Bus/EventBusFacade.cs",
       "exit": "N",
       "target": "DefaultEventBusCore",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -447,7 +447,7 @@
     {
       "id": "C1-P1b-28",
       "type": "C1",
-      "file": "CsharpPrj/Modules/EventFramework/Core/ControlAdapterRegistry.cs",
+      "file": "CsharpPrj/Modules/Frameworks/EventFramework/Core/ControlAdapterRegistry.cs",
       "exit": "N",
       "target": "ControlAdapterRegistryOptions",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -457,7 +457,7 @@
     {
       "id": "C1-P1b-29",
       "type": "C1",
-      "file": "CsharpPrj/Modules/EventFramework/Core/DefaultEventMappingRegistry.cs",
+      "file": "CsharpPrj/Modules/Frameworks/EventFramework/Core/DefaultEventMappingRegistry.cs",
       "exit": "N",
       "target": "DefaultEventNameNormalizer",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -467,7 +467,7 @@
     {
       "id": "C1-P1b-30",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/EntityExecutionHelper.cs",
+      "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/EntityExecutionHelper.cs",
       "exit": "N",
       "target": "IntentSystemRouter",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -477,7 +477,7 @@
     {
       "id": "C1-P1b-31",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Core/EntityExecutionHelper.cs",
+      "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/EntityExecutionHelper.cs",
       "exit": "N",
       "target": "Rge",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -487,7 +487,7 @@
     {
       "id": "C1-P1b-32",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Graph/RgeGraphScheduler.cs",
+      "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Graph/RgeGraphScheduler.cs",
       "exit": "N",
       "target": "ReferenceResolverBridge",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -497,7 +497,7 @@
     {
       "id": "C1-P1b-33",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Graph/RgeGraphScheduler.cs",
+      "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Graph/RgeGraphScheduler.cs",
       "exit": "N",
       "target": "IntentSystemRouter",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -507,7 +507,7 @@
     {
       "id": "C1-P1b-34",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Pipeline/PipelineBuilder.cs",
+      "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Pipeline/PipelineBuilder.cs",
       "exit": "N",
       "target": "TrConfigRegistry",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -517,7 +517,7 @@
     {
       "id": "C1-P1b-35",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Pipeline/PipelineBuilder.cs",
+      "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Pipeline/PipelineBuilder.cs",
       "exit": "N",
       "target": "EXContext",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -527,7 +527,7 @@
     {
       "id": "C1-P1b-36",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Pipeline/PipelineExecutor.cs",
+      "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Pipeline/PipelineExecutor.cs",
       "exit": "N",
       "target": "TrConfigRegistry",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -537,7 +537,7 @@
     {
       "id": "C1-P1b-37",
       "type": "C1",
-      "file": "CsharpPrj/Modules/ExecutionFramework/Engine/Pipeline/PipelineExecutor.cs",
+      "file": "CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Pipeline/PipelineExecutor.cs",
       "exit": "N",
       "target": "FunctionExecutor",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -547,7 +547,7 @@
     {
       "id": "C1-P1b-38",
       "type": "C1",
-      "file": "CsharpPrj/Modules/GraphProcessing/Diagnostics/DefaultReferenceDiagnostics.cs",
+      "file": "CsharpPrj/Modules/Data/GraphProcessing/Diagnostics/DefaultReferenceDiagnostics.cs",
       "exit": "N",
       "target": "DefaultCycleDetector",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -557,7 +557,7 @@
     {
       "id": "C1-P1b-39",
       "type": "C1",
-      "file": "CsharpPrj/Modules/GraphProcessing/Infrastructure/Graph/GraphSystemRunner.cs",
+      "file": "CsharpPrj/Modules/Data/GraphProcessing/Infrastructure/Graph/GraphSystemRunner.cs",
       "exit": "N",
       "target": "EcsWorld",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -567,7 +567,7 @@
     {
       "id": "C1-P1b-40",
       "type": "C1",
-      "file": "CsharpPrj/Modules/GraphProcessing/Normalization/NormalizationTransformer.cs",
+      "file": "CsharpPrj/Modules/Data/GraphProcessing/Normalization/NormalizationTransformer.cs",
       "exit": "N",
       "target": "SourceTargetDirectionMatch",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -577,7 +577,7 @@
     {
       "id": "C1-P1b-41",
       "type": "C1",
-      "file": "CsharpPrj/Modules/GraphProcessing/Normalization/NormalizationTransformer.cs",
+      "file": "CsharpPrj/Modules/Data/GraphProcessing/Normalization/NormalizationTransformer.cs",
       "exit": "N",
       "target": "KeepFirstReduce",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -587,7 +587,7 @@
     {
       "id": "C1-P1b-42",
       "type": "C1",
-      "file": "CsharpPrj/Modules/GraphProcessing/Normalization/NormalizationTransformer.cs",
+      "file": "CsharpPrj/Modules/Data/GraphProcessing/Normalization/NormalizationTransformer.cs",
       "exit": "N",
       "target": "NormalizationConfig",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -597,7 +597,7 @@
     {
       "id": "C1-P1b-43",
       "type": "C1",
-      "file": "CsharpPrj/Modules/GraphProcessing/Utilities/BaseHandlers.cs",
+      "file": "CsharpPrj/Modules/Data/GraphProcessing/Utilities/BaseHandlers.cs",
       "exit": "N",
       "target": "DefaultChainIdGenerator",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -607,7 +607,7 @@
     {
       "id": "C1-P1b-44",
       "type": "C1",
-      "file": "CsharpPrj/Modules/GraphProcessing/Utilities/BaseHandlers.cs",
+      "file": "CsharpPrj/Modules/Data/GraphProcessing/Utilities/BaseHandlers.cs",
       "exit": "N",
       "target": "DefaultNameGenerator",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -617,7 +617,7 @@
     {
       "id": "C1-P1b-45",
       "type": "C1",
-      "file": "CsharpPrj/Modules/InternalStorage/Core/StorageEngine.cs",
+      "file": "CsharpPrj/Modules/Foundations/InternalStorage/Core/StorageEngine.cs",
       "exit": "N",
       "target": "SnapshotManager",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -627,7 +627,7 @@
     {
       "id": "C1-P1b-46",
       "type": "C1",
-      "file": "CsharpPrj/Modules/LogicComposition/Conversion/DefaultImplementations/DefaultConversionPipeline.cs",
+      "file": "CsharpPrj/Modules/Frameworks/LogicComposition/Conversion/DefaultImplementations/DefaultConversionPipeline.cs",
       "exit": "N",
       "target": "ConversionContext",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -637,7 +637,7 @@
     {
       "id": "C1-P1b-47",
       "type": "C1",
-      "file": "CsharpPrj/Modules/LogicComposition/Conversion/Models/ConversionContext.cs",
+      "file": "CsharpPrj/Modules/Frameworks/LogicComposition/Conversion/Models/ConversionContext.cs",
       "exit": "N",
       "target": "DiagnosticSink",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -647,7 +647,7 @@
     {
       "id": "C1-P1b-48",
       "type": "C1",
-      "file": "CsharpPrj/Modules/LogicComposition/Models/MergeResult.cs",
+      "file": "CsharpPrj/Modules/Frameworks/LogicComposition/Models/MergeResult.cs",
       "exit": "N",
       "target": "MergeStatistics",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -657,7 +657,7 @@
     {
       "id": "C1-P1b-49",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Maintain/Workspace/DefaultIdentityResolver.cs",
+      "file": "CsharpPrj/Modules/Orchestration/Maintain/Workspace/DefaultIdentityResolver.cs",
       "exit": "N",
       "target": "IdentifierExtractor",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -667,7 +667,7 @@
     {
       "id": "C1-P1b-50",
       "type": "C1",
-      "file": "CsharpPrj/Modules/MetaCommand/Executors/WinFormsControlService.cs",
+      "file": "CsharpPrj/Modules/Composition/MetaCommand/Executors/WinFormsControlService.cs",
       "exit": "N",
       "target": "ControlValueBridge",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -677,7 +677,7 @@
     {
       "id": "C1-P1b-51",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "file": "CsharpPrj/Modules/Data/Node/NodeFramework.cs",
       "exit": "N",
       "target": "NodeFrameworkOptions",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -687,7 +687,7 @@
     {
       "id": "C1-P1b-52",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "file": "CsharpPrj/Modules/Data/Node/NodeFramework.cs",
       "exit": "N",
       "target": "PlacementRegistry",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -697,7 +697,7 @@
     {
       "id": "C1-P1b-53",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "file": "CsharpPrj/Modules/Data/Node/NodeFramework.cs",
       "exit": "N",
       "target": "CarrierRegistry",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -707,7 +707,7 @@
     {
       "id": "C1-P1b-54",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "file": "CsharpPrj/Modules/Data/Node/NodeFramework.cs",
       "exit": "N",
       "target": "SelectionSet",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -717,7 +717,7 @@
     {
       "id": "C1-P1b-55",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "file": "CsharpPrj/Modules/Data/Node/NodeFramework.cs",
       "exit": "N",
       "target": "NodeFormCodec",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -727,7 +727,7 @@
     {
       "id": "C1-P1b-56",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Node/NodeFramework.cs",
+      "file": "CsharpPrj/Modules/Data/Node/NodeFramework.cs",
       "exit": "N",
       "target": "SpecDefaults",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -737,7 +737,7 @@
     {
       "id": "C1-P1b-57",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Node/Materialization/NodeMaterializer.cs",
+      "file": "CsharpPrj/Modules/Data/Node/Materialization/NodeMaterializer.cs",
       "exit": "N",
       "target": "NodeFormCodec",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -747,7 +747,7 @@
     {
       "id": "C1-P1b-58",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Node/Materialization/NodeMaterializer.cs",
+      "file": "CsharpPrj/Modules/Data/Node/Materialization/NodeMaterializer.cs",
       "exit": "N",
       "target": "SpecDefaults",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -757,7 +757,7 @@
     {
       "id": "C1-P1b-59",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Node/Projection/NodeReadProjection.cs",
+      "file": "CsharpPrj/Modules/Data/Node/Projection/NodeReadProjection.cs",
       "exit": "N",
       "target": "NodeFormCodec",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -767,7 +767,7 @@
     {
       "id": "C1-P1b-60",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Pipeline/Core.cs",
+      "file": "CsharpPrj/Modules/Composition/Pipeline/Core.cs",
       "exit": "N",
       "target": "PipelineContext",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -777,7 +777,7 @@
     {
       "id": "C1-P1b-61",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Pipeline/Core.cs",
+      "file": "CsharpPrj/Modules/Composition/Pipeline/Core.cs",
       "exit": "N",
       "target": "ErrorCollector",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -787,7 +787,7 @@
     {
       "id": "C1-P1b-62",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Pipeline/Initialization/InitializationOrchestrator.cs",
+      "file": "CsharpPrj/Modules/Composition/Pipeline/Initialization/InitializationOrchestrator.cs",
       "exit": "N",
       "target": "EmptyStageConfigProvider",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -797,7 +797,7 @@
     {
       "id": "C1-P1b-63",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Registry/06_ConcreteRegistries.cs",
+      "file": "CsharpPrj/Modules/Composition/Registry/06_ConcreteRegistries.cs",
       "exit": "N",
       "target": "ConfigurableConflictResolver",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -807,7 +807,7 @@
     {
       "id": "C1-P1b-64",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Registry/09_UnifiedRegistryCenter.cs",
+      "file": "CsharpPrj/Modules/Composition/Registry/09_UnifiedRegistryCenter.cs",
       "exit": "N",
       "target": "DefaultConflictResolver",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -817,7 +817,7 @@
     {
       "id": "C1-P1b-65",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Registry/AutoRegister/AutoRegisterEngine.cs",
+      "file": "CsharpPrj/Modules/Composition/Registry/AutoRegister/AutoRegisterEngine.cs",
       "exit": "N",
       "target": "AutoRegisterService",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -827,7 +827,7 @@
     {
       "id": "C1-P1b-66",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Registry/AutoRegister/AutoRegisterService.cs",
+      "file": "CsharpPrj/Modules/Composition/Registry/AutoRegister/AutoRegisterService.cs",
       "exit": "N",
       "target": "NamingConfig",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -837,7 +837,7 @@
     {
       "id": "C1-P1b-67",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "exit": "N",
       "target": "DelegateFactory",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -847,7 +847,7 @@
     {
       "id": "C1-P1b-68",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
+      "file": "CsharpPrj/Modules/Composition/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
       "exit": "N",
       "target": "AssemblySourceSearchOptions",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -857,7 +857,7 @@
     {
       "id": "C1-P1b-69",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "file": "CsharpPrj/Modules/Foundations/Threading/SingleWriter/SingleWriterActor.cs",
       "exit": "N",
       "target": "InvalidOperationException",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -867,7 +867,7 @@
     {
       "id": "C1-P1b-70",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Threading/Time/ITimingClock.cs",
+      "file": "CsharpPrj/Modules/Foundations/Threading/Time/ITimingClock.cs",
       "exit": "N",
       "target": "DateTimeOffset",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -937,7 +937,7 @@
     {
       "id": "C1-P1b-77",
       "type": "C1",
-      "file": "CsharpPrj/Modules/Node/Relations/NodeRelationDeriver.cs",
+      "file": "CsharpPrj/Modules/Data/Node/Relations/NodeRelationDeriver.cs",
       "exit": "N",
       "target": "RelationEndpoint",
       "reason": "P1-b 值对象/可选默认登记（非隐藏服务缺陷；照 P1-a 口径）",
@@ -2717,7 +2717,7 @@
     {
       "id": "C2-12b43fa7",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:173",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs:173",
       "exit": "N",
       "target": "catch",
       "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
@@ -2727,7 +2727,7 @@
     {
       "id": "C2-73dea140",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:399",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs:399",
       "exit": "N",
       "target": "catch",
       "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
@@ -2737,7 +2737,7 @@
     {
       "id": "C2-8cefc690",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:431",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs:431",
       "exit": "N",
       "target": "catch",
       "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
@@ -2747,7 +2747,7 @@
     {
       "id": "C2-96bbfe69",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:438",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs:438",
       "exit": "N",
       "target": "catch",
       "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
@@ -2757,7 +2757,7 @@
     {
       "id": "C2-bab3aef8",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:452",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs:452",
       "exit": "N",
       "target": "catch",
       "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
@@ -2767,7 +2767,7 @@
     {
       "id": "C2-09367ca5",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:484",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs:484",
       "exit": "N",
       "target": "catch",
       "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
@@ -2777,7 +2777,7 @@
     {
       "id": "C2-2c945bf6",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:591",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs:591",
       "exit": "N",
       "target": "catch",
       "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
@@ -2787,7 +2787,7 @@
     {
       "id": "C2-9a5b94d2",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs:610",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs:610",
       "exit": "N",
       "target": "catch",
       "reason": "有界降级/显式结果：XML 文档缺失→空串；类型/编译解析失败→null 且下游 Bag[...Error] 可见化；Task.FromException 为错误传播非吞并",
@@ -2797,7 +2797,7 @@
     {
       "id": "C2-0b2c7485",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:87",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs:87",
       "exit": "N",
       "target": "catch",
       "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
@@ -2807,7 +2807,7 @@
     {
       "id": "C2-ddc2c80d",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:103",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs:103",
       "exit": "N",
       "target": "catch",
       "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
@@ -2817,7 +2817,7 @@
     {
       "id": "C2-6cd1c6ec",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:202",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs:202",
       "exit": "N",
       "target": "catch",
       "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
@@ -2827,7 +2827,7 @@
     {
       "id": "C2-61bfcc38",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:252",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs:252",
       "exit": "N",
       "target": "catch",
       "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
@@ -2837,7 +2837,7 @@
     {
       "id": "C2-66f879ad",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:418",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs:418",
       "exit": "N",
       "target": "catch",
       "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
@@ -2847,7 +2847,7 @@
     {
       "id": "C2-42665496",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:419",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs:419",
       "exit": "N",
       "target": "catch",
       "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
@@ -2857,7 +2857,7 @@
     {
       "id": "C2-9c91fcbb",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:422",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs:422",
       "exit": "N",
       "target": "catch",
       "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",
@@ -2867,7 +2867,7 @@
     {
       "id": "C2-6ad48888",
       "type": "C2",
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs:423",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs:423",
       "exit": "N",
       "target": "catch",
       "reason": "类型化 catch 控制流（ALC 装载链 FileNotFound/BadImageFormat/FileLoad/IO）+ 文档化有界回退（清单/索引解析失败→默认回退，仅影响诊断）+ 解析器 null 契约",

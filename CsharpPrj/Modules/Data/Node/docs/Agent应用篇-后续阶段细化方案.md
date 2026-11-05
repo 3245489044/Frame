@@ -157,9 +157,9 @@
 
 | 改动面 | 必跑命令 |
 |---|---|
-| `Modules.Node`（Frame） | `dotnet build Frame\CsharpPrj\Modules\Node\Modules.Node.csproj` → `& Frame\PowerShellScript\Modules\Node\Check-NodeFramework.ps1 -ShowDetail` → `& Environment\CentralTest\Run-CSharpTests.ps1 -Test node` |
+| `Modules.Node`（Frame） | `dotnet build Frame\CsharpPrj\Modules\Data\Node\Modules.Node.csproj` → `& Frame\PowerShellScript\Modules\Data\Node\Check-NodeFramework.ps1 -ShowDetail` → `& Environment\CentralTest\Run-CSharpTests.ps1 -Test node` |
 | **改了 Frame 且需 Agent 消费** | 追加：`& Frame\CsharpPrj\Generate-CsharpBakeManifest.ps1 -Configuration Debug`（须"全部就绪且新鲜"）→ `& Projects\BuildFramework\Check-BakeFramework.ps1`（#3 引用 ∈ manifest） |
-| `Operation`（Frame） | `& Environment\CentralTest\Run-CSharpTests.ps1 -Project 'WorkFlowMethod'` + `& Frame\PowerShellScript\Modules\Node\Check-NodeWriteBypass.ps1 -ShowDetail` |
+| `Operation`（Frame） | `& Environment\CentralTest\Run-CSharpTests.ps1 -Project 'WorkFlowMethod'` + `& Frame\PowerShellScript\Modules\Data\Node\Check-NodeWriteBypass.ps1 -ShowDetail` |
 | Agent（Core/Modules/Launcher） | `& Environment\CentralTest\Run-CSharpTests.ps1 -Project 'Agent\.Core'` / `'Agent\.Modules'` / `'Agent\.Launcher'` |
 | 层序 / 单写门 | `& Frame\PowerShellScript\Share\Solution\Test-ProjectReferences.ps1` + `& Frame\PowerShellScript\DataStore\Check-SingleWriter.ps1`（路径以实际为准） |
 | 键格式改动 | 追加双向解析回归（`Build → Parse` 往返用例），`Check-NodeWriteBypass.ps1` A 项 EXIT 0 |

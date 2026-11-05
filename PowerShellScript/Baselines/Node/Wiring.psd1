@@ -41,7 +41,7 @@
             Plane = 'Logical'; Layer = 'L2'; State = 'primary'
             D = 'Projects\Plug\Agent\Config\nodes\process.ushar'
             C = 'Agent.Modules.NodeSpec.AgentNodeDomains#SelectionVocabularyAdapter'
-            F = 'Frame\CsharpPrj\Modules\Node\Spec\NodeSelection.cs'
+            F = 'Frame\CsharpPrj\Modules\Data\Node\Spec\NodeSelection.cs'
             Phi = 'Check-NodePortPurity'; E = 'Check-BakeFramework'
             CProbeFile = 'Projects\Plug\Agent\src\Agent.Modules\NodeSpec\AgentNodeDomains.cs'
             CProbePattern = 'SelectionVocabularyAdapter'; CProbeExpect = 'read'

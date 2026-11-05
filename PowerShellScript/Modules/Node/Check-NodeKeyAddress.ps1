@@ -7,7 +7,7 @@
     扫描面：Projects\Plug\Agent\Config\nodes\*.json（节点域声明：identity / context / sequence / placements）
             + Config\instances\nodes.json（实例位置 id 清单：与域声明交叉一致）。
 
-    判据（权威实现 = Frame\CsharpPrj\Modules\Node\Spec\NodeSpecValidator.Validate；本脚本为**可独立运行的等价门**，
+    判据（权威实现 = Frame\CsharpPrj\Modules\Data\Node\Spec\NodeSpecValidator.Validate；本脚本为**可独立运行的等价门**，
     该判据此前在生产装配路径零调用 —— 本轮已由 AgentNodeDomains.TryCreate 接线为装配期 fail-fast）：
       A1 位置键字段全域：每个 placement.key 的 {占位符} ⊆ identity 占位符 ∪ placement.local（缺一即违规）
       A2 local 自洽：local 项不得与身份占位符重名（同坐标两名）；声明却未出现在键模板 ⇒ 违规（死声明）

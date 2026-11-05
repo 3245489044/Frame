@@ -39,7 +39,7 @@
 ## 目录结构
 
 ```
-Modules/Node/
+Modules/Data/Node/
 ├── docs/                            设计四篇 + 实现记录（权威；本 README 为其导航）
 ├── Modules.Node.csproj              工程 + ModuleRule（层=2，零 Frame 依赖）
 ├── README.md
@@ -115,12 +115,12 @@ Modules/Node/
 
 | # | 动作 | 命令 | 结果 |
 |---|---|---|---|
-| P0.1 | 工程骨架 | `dotnet build Frame\CsharpPrj\Modules\Node\Modules.Node.csproj` | ✅ 成功（0 警告 0 错误）→ `Frame\CsharpPrj\BuildOutput\Debug\Modules.Node.dll` |
+| P0.1 | 工程骨架 | `dotnet build Frame\CsharpPrj\Modules\Data\Node\Modules.Node.csproj` | ✅ 成功（0 警告 0 错误）→ `Frame\CsharpPrj\BuildOutput\Debug\Modules.Node.dll` |
 | P0.2 | 模块登记 | `PowerShellScript\Share\Solution\Generate-ModulePaths.ps1` | ✅ `Proj_Node` / `Mod_Node` 已生成；"清单与磁盘一致" |
 | P0.3 | 聚合接线 | `dotnet build Frame\CsharpPrj\Modules\Modules.csproj` | ✅ 0 警告 0 错误 |
 | P0.4 | 测试工程 | `Run-CSharpTests.ps1 -Test node` | ✅ 别名 `node` 生效（`TestRunner\TestTargets.psd1`） |
 | P1–P5 | 框架件 + 合同测试 | `dotnet test ...\Modules.Tests\Node.Tests\Modules.Node.Tests.csproj` | ✅ **通过 95 / 失败 0**（含 CT-E1/CT-E2 锚点、CT-1…CT-10 核心用例；P6-A 值缝 V1 新增 6 例） |
-| P0.5 | 门禁脚本 | `PowerShellScript\Modules\Node\Check-NodeFramework.ps1 -ShowDetail` | ✅ A/B/C/D 通过、告警 0（扫描 26 个源码文件） |
+| P0.5 | 门禁脚本 | `PowerShellScript\Modules\Data\Node\Check-NodeFramework.ps1 -ShowDetail` | ✅ A/B/C/D 通过、告警 0（扫描 26 个源码文件） |
 | — | 层序校验 | `PowerShellScript\Share\Solution\Test-ProjectReferences.ps1` | ✅ Node **零新增项**（本工程零 `ProjectReference`，无向上引用告警）；该脚本当前退出码 1 由既有 `FunctionExecutionFramework` 悬空引用与 3 条未属性化相对路径导致，与 Node 无关 |
 | 整理批 | 重复/冗余/错误逻辑收敛（22 项） | `dotnet test ...\Node.Tests\Modules.Node.Tests.csproj` + `Check-NodeFramework.ps1` | ✅ **通过 100 / 失败 0**；`Operation.Tests` Node 相关 75 例无回归；门禁 A/B/C/D 通过、告警 0；逐项事实与未做项见[实现记录](./docs/P1-P5-实现记录.md) §6 |
 
@@ -131,7 +131,7 @@ Modules/Node/
 
 ```powershell
 # 框架不变式（Usharp 命中 / AsyncLocal / loc 硬编码 / 上层 using）
-Frame\PowerShellScript\Modules\Node\Check-NodeFramework.ps1
+Frame\PowerShellScript\Modules\Data\Node\Check-NodeFramework.ps1
 
 # 层序 / 悬空引用 / 未属性化 / 循环依赖（仓库统一）
 Frame\PowerShellScript\Share\Solution\Test-ProjectReferences.ps1

@@ -1,6 +1,6 @@
 # Threading 模块扩展 — 统一异步执行框架（Async Execution Framework, AEF）
 
-> 版本：1.0（设计草案）｜ 模块：`CsharpPrj/Modules/Threading`（`Modules.Threading`）｜ 依赖：无外部依赖（独立叶子模块）
+> 版本：1.0（设计草案）｜ 模块：`CsharpPrj/Modules/Foundations/Threading`（`Modules.Threading`）｜ 依赖：无外部依赖（独立叶子模块）
 
 ## 1. 背景与动机
 
@@ -240,7 +240,7 @@ var result = await op.Completion.WaitAsync(TimeSpan.FromSeconds(60));
 ## 5. 模块结构（新增文件建议）
 
 ```
-CsharpPrj/Modules/Threading/
+CsharpPrj/Modules/Foundations/Threading/
 ├── AsyncLocalContext.cs          (既有)
 ├── ExecutionScope.cs             (既有)
 ├── ExecutionStatus.cs            (既有)

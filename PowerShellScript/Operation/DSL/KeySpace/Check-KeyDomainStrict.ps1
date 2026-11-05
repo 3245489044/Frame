@@ -2,9 +2,9 @@
 # 键域严格化门禁（K-01 / R-K1 / R-K3 机检面）
 #
 # 判据（-Check 时违规即退出码 1；全部为结构事实，不含执行者叙述）：
-#   KD1 构造收口：`new KeyRef(` / `new KeyDomainId(` 只允许出现在 Modules\KeySpace 内
+#   KD1 构造收口：`new KeyRef(` / `new KeyDomainId(` 只允许出现在 Modules\Data\KeySpace 内
 #                  （域绑定只能经具名工厂/注册表；越界 = 域语义泄漏到调用点）。
-#   KD2 域标识派生：`new KeyDomainId(` 只允许出现在 Modules\KeySpace 内（域标识必须经 Of/注册表）。
+#   KD2 域标识派生：`new KeyDomainId(` 只允许出现在 Modules\Data\KeySpace 内（域标识必须经 Of/注册表）。
 #   KD3 注册表接线：声明驱动注册表（KeyDomainRegistry）必须在产品侧被引用（防「有类型无消费」）。
 #   KD4 负对照：合成样本必须命中 KD1（判据非空转）。
 #   KD5 2 参 KeyRef.Of 产品侧计数 ≤ 基线（R7-C 棘轮）。
@@ -42,7 +42,7 @@ foreach ($scanRoot in $scanRoots) {
 foreach ($file in $files) {
     $rel = $file.Substring($Root.Length + 1).Replace('\', '/')
     $text = Get-Content -LiteralPath $file -Raw
-    $inKeySpace = $rel -like 'Frame/CsharpPrj/Modules/KeySpace/*'
+    $inKeySpace = $rel -like 'Frame/CsharpPrj/Modules/Data/KeySpace/*'
 
     if (-not $inKeySpace) {
         if ($text -match 'new\s+KeyRef\s*\(') {
@@ -56,7 +56,7 @@ foreach ($file in $files) {
 
 $registryConsumers = @($files | Where-Object {
     $text = Get-Content -LiteralPath $_ -Raw
-    $text -match 'KeyDomainRegistry' -and $_.Substring($Root.Length + 1) -notlike 'Frame\CsharpPrj\Modules\KeySpace\*'
+    $text -match 'KeyDomainRegistry' -and $_.Substring($Root.Length + 1) -notlike 'Frame\CsharpPrj\Modules\Data\KeySpace\*'
 })
 if ($registryConsumers.Count -eq 0) {
     $violations.Add('KD3 域注册表无产品侧消费方（KeyDomainRegistry 未被引用）')

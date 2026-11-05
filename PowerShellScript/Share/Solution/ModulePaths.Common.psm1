@@ -74,7 +74,7 @@ function Get-EnumeratedProjects {
     规则（与 modules.json roots 同源，不设第二份清单）：
       1 根目录直属 csproj：<root>\<root>.csproj 存在；
       2 该根目录内无独立 *.sln（如 Protocol\Protocol.sln 自带解决方案 ⇒ 不并入 MainProj）。
-    叶子工程（如 Modules\Gather\Gather.csproj）只经伞工程 ProjectReference 引入，不入 .sln。
+    叶子工程（如 Modules\Orchestration\Gather\Gather.csproj）只经伞工程 ProjectReference 引入，不入 .sln。
     消费方 = Sync-SlnToDisk.ps1（伞模式）∧ Check-SolutionUmbrella.ps1（门禁）。
 #>
 function Get-UmbrellaProjects {

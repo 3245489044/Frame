@@ -5,7 +5,7 @@
     Gate   = 'WireFabric'
 
     # 框架工程（判据载体：文件存在 + ProjectReference 集合）
-    FrameworkProject = @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Modules.Wiring.csproj'; Origin = 'Derived'; DueWhen = '' }
+    FrameworkProject = @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Modules.Wiring.csproj'; Origin = 'Derived'; DueWhen = '' }
 
     # 允许的依赖面（第三个引用出现即红；新增须在此登记理由）
     AllowedReferences = @(
@@ -15,18 +15,18 @@
 
     # 在位清单（模型 / 编译 / 运行期 / 诊断各至少一件）
     RequiredFiles = @(
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Model\WiringCatalog.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Model\WireSpec.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Abstractions\IWiringDeclarationSource.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Declaration\JsonWiringDeclarationSource.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Compile\WiringValidator.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Compile\WiringPlanner.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\Junction.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\IWirePortStore.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\IWireHandlerTable.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\WireDeliveryMode.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\IWireLedger.cs'; Origin = 'Derived'; DueWhen = '' }
-        @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Diagnostics\WiringReasonCodes.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Model\WiringCatalog.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Model\WireSpec.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Abstractions\IWiringDeclarationSource.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Declaration\JsonWiringDeclarationSource.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Compile\WiringValidator.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Compile\WiringPlanner.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Runtime\Junction.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Runtime\IWirePortStore.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Runtime\IWireHandlerTable.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Runtime\WireDeliveryMode.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Runtime\IWireLedger.cs'; Origin = 'Derived'; DueWhen = '' }
+        @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Diagnostics\WiringReasonCodes.cs'; Origin = 'Derived'; DueWhen = '' }
         @{ Value = 'Environment\CentralTest\CSharpTest\Modules.Tests\Wiring.Tests\Wiring.Tests.csproj'; Origin = 'Derived'; DueWhen = '' }
     )
 
@@ -52,5 +52,5 @@
         @{ Value = 'Frame\CsharpPrj\Plate\HtmlViewer\Html\Bridge\HtmlEventBridge.cs'; Origin = 'Derived'; DueWhen = '' }
         @{ Value = 'Projects\Plug\Agent\src\Agent.Ui\Core\Host\AgentUiWiring.cs'; Origin = 'Derived'; DueWhen = '' }
     )
-    LedgerWriterFile = @{ Value = 'Frame\CsharpPrj\Modules\Wiring\Runtime\Junction.cs'; Origin = 'Derived'; DueWhen = 'I2 单写者：ledger.Record 只允许 Junction 调用（C13 静态面）' }
+    LedgerWriterFile = @{ Value = 'Frame\CsharpPrj\Modules\Composition\Wiring\Runtime\Junction.cs'; Origin = 'Derived'; DueWhen = 'I2 单写者：ledger.Record 只允许 Junction 调用（C13 静态面）' }
 }

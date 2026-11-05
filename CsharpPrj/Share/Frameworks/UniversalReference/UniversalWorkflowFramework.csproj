@@ -1,5 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用工作流与引用框架</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>领域无关的工作流与引用框架：动作映射、批次集成、分支管理、事件驱动、关系与存储、工作流执行；供共享层与上层复用。</ModuleRule_Description>
+    <ModuleRule_Keywords>工作流;引用;动作映射;分支;事件驱动;关系;存储;执行</ModuleRule_Keywords>
+  </PropertyGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>

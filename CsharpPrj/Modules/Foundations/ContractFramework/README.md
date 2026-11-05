@@ -1,6 +1,6 @@
 # ContractFramework — 契约框架（以契约为语义的通用模块）
 
-> **layer** 1（`Modules` 根）· **依赖** BCL-only（零 ProjectReference）· **落点** `Frame/CsharpPrj/Modules/ContractFramework/`
+> **layer** 1（`Modules` 根）· **依赖** BCL-only（零 ProjectReference）· **落点** `Frame/CsharpPrj/Modules/Foundations/ContractFramework/`
 
 把「契约」升为一等公民：**一切规则 / 门禁 / 校验 / 断言，都必须携带契约身份**（不变量族 + 载体 + 层级 + 处置 + 证据），否则判 `⊥`（不可判定，不放行）。
 

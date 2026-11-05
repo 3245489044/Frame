@@ -13,7 +13,7 @@
 ## 目录结构
 
 ```
-Modules/DeclarativeDataflow/
+Modules/Data/DeclarativeDataflow/
 ├── Model/                       层次元模型（层次外置的唯一外置点）
 │   ├── LevelRef.cs              任意层实体定位 + 运行时唯一键（环守卫用）
 │   ├── LevelRefSet.cs           LevelRef 集合归一化（保序去重 + 滤空，唯一实现）
@@ -253,7 +253,7 @@ var schema = HierarchySchemaJson.Parse(File.ReadAllText("hierarchy.json"));
 ## 构建
 
 ```powershell
-dotnet build d:\Project\Main\Frame\CsharpPrj\Modules\DeclarativeDataflow\DeclarativeDataflow.csproj -c Debug
+dotnet build d:\Project\Main\Frame\CsharpPrj\Modules\Data\DeclarativeDataflow\DeclarativeDataflow.csproj -c Debug
 ```
 
 模块经伞工程 `Modules.csproj` 递归纳入 `MainProj.sln`（叶子工程不直接进 sln）。

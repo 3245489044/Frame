@@ -252,7 +252,7 @@ foreach ($profile in @($parsed.profiles)) {
 
 # ---------------- C13（静态面）：ledger 单写者 ----------------
 $ledgerTotal = 0
-foreach ($file in Get-ChildItem -LiteralPath (Join-Path $Root 'Frame\CsharpPrj\Modules\Wiring') -Recurse -Filter '*.cs' -File) {
+foreach ($file in Get-ChildItem -LiteralPath (Join-Path $Root 'Frame\CsharpPrj\Modules\Composition\Wiring') -Recurse -Filter '*.cs' -File) {
     $text = Get-Content -LiteralPath $file.FullName -Raw
     $ledgerTotal += ([regex]::Matches($text, '_ledger\.Record\(')).Count
 }

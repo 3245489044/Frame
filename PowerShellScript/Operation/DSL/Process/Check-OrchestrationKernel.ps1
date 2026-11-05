@@ -30,7 +30,7 @@ if (-not $repoRoot -or -not (Test-Path (Join-Path $repoRoot 'CsharpPrj'))) {
 }
 
 $kernelRoot = Join-Path $repoRoot 'CsharpPrj\BasicMethod\Map\Block'
-$pipelineRoot = Join-Path $repoRoot 'CsharpPrj\Modules\Pipeline'
+$pipelineRoot = Join-Path $repoRoot 'CsharpPrj\Modules\Composition\Pipeline'
 $circuitRoot = Join-Path $repoRoot 'CsharpPrj\Share\Frameworks\CircuitFramework'
 $basicRoot = Join-Path $repoRoot 'CsharpPrj\BasicMethod'
 
@@ -67,7 +67,7 @@ Get-ChildItem -LiteralPath $basicRoot -Recurse -File -Filter '*.csproj' |
     Where-Object { $_.FullName -notmatch '\\obj\\' } |
     ForEach-Object {
         $text = Get-Content -LiteralPath $_.FullName -Raw
-        if ($text -match '\$\(Proj_Pipeline\)|\$\(Proj_CircuitFramework\)|CircuitFramework\.csproj|Modules\\Pipeline') {
+        if ($text -match '\$\(Proj_Pipeline\)|\$\(Proj_CircuitFramework\)|CircuitFramework\.csproj|Modules\\Composition\\Pipeline') {
             Add-Violation 'C2' "BasicMethod csproj 反向引用：$($_.FullName)"
         }
     }

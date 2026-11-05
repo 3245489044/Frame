@@ -27,7 +27,7 @@ internal static class ContractFactsCommand
     internal const string ManifestRelativePath = @"src\Agent.Core\Declared\declared-manifest.json";
 
     /// <summary>分发相位载体（相对仓库根）。</summary>
-    internal const string DispatchTraceRelativePath = @"Frame\CsharpPrj\Modules\KeySpace\Dispatch\DispatchTrace.cs";
+    internal const string DispatchTraceRelativePath = @"Frame\CsharpPrj\Modules\Data\KeySpace\Dispatch\DispatchTrace.cs";
 
     private static readonly JsonSerializerOptions OutputOptions = new()
     {

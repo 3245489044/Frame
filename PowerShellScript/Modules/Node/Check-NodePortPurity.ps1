@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     扫描面：
-      · Frame\CsharpPrj\Modules\Node\Modules.Node.csproj 与其 **\*.cs
+      · Frame\CsharpPrj\Modules\Data\Node\Modules.Node.csproj 与其 **\*.cs
       · Frame\Usharp\src\*\*.csproj（各 Usharp 工程的 ProjectReference）
 
     判据：
@@ -47,8 +47,8 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 
 # 桥接白名单：唯一允许引用 Modules.Node 的 Usharp 工程（只减不增；扩展须给出耦合方向论证）。
 $BridgeProjects = @('Usharp.Adapters.Node')
-$nodeCsproj = 'Frame\CsharpPrj\Modules\Node\Modules.Node.csproj'
-$nodeSourceDir = 'Frame\CsharpPrj\Modules\Node'
+$nodeCsproj = 'Frame\CsharpPrj\Modules\Data\Node\Modules.Node.csproj'
+$nodeSourceDir = 'Frame\CsharpPrj\Modules\Data\Node'
 $forbiddenInCsproj = @('HierarchyMethod', 'UniversalReference')
 
 $violations = [System.Collections.Generic.List[string]]::new()

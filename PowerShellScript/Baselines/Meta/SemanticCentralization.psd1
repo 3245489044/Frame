@@ -10,7 +10,7 @@
     #   与 Check-ReferenceVocabulary 豁免口径一致）。
     ExemptLayers = @{
         Value  = @(
-            'Modules\DeclarativeDataflow\'
+            'Modules\Data\DeclarativeDataflow\'
             'Share\Foundations\ScopeFramework\'
         )
         Origin  = 'Derived'

@@ -210,7 +210,7 @@ context.RestoreDataFromSnapshot(snapshot);
 | 接口 | 设计来源 |
 |------|---------|
 | `IContext` | `BasicMethod/ContextFrame.cs` — IContext |
-| `IPipelineContext` | `Modules/Pipeline/IPipelineContext` |
+| `IPipelineContext` | `Modules/Composition/Pipeline/IPipelineContext` |
 | `IStateStore` | `Share/StateManagement/IStateStore` |
 | `IScopedContext` | `BasicMethod/ContextFrame.cs` — AsyncContext |
 | `IContextSnapshot` | `Operation/WorkFlowMethod` — PipelineContextSnapshot |

@@ -11,8 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Registry\Registry.csproj" />
-    <ProjectReference Include="..\..\BasicMethod\PathManager\PathManager.csproj" />
+    <ProjectReference Include="$(Proj_Registry)" />
+    <ProjectReference Include="$(Proj_PathManager)" />
   </ItemGroup>
 
 </Project>

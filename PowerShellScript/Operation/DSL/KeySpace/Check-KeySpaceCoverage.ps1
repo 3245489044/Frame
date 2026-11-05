@@ -26,7 +26,7 @@ Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateClosure.psm1') -F
 
 if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
 
-$moduleDir = Join-Path $Root 'Frame\CsharpPrj\Modules\KeySpace'
+$moduleDir = Join-Path $Root 'Frame\CsharpPrj\Modules\Data\KeySpace'
 # 声明面单源 = ushar 的生成物（agent.keyspace.generated.json）；旧名仅作兼容回退。
 $declarationPath = Join-Path $Root 'Projects\Plug\Agent\Config\keyspaces\agent.keyspace.generated.json'
 if (-not (Test-Path -LiteralPath $declarationPath)) {
@@ -35,7 +35,7 @@ if (-not (Test-Path -LiteralPath $declarationPath)) {
 $violations = [System.Collections.Generic.List[string]]::new()
 
 if (-not (Test-Path -LiteralPath $moduleDir)) {
-    $violations.Add('KS0 框架目录不存在：Frame\CsharpPrj\Modules\KeySpace')
+    $violations.Add('KS0 框架目录不存在：Frame\CsharpPrj\Modules\Data\KeySpace')
     Write-GateVerdict -Violations $violations -Check:$Check -Key 'KeySpaceCoverage'
 }
 

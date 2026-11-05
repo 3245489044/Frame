@@ -5,7 +5,7 @@
 #   EO1 建成员不驱动：TaskOrchestrator.CreateMemberTaskAsync 方法体内不得出现 ActivateTaskAsync 调用
 #                      （建即激活 = 与宿主投递端口重复驱动）。
 #   EO2 驱动取令牌：TaskOrchestrator.ActivateTaskAsync 必须调用 IExecutionOwnership.TryAcquire。
-#   EO3 内核在位：Modules\Governance\Ownership 的归属内核文件必须存在并被引用。
+#   EO3 内核在位：Modules\Foundations\Governance\Ownership 的归属内核文件必须存在并被引用。
 #   EO4 负对照：合成「建成员即激活」样本必须命中 EO1（判据非空转）。
 #   EO5 冻结时机：装配根（AgentModuleRegistrar.SetupAgentAsync）恰一次 FreezeDeclared()，
 #                 且次序晚于 InitializeAsync（装配完成 = 全部 Declared 注册已灌入）。
@@ -26,7 +26,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot 
 
 $violations = [System.Collections.Generic.List[string]]::new()
 $orchestrator = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Engine\TaskPool\TaskOrchestrator.cs'
-$ownershipFile = Join-Path $Root 'Frame\CsharpPrj\Modules\Governance\Ownership\ExecutionOwnership.cs'
+$ownershipFile = Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\Governance\Ownership\ExecutionOwnership.cs'
 
 if (-not (Test-Path -LiteralPath $orchestrator)) {
     $violations.Add('EO0 编排器文件缺失：TaskOrchestrator.cs')
@@ -48,7 +48,7 @@ if (-not (Test-Path -LiteralPath $orchestrator)) {
 }
 
 if (-not (Test-Path -LiteralPath $ownershipFile)) {
-    $violations.Add('EO3 归属内核缺失：Modules\Governance\Ownership\ExecutionOwnership.cs')
+    $violations.Add('EO3 归属内核缺失：Modules\Foundations\Governance\Ownership\ExecutionOwnership.cs')
 } else {
     $ownershipText = Get-Content -LiteralPath $ownershipFile -Raw
     foreach ($token in @('IExecutionOwnership', 'TryAcquire', 'Release', 'Inspect')) {

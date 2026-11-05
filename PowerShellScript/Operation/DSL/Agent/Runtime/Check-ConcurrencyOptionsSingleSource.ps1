@@ -23,7 +23,7 @@ if (-not $ledgerForge) { Write-Host '[FAIL] 无法执行：LedgerForge 未构建
 $violations = [System.Collections.Generic.List[string]]::new()
 function Add-Violation([string]$code, [string]$message) { $violations.Add("[$code] $message") | Out-Null }
 
-$moduleRoot = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Concurrency'
+$moduleRoot = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Foundations\Concurrency'
 $specPath = Join-Path $moduleRoot 'Options\concurrency-options.spec.json'
 $generatedPath = Join-Path $moduleRoot 'Generated\ConcurrencyOptions.g.cs'
 $usharPath = Join-Path $repoRoot 'Projects\Plug\Agent\Config\agent-config.ushar'

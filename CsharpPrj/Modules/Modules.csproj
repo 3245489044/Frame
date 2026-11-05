@@ -3,12 +3,13 @@
     <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>模块层</ModuleRule_Title>
     <ModuleRule_Layer>2</ModuleRule_Layer>
-    <ModuleRule_Description>模块层聚合项目，包含组件数据、图处理、逻辑组合、元命令、节点框架、解析、管道、注册表等子模块</ModuleRule_Description>
-    <ModuleRule_Keywords>模块,组件,图处理,逻辑,元命令,节点,解析,管道,注册表,线程</ModuleRule_Keywords>
+    <ModuleRule_Description>模块层聚合项目，按 Foundations/Data/Frameworks/Composition/Orchestration 五组组织：基础内核、数据与键空间、通用框架、组合接线、运行期编排</ModuleRule_Description>
+    <ModuleRule_Keywords>模块,基础内核,数据,键空间,框架,组合,接线,编排,解析,管道,注册表,线程</ModuleRule_Keywords>
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="此模块是聚合项目，具体功能请查看其子项目" />
+    <ModuleRule_Rule Include="目录分组：Foundations / Data / Frameworks / Composition / Orchestration；新增模块须先归组再登记 modules.json" />
     <ModuleRule_Rule Include="子项目包括 ComponentData, DeclarativeDataflow, GraphProcessing, LogicComposition, MetaCommand, Node, Parsing, Pipeline, Registry" />
   </ItemGroup>
 
@@ -28,74 +29,76 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_ComponentData)" />
-    <!-- 通用计算基底（Modules\Compute，L1、BCL + Modules.Threading）：扁平/SoA 布局、Arena/Scratch、
+    <!-- 通用计算基底（Modules\Foundations\Compute，L1、BCL + Modules.Threading）：扁平/SoA 布局、Arena/Scratch、
          3D cache-block 遍历、具名 SIMD 核、tile 调度、算子图编译；不含体素/群系语义 -->
     <ProjectReference Include="$(Proj_Compute)" />
-    <!-- 通用并发策略内核（Modules\Concurrency，L1、BCL-only）：复杂度/拆分/成本门禁/组键/成本记账；
+    <!-- 通用并发策略内核（Modules\Foundations\Concurrency，L1、BCL-only）：复杂度/拆分/成本门禁/组键/成本记账；
          价格/容量/成本账经端口反转由宿主注入（零 Frame 依赖） -->
     <ProjectReference Include="$(Proj_Concurrency)" />
-    <!-- 契约框架（Modules\ContractFramework，BCL-only）：契约身份/注册/对账/执行/取证内核 -->
+    <!-- 契约框架（Modules\Foundations\ContractFramework，BCL-only）：契约身份/注册/对账/执行/取证内核 -->
     <ProjectReference Include="$(Proj_ContractFramework)" />
     <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
     <ProjectReference Include="$(Proj_DiagnosticContext)" />
     <ProjectReference Include="$(Proj_EventFramework)" />
     <ProjectReference Include="$(Proj_ExecutionFramework)" />
     <ProjectReference Include="$(Proj_GraphProcessing)" />
-    <!-- 通用限制与治理内核（Modules\Governance，BCL-only L2）：资源计量/作用域链/两相预留/统一裁决 -->
+    <!-- 通用限制与治理内核（Modules\Foundations\Governance，BCL-only L2）：资源计量/作用域链/两相预留/统一裁决 -->
     <ProjectReference Include="$(Proj_Governance)" />
     <ProjectReference Include="$(Proj_Gather)" />
+    <ProjectReference Include="$(Proj_Maintain)" />
     <ProjectReference Include="$(Proj_LogicComposition)" />
     <ProjectReference Include="$(Proj_MetaCommand)" />
     <ProjectReference Include="$(Proj_Node)" />
     <ProjectReference Include="$(Proj_Parsing)" />
-    <!-- 键文法内核（Modules\Parsing\Keys，BCL-only）：键空间单源；经本聚合工程纳入构建与烘焙闭包 -->
+    <!-- 键文法内核（Modules\Data\Parsing\Keys，BCL-only）：键空间单源；经本聚合工程纳入构建与烘焙闭包 -->
     <ProjectReference Include="$(Proj_Parsing_Keys)" />
     <ProjectReference Include="$(Proj_Pipeline)" />
     <ProjectReference Include="$(Proj_Registry)" />
     <!-- P2 插件宿主：宿主与中性契约同处 PluginHost 程序集（P1 RuntimeLayout 之上）。 -->
-    <ProjectReference Include="PluginHost\PluginHost.csproj" />
+    <ProjectReference Include="$(Proj_PluginHost)" />
     <ProjectReference Include="$(Proj_Threading)" />
     <ProjectReference Include="$(Proj_ParameterResolver)" />
     <ProjectReference Include="$(Proj_WinFormsValueContract)" />
     <ProjectReference Include="$(Proj_InternalStorage)" />
-    <!-- 键空间语义框架（Modules\KeySpace，仅依赖 Parsing.Keys）：键族/身份/三态/集合策略/端口契约 -->
+    <!-- 键空间语义框架（Modules\Data\KeySpace，仅依赖 Parsing.Keys）：键族/身份/三态/集合策略/端口契约 -->
     <ProjectReference Include="$(Proj_KeySpace)" />
-    <!-- 端口接盒通用框架（Modules\Wiring，仅依赖 KeySpace + Parsing.Keys）：声明式接线/供给闭合/单投递点 -->
+    <!-- 端口接盒通用框架（Modules\Composition\Wiring，仅依赖 KeySpace + Parsing.Keys）：声明式接线/供给闭合/单投递点 -->
     <ProjectReference Include="$(Proj_Wiring)" />
     <ProjectReference Include="$(Proj_ValidationFramework)" />
     <ProjectReference Include="$(Proj_Observe)" />
-    <!-- 同步协议 MVP（Modules\Sync）：协议 v1 契约 + 进程内三端环路；下游仅经本聚合工程消费 -->
+    <!-- 同步协议 MVP（Modules\Frameworks\Sync）：协议 v1 契约 + 进程内三端环路；下游仅经本聚合工程消费 -->
     <ProjectReference Include="$(Proj_Sync)" />
   </ItemGroup>
 
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
   <ItemGroup>
-    <Compile Remove="ComponentData\**\*.cs" />
-    <Compile Remove="Compute\**\*.cs" />
-    <Compile Remove="Concurrency\**\*.cs" />
-    <Compile Remove="ContractFramework\**\*.cs" />
-    <Compile Remove="DeclarativeDataflow\**\*.cs" />
-    <Compile Remove="DiagnosticContext\**\*.cs" />
-    <Compile Remove="ExecutionFramework\**\*.cs" />
-    <Compile Remove="GraphProcessing\**\*.cs" />
-    <Compile Remove="Governance\**\*.cs" />
-    <Compile Remove="Gather\**\*.cs" />
-    <Compile Remove="LogicComposition\**\*.cs" />
-    <Compile Remove="MetaCommand\**\*.cs" />
-    <Compile Remove="Node\**\*.cs" />
-    <Compile Remove="Parsing\**\*.cs" />
-    <Compile Remove="Pipeline\**\*.cs" />
-    <Compile Remove="Registry\**\*.cs" />
-    <Compile Remove="PluginHost\**\*.cs" />
-    <Compile Remove="Threading\**\*.cs" />
-    <Compile Remove="ParameterResolver\**\*.cs" />
-    <Compile Remove="InternalStorage\**\*.cs" />
-    <Compile Remove="KeySpace\**\*.cs" />
-    <Compile Remove="Wiring\**\*.cs" />
-    <Compile Remove="ValidationFramework\**\*.cs" />
-    <Compile Remove="EventFramework\**\*.cs" />
-    <Compile Remove="Observe\**\*.cs" />
-    <Compile Remove="Sync\**\*.cs" />
+    <Compile Remove="Data\ComponentData\**\*.cs" />
+    <Compile Remove="Foundations\Compute\**\*.cs" />
+    <Compile Remove="Foundations\Concurrency\**\*.cs" />
+    <Compile Remove="Foundations\ContractFramework\**\*.cs" />
+    <Compile Remove="Data\DeclarativeDataflow\**\*.cs" />
+    <Compile Remove="Foundations\DiagnosticContext\**\*.cs" />
+    <Compile Remove="Frameworks\ExecutionFramework\**\*.cs" />
+    <Compile Remove="Data\GraphProcessing\**\*.cs" />
+    <Compile Remove="Foundations\Governance\**\*.cs" />
+    <Compile Remove="Orchestration\Gather\**\*.cs" />
+    <Compile Remove="Orchestration\Maintain\**\*.cs" />
+    <Compile Remove="Frameworks\LogicComposition\**\*.cs" />
+    <Compile Remove="Composition\MetaCommand\**\*.cs" />
+    <Compile Remove="Data\Node\**\*.cs" />
+    <Compile Remove="Data\Parsing\**\*.cs" />
+    <Compile Remove="Composition\Pipeline\**\*.cs" />
+    <Compile Remove="Composition\Registry\**\*.cs" />
+    <Compile Remove="Orchestration\PluginHost\**\*.cs" />
+    <Compile Remove="Foundations\Threading\**\*.cs" />
+    <Compile Remove="Composition\ParameterResolver\**\*.cs" />
+    <Compile Remove="Foundations\InternalStorage\**\*.cs" />
+    <Compile Remove="Data\KeySpace\**\*.cs" />
+    <Compile Remove="Composition\Wiring\**\*.cs" />
+    <Compile Remove="Frameworks\ValidationFramework\**\*.cs" />
+    <Compile Remove="Frameworks\EventFramework\**\*.cs" />
+    <Compile Remove="Frameworks\Observe\**\*.cs" />
+    <Compile Remove="Frameworks\Sync\**\*.cs" />
   </ItemGroup>
 
 </Project>

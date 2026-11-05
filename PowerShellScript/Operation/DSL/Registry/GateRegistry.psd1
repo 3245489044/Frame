@@ -37,7 +37,7 @@
     ContractGate = @{
         Declared = ''
         Carrier  = 'contracts.json 五元组（Id/Semantics/Carrier/Tier/Effect）+ Evidence（声明面结构事实）'
-        Impl     = 'Frame/CsharpPrj/Modules/ContractFramework/Gate/ContractGate.cs'
+        Impl     = 'Frame/CsharpPrj/Modules/Foundations/ContractFramework/Gate/ContractGate.cs'
         Layer    = 'runtime'
     }
 }

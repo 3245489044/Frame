@@ -80,7 +80,7 @@ if (-not $plannerUses) { Add-Violation 'P4' 'AttachPlanner 未经 PresentationRe
 if (-not $contextUses) { Add-Violation 'P4' 'ConversationProjectionContext 未经 PresentationResolver.Resolve' }
 
 # P6/P7 呈现裁决单一实现（机制下沉 Modules.Node.Frame；Share 只做领域绑定）
-$framePresentationPath = Join-Path $root 'Frame\CsharpPrj\Modules\Node\Frame\FramePresentation.cs'
+$framePresentationPath = Join-Path $root 'Frame\CsharpPrj\Modules\Data\Node\Frame\FramePresentation.cs'
 $resolverPath = Join-Path $root 'Frame\CsharpPrj\Share\Frameworks\Conversation\Presentation\PresentationResolver.cs'
 $framePresentationText = if (Test-Path -LiteralPath $framePresentationPath) { Get-Content -LiteralPath $framePresentationPath -Raw } else { $null }
 $resolverText = if (Test-Path -LiteralPath $resolverPath) { Get-Content -LiteralPath $resolverPath -Raw } else { $null }

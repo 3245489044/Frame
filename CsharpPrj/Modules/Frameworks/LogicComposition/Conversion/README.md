@@ -114,7 +114,7 @@ var root = new ConversionObject()
 | `BracketDepth(text)` | 括号深度（跳过字符串内括号；计 `{}` 与 `[]`） |
 | `BracketDepth(text, openChar, closeChar)` | 指定括号对的深度 |
 
-> 消费方：`Modules\Parsing`（`CommandTokenizer` 未闭合引号探测、`CommandParser.MergeJsonTokens` 括号深度）、
+> 消费方：`Modules\Data\Parsing`（`CommandTokenizer` 未闭合引号探测、`CommandParser.MergeJsonTokens` 括号深度）、
 > `Environment\CentralTest\SpecSourceGen`（`Lexing`/`Json`/`Generation`/`Config`/`Vocabulary` 全部 + `Diagnostics` 码段）、
 > `Share\RoslynJsonFramework`（`JsonLiteralParser` 等经本工程 IL 落点共用扫描原语；见「依赖关系」）。
 
@@ -139,7 +139,7 @@ LogicComposition.Conversion（netstandard2.0，零外部依赖）
    ↑ 被引用
 LogicComposition（net10.0-windows）        ← 运行期可在此基础上写 Transformers 适配实现
   └── ConversionRuntime\                   ← 运行期 JSON 出口：桥接 Plate.JsonMethod（详见 ConversionRuntime\README.md）
-Modules\Parsing（net10.0-windows）         ← 命令分词/解析：共用 TextScan（未闭合引号探测 / 指定括号对深度）
+Modules\Data\Parsing（net10.0-windows）         ← 命令分词/解析：共用 TextScan（未闭合引号探测 / 指定括号对深度）
 Environment\CentralTest\SpecSourceGen（netstandard2.0 Core + Analyzer）← 声明式用例源生成器：共用文本前端原语 + 展开管线 + 诊断码
 Share\RoslynJsonFramework（net10.0-windows）← Roslyn 语法树 → IR 链路（当前未接线；共用框架级诊断码）
 ```

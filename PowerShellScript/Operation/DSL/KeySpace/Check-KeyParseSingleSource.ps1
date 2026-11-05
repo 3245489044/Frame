@@ -15,7 +15,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot 
 
 $scanRoots = @(
     @{ Path = (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\NodeDomain'); KeysOnly = $true },
-    @{ Path = (Join-Path $Root 'Frame\CsharpPrj\Modules\Node\Identity'); KeysOnly = $true },
+    @{ Path = (Join-Path $Root 'Frame\CsharpPrj\Modules\Data\Node\Identity'); KeysOnly = $true },
     # 读侧/装配侧容器解析面（KPK1 扩展）：类型化后这些目录不得再出现解析原语。
     @{ Path = (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\NodeSpec'); KeysOnly = $false },
     @{ Path = (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Framework\Gather'); KeysOnly = $false }

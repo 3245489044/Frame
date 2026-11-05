@@ -2040,7 +2040,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Core/ComponentDataStore.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Core/ComponentDataStore.cs",
       "line": 45,
       "endLine": 47,
       "exception": "",
@@ -2050,7 +2050,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Core/ComponentDataStore.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Core/ComponentDataStore.cs",
       "line": 118,
       "endLine": 121,
       "exception": "ex",
@@ -2060,7 +2060,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Core/ComponentDataStore.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Core/ComponentDataStore.cs",
       "line": 134,
       "endLine": 137,
       "exception": "ex",
@@ -2070,7 +2070,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Enhanced/CommandSystem.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Enhanced/CommandSystem.cs",
       "line": 15,
       "endLine": 15,
       "exception": "ex",
@@ -2080,7 +2080,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Enhanced/EcsContext.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Enhanced/EcsContext.cs",
       "line": 57,
       "endLine": 57,
       "exception": "",
@@ -2090,7 +2090,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Enhanced/IndexManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Enhanced/IndexManager.cs",
       "line": 33,
       "endLine": 36,
       "exception": "ex",
@@ -2100,7 +2100,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Enhanced/IndexManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Enhanced/IndexManager.cs",
       "line": 66,
       "endLine": 79,
       "exception": "",
@@ -2110,7 +2110,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Enhanced/IndexManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Enhanced/IndexManager.cs",
       "line": 73,
       "endLine": 77,
       "exception": "unregEx",
@@ -2120,7 +2120,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Enhanced/IndexManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Enhanced/IndexManager.cs",
       "line": 106,
       "endLine": 109,
       "exception": "",
@@ -2130,7 +2130,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Enhanced/NotificationCenter.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Enhanced/NotificationCenter.cs",
       "line": 129,
       "endLine": 129,
       "exception": "",
@@ -2140,7 +2140,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Enhanced/RelationManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Enhanced/RelationManager.cs",
       "line": 103,
       "endLine": 111,
       "exception": "",
@@ -2150,7 +2150,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Lifecycle/ComponentLifecycleManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Lifecycle/ComponentLifecycleManager.cs",
       "line": 59,
       "endLine": 59,
       "exception": "",
@@ -2160,7 +2160,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Lifecycle/ComponentLifecycleManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Lifecycle/ComponentLifecycleManager.cs",
       "line": 317,
       "endLine": 317,
       "exception": "",
@@ -2170,7 +2170,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Lifecycle/ComponentLifecycleManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Lifecycle/ComponentLifecycleManager.cs",
       "line": 357,
       "endLine": 357,
       "exception": "",
@@ -2180,7 +2180,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Reactor/PriorityChain.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Reactor/PriorityChain.cs",
       "line": 57,
       "endLine": 60,
       "exception": "ex",
@@ -2190,7 +2190,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ComponentData/Reactor/ReactorSystemBase.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/ComponentData/Reactor/ReactorSystemBase.cs",
       "line": 59,
       "endLine": 62,
       "exception": "ex",
@@ -2200,7 +2200,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ContractFramework/Catalog/ContractCatalog.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/ContractFramework/Catalog/ContractCatalog.cs",
       "line": 179,
       "endLine": 183,
       "exception": "ex",
@@ -2210,7 +2210,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ContractFramework/Catalog/ContractCatalog.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/ContractFramework/Catalog/ContractCatalog.cs",
       "line": 207,
       "endLine": 211,
       "exception": "ex",
@@ -2220,7 +2220,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ContractFramework/Gate/ContractGate.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/ContractFramework/Gate/ContractGate.cs",
       "line": 92,
       "endLine": 95,
       "exception": "ex",
@@ -2230,7 +2230,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ContractFramework/Gate/ContractGate.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/ContractFramework/Gate/ContractGate.cs",
       "line": 107,
       "endLine": 110,
       "exception": "ex",
@@ -2240,7 +2240,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ContractFramework/Verify/ContractFrameworkVerify.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/ContractFramework/Verify/ContractFrameworkVerify.cs",
       "line": 43,
       "endLine": 47,
       "exception": "ex",
@@ -2250,7 +2250,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ContractFramework/Verify/ContractFrameworkVerify.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/ContractFramework/Verify/ContractFrameworkVerify.cs",
       "line": 142,
       "endLine": 145,
       "exception": "",
@@ -2260,7 +2260,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DeclarativeDataflow/Processing/ChildResultAggregation.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/DeclarativeDataflow/Processing/ChildResultAggregation.cs",
       "line": 117,
       "endLine": 117,
       "exception": "",
@@ -2270,7 +2270,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DeclarativeDataflow/Serialization/HierarchySchemaJson.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/DeclarativeDataflow/Serialization/HierarchySchemaJson.cs",
       "line": 91,
       "endLine": 95,
       "exception": "ex",
@@ -2280,7 +2280,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DiagnosticContext/Bootstrapping/LoggingBootstrapper.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/DiagnosticContext/Bootstrapping/LoggingBootstrapper.cs",
       "line": 39,
       "endLine": 41,
       "exception": "",
@@ -2290,7 +2290,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DiagnosticContext/Bootstrapping/LoggingBootstrapper.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/DiagnosticContext/Bootstrapping/LoggingBootstrapper.cs",
       "line": 55,
       "endLine": 57,
       "exception": "",
@@ -2300,7 +2300,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DiagnosticContext/Bootstrapping/LoggingBootstrapper.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/DiagnosticContext/Bootstrapping/LoggingBootstrapper.cs",
       "line": 78,
       "endLine": 80,
       "exception": "",
@@ -2310,7 +2310,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DiagnosticContext/Bootstrapping/LoggingBootstrapper.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/DiagnosticContext/Bootstrapping/LoggingBootstrapper.cs",
       "line": 98,
       "endLine": 101,
       "exception": "",
@@ -2320,7 +2320,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DiagnosticContext/Categories/CategoryResolver.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/DiagnosticContext/Categories/CategoryResolver.cs",
       "line": 104,
       "endLine": 107,
       "exception": "",
@@ -2330,7 +2330,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DiagnosticContext/Categories/LogCategoryLoader.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/DiagnosticContext/Categories/LogCategoryLoader.cs",
       "line": 79,
       "endLine": 82,
       "exception": "",
@@ -2340,7 +2340,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DiagnosticContext/Categories/LogCategoryRegistry.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/DiagnosticContext/Categories/LogCategoryRegistry.cs",
       "line": 177,
       "endLine": 179,
       "exception": "",
@@ -2350,7 +2350,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DiagnosticContext/Config/DiagnosticsConfigReader.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/DiagnosticContext/Config/DiagnosticsConfigReader.cs",
       "line": 23,
       "endLine": 25,
       "exception": "",
@@ -2360,7 +2360,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/DiagnosticContext/Config/DiagnosticsConfigReader.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/DiagnosticContext/Config/DiagnosticsConfigReader.cs",
       "line": 100,
       "endLine": 103,
       "exception": "",
@@ -2370,7 +2370,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Adapters/WinFormsEventSourceNode.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Adapters/WinFormsEventSourceNode.cs",
       "line": 101,
       "endLine": 103,
       "exception": "",
@@ -2380,7 +2380,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Adapters/WinFormsEventSourceNode.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Adapters/WinFormsEventSourceNode.cs",
       "line": 147,
       "endLine": 149,
       "exception": "",
@@ -2390,7 +2390,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Adapters/WinFormsEventSourceNode.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Adapters/WinFormsEventSourceNode.cs",
       "line": 160,
       "endLine": 163,
       "exception": "",
@@ -2400,7 +2400,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Bus/EventBusFacade.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Bus/EventBusFacade.cs",
       "line": 76,
       "endLine": 79,
       "exception": "ex",
@@ -2410,7 +2410,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Bus/EventQueue.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Bus/EventQueue.cs",
       "line": 58,
       "endLine": 60,
       "exception": "",
@@ -2420,7 +2420,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Bus/EventQueue.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Bus/EventQueue.cs",
       "line": 61,
       "endLine": 63,
       "exception": "",
@@ -2430,7 +2430,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Bus/Decorators/DeduplicatingEventBusDecorator.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Bus/Decorators/DeduplicatingEventBusDecorator.cs",
       "line": 44,
       "endLine": 47,
       "exception": "",
@@ -2440,7 +2440,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Core/ControlAdapterRegistry.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Core/ControlAdapterRegistry.cs",
       "line": 69,
       "endLine": 71,
       "exception": "",
@@ -2450,7 +2450,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Core/ControlAdapterRegistry.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Core/ControlAdapterRegistry.cs",
       "line": 168,
       "endLine": 171,
       "exception": "",
@@ -2460,7 +2460,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Core/ReflectionEventBinderStrategy.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Core/ReflectionEventBinderStrategy.cs",
       "line": 30,
       "endLine": 33,
       "exception": "",
@@ -2470,7 +2470,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Core/ReflectionEventBinderStrategy.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Core/ReflectionEventBinderStrategy.cs",
       "line": 58,
       "endLine": 61,
       "exception": "",
@@ -2480,7 +2480,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Core/ReflectionEventBinderStrategy.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Core/ReflectionEventBinderStrategy.cs",
       "line": 99,
       "endLine": 102,
       "exception": "",
@@ -2490,7 +2490,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Services/EnhancedValueWriter.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Services/EnhancedValueWriter.cs",
       "line": 89,
       "endLine": 89,
       "exception": "",
@@ -2500,7 +2500,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Services/EnhancedValueWriter.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Services/EnhancedValueWriter.cs",
       "line": 109,
       "endLine": 112,
       "exception": "",
@@ -2510,7 +2510,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Services/EnhancedValueWriter.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Services/EnhancedValueWriter.cs",
       "line": 149,
       "endLine": 149,
       "exception": "",
@@ -2520,7 +2520,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Services/EnhancedValueWriter.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Services/EnhancedValueWriter.cs",
       "line": 169,
       "endLine": 169,
       "exception": "",
@@ -2530,7 +2530,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/EventFramework/Services/EnhancedValueWriter.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/EventFramework/Services/EnhancedValueWriter.cs",
       "line": 191,
       "endLine": 191,
       "exception": "",
@@ -2540,7 +2540,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
       "line": 64,
       "endLine": 69,
       "exception": "",
@@ -2550,7 +2550,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/ExecutionEngine.cs",
       "line": 70,
       "endLine": 75,
       "exception": "ex",
@@ -2560,7 +2560,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
       "line": 179,
       "endLine": 184,
       "exception": "",
@@ -2570,7 +2570,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
       "line": 185,
       "endLine": 189,
       "exception": "",
@@ -2580,7 +2580,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
       "line": 190,
       "endLine": 194,
       "exception": "",
@@ -2590,7 +2590,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
       "line": 195,
       "endLine": 199,
       "exception": "ex",
@@ -2600,7 +2600,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
       "line": 244,
       "endLine": 248,
       "exception": "",
@@ -2610,7 +2610,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
       "line": 249,
       "endLine": 253,
       "exception": "",
@@ -2620,7 +2620,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
       "line": 254,
       "endLine": 260,
       "exception": "",
@@ -2630,7 +2630,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
       "line": 261,
       "endLine": 268,
       "exception": "ex",
@@ -2640,7 +2640,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Core/FunctionExecutor.cs",
       "line": 269,
       "endLine": 275,
       "exception": "ex",
@@ -2650,7 +2650,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Orchestration/StepExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Orchestration/StepExecutor.cs",
       "line": 58,
       "endLine": 63,
       "exception": "",
@@ -2660,7 +2660,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Orchestration/StepExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Orchestration/StepExecutor.cs",
       "line": 64,
       "endLine": 69,
       "exception": "ex",
@@ -2670,7 +2670,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Orchestration/StepExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Orchestration/StepExecutor.cs",
       "line": 105,
       "endLine": 109,
       "exception": "",
@@ -2680,7 +2680,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Orchestration/StepExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Orchestration/StepExecutor.cs",
       "line": 204,
       "endLine": 208,
       "exception": "ex",
@@ -2690,7 +2690,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Parameters/FallbackTypeConverter.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Parameters/FallbackTypeConverter.cs",
       "line": 24,
       "endLine": 27,
       "exception": "ex",
@@ -2700,7 +2700,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Parameters/ParameterHelper.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Parameters/ParameterHelper.cs",
       "line": 41,
       "endLine": 41,
       "exception": "",
@@ -2710,7 +2710,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Engine/Support/HotReloadService.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Engine/Support/HotReloadService.cs",
       "line": 76,
       "endLine": 81,
       "exception": "ex",
@@ -2720,7 +2720,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/ExecutionCenter/Core/TaskExecutorPool.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/ExecutionCenter/Core/TaskExecutorPool.cs",
       "line": 77,
       "endLine": 79,
       "exception": "",
@@ -2730,7 +2730,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/ExecutionCenter/Core/TaskExecutorPool.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/ExecutionCenter/Core/TaskExecutorPool.cs",
       "line": 80,
       "endLine": 83,
       "exception": "ae",
@@ -2740,7 +2740,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/ExecutionCenter/Core/TaskExecutorPool.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/ExecutionCenter/Core/TaskExecutorPool.cs",
       "line": 112,
       "endLine": 112,
       "exception": "",
@@ -2750,7 +2750,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/ExecutionCenter/Core/TaskExecutorPool.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/ExecutionCenter/Core/TaskExecutorPool.cs",
       "line": 113,
       "endLine": 115,
       "exception": "",
@@ -2760,7 +2760,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/ExecutionCenter/Matrix/MatrixEngine.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/ExecutionCenter/Matrix/MatrixEngine.cs",
       "line": 60,
       "endLine": 68,
       "exception": "ex",
@@ -2770,7 +2770,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/ExecutionCenter/Matrix/MatrixEventSink.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/ExecutionCenter/Matrix/MatrixEventSink.cs",
       "line": 35,
       "endLine": 38,
       "exception": "ex",
@@ -2780,7 +2780,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/ExecutionCenter/Matrix/Systems/RouterSystem.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/ExecutionCenter/Matrix/Systems/RouterSystem.cs",
       "line": 82,
       "endLine": 90,
       "exception": "ex",
@@ -2790,7 +2790,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/ExecutionCenter/Matrix/Systems/RouterSystem.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/ExecutionCenter/Matrix/Systems/RouterSystem.cs",
       "line": 117,
       "endLine": 125,
       "exception": "ex",
@@ -2800,7 +2800,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Systems/FunctionSystem.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Systems/FunctionSystem.cs",
       "line": 89,
       "endLine": 92,
       "exception": "",
@@ -2810,7 +2810,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ExecutionFramework/Systems/FunctionSystem.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ExecutionFramework/Systems/FunctionSystem.cs",
       "line": 93,
       "endLine": 96,
       "exception": "ex",
@@ -2820,7 +2820,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Gather/DeclarationGather.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/Gather/DeclarationGather.cs",
       "line": 112,
       "endLine": 115,
       "exception": "ex",
@@ -2830,7 +2830,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Gather/DeclarationGather.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/Gather/DeclarationGather.cs",
       "line": 128,
       "endLine": 131,
       "exception": "ex",
@@ -2840,7 +2840,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Gather/DeclarationGather.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/Gather/DeclarationGather.cs",
       "line": 140,
       "endLine": 143,
       "exception": "ex",
@@ -2850,7 +2850,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Gather/GatherSpecLoader.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/Gather/GatherSpecLoader.cs",
       "line": 41,
       "endLine": 44,
       "exception": "ex",
@@ -2860,7 +2860,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Gather/GatherSpecLoader.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/Gather/GatherSpecLoader.cs",
       "line": 60,
       "endLine": 63,
       "exception": "ex",
@@ -2870,7 +2870,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Gather/GatherSpecLoader.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/Gather/GatherSpecLoader.cs",
       "line": 127,
       "endLine": 131,
       "exception": "",
@@ -2880,7 +2880,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Governance/LimitKernel.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Governance/LimitKernel.cs",
       "line": 404,
       "endLine": 404,
       "exception": "",
@@ -2890,7 +2890,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Governance/LimitKernel.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Governance/LimitKernel.cs",
       "line": 412,
       "endLine": 412,
       "exception": "",
@@ -2900,7 +2900,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/GraphProcessing/ReferenceService.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/GraphProcessing/ReferenceService.cs",
       "line": 53,
       "endLine": 56,
       "exception": "",
@@ -2910,7 +2910,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/GraphProcessing/ReferenceService.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/GraphProcessing/ReferenceService.cs",
       "line": 127,
       "endLine": 130,
       "exception": "",
@@ -2920,7 +2920,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/GraphProcessing/Infrastructure/Events/EcsEventBus.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/GraphProcessing/Infrastructure/Events/EcsEventBus.cs",
       "line": 95,
       "endLine": 98,
       "exception": "ex",
@@ -2930,7 +2930,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/GraphProcessing/Operations/IGraphAnalyzer.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/GraphProcessing/Operations/IGraphAnalyzer.cs",
       "line": 98,
       "endLine": 101,
       "exception": "",
@@ -2940,7 +2940,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/GraphProcessing/Utilities/Utilities.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/GraphProcessing/Utilities/Utilities.cs",
       "line": 29,
       "endLine": 33,
       "exception": "",
@@ -2950,7 +2950,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/InternalStorage/Core/StorageRegistry.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/InternalStorage/Core/StorageRegistry.cs",
       "line": 75,
       "endLine": 79,
       "exception": "ex",
@@ -2960,7 +2960,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/InternalStorage/Initialization/InitializationOrchestrator.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/InternalStorage/Initialization/InitializationOrchestrator.cs",
       "line": 107,
       "endLine": 117,
       "exception": "ex",
@@ -2970,7 +2970,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/KeySpace/Declaration/DeclarationExemptions.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/KeySpace/Declaration/DeclarationExemptions.cs",
       "line": 58,
       "endLine": 58,
       "exception": "",
@@ -2980,7 +2980,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/KeySpace/Declaration/DeclarationExemptions.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/KeySpace/Declaration/DeclarationExemptions.cs",
       "line": 59,
       "endLine": 59,
       "exception": "",
@@ -2990,7 +2990,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/KeySpace/Rules/KeyAlgebra.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/KeySpace/Rules/KeyAlgebra.cs",
       "line": 162,
       "endLine": 168,
       "exception": "ex",
@@ -3000,7 +3000,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/LogicComposition/Conversion/Config/GeneratorConfigReader.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/LogicComposition/Conversion/Config/GeneratorConfigReader.cs",
       "line": 29,
       "endLine": 33,
       "exception": "ex",
@@ -3010,7 +3010,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/LogicComposition/Conversion/DefaultImplementations/DefaultConversionPipeline.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/LogicComposition/Conversion/DefaultImplementations/DefaultConversionPipeline.cs",
       "line": 66,
       "endLine": 72,
       "exception": "ex",
@@ -3020,7 +3020,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/LogicComposition/Conversion/DefaultImplementations/DefaultConversionPipeline.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/LogicComposition/Conversion/DefaultImplementations/DefaultConversionPipeline.cs",
       "line": 73,
       "endLine": 79,
       "exception": "ex",
@@ -3030,7 +3030,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/LogicComposition/ConversionRuntime/ConversionJsonRuntime.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/LogicComposition/ConversionRuntime/ConversionJsonRuntime.cs",
       "line": 45,
       "endLine": 49,
       "exception": "ex",
@@ -3040,7 +3040,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/LogicComposition/ConversionRuntime/JsonMethodJsonEmitter.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/LogicComposition/ConversionRuntime/JsonMethodJsonEmitter.cs",
       "line": 50,
       "endLine": 54,
       "exception": "ex",
@@ -3050,7 +3050,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/LogicComposition/DefaultImplementations/DefaultMergeStrategy.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/LogicComposition/DefaultImplementations/DefaultMergeStrategy.cs",
       "line": 25,
       "endLine": 28,
       "exception": "ex",
@@ -3060,7 +3060,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/ControlExecutorBase.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/ControlExecutorBase.cs",
       "line": 176,
       "endLine": 179,
       "exception": "",
@@ -3070,7 +3070,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/ControlExecutorBase.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/ControlExecutorBase.cs",
       "line": 180,
       "endLine": 183,
       "exception": "",
@@ -3080,7 +3080,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/ControlServiceBase.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/ControlServiceBase.cs",
       "line": 78,
       "endLine": 78,
       "exception": "",
@@ -3090,7 +3090,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/ControlServiceBase.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/ControlServiceBase.cs",
       "line": 207,
       "endLine": 209,
       "exception": "",
@@ -3100,7 +3100,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/ControlServiceBase.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/ControlServiceBase.cs",
       "line": 232,
       "endLine": 234,
       "exception": "",
@@ -3110,7 +3110,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/ControlServiceExtensions.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/ControlServiceExtensions.cs",
       "line": 42,
       "endLine": 42,
       "exception": "",
@@ -3120,7 +3120,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Execution.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Execution.cs",
       "line": 193,
       "endLine": 198,
       "exception": "ex",
@@ -3130,7 +3130,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Execution.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Execution.cs",
       "line": 199,
       "endLine": 204,
       "exception": "ex",
@@ -3140,7 +3140,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Execution.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Execution.cs",
       "line": 240,
       "endLine": 245,
       "exception": "ex",
@@ -3150,7 +3150,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Execution.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Execution.cs",
       "line": 411,
       "endLine": 416,
       "exception": "ex",
@@ -3160,7 +3160,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Execution.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Execution.cs",
       "line": 417,
       "endLine": 422,
       "exception": "ex",
@@ -3170,7 +3170,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Execution.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Execution.cs",
       "line": 423,
       "endLine": 429,
       "exception": "ex",
@@ -3180,7 +3180,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/ConfigExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/ConfigExecutor.cs",
       "line": 42,
       "endLine": 46,
       "exception": "ex",
@@ -3190,7 +3190,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/ConfigExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/ConfigExecutor.cs",
       "line": 66,
       "endLine": 70,
       "exception": "ex",
@@ -3200,7 +3200,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/ConfigExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/ConfigExecutor.cs",
       "line": 107,
       "endLine": 111,
       "exception": "ex",
@@ -3210,7 +3210,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/ConfigExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/ConfigExecutor.cs",
       "line": 153,
       "endLine": 156,
       "exception": "ex",
@@ -3220,7 +3220,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/ConfigExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/ConfigExecutor.cs",
       "line": 183,
       "endLine": 187,
       "exception": "ex",
@@ -3230,7 +3230,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/FileSystemExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/FileSystemExecutor.cs",
       "line": 38,
       "endLine": 41,
       "exception": "ex",
@@ -3240,7 +3240,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/FileSystemExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/FileSystemExecutor.cs",
       "line": 91,
       "endLine": 94,
       "exception": "ex",
@@ -3250,7 +3250,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/FileSystemExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/FileSystemExecutor.cs",
       "line": 148,
       "endLine": 152,
       "exception": "ex",
@@ -3260,7 +3260,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/FileSystemExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/FileSystemExecutor.cs",
       "line": 197,
       "endLine": 200,
       "exception": "ex",
@@ -3270,7 +3270,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/FileSystemExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/FileSystemExecutor.cs",
       "line": 224,
       "endLine": 227,
       "exception": "ex",
@@ -3280,7 +3280,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/RegistryExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/RegistryExecutor.cs",
       "line": 37,
       "endLine": 41,
       "exception": "ex",
@@ -3290,7 +3290,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/RegistryExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/RegistryExecutor.cs",
       "line": 64,
       "endLine": 68,
       "exception": "ex",
@@ -3300,7 +3300,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/RegistryExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/RegistryExecutor.cs",
       "line": 122,
       "endLine": 126,
       "exception": "ex",
@@ -3310,7 +3310,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/MetaCommand/Executors/RegistryExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/MetaCommand/Executors/RegistryExecutor.cs",
       "line": 160,
       "endLine": 164,
       "exception": "ex",
@@ -3320,7 +3320,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/NodeJson.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/NodeJson.cs",
       "line": 45,
       "endLine": 49,
       "exception": "ex",
@@ -3330,7 +3330,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/NodeJson.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/NodeJson.cs",
       "line": 75,
       "endLine": 78,
       "exception": "",
@@ -3340,7 +3340,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/NodeJson.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/NodeJson.cs",
       "line": 96,
       "endLine": 99,
       "exception": "",
@@ -3350,7 +3350,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/Identity/IdentitySpec.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/Identity/IdentitySpec.cs",
       "line": 65,
       "endLine": 69,
       "exception": "ex",
@@ -3360,7 +3360,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/Materialization/NodeMaterializer.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/Materialization/NodeMaterializer.cs",
       "line": 390,
       "endLine": 399,
       "exception": "ex",
@@ -3370,7 +3370,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/Materialization/WritePlan/NodeWritePlanExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/Materialization/WritePlan/NodeWritePlanExecutor.cs",
       "line": 116,
       "endLine": 124,
       "exception": "ex",
@@ -3380,7 +3380,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/Materialization/WritePlan/NodeWritePlanExecutor.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/Materialization/WritePlan/NodeWritePlanExecutor.cs",
       "line": 275,
       "endLine": 278,
       "exception": "ex",
@@ -3390,7 +3390,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/Stream/AggregateFrame.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/Stream/AggregateFrame.cs",
       "line": 38,
       "endLine": 41,
       "exception": "",
@@ -3400,7 +3400,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/Stream/StreamFrameSelector.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/Stream/StreamFrameSelector.cs",
       "line": 112,
       "endLine": 115,
       "exception": "",
@@ -3410,7 +3410,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/Stream/StreamPayload.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/Stream/StreamPayload.cs",
       "line": 123,
       "endLine": 127,
       "exception": "ex",
@@ -3420,7 +3420,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/Stream/StreamPayloadMerge.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/Stream/StreamPayloadMerge.cs",
       "line": 71,
       "endLine": 74,
       "exception": "",
@@ -3430,7 +3430,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Node/Stream/StreamPayloadMerge.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Node/Stream/StreamPayloadMerge.cs",
       "line": 280,
       "endLine": 283,
       "exception": "",
@@ -3440,7 +3440,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
       "line": 50,
       "endLine": 54,
       "exception": "",
@@ -3450,7 +3450,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
       "line": 55,
       "endLine": 59,
       "exception": "",
@@ -3460,7 +3460,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Observe/Core/ObserveSessionManager.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/Observe/Core/ObserveSessionManager.cs",
       "line": 74,
       "endLine": 77,
       "exception": "",
@@ -3470,7 +3470,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Observe/Transports/ProbeTransport.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/Observe/Transports/ProbeTransport.cs",
       "line": 86,
       "endLine": 89,
       "exception": "",
@@ -3480,7 +3480,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Observe/Transports/ProbeTransport.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/Observe/Transports/ProbeTransport.cs",
       "line": 90,
       "endLine": 93,
       "exception": "",
@@ -3490,7 +3490,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Observe/Transports/ProbeTransport.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/Observe/Transports/ProbeTransport.cs",
       "line": 95,
       "endLine": 95,
       "exception": "",
@@ -3500,7 +3500,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Observe/Transports/ProbeTransport.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/Observe/Transports/ProbeTransport.cs",
       "line": 107,
       "endLine": 107,
       "exception": "",
@@ -3510,7 +3510,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Abstractions/ConversionOptions.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Abstractions/ConversionOptions.cs",
       "line": 26,
       "endLine": 26,
       "exception": "",
@@ -3520,7 +3520,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Converter/StringToListConverter.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Converter/StringToListConverter.cs",
       "line": 85,
       "endLine": 87,
       "exception": "",
@@ -3530,7 +3530,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Converter/TypeConversionService.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Converter/TypeConversionService.cs",
       "line": 106,
       "endLine": 106,
       "exception": "",
@@ -3540,7 +3540,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Converter/TypeConversionService.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Converter/TypeConversionService.cs",
       "line": 118,
       "endLine": 118,
       "exception": "",
@@ -3550,7 +3550,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Converter/TypeConversionService.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Converter/TypeConversionService.cs",
       "line": 129,
       "endLine": 129,
       "exception": "",
@@ -3560,7 +3560,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Converter/TypeConversionService.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Converter/TypeConversionService.cs",
       "line": 134,
       "endLine": 138,
       "exception": "ex",
@@ -3570,7 +3570,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Converter/TypeConversionService.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Converter/TypeConversionService.cs",
       "line": 180,
       "endLine": 184,
       "exception": "ex",
@@ -3580,7 +3580,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/KeyMapping/KeyMapperBase.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/KeyMapping/KeyMapperBase.cs",
       "line": 76,
       "endLine": 79,
       "exception": "",
@@ -3590,7 +3590,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/KeyMapping/KeyMapperBase.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/KeyMapping/KeyMapperBase.cs",
       "line": 182,
       "endLine": 185,
       "exception": "ex",
@@ -3600,7 +3600,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Parameters/FallbackTypeConverter.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Parameters/FallbackTypeConverter.cs",
       "line": 24,
       "endLine": 27,
       "exception": "ex",
@@ -3610,7 +3610,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Strategies/Abstractions/WriteStrategyBase.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Strategies/Abstractions/WriteStrategyBase.cs",
       "line": 46,
       "endLine": 50,
       "exception": "ex",
@@ -3620,7 +3620,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Utilities/PropertyPathResolver.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Utilities/PropertyPathResolver.cs",
       "line": 63,
       "endLine": 66,
       "exception": "",
@@ -3630,7 +3630,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Validation/ValidationEngine.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Validation/ValidationEngine.cs",
       "line": 143,
       "endLine": 146,
       "exception": "",
@@ -3640,7 +3640,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ParameterResolver/Validation/ValidationEngine.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/ParameterResolver/Validation/ValidationEngine.cs",
       "line": 147,
       "endLine": 153,
       "exception": "ex",
@@ -3650,7 +3650,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Parsing/Keys/KeyTemplate.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Parsing/Keys/KeyTemplate.cs",
       "line": 265,
       "endLine": 269,
       "exception": "",
@@ -3660,7 +3660,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Parsing/Parsing/JsonPathHelper.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Parsing/Parsing/JsonPathHelper.cs",
       "line": 38,
       "endLine": 41,
       "exception": "",
@@ -3670,7 +3670,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Parsing/Parsing/StringUtils.cs",
+      "file": "Frame/CsharpPrj/Modules/Data/Parsing/Parsing/StringUtils.cs",
       "line": 91,
       "endLine": 94,
       "exception": "",
@@ -3680,7 +3680,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Combinators.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Combinators.cs",
       "line": 59,
       "endLine": 64,
       "exception": "",
@@ -3690,7 +3690,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Combinators.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Combinators.cs",
       "line": 87,
       "endLine": 92,
       "exception": "",
@@ -3700,7 +3700,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Combinators.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Combinators.cs",
       "line": 128,
       "endLine": 132,
       "exception": "",
@@ -3710,7 +3710,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Combinators.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Combinators.cs",
       "line": 182,
       "endLine": 188,
       "exception": "ex",
@@ -3720,7 +3720,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Combinators.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Combinators.cs",
       "line": 308,
       "endLine": 327,
       "exception": "ex",
@@ -3730,7 +3730,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Combinators.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Combinators.cs",
       "line": 318,
       "endLine": 323,
       "exception": "fallbackEx",
@@ -3740,7 +3740,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Combinators.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Combinators.cs",
       "line": 336,
       "endLine": 355,
       "exception": "ex",
@@ -3750,7 +3750,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Combinators.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Combinators.cs",
       "line": 346,
       "endLine": 351,
       "exception": "fallbackEx",
@@ -3760,7 +3760,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Combinators.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Combinators.cs",
       "line": 402,
       "endLine": 417,
       "exception": "ex",
@@ -3770,7 +3770,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Combinators.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Combinators.cs",
       "line": 430,
       "endLine": 445,
       "exception": "ex",
@@ -3780,7 +3780,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Core.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Core.cs",
       "line": 601,
       "endLine": 612,
       "exception": "ex",
@@ -3790,7 +3790,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Core.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Core.cs",
       "line": 653,
       "endLine": 657,
       "exception": "",
@@ -3800,7 +3800,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Core.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Core.cs",
       "line": 658,
       "endLine": 662,
       "exception": "ex",
@@ -3810,7 +3810,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 69,
       "endLine": 73,
       "exception": "ex",
@@ -3820,7 +3820,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 84,
       "endLine": 88,
       "exception": "ex",
@@ -3830,7 +3830,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 121,
       "endLine": 121,
       "exception": "ex",
@@ -3840,7 +3840,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 355,
       "endLine": 360,
       "exception": "ex",
@@ -3850,7 +3850,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 365,
       "endLine": 370,
       "exception": "ex",
@@ -3860,7 +3860,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 396,
       "endLine": 400,
       "exception": "",
@@ -3870,7 +3870,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 419,
       "endLine": 423,
       "exception": "",
@@ -3880,7 +3880,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 457,
       "endLine": 461,
       "exception": "",
@@ -3890,7 +3890,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 484,
       "endLine": 490,
       "exception": "ex",
@@ -3900,7 +3900,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 499,
       "endLine": 505,
       "exception": "ex",
@@ -3910,7 +3910,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 556,
       "endLine": 561,
       "exception": "ex",
@@ -3920,7 +3920,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 574,
       "endLine": 579,
       "exception": "ex",
@@ -3930,7 +3930,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Handlers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Handlers.cs",
       "line": 821,
       "endLine": 824,
       "exception": "ex",
@@ -3940,7 +3940,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/PipelineUsage.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/PipelineUsage.cs",
       "line": 127,
       "endLine": 131,
       "exception": "ex",
@@ -3950,7 +3950,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/CentralPipeline/CentralPipeline.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/CentralPipeline/CentralPipeline.cs",
       "line": 140,
       "endLine": 144,
       "exception": "",
@@ -3960,7 +3960,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/CentralPipeline/CentralPipeline.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/CentralPipeline/CentralPipeline.cs",
       "line": 145,
       "endLine": 149,
       "exception": "",
@@ -3970,7 +3970,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/CentralPipeline/CentralPipeline.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/CentralPipeline/CentralPipeline.cs",
       "line": 171,
       "endLine": 175,
       "exception": "",
@@ -3980,7 +3980,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/CentralPipeline/CentralPipeline.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/CentralPipeline/CentralPipeline.cs",
       "line": 176,
       "endLine": 180,
       "exception": "",
@@ -3990,7 +3990,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Initialization/StringStageCoordinator.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Initialization/StringStageCoordinator.cs",
       "line": 100,
       "endLine": 110,
       "exception": "",
@@ -4000,7 +4000,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Initialization/StringStageCoordinator.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Initialization/StringStageCoordinator.cs",
       "line": 111,
       "endLine": 114,
       "exception": "",
@@ -4010,7 +4010,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Kernel/StageBlockAdapter.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Kernel/StageBlockAdapter.cs",
       "line": 52,
       "endLine": 55,
       "exception": "",
@@ -4020,7 +4020,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/Kernel/StageBlockAdapter.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/Kernel/StageBlockAdapter.cs",
       "line": 56,
       "endLine": 59,
       "exception": "ex",
@@ -4030,7 +4030,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/StaticPipeline/StaticAsyncStepBlock.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/StaticPipeline/StaticAsyncStepBlock.cs",
       "line": 54,
       "endLine": 57,
       "exception": "",
@@ -4040,7 +4040,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/StaticPipeline/StaticAsyncStepBlock.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/StaticPipeline/StaticAsyncStepBlock.cs",
       "line": 58,
       "endLine": 62,
       "exception": "ex",
@@ -4050,7 +4050,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/StaticPipeline/StaticAsyncStepBlock.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/StaticPipeline/StaticAsyncStepBlock.cs",
       "line": 77,
       "endLine": 80,
       "exception": "hookEx",
@@ -4060,7 +4060,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/StaticPipeline/StaticAsyncStepBlock.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/StaticPipeline/StaticAsyncStepBlock.cs",
       "line": 92,
       "endLine": 95,
       "exception": "hookEx",
@@ -4070,7 +4070,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/StaticPipeline/StaticStepBlock.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/StaticPipeline/StaticStepBlock.cs",
       "line": 52,
       "endLine": 56,
       "exception": "ex",
@@ -4080,7 +4080,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/StaticPipeline/StaticStepBlock.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/StaticPipeline/StaticStepBlock.cs",
       "line": 71,
       "endLine": 74,
       "exception": "hookEx",
@@ -4090,7 +4090,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/StaticPipeline/StaticStepBlock.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/StaticPipeline/StaticStepBlock.cs",
       "line": 86,
       "endLine": 89,
       "exception": "hookEx",
@@ -4100,7 +4100,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Pipeline/StepExec/StepExecMiddlewares.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Pipeline/StepExec/StepExecMiddlewares.cs",
       "line": 60,
       "endLine": 64,
       "exception": "",
@@ -4110,7 +4110,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginHost.Activation.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginHost.Activation.cs",
       "line": 95,
       "endLine": 99,
       "exception": "",
@@ -4120,7 +4120,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginHost.Activation.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginHost.Activation.cs",
       "line": 97,
       "endLine": 97,
       "exception": "",
@@ -4130,7 +4130,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginHost.Activation.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginHost.Activation.cs",
       "line": 113,
       "endLine": 116,
       "exception": "",
@@ -4140,7 +4140,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginHost.Activation.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginHost.Activation.cs",
       "line": 136,
       "endLine": 139,
       "exception": "",
@@ -4150,7 +4150,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginHost.Persistence.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginHost.Persistence.cs",
       "line": 77,
       "endLine": 80,
       "exception": "ex",
@@ -4160,7 +4160,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginHost.Update.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginHost.Update.cs",
       "line": 46,
       "endLine": 51,
       "exception": "ex",
@@ -4170,7 +4170,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginLoadContext.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginLoadContext.cs",
       "line": 39,
       "endLine": 39,
       "exception": "",
@@ -4180,7 +4180,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginLoadContext.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginLoadContext.cs",
       "line": 40,
       "endLine": 40,
       "exception": "",
@@ -4190,7 +4190,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginLoadContext.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginLoadContext.cs",
       "line": 41,
       "endLine": 41,
       "exception": "",
@@ -4200,7 +4200,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginLoadContext.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginLoadContext.cs",
       "line": 42,
       "endLine": 42,
       "exception": "",
@@ -4210,7 +4210,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginManifestReader.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginManifestReader.cs",
       "line": 53,
       "endLine": 56,
       "exception": "",
@@ -4220,7 +4220,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginSlot.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginSlot.cs",
       "line": 47,
       "endLine": 50,
       "exception": "",
@@ -4230,7 +4230,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/PluginHost/PluginSlot.cs",
+      "file": "Frame/CsharpPrj/Modules/Orchestration/PluginHost/PluginSlot.cs",
       "line": 53,
       "endLine": 53,
       "exception": "",
@@ -4240,7 +4240,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/03_MapBasedRegistries.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/03_MapBasedRegistries.cs",
       "line": 173,
       "endLine": 173,
       "exception": "",
@@ -4250,7 +4250,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/09_UnifiedRegistryCenter.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/09_UnifiedRegistryCenter.cs",
       "line": 250,
       "endLine": 250,
       "exception": "",
@@ -4260,7 +4260,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/11_ToolRegistry.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/11_ToolRegistry.cs",
       "line": 78,
       "endLine": 81,
       "exception": "",
@@ -4270,7 +4270,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/14_RegistryExtensions.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/14_RegistryExtensions.cs",
       "line": 69,
       "endLine": 71,
       "exception": "",
@@ -4280,7 +4280,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs",
       "line": 95,
       "endLine": 98,
       "exception": "",
@@ -4290,7 +4290,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs",
       "line": 111,
       "endLine": 114,
       "exception": "",
@@ -4300,7 +4300,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs",
       "line": 221,
       "endLine": 224,
       "exception": "",
@@ -4310,7 +4310,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs",
       "line": 447,
       "endLine": 450,
       "exception": "",
@@ -4320,7 +4320,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs",
       "line": 498,
       "endLine": 498,
       "exception": "",
@@ -4330,7 +4330,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs",
       "line": 499,
       "endLine": 499,
       "exception": "",
@@ -4340,7 +4340,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs",
       "line": 502,
       "endLine": 502,
       "exception": "",
@@ -4350,7 +4350,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationHost.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationHost.cs",
       "line": 503,
       "endLine": 503,
       "exception": "",
@@ -4360,7 +4360,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationLayout.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationLayout.cs",
       "line": 65,
       "endLine": 68,
       "exception": "",
@@ -4370,7 +4370,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/ExtensionGenerationLayout.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/ExtensionGenerationLayout.cs",
       "line": 105,
       "endLine": 108,
       "exception": "",
@@ -4380,7 +4380,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/FunctionLibraryEnvironment.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/FunctionLibraryEnvironment.cs",
       "line": 229,
       "endLine": 229,
       "exception": "",
@@ -4390,7 +4390,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/FunctionLibraryEnvironment.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/FunctionLibraryEnvironment.cs",
       "line": 230,
       "endLine": 230,
       "exception": "",
@@ -4400,7 +4400,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/FunctionLibraryLoader.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/FunctionLibraryLoader.cs",
       "line": 151,
       "endLine": 162,
       "exception": "ex",
@@ -4410,7 +4410,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/FunctionLibraryLoader.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/FunctionLibraryLoader.cs",
       "line": 271,
       "endLine": 282,
       "exception": "ex",
@@ -4420,7 +4420,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/FunctionLibraryLoader.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/FunctionLibraryLoader.cs",
       "line": 351,
       "endLine": 351,
       "exception": "",
@@ -4430,7 +4430,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/FunctionLibraryLoader.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/FunctionLibraryLoader.cs",
       "line": 383,
       "endLine": 391,
       "exception": "ex",
@@ -4440,7 +4440,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/FunctionRegistryExtensions.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/FunctionRegistryExtensions.cs",
       "line": 30,
       "endLine": 33,
       "exception": "",
@@ -4450,7 +4450,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/FunctionRegistryExtensions.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/FunctionRegistryExtensions.cs",
       "line": 42,
       "endLine": 45,
       "exception": "",
@@ -4460,7 +4460,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/AutoRegisterEngine.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/AutoRegisterEngine.cs",
       "line": 135,
       "endLine": 138,
       "exception": "",
@@ -4470,7 +4470,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/AutoRegisterService.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/AutoRegisterService.cs",
       "line": 349,
       "endLine": 355,
       "exception": "ex",
@@ -4480,7 +4480,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/AutoRegisterService.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/AutoRegisterService.cs",
       "line": 375,
       "endLine": 377,
       "exception": "",
@@ -4490,7 +4490,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/AutoRegisterService.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/AutoRegisterService.cs",
       "line": 420,
       "endLine": 423,
       "exception": "ex",
@@ -4500,7 +4500,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Cache.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Cache.cs",
       "line": 24,
       "endLine": 27,
       "exception": "",
@@ -4510,7 +4510,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Cache.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Cache.cs",
       "line": 81,
       "endLine": 83,
       "exception": "",
@@ -4520,7 +4520,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Cache.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Cache.cs",
       "line": 311,
       "endLine": 313,
       "exception": "",
@@ -4530,7 +4530,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Cache.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Cache.cs",
       "line": 341,
       "endLine": 343,
       "exception": "",
@@ -4540,7 +4540,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Cache.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Cache.cs",
       "line": 361,
       "endLine": 363,
       "exception": "",
@@ -4550,7 +4550,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Cache.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Cache.cs",
       "line": 407,
       "endLine": 410,
       "exception": "",
@@ -4560,7 +4560,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Cache.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Cache.cs",
       "line": 440,
       "endLine": 442,
       "exception": "",
@@ -4570,7 +4570,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 123,
       "endLine": 125,
       "exception": "",
@@ -4580,7 +4580,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 148,
       "endLine": 151,
       "exception": "",
@@ -4590,7 +4590,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 173,
       "endLine": 176,
       "exception": "",
@@ -4600,7 +4600,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 263,
       "endLine": 265,
       "exception": "",
@@ -4610,7 +4610,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 308,
       "endLine": 310,
       "exception": "",
@@ -4620,7 +4620,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 363,
       "endLine": 366,
       "exception": "",
@@ -4630,7 +4630,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 399,
       "endLine": 402,
       "exception": "",
@@ -4640,7 +4640,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 431,
       "endLine": 435,
       "exception": "ex",
@@ -4650,7 +4650,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 438,
       "endLine": 441,
       "exception": "ex",
@@ -4660,7 +4660,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 452,
       "endLine": 455,
       "exception": "",
@@ -4670,7 +4670,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 484,
       "endLine": 487,
       "exception": "",
@@ -4680,7 +4680,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 591,
       "endLine": 594,
       "exception": "ex",
@@ -4690,7 +4690,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Extractors.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Extractors.cs",
       "line": 610,
       "endLine": 613,
       "exception": "ex",
@@ -4700,7 +4700,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
       "line": 82,
       "endLine": 82,
       "exception": "",
@@ -4710,7 +4710,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
       "line": 83,
       "endLine": 83,
       "exception": "",
@@ -4720,7 +4720,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
       "line": 151,
       "endLine": 155,
       "exception": "ex",
@@ -4730,7 +4730,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
       "line": 171,
       "endLine": 174,
       "exception": "",
@@ -4740,7 +4740,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Locating/AssemblySourceLocator.cs",
       "line": 180,
       "endLine": 180,
       "exception": "",
@@ -4750,7 +4750,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Locating/LayoutArtifactSearcher.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Locating/LayoutArtifactSearcher.cs",
       "line": 91,
       "endLine": 94,
       "exception": "",
@@ -4760,7 +4760,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Locating/LayoutArtifactSearcher.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Locating/LayoutArtifactSearcher.cs",
       "line": 100,
       "endLine": 100,
       "exception": "",
@@ -4770,7 +4770,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Locating/OutputArtifactLocator.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Locating/OutputArtifactLocator.cs",
       "line": 67,
       "endLine": 70,
       "exception": "",
@@ -4780,7 +4780,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Locating/OutputArtifactLocator.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Locating/OutputArtifactLocator.cs",
       "line": 76,
       "endLine": 76,
       "exception": "",
@@ -4790,7 +4790,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Wrappers/DelegateWrappers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Wrappers/DelegateWrappers.cs",
       "line": 67,
       "endLine": 70,
       "exception": "ex",
@@ -4800,7 +4800,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/AutoRegister/Wrappers/DelegateWrappers.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/AutoRegister/Wrappers/DelegateWrappers.cs",
       "line": 95,
       "endLine": 95,
       "exception": "",
@@ -4810,7 +4810,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/Deployment/DeploymentReport.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/Deployment/DeploymentReport.cs",
       "line": 115,
       "endLine": 118,
       "exception": "",
@@ -4820,7 +4820,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/Deployment/DepsManifestIndex.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/Deployment/DepsManifestIndex.cs",
       "line": 71,
       "endLine": 74,
       "exception": "ex",
@@ -4830,7 +4830,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Registry/Deployment/ExtensionTopology.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Registry/Deployment/ExtensionTopology.cs",
       "line": 52,
       "endLine": 52,
       "exception": "",
@@ -4840,7 +4840,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/ThreadContext.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/ThreadContext.cs",
       "line": 79,
       "endLine": 82,
       "exception": "ex",
@@ -4850,7 +4850,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/ThreadContext.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/ThreadContext.cs",
       "line": 94,
       "endLine": 97,
       "exception": "ex",
@@ -4860,7 +4860,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/ThreadContext.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/ThreadContext.cs",
       "line": 113,
       "endLine": 116,
       "exception": "ex",
@@ -4870,7 +4870,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/ThreadContext.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/ThreadContext.cs",
       "line": 128,
       "endLine": 131,
       "exception": "ex",
@@ -4880,7 +4880,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/AsyncOperation.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/AsyncOperation.cs",
       "line": 153,
       "endLine": 156,
       "exception": "",
@@ -4890,7 +4890,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/AsyncOperationScheduler.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/AsyncOperationScheduler.cs",
       "line": 147,
       "endLine": 152,
       "exception": "ex",
@@ -4900,7 +4900,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/AsyncOperationScheduler.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/AsyncOperationScheduler.cs",
       "line": 166,
       "endLine": 169,
       "exception": "oce",
@@ -4910,7 +4910,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/AsyncOperationScheduler.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/AsyncOperationScheduler.cs",
       "line": 170,
       "endLine": 174,
       "exception": "ex",
@@ -4920,7 +4920,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/AsyncOperationScheduler.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/AsyncOperationScheduler.cs",
       "line": 197,
       "endLine": 202,
       "exception": "oce",
@@ -4930,7 +4930,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/AsyncOperationScheduler.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/AsyncOperationScheduler.cs",
       "line": 203,
       "endLine": 208,
       "exception": "ex",
@@ -4940,7 +4940,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/IProcessHandle.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/IProcessHandle.cs",
       "line": 35,
       "endLine": 35,
       "exception": "",
@@ -4950,7 +4950,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/IProcessHandle.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/IProcessHandle.cs",
       "line": 44,
       "endLine": 44,
       "exception": "",
@@ -4960,7 +4960,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/IProcessHandle.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/IProcessHandle.cs",
       "line": 45,
       "endLine": 45,
       "exception": "",
@@ -4970,7 +4970,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/IProcessHandle.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/IProcessHandle.cs",
       "line": 53,
       "endLine": 53,
       "exception": "",
@@ -4980,7 +4980,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/IProcessHandle.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/IProcessHandle.cs",
       "line": 54,
       "endLine": 54,
       "exception": "",
@@ -4990,7 +4990,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/OperationExtensions.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/OperationExtensions.cs",
       "line": 18,
       "endLine": 21,
       "exception": "",
@@ -5000,7 +5000,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/OperationExtensions.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/OperationExtensions.cs",
       "line": 36,
       "endLine": 39,
       "exception": "",
@@ -5010,7 +5010,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/AsyncExecution/WatchdogService.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/AsyncExecution/WatchdogService.cs",
       "line": 70,
       "endLine": 73,
       "exception": "",
@@ -5020,7 +5020,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Bounded/BoundedExecution.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Bounded/BoundedExecution.cs",
       "line": 115,
       "endLine": 121,
       "exception": "",
@@ -5030,7 +5030,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Bounded/BoundedRun.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Bounded/BoundedRun.cs",
       "line": 60,
       "endLine": 63,
       "exception": "",
@@ -5040,7 +5040,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Bounded/BoundedRun.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Bounded/BoundedRun.cs",
       "line": 64,
       "endLine": 67,
       "exception": "",
@@ -5050,7 +5050,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Bounded/BoundedRun.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Bounded/BoundedRun.cs",
       "line": 93,
       "endLine": 96,
       "exception": "",
@@ -5060,7 +5060,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Diagnostics/StallDetector.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Diagnostics/StallDetector.cs",
       "line": 70,
       "endLine": 70,
       "exception": "",
@@ -5070,7 +5070,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Diagnostics/StallDetector.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Diagnostics/StallDetector.cs",
       "line": 91,
       "endLine": 91,
       "exception": "",
@@ -5080,7 +5080,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Dispatch/SerialDispatcher.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Dispatch/SerialDispatcher.cs",
       "line": 78,
       "endLine": 78,
       "exception": "",
@@ -5090,7 +5090,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Dispatch/SerialDispatcher.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Dispatch/SerialDispatcher.cs",
       "line": 81,
       "endLine": 84,
       "exception": "",
@@ -5100,7 +5100,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Dispatch/SerialDispatcher.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Dispatch/SerialDispatcher.cs",
       "line": 99,
       "endLine": 99,
       "exception": "",
@@ -5110,7 +5110,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Hang/HangDiagnostics.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Hang/HangDiagnostics.cs",
       "line": 73,
       "endLine": 73,
       "exception": "ex",
@@ -5120,7 +5120,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/SingleWriter/SingleWriterActor.cs",
       "line": 51,
       "endLine": 51,
       "exception": "ex",
@@ -5130,7 +5130,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/SingleWriter/SingleWriterActor.cs",
       "line": 52,
       "endLine": 52,
       "exception": "ex",
@@ -5140,7 +5140,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/SingleWriter/SingleWriterActor.cs",
       "line": 119,
       "endLine": 119,
       "exception": "ex",
@@ -5150,7 +5150,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/SingleWriter/SingleWriterActor.cs",
       "line": 147,
       "endLine": 147,
       "exception": "",
@@ -5160,7 +5160,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/SingleWriter/SingleWriterActor.cs",
       "line": 158,
       "endLine": 158,
       "exception": "",
@@ -5170,7 +5170,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/SingleWriter/SingleWriterActor.cs",
       "line": 202,
       "endLine": 205,
       "exception": "",
@@ -5180,7 +5180,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/SingleWriter/SingleWriterActor.cs",
       "line": 214,
       "endLine": 214,
       "exception": "",
@@ -5190,7 +5190,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/SingleWriter/SingleWriterActor.cs",
       "line": 236,
       "endLine": 236,
       "exception": "",
@@ -5200,7 +5200,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/SingleWriter/SingleWriterActor.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/SingleWriter/SingleWriterActor.cs",
       "line": 249,
       "endLine": 249,
       "exception": "",
@@ -5210,7 +5210,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/BatchedAsyncSink.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/BatchedAsyncSink.cs",
       "line": 87,
       "endLine": 87,
       "exception": "",
@@ -5220,7 +5220,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/BatchedAsyncSink.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/BatchedAsyncSink.cs",
       "line": 88,
       "endLine": 92,
       "exception": "ex",
@@ -5230,7 +5230,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/BatchedAsyncSink.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/BatchedAsyncSink.cs",
       "line": 105,
       "endLine": 105,
       "exception": "",
@@ -5240,7 +5240,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/BatchedAsyncSink.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/BatchedAsyncSink.cs",
       "line": 106,
       "endLine": 111,
       "exception": "",
@@ -5250,7 +5250,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/BatchedAsyncSink.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/BatchedAsyncSink.cs",
       "line": 110,
       "endLine": 110,
       "exception": "",
@@ -5260,7 +5260,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/BatchedAsyncSink.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/BatchedAsyncSink.cs",
       "line": 122,
       "endLine": 122,
       "exception": "",
@@ -5270,7 +5270,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/DedupQueueConsumer.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/DedupQueueConsumer.cs",
       "line": 87,
       "endLine": 87,
       "exception": "",
@@ -5280,7 +5280,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/DedupQueueConsumer.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/DedupQueueConsumer.cs",
       "line": 113,
       "endLine": 113,
       "exception": "",
@@ -5290,7 +5290,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/DedupQueueConsumer.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/DedupQueueConsumer.cs",
       "line": 114,
       "endLine": 114,
       "exception": "",
@@ -5300,7 +5300,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/OutboxWriter.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/OutboxWriter.cs",
       "line": 101,
       "endLine": 101,
       "exception": "",
@@ -5310,7 +5310,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/OutboxWriter.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/OutboxWriter.cs",
       "line": 152,
       "endLine": 156,
       "exception": "",
@@ -5320,7 +5320,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/OutboxWriter.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/OutboxWriter.cs",
       "line": 157,
       "endLine": 162,
       "exception": "ex",
@@ -5330,7 +5330,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/OutboxWriter.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/OutboxWriter.cs",
       "line": 168,
       "endLine": 168,
       "exception": "",
@@ -5340,7 +5340,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Streaming/OutboxWriter.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Streaming/OutboxWriter.cs",
       "line": 177,
       "endLine": 177,
       "exception": "",
@@ -5350,7 +5350,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Termination/TerminationScope.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Termination/TerminationScope.cs",
       "line": 198,
       "endLine": 198,
       "exception": "",
@@ -5360,7 +5360,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Termination/TerminationScope.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Termination/TerminationScope.cs",
       "line": 203,
       "endLine": 203,
       "exception": "",
@@ -5370,7 +5370,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Termination/TerminationScope.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Termination/TerminationScope.cs",
       "line": 229,
       "endLine": 229,
       "exception": "",
@@ -5380,7 +5380,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Termination/TerminationScope.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Termination/TerminationScope.cs",
       "line": 253,
       "endLine": 253,
       "exception": "",
@@ -5390,7 +5390,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Time/IdleWatchdog.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Time/IdleWatchdog.cs",
       "line": 75,
       "endLine": 78,
       "exception": "",
@@ -5400,7 +5400,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Time/TimeoutRunner.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Time/TimeoutRunner.cs",
       "line": 38,
       "endLine": 49,
       "exception": "",
@@ -5410,7 +5410,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Time/TimeoutRunner.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Time/TimeoutRunner.cs",
       "line": 50,
       "endLine": 53,
       "exception": "ex",
@@ -5420,7 +5420,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Threading/Time/TimingHelpers.cs",
+      "file": "Frame/CsharpPrj/Modules/Foundations/Threading/Time/TimingHelpers.cs",
       "line": 35,
       "endLine": 38,
       "exception": "",
@@ -5430,7 +5430,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ValidationFramework/Verify/FrameworkVerify.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ValidationFramework/Verify/FrameworkVerify.cs",
       "line": 43,
       "endLine": 47,
       "exception": "ex",
@@ -5440,7 +5440,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ValidationFramework/Verify/FrameworkVerify.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ValidationFramework/Verify/FrameworkVerify.cs",
       "line": 107,
       "endLine": 111,
       "exception": "ex",
@@ -5450,7 +5450,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ValidationFramework/Verify/FrameworkVerify.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ValidationFramework/Verify/FrameworkVerify.cs",
       "line": 149,
       "endLine": 153,
       "exception": "ex",
@@ -5460,7 +5460,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/ValidationFramework/Verify/FrameworkVerify.cs",
+      "file": "Frame/CsharpPrj/Modules/Frameworks/ValidationFramework/Verify/FrameworkVerify.cs",
       "line": 179,
       "endLine": 183,
       "exception": "ex",
@@ -5470,7 +5470,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Wiring/Declaration/JsonWiringDeclarationSource.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Wiring/Declaration/JsonWiringDeclarationSource.cs",
       "line": 51,
       "endLine": 56,
       "exception": "exception",
@@ -5480,7 +5480,7 @@
       "candidate": true
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Wiring/Runtime/Junction.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Wiring/Runtime/Junction.cs",
       "line": 231,
       "endLine": 234,
       "exception": "",
@@ -5490,7 +5490,7 @@
       "candidate": false
     },
     {
-      "file": "Frame/CsharpPrj/Modules/Wiring/Runtime/Junction.cs",
+      "file": "Frame/CsharpPrj/Modules/Composition/Wiring/Runtime/Junction.cs",
       "line": 235,
       "endLine": 241,
       "exception": "exception",

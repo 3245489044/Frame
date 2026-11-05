@@ -9,7 +9,7 @@
 |--------|----------|------|
 | `Plate\RoslynMethod`（同模块上层：Analysis/Generation/Security/…） | `net10.0-windows` | 编译构建、语义模型、有界查询、C# 生成基底 |
 | `Share\Frameworks\RoslynJson` | `netstandard2.0`（分析器硬约束） | 源提供器、源定位、C# 生成基底（源生成器侧复用） |
-| `Modules\Registry` | `net10.0-windows` | 编译相关能力 |
+| `Modules\Composition\Registry` | `net10.0-windows` | 编译相关能力 |
 
 ## 为什么本工程为 netstandard2.0
 

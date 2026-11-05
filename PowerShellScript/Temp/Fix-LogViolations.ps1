@@ -10,7 +10,7 @@ $ProjectRoot = "d:\Project\Program\WorkFlowPrj"
 # ============================================================
 
 # 1. OverridableFunctionRegistry.cs — 3 处 Debug.WriteLine → 删除（静默 return）
-$path = "$ProjectRoot\CsharpPrj\Modules\Registry\OverridableFunctionRegistry.cs"
+$path = "$ProjectRoot\CsharpPrj\Modules\Composition\Registry\OverridableFunctionRegistry.cs"
 $content = [System.IO.File]::ReadAllText($path)
 $content = $content -replace '(?s)if \(IsOverrideEnabled \&\& _overrides\.ContainsKey\(name\)\)\s*\{\s*System\.Diagnostics\.Debug\.WriteLine\([^;]+;\s*return;\s*\}', 'if (IsOverrideEnabled && _overrides.ContainsKey(name))
         {
@@ -21,7 +21,7 @@ $content = $content -replace '(?s)if \(IsOverrideEnabled \&\& _overrides\.Contai
 Write-Host "[OK] OverridableFunctionRegistry.cs — 3 处 Debug.WriteLine 已删除"
 
 # 2. AutoRegisterEngine.cs — 6 处 Debug.WriteLine → 删除
-$path = "$ProjectRoot\CsharpPrj\Modules\Registry\AutoRegister\AutoRegisterEngine.cs"
+$path = "$ProjectRoot\CsharpPrj\Modules\Composition\Registry\AutoRegister\AutoRegisterEngine.cs"
 $content = [System.IO.File]::ReadAllText($path)
 # 删除 Debug.WriteLine 行（保留逻辑）
 $content = $content -replace '(?m)^\s*System\.Diagnostics\.Debug\.WriteLine\([^;]+;\s*$', ''
@@ -29,28 +29,28 @@ $content = $content -replace '(?m)^\s*System\.Diagnostics\.Debug\.WriteLine\([^;
 Write-Host "[OK] AutoRegisterEngine.cs — Debug.WriteLine 已删除"
 
 # 3. AutoRegisterService.cs — 6 处 Console.WriteLine → 删除
-$path = "$ProjectRoot\CsharpPrj\Modules\Registry\AutoRegister\AutoRegisterService.cs"
+$path = "$ProjectRoot\CsharpPrj\Modules\Composition\Registry\AutoRegister\AutoRegisterService.cs"
 $content = [System.IO.File]::ReadAllText($path)
 $content = $content -replace '(?m)^\s*Console\.WriteLine\([^;]+;\s*$', ''
 [System.IO.File]::WriteAllText($path, $content)
 Write-Host "[OK] AutoRegisterService.cs — Console.WriteLine 已删除"
 
 # 4. 11_FunctionLibraryLifecycle.cs — 3 处 Debug.WriteLine → 删除
-$path = "$ProjectRoot\CsharpPrj\Modules\Registry\11_FunctionLibraryLifecycle.cs"
+$path = "$ProjectRoot\CsharpPrj\Modules\Composition\Registry\11_FunctionLibraryLifecycle.cs"
 $content = [System.IO.File]::ReadAllText($path)
 $content = $content -replace '(?m)^\s*System\.Diagnostics\.Debug\.WriteLine\([^;]+;\s*$', ''
 [System.IO.File]::WriteAllText($path, $content)
 Write-Host "[OK] 11_FunctionLibraryLifecycle.cs — Debug.WriteLine 已删除"
 
 # 5. ParameterTransformer.cs — 1 处 Debug.WriteLine → 删除
-$path = "$ProjectRoot\CsharpPrj\Modules\ParameterResolver\Parameters\ParameterTransformer.cs"
+$path = "$ProjectRoot\CsharpPrj\Modules\Composition\ParameterResolver\Parameters\ParameterTransformer.cs"
 $content = [System.IO.File]::ReadAllText($path)
 $content = $content -replace '(?s)Debug\.WriteLine\(\s*\$"\[ParameterTransformer\].*?Using default value\."\s*\);', '// Warning suppressed: parameter not found in dictionary, using default value'
 [System.IO.File]::WriteAllText($path, $content)
 Write-Host "[OK] ParameterTransformer.cs — Debug.WriteLine 已删除"
 
 # 6. ParameterHelper.cs — 1 处 Debug.WriteLine → 删除
-$path = "$ProjectRoot\CsharpPrj\Modules\ParameterResolver\Parameters\ParameterHelper.cs"
+$path = "$ProjectRoot\CsharpPrj\Modules\Composition\ParameterResolver\Parameters\ParameterHelper.cs"
 $content = [System.IO.File]::ReadAllText($path)
 $content = $content -replace '(?s)Debug\.WriteLine\(\s*\$"\[FunctionExecutor\] ConvertParameter failed:.*?\{error\}"\s*\);', '// ConvertParameter failed, using default value'
 [System.IO.File]::WriteAllText($path, $content)
@@ -62,7 +62,7 @@ Write-Host "[OK] ParameterHelper.cs — Debug.WriteLine 已删除"
 # 所以保留
 
 # 8. EcsEventBus.cs — 1 处 Debug.WriteLine → 删除
-$path = "$ProjectRoot\CsharpPrj\Modules\GraphProcessing\Infrastructure\Events\EcsEventBus.cs"
+$path = "$ProjectRoot\CsharpPrj\Modules\Data\GraphProcessing\Infrastructure\Events\EcsEventBus.cs"
 $content = [System.IO.File]::ReadAllText($path)
 $content = $content -replace '(?m)^\s*System\.Diagnostics\.Debug\.WriteLine\([^;]+;\s*$', ''
 [System.IO.File]::WriteAllText($path, $content)
@@ -80,14 +80,14 @@ $content = $content -replace '(?m)^\s*Debug\.WriteLine\([^;]+;\s*$', ''
 Write-Host "[OK] StageCoordinator.cs — Debug.WriteLine 已删除"
 
 # 11. ComponentDataStore.cs — 2 处 Debug.WriteLine → 删除
-$path = "$ProjectRoot\CsharpPrj\Modules\ComponentData\Core\ComponentDataStore.cs"
+$path = "$ProjectRoot\CsharpPrj\Modules\Data\ComponentData\Core\ComponentDataStore.cs"
 $content = [System.IO.File]::ReadAllText($path)
 $content = $content -replace '(?m)^\s*System\.Diagnostics\.Debug\.WriteLine\([^;]+;\s*$', ''
 [System.IO.File]::WriteAllText($path, $content)
 Write-Host "[OK] ComponentDataStore.cs — Debug.WriteLine 已删除"
 
 # 12. EcsComponentReactorPipeline.cs — 1 处 Debug.WriteLine → 删除
-$path = "$ProjectRoot\CsharpPrj\Modules\ComponentData\Core\EcsComponentReactorPipeline.cs"
+$path = "$ProjectRoot\CsharpPrj\Modules\Data\ComponentData\Core\EcsComponentReactorPipeline.cs"
 $content = [System.IO.File]::ReadAllText($path)
 $content = $content -replace '(?m)^\s*System\.Diagnostics\.Debug\.WriteLine\([^;]+;\s*$', ''
 [System.IO.File]::WriteAllText($path, $content)

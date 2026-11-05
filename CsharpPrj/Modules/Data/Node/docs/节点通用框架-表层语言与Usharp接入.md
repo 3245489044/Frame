@@ -376,7 +376,7 @@
 |---|---|
 | 声明面 | `Projects/Plug/Agent/Config/nodes/placement.ushar` |
 | 发射器 | `Frame/Usharp/src/Usharp.Emit/UsharpLocPlacementEmitter.cs`（中立 JSON；两侧 `_`→`-` 归一唯一映射点 = `ToRuntimeId`） |
-| 装配消费 | `Agent.Modules/NodeSpec/NodePlacementDeclaration.cs`（**无降级**：缺失/编译失败/发射失败 ⇒ 抛）→ `NodeFrameworkSpecLoader`（映射**工厂**形态，按域裁剪）→ `DeclaredPlacementResolver` |
+| 装配消费 | `Agent.Modules/Data/NodeSpec/NodePlacementDeclaration.cs`（**无降级**：缺失/编译失败/发射失败 ⇒ 抛）→ `NodeFrameworkSpecLoader`（映射**工厂**形态，按域裁剪）→ `DeclaredPlacementResolver` |
 | 禁手写 | JSON 声明面出现 `locToPlacement` ⇒ Error `spec.loc-to-placement-forbidden`（手写即双真源 P22） |
 | 门禁 | `Check-NodeLocPlacement.ps1`（C1 闸A 编译 0 错 / C2 反解域完备 / C3 反解唯一 · 每位置恰一行 / C4 正对照 / C5 负对照锁死 §14.1 不可表达形态）→ `GateManifests.psd1` 的 `NodeLocPlacement` |
 | 用例 | `usharp.emit` 套件 2 例（声明产出逐字段 + 缺反解域不产出 `US5006`）；`Agent.Modules.Tests` 1 例（每域解析器由声明面支撑且按域裁剪） |

@@ -11,7 +11,7 @@
 | # | 结论 | 依据（实测） |
 |---|---|---|
 | C1 | Agent 侧运行时数据可分 5 类，**真正要"接入"的只有 2 类**（进程内静态对象槽、实例态对象）；另 2 类已外置（只需投影与追踪），1 类明确不接入 | §1 全景表 |
-| C2 | 「根实例由 `Frame\DataCenter` 持有」**成立且已有机制保障**：`ExtensionLoadContext.Load` 先复用默认 ALC 已加载同名程序集，契约程序集只要由宿主默认 ALC 加载，跨 ALC 类型身份唯一，根可安全跨插件边界 | `Frame\CsharpPrj\Modules\Registry\ExtensionAssemblyHost.cs:226-249` |
+| C2 | 「根实例由 `Frame\DataCenter` 持有」**成立且已有机制保障**：`ExtensionLoadContext.Load` 先复用默认 ALC 已加载同名程序集，契约程序集只要由宿主默认 ALC 加载，跨 ALC 类型身份唯一，根可安全跨插件边界 | `Frame\CsharpPrj\Modules\Composition\Registry\ExtensionAssemblyHost.cs:226-249` |
 | C3 | 需新增 **`Frame\DataCenter\DataCenter.Hosting`**：进程内单根宿主（唯一实例 + 装配工厂 + 生命周期/换代 + `RuntimeSlot` 分区）；业务侧只经 `IRootProvider`/域 Gateway，**不给业务暴露 `static Current`** | 对齐设计文档 §12.3/§12.4、DF8 |
 | C4 | 接入 = **4 条通道**（状态 KV / 对象槽 / 投影 / 域真源对接），**一律不搬真源**（SQL/LiteDB 保持既有权威） | §3、§8 复用矩阵 |
 | C5 | 落地顺序：**A0 Hosting → A1 槽清单 + 去静态化 → A2 对象槽挂根 → A3 投影追踪 → A4 双写收敛 → A5 换代闭环**；A4 风险最高放最后 | §4 |
@@ -73,7 +73,7 @@
 | `AgentRunCancellation` | `Agent.Runtime\State\Loops\AgentRunCancellation.cs` | 无状态只读桥（委托 `RunContext.Current`） |
 | UI 控件 / ECS 挂载 / native | `FrontEndDriven`、`Plate.*`、`UiBackend.*` | 不可热换（架构设计 §8 三域清单） |
 | 进程外资源 | Cline daemon、LocalLlmHttp 端点（`Agent.Modules`）、凭据目录 | 非数据；只登记句柄归属 |
-| `Modules.Threading.AmbientSlot` | `Frame\CsharpPrj\Modules\Threading` | 是机制不是数据，**保留并作为「per-run 取根」的载体** |
+| `Modules.Threading.AmbientSlot` | `Frame\CsharpPrj\Modules\Foundations\Threading` | 是机制不是数据，**保留并作为「per-run 取根」的载体** |
 
 ---
 
@@ -126,7 +126,7 @@
 |---|---|---|
 | P1 | `DataCenter.{Abstractions,Protocol,Core,Hosting}.dll` 必须由**宿主默认 ALC** 加载 | 进入宿主烘焙清单（`CsharpPrj\BuildOutput` + `PrjBridge.deps.json`） |
 | P2 | Agent 插件经**二进制引用**消费契约面 | `Projects\Plug\Agent\Directory.Build.props` 的 `DataCenterBinaryRefs`（现含 Core / Abstractions / Extensions.LoopDecision，需补 Protocol / Hosting 契约面） |
-| P3 | `ExtensionLoadContext.Load` 的"默认 ALC 优先复用"保证类型身份唯一 → 根实例可跨边界传递 | `Frame\CsharpPrj\Modules\Registry\ExtensionAssemblyHost.cs:226-249`（实测：先查 `AssemblyLoadContext.Default.Assemblies`，再 `LoadFromAssemblyName`，失败才落 scoped 自装） |
+| P3 | `ExtensionLoadContext.Load` 的"默认 ALC 优先复用"保证类型身份唯一 → 根实例可跨边界传递 | `Frame\CsharpPrj\Modules\Composition\Registry\ExtensionAssemblyHost.cs:226-249`（实测：先查 `AssemblyLoadContext.Default.Assemblies`，再 `LoadFromAssemblyName`，失败才落 scoped 自装） |
 | P4 | 换代回收要求 ALC 可收集 | `ExtensionAssemblyHost.cs:218` 现为 `isCollectible: false` → A5 改 `true` + 实例化代数工厂（通用化 G7.2） |
 
 > **纪律**：契约程序集（Abstractions / Protocol）**不得**下沉到插件私有目录被 scoped ALC 自装，否则 `IDataCenterRoot` 出现两份类型身份 → 根实例跨边界即 `InvalidCastException`。A0 必须加"同一实例"断言测试。

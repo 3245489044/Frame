@@ -23,7 +23,7 @@ $files = @(Get-ChildItem -LiteralPath $agentRoot -Recurse -File -Filter *.cs |
     Where-Object { $_.FullName -notmatch (Get-GateSourceExcludePattern) })
 
 # 并发内核已下沉 Frame（Modules.Concurrency）：D2/D3/D4/D5 的判据载体同时覆盖该目录。
-$concurrencyRoot = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Concurrency'
+$concurrencyRoot = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Foundations\Concurrency'
 $files = @($files) + @(Get-ChildItem -LiteralPath $concurrencyRoot -Recurse -File -Filter *.cs |
     Where-Object { $_.FullName -notmatch (Get-GateSourceExcludePattern) })
 
@@ -46,7 +46,7 @@ if ($cmp.Count -ne 1 -or $cmp[0].Name -ne 'ConcurrencyBudgetGate.cs') {
 }
 
 # D3：门禁消费价格源端口（ICostPriceSource）而非自带单价常量。
-$gateFile = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Concurrency\Gate\ConcurrencyBudgetGate.cs'
+$gateFile = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Foundations\Concurrency\Gate\ConcurrencyBudgetGate.cs'
 $gateText = if (Test-Path -LiteralPath $gateFile) { Get-Content -LiteralPath $gateFile -Raw } else { '' }
 if ($gateText -notmatch 'ICostPriceSource') {
     Add-Violation 'D3' 'ConcurrencyBudgetGate 未消费 ICostPriceSource（价格来源不单一）'
@@ -58,7 +58,7 @@ if ($gateText -notmatch 'ConcurrencyOptions') {
 }
 
 # D5：账本复用（IConcurrencyCostSink / IConcurrencyUsageQuery 端口；Agent 适配器映射 ICostStore / ICostQuery），禁新建账本类型。
-$recorder = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Concurrency\Cost\ConcurrencyCostRecorder.cs'
+$recorder = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Foundations\Concurrency\Cost\ConcurrencyCostRecorder.cs'
 $recorderText = if (Test-Path -LiteralPath $recorder) { Get-Content -LiteralPath $recorder -Raw } else { '' }
 if ($recorderText -notmatch 'IConcurrencyCostSink' -or $recorderText -notmatch 'IConcurrencyUsageQuery') {
     Add-Violation 'D5' '并发成本收口未复用成本端口（疑似新建账本）'

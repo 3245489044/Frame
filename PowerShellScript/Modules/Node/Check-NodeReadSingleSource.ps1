@@ -29,7 +29,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 
 $violations = [System.Collections.Generic.List[string]]::new()
 $gatherFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\node-gather.ushar'
-$nodeDir = Join-Path $Root 'Frame\CsharpPrj\Modules\Node'
+$nodeDir = Join-Path $Root 'Frame\CsharpPrj\Modules\Data\Node'
 $resolverFile = Join-Path $nodeDir 'Read\NodeKeySetResolver.cs'
 $projectionFile = Join-Path $nodeDir 'Projection\NodeReadProjection.cs'
 
@@ -79,7 +79,7 @@ if (-not (Test-Path $gatherFile)) {
 }
 
 if (-not (Test-Path $resolverFile)) {
-    $violations.Add('缺少键集解析单源：Frame\CsharpPrj\Modules\Node\Read\NodeKeySetResolver.cs')
+    $violations.Add('缺少键集解析单源：Frame\CsharpPrj\Modules\Data\Node\Read\NodeKeySetResolver.cs')
 }
 
 $normalizeFiles = @(Get-ChildItem -LiteralPath (Join-Path $Root 'Frame\CsharpPrj') -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
@@ -116,7 +116,7 @@ if (-not (Test-Path $projectionFile)) {
 }
 
 # ===== I1 投影生产调用点唯一（FW-3）：ProjectAsync 只允许 NodeReadService 调用 =====
-$projectAsyncFiles = @(Get-ChildItem -LiteralPath (Join-Path $Root 'Frame\CsharpPrj\Modules\Node') -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
+$projectAsyncFiles = @(Get-ChildItem -LiteralPath (Join-Path $Root 'Frame\CsharpPrj\Modules\Data\Node') -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
     Select-String -Pattern '\.ProjectAsync\s*\(' |
     Select-Object -ExpandProperty Path -Unique)
 $projectionCallSites = $projectAsyncFiles.Count
@@ -130,7 +130,7 @@ if (-not (Test-Path $readServiceFile)) {
 }
 
 # ===== I2 全量读须显式声明（NodeKeySetScope.Full 出现点 ⊆ 白名单） =====
-$fullScopeHits = @(Get-ChildItem -LiteralPath (Join-Path $Root 'Frame\CsharpPrj\Modules\Node') -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
+$fullScopeHits = @(Get-ChildItem -LiteralPath (Join-Path $Root 'Frame\CsharpPrj\Modules\Data\Node') -Recurse -Filter '*.cs' -ErrorAction SilentlyContinue |
     Select-String -Pattern 'NodeKeySetScope\.Full' |
     Select-Object -ExpandProperty Path -Unique)
 if ($fullScopeHits.Count -gt 3) {

@@ -59,7 +59,7 @@ var expansion = await new HierarchyCatalogExpander(schema, reader).ExpandAsync(L
 
 ## 复用的 Frame 设施
 
-- `Modules\DeclarativeDataflow`：`HierarchySchema` / `SchemaTopology` / `RelationalHierarchyTopology` /
+- `Modules\Data\DeclarativeDataflow`：`HierarchySchema` / `SchemaTopology` / `RelationalHierarchyTopology` /
   `HierarchyProcessEngine` / `ILevelProcessor` / `ProcessBudget`。
   **遍历 / 环守卫 / 深度预算 / 节点预算一律复用，禁再造层遍历逻辑**（先例：`Agent.Modules.Response.Discovery`）。
 - `BasicMethod.Initialization`：`PortGuard`（P1 空值护栏收敛，全局 using）。

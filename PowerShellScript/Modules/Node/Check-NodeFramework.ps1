@@ -4,7 +4,7 @@
     节点通用框架（Modules.Node）架构不变式门禁 —— 位置层纯净性 / 无进程静态 / 无硬编码反解。
 
 .DESCRIPTION
-    对 Frame/CsharpPrj/Modules/Node 执行四类静态判定（权威见 Modules/Node/docs/）：
+    对 Frame/CsharpPrj/Modules/Data/Node 执行四类静态判定（权威见 Modules/Node/docs/）：
 
       A. 语言类型不漏进位置层（P20 / K1 / K6）：本工程 csproj 与全部 *.cs 零 `Usharp` 命中；
       B. 无进程静态可变配置（K5 / P6 变体 / P14）：*.cs 零 `AsyncLocal` 用法
@@ -70,7 +70,7 @@ if ([string]::IsNullOrWhiteSpace($AgentNodesDir))
 $violations = [System.Collections.Generic.List[string]]::new()
 $warnings   = [System.Collections.Generic.List[string]]::new()
 
-$nodeDir  = Join-Path $Root 'Frame\CsharpPrj\Modules\Node'
+$nodeDir  = Join-Path $Root 'Frame\CsharpPrj\Modules\Data\Node'
 $csproj   = Join-Path $nodeDir 'Modules.Node.csproj'
 
 Write-Host ""

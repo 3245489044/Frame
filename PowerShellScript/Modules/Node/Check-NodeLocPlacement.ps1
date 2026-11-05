@@ -4,7 +4,7 @@
     节点位置反解声明守卫（NodeLocPlacement）—— 「位置 = loc 的反解产物，由工作流声明面持有」的机器判据。
 
 .DESCRIPTION
-    沿 U12 裁决（Frame\CsharpPrj\Modules\Node\docs\节点通用框架-表层语言与Usharp接入.md §13）：
+    沿 U12 裁决（Frame\CsharpPrj\Modules\Data\Node\docs\节点通用框架-表层语言与Usharp接入.md §13）：
     位置**不手写声明**（手写即双真源 P22），而由 `loc` 反解派生；反解表本身是声明（`[Matrix]`）。
 
     扫描面：

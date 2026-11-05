@@ -31,7 +31,7 @@ function Add-Violation([string]$Code, [string]$Message) {
 }
 
 # ① phase 词表封闭
-$schemaFile = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\KeySpace\Dispatch\DispatchTrace.cs'
+$schemaFile = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Data\KeySpace\Dispatch\DispatchTrace.cs'
 $expected = @('resolve', 'normalize', 'plan', 'gate', 'activate', 'observe')
 if (-not (Test-Path -LiteralPath $schemaFile)) {
     Add-Violation 'DTS1' "缺少 DispatchTraceSchema 载体: $schemaFile"

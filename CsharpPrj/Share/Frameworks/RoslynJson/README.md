@@ -10,7 +10,7 @@
 - 本工程为 **Share 层 Windows 项目（`net10.0-windows`）**，可直引 `Modules`/`Plate` 层能力；
 - 曾由本工程承载的「分析器侧通用件」已按职责归位，不再在本工程内：
   - **纯 BCL 件**（文本前端原语 / 展开管线 / 词表 / 配置读取 / 宿主原语 / 框架级诊断码）
-    → `Modules\LogicComposition\Conversion`（`netstandard2.0` 零依赖，运行期与分析器侧共用单源）；
+    → `Modules\Frameworks\LogicComposition\Conversion`（`netstandard2.0` 零依赖，运行期与分析器侧共用单源）；
   - **Roslyn 件**（增量生成器脚手架 / 诊断描述符目录 / 诊断桥）
     → `Environment\CentralTest\SpecSourceGen\Analyzer`（`netstandard2.0` + `IsRoslynComponent=true`）。
 - 层序合规：`Share(2) → Modules(1)/Plate(1)`，仅依赖 BasicMethod/Modules/Plate/Protocol（`LayerBoundary.targets`）。
@@ -60,14 +60,14 @@
 
 | 能力 | 现落点 |
 |------|--------|
-| 文本前端原语（JSON 字面量 / 行切分 / 行内词法 / 区块扫描 / 偏移换算 / `TextScan`） | `Modules\LogicComposition\Conversion\{Json,Lexing}` |
-| 展开管线（`SourceExpansionPipeline<TModel>` / `ISourceFrontEnd<TModel>` / `ExpansionOutcome`）/ 产物约定 | `Modules\LogicComposition\Conversion\Generation` |
+| 文本前端原语（JSON 字面量 / 行切分 / 行内词法 / 区块扫描 / 偏移换算 / `TextScan`） | `Modules\Frameworks\LogicComposition\Conversion\{Json,Lexing}` |
+| 展开管线（`SourceExpansionPipeline<TModel>` / `ISourceFrontEnd<TModel>` / `ExpansionOutcome`）/ 产物约定 | `Modules\Frameworks\LogicComposition\Conversion\Generation` |
 | 配置读取与输入判定 / 追加式白名单 | `Conversion\{Config,Vocabulary}` |
 | 宿主原语（写盘 / 诊断→日志条目） | `Conversion\Hosting` |
 | 框架级诊断码（RJ1xxx + `ToErrorClass`） | `Conversion\Diagnostics` |
 | 生成器脚手架与路径序 / 诊断目录与位置桥 | `Environment\CentralTest\SpecSourceGen\Analyzer\{Scaffolding,Diagnostics}` |
 
-> 消费指引：声明式 DSL 生成器（如 `SpecSourceGen`）与命令解析（`Modules\Parsing`）一律引用
+> 消费指引：声明式 DSL 生成器（如 `SpecSourceGen`）与命令解析（`Modules\Data\Parsing`）一律引用
 > `LogicComposition.Conversion`（分析器侧另自持其 Roslyn 件），**不再引用本框架**。
 
 ---
@@ -144,7 +144,7 @@ var service = new RoslynJsonConversionService(sourceProvider: provider);
 - **不定义领域语义**：kind 词表/算子白名单/用例 schema 属于领域生成器。
 - **不做通用表达式求值**：只做语法结构到数据的映射。
 - **不在分析器内做运行期 JSON**：分析器进程加载不了 `Plate.JsonMethod`（net10.0-windows），JSON 文本由转换内核零依赖发射器产出；
-  运行期的解析/序列化/计量/路径/合并一律走 `Plate.JsonMethod`（见 `Modules\LogicComposition\ConversionRuntime\README.md`）。
+  运行期的解析/序列化/计量/路径/合并一律走 `Plate.JsonMethod`（见 `Modules\Frameworks\LogicComposition\ConversionRuntime\README.md`）。
   **分侧判据（硬性）**：分析器侧 = 零依赖、严格、逐字保真（`Conversion\Json\JsonLiteralParser`）；运行期 = `Plate.JsonMethod`（宽松选项）。
   两侧**语义不等价是已知且唯一允许的双实现**，禁止把运行期宽松选项（`ReadCommentHandling.Skip` / `AllowTrailingCommas`）引入分析器侧。
 
@@ -152,7 +152,7 @@ var service = new RoslynJsonConversionService(sourceProvider: provider);
 
 | 链路 | 状态 | 消费方 |
 |------|------|--------|
-| 通用生成前端 | **已迁出**（纯件 → `Conversion`；Roslyn 件 → `SpecSourceGen.Analyzer`，两处均已接线） | `Environment\CentralTest\SpecSourceGen`（分析器 + Tasks 宿主 + 重生成守卫）、`Modules\Parsing` |
+| 通用生成前端 | **已迁出**（纯件 → `Conversion`；Roslyn 件 → `SpecSourceGen.Analyzer`，两处均已接线） | `Environment\CentralTest\SpecSourceGen`（分析器 + Tasks 宿主 + 重生成守卫）、`Modules\Data\Parsing` |
 | Roslyn 语法树 → IR（`ISyntaxToIrMapper` / `SyntaxRuleTable` / `SyntaxToConversionIrMapper` / `SyntaxMappingOptions` / `RoslynJsonConversionService` / `CSharpEmbeddedJsonEmitter` / `Roslyn\SourceLocation`） | **已接线（2026-09-14）** | `Environment\CentralTest\Tools\Get-SpecIr.ps1`（中间层 IR spike：C# 源 → IR JSON）；`Environment\CentralTest\RoslynJson.Tests`（接线探针：规则表对非根节点生效 / 未映射诊断逐节点上报 / `ToJson` 不丢映射诊断） |
 
 > 接线纪律：未接线链路在接线或废弃前**不得增量修改行为**；其上新增实现须同步补测试（本条链路的接线探针 = `RoslynJson.Tests`），否则按 `RedundancyElimination` 处置（废弃或移入 `_deprecated/`）。

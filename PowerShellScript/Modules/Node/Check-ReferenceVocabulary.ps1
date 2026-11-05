@@ -76,7 +76,7 @@ $scanRoots = @(
 # key = 相对仓库根的路径片段；value = 允许的字面量命中数上限
 $ExemptBaselines = [ordered]@{
     'Frame\CsharpPrj\Share\Foundations\ScopeFramework' = 2   # EnsureTaskNodeEdgeStep：零项目引用，无法引用单源
-    'Frame\CsharpPrj\Modules\DeclarativeDataflow'      = 3   # BuiltinHierarchy：零项目引用，无法引用单源
+    'Frame\CsharpPrj\Modules\Data\DeclarativeDataflow'      = 3   # BuiltinHierarchy：零项目引用，无法引用单源
 }
 # ---- C3 正对照基线：单源文件**边类型**字面量数下限 ----
 # 12 = 归属边 4（cross_db_link/session_owns/task_owns_task/history_owns_task；history_owns_node 已删声明）

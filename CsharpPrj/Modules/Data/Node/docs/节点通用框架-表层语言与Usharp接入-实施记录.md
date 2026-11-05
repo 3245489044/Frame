@@ -80,7 +80,7 @@
 
 | 调用点 | 变化 |
 |---|---|
-| `Agent.Modules\NodeSpec\NodeDomainPort.cs` | `ReadScope` 增 `Loc: NodeKeys.DefaultWorkflowId`（`PlacementIds` 保留为读侧收窄） |
+| `Agent.Modules\Data\NodeSpec\NodeDomainPort.cs` | `ReadScope` 增 `Loc: NodeKeys.DefaultWorkflowId`（`PlacementIds` 保留为读侧收窄） |
 | `Agent.Modules\History\HistoryOpsFunctions.cs`（`history_project` / `history_compose`） | 同上（段域上下文面） |
 | `Agent.Launcher\Modules\Libraries\AgentUiLibraryHistoryOps.cs`（`ComposeAsync`） | 同上 |
 
@@ -139,7 +139,7 @@
 | 件 | 内容 |
 |---|---|
 | `NodeFramework.FromSpec` | 增可选 `specSource` / `orientationAuthority` / `definitionDiagnostics`（未给 ⇒ Null + 可见化） |
-| `Agent.Modules\NodeSpec\DeclaredSpecSource.cs`（新） | JSON 装配面：域声明 + 位置反解声明面 → 定义集（零语义、零语言类型） |
+| `Agent.Modules\Data\NodeSpec\DeclaredSpecSource.cs`（新） | JSON 装配面：域声明 + 位置反解声明面 → 定义集（零语义、零语言类型） |
 | 同名文件 `NodeDefinitionDiagnostics` | `IDefinitionDiagnostics` 落地：`INodeDiagnosticsSink` + 模块日志（单向） |
 | 装配 | `AgentNodeDomains.TryCreate` 注入二者；`IOrientationAuthority` 维持 Null（B-4 零消费方，不假装生效） |
 | 用例 | `SpecSource_JournalsDeclaredDocuments_AndNullIsVisible`（CT-U2：未装配 ⇒ 空集 + `spec.source-unbound`；已装配 ⇒ 非空 + 来源可辨 N9） |
@@ -173,7 +173,7 @@
 ## 5. 验证命令（P0–P3 批实测通过；W1 批实测见 §6.2）
 
 ```powershell
-dotnet build Frame\CsharpPrj\Modules\Node\Modules.Node.csproj      # 0 警告 0 错误
+dotnet build Frame\CsharpPrj\Modules\Data\Node\Modules.Node.csproj      # 0 警告 0 错误
 pwsh Frame\CsharpPrj\Bake-CsharpPrj.ps1                            # 102 程序集就绪且新鲜
 dotnet build Projects\Plug\Agent\Agent.sln -c Debug                # 0 警告 0 错误
 dotnet build Frame\Usharp\Usharp.sln -c Debug                      # 0 警告 0 错误（含新桥接工程）
@@ -209,7 +209,7 @@ Frame\PowerShellScript\Operation\DSL\Tooling\Invoke-GateCheck.ps1 -Only NodeHier
 | 3 | `Frame\CsharpPrj\...\Abstractions\ReferenceEdgeCatalog.cs`（新） | `IReferenceEdgeCatalog` + 报告模式（`PermissiveReferenceEdgeCatalog`，**默认**）/ 拒绝模式（`DeclaredReferenceEdgeCatalog`）+ 层内中立可见化口 `IReferenceEdgeDiagnostics`（`DataStoreDriven` 不引 `Modules.Node`，故不自造上层诊断类型依赖） |
 | 4 | `Frame\CsharpPrj\...\Core\ReferenceGrounding.cs` | 4 个写边方法（`AddSessionMessageLinkAsync` / `AttachHistoryTaskAsync` / `EnsureTaskNodeLinkAsync` / `LinkSubTaskAsync`）增 `AdmitEdge` 准入 ⇒ 未声明边**拒写**；属性注入（同 `NodeStore` 范式），**默认报告模式 = 零行为变更** |
 | 5 | `history_owns_node` 退役 | `AttachHistoryNodeAsync` 写点移除 ⇒ **抛**（W-4 缺失即抛）+ 派生视图（禁独立存边回流）；`HistoryOwnsNode` 常量保留作旧数据兼容读；`IReferenceMaintenance` 成员保留仅为源兼容 |
-| 6 | `Frame\PowerShellScript\Modules\Node\Check-NodeHierarchyRefs.ps1`（新）+ `GateManifests.psd1` | E1 闸A / E2 声明⇄代码**双向对账** / E2c 退役债务只减不增 / E3 `[Ref]` 字段白名单 / E4 正对照 / E5 负对照 |
+| 6 | `Frame\PowerShellScript\Modules\Data\Node\Check-NodeHierarchyRefs.ps1`（新）+ `GateManifests.psd1` | E1 闸A / E2 声明⇄代码**双向对账** / E2c 退役债务只减不增 / E3 `[Ref]` 字段白名单 / E4 正对照 / E5 负对照 |
 | 7 | `Frame\Usharp\src\Usharp.Adapters.Node\UsharpDeclarationReferenceIndexPort.cs`（新） | `IReferenceIndexPort` 的**语言装配**（W1⑤）：字段面 = 本编译**实际用到**的 `[Ref]` 字段（派生，零域内硬编码）；反向引用归因 = 声明行 `文件:行`。<br>**域分离**：节点**载荷**引用字段（`NodeReferenceFields`：AddConfigAddKey / ParameterKeys / …）属节点域**属性面**，其上移依赖 U18 ⇒ W6；本端口不覆盖、不替代 |
 | 8 | 文档 | `Frame\Usharp\README.md` §5 诊断码表补 `US5006`（原缺登记）+ `US5007` |
 

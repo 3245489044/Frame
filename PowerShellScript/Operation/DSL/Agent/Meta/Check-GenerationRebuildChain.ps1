@@ -50,7 +50,7 @@ function Test-Anchor {
     }
 }
 
-Test-Anchor 'C1' 'Frame\CsharpPrj\Modules\Registry\ExtensionGenerationLayout.cs' @('class ExtensionGenerationLayout', 'TryBuildGenerationManifests')
+Test-Anchor 'C1' 'Frame\CsharpPrj\Modules\Composition\Registry\ExtensionGenerationLayout.cs' @('class ExtensionGenerationLayout', 'TryBuildGenerationManifests')
 Test-Anchor 'C2' 'Projects\FileDriven\FileDriven.Execution\Lifecycle\Generation\AgentGenerationRebuildBridge.cs' @('class AgentGenerationRebuildBridge', 'class AgentGenerationPortRebind', '_registerPorts', '_ensureReady')
 Test-Anchor 'C3' 'Projects\PrjBridge\Composition\PrjBridgeRegistrar.cs' @('RegisterPortsForGeneration')
 Test-Anchor 'C4' 'Projects\FileDriven\FileDriven.Launcher\Bootstrap\LauncherBootstrap.cs' @('TryRebuildAgentAssemblyAsync')

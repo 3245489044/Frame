@@ -28,7 +28,7 @@ function Get-CsFiles([string]$root) {
         Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' }
 }
 
-$concurrencyRoot = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Concurrency'
+$concurrencyRoot = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Foundations\Concurrency'
 $tasksRoot = Join-Path $repoRoot 'Frame\CsharpPrj\Operation\HierarchyMethod\Tasks'
 $agentSrc = Join-Path $repoRoot 'Projects\Plug\Agent\src'
 

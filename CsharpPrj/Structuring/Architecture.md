@@ -199,7 +199,7 @@ Modules 层（`CsharpPrj/Modules/`）**不包含任何日志代码**。Modules �
 >
 > **Modules 层可以抛错：** 当 Modules 层检测到运行时状态异常（如反射获取子控件失败、配置数据不完整等），应抛出 `InvalidOperationException` 或 `ArgumentException`，将错误信息（含类型名、属性名、上下文等）封装在异常消息中，让上层 Operation 层或 Share 层捕获并记录。异常消息应包含足够的诊断信息（如已查找的属性列表、目标类型名等），避免上层需要额外反射才能定位问题。
 >
-> **例外：** `Modules/DiagnosticContext/Core/DiagnosticContext.cs` 自身的 `Debug.WriteLine` 是框架内部异常降级记录，属于日志框架自身的容错机制，**保留**。
+> **例外：** `Modules/Foundations/DiagnosticContext/Core/DiagnosticContext.cs` 自身的 `Debug.WriteLine` 是框架内部异常降级记录，属于日志框架自身的容错机制，**保留**。
 
 ### 2.5 BasicMethod 层：工具/基础设施
 
@@ -245,10 +245,10 @@ Modules.DiagnosticContext 提供诊断上下文管理，是 Share 层插桩代�
 
 | 类型 | 说明 | 位置 |
 |------|------|------|
-| `DiagnosticScopeStore` | 全局诊断作用域存储。AsyncLocal 只传播 CallChainId（字符串），数据存储在 `ConcurrentDictionary` 中。线程安全，O(1) 查找。 | `Modules/DiagnosticContext/Core/DiagnosticScopeStore.cs` |
-| `DiagnosticScope` | 显式诊断作用域。`using` 管理生命周期，`Dispose` 时自动从全局存储中注销。支持嵌套子作用域（`PushScope`）。 | `Modules/DiagnosticContext/Core/DiagnosticScope.cs` |
-| `ScopeNode` | 作用域节点树。每个 `DiagnosticScope` 包含一个根节点，子作用域通过 `CreateScope` 创建。 | `Modules/DiagnosticContext/Core/ScopeNode.cs` |
-| `DiagnosticSnapshot` | 不可变快照。通过 `Freeze()` 从 `ScopeNode` 创建，用于跨线程传递。 | `Modules/DiagnosticContext/Core/DiagnosticSnapshot.cs` |
+| `DiagnosticScopeStore` | 全局诊断作用域存储。AsyncLocal 只传播 CallChainId（字符串），数据存储在 `ConcurrentDictionary` 中。线程安全，O(1) 查找。 | `Modules/Foundations/DiagnosticContext/Core/DiagnosticScopeStore.cs` |
+| `DiagnosticScope` | 显式诊断作用域。`using` 管理生命周期，`Dispose` 时自动从全局存储中注销。支持嵌套子作用域（`PushScope`）。 | `Modules/Foundations/DiagnosticContext/Core/DiagnosticScope.cs` |
+| `ScopeNode` | 作用域节点树。每个 `DiagnosticScope` 包含一个根节点，子作用域通过 `CreateScope` 创建。 | `Modules/Foundations/DiagnosticContext/Core/ScopeNode.cs` |
+| `DiagnosticSnapshot` | 不可变快照。通过 `Freeze()` 从 `ScopeNode` 创建，用于跨线程传递。 | `Modules/Foundations/DiagnosticContext/Core/DiagnosticSnapshot.cs` |
 
 **导出格式：** `ToString()`（文本快照）/ `ToSummary()`（摘要）/ `ToJson()`（JSON）
 

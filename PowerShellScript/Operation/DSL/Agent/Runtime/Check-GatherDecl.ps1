@@ -52,7 +52,7 @@ function Get-PublicTypeNames
     return @([regex]::Matches($Text, $pattern) | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
 }
 
-$gatherDir = Join-Path $Root 'Frame\CsharpPrj\Modules\Gather'
+$gatherDir = Join-Path $Root 'Frame\CsharpPrj\Modules\Orchestration\Gather'
 $gatherFiles = @(Get-ChildItem -LiteralPath $gatherDir -Filter '*.cs' -File -ErrorAction SilentlyContinue)
 if ($gatherFiles.Count -eq 0) {
     $violations.Add("[G1] 聚拢框架源码缺失：$gatherDir")

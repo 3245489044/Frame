@@ -19,7 +19,7 @@
 
 ## 复用的 Frame 设施
 
-- `Modules\Threading\Threading.csproj`：仅复用 `AmbientSlot<T>`(E4 作用域)。**不**复用 `BatchedAsyncSink`——持久化改为调用方驱动的显式 `FlushAsync`（无后台 DrainLoop、无内部静默重试）。
+- `Modules\Foundations\Threading\Threading.csproj`：仅复用 `AmbientSlot<T>`(E4 作用域)。**不**复用 `BatchedAsyncSink`——持久化改为调用方驱动的显式 `FlushAsync`（无后台 DrainLoop、无内部静默重试）。
 - `Share.TaskStatusPool`：原 `Share\HierarchySupport` 叶工程整项目并入本工程后引入（`RuntimeStage.FromStatus` 依赖 `TaskExecutionStatus`）。并入的 DTO 保留命名空间 `Share.HierarchySupport`，源文件位于 `HierarchySupport/` 子目录，属「agent/方法/策略 语义」红线例外区域，与 E1-E8 内核隔离。
 - JSON：`System.Text.Json`（内置）。持久化事件区：append-only JSONL（`FileAppendEventStore`）；生产可对 `Operation.DataStoreDriven.IZoneStore` 适配成 ur_events 事件区。
 

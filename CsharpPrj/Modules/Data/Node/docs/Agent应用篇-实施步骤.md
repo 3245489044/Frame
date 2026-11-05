@@ -31,8 +31,8 @@
 | 步 | 动作 | 落点（实测路径） | 验收 | 回退 |
 |---|---|---|---|---|
 | **P0-1** ✅ | ① 确认 `Modules.Node` 进入烘焙闭包（`Modules.csproj:38` 已有 `$(Proj_Node)` ProjectReference，实测；manifest 缺项则重跑 `Generate-CsharpBakeManifest.ps1`）；② 在烘焙引用清单 ① 段增 `<CsharpBakedAssembly Include="Modules.Node" />` | `D:\Project\Main\Projects\BuildFramework\CsharpBakeRefs.props`（① 具名清单）；消费方 = Agent 全域（经 `Agent\Directory.Build.props:56` Import） | `Check-BakeFramework.ps1` #3 通过（引用均在 manifest 内）；`dotnet build Agent.Core.csproj` / `Agent.Modules.csproj` 0 警告 0 错误；`Test-ProjectReferences.ps1` 无层序违规 | 删该行即回落（清单为单点，无消费方改动） |
-| **P0-2** ✅ | 落 Placement 声明（设计 §4 草案，**按框架契约校正为 4 个可寻址位置**，见 §11 D-1/D-2）+ 宿主装载点 | 新增 `...\Agent\Config\nodes\conversation.json`；装载点 `...\Agent.Modules\NodeSpec\AgentNodeSpec.cs`（`NodeFrameworkSpecLoader` + `NodeFramework.FromSpec`；**不得**进 `Modules.Node`，门禁 D） | 声明命中且 **0 Error 诊断**；4 位置 + writer 一对一；`legacy-history` 拒写可读；`FromSpec` 写侧候选 = 3；声明缺失 → `null` + 可见化 | 声明文件删除 → 装载点返回 `null` + 日志（框架回 Null 端口 + 诊断，不阻断） |
-| **P0-3** ✅ | 载体适配器（D-1）落四件（**每位置一个 carrier id**，见 §12 C-2）：`sql-nodes-archive`（归档，`cline_messages` + 容器作 ThreadId）、`sql-nodes-session`（会话视图，`conversation_message`）、`sql-nodes-task`（业务节点，`NodeTypes.Node`）、`sql-kv-legacy`（ur_histories 灰度面） | 新增 `...\Agent.Modules\NodeCarriers\{AgentSqlNodeCarrier,AgentSqlKvCarrier,AgentNodeCarriers}.cs`；声明 `placement.carrier` 同步改名 | 四原语对拍（幂等 upsert / AppendOnly 冲突不覆盖 / 前缀枚举跨分页 / 未装配拒写不抛）；**声明 carrier id ↔ 注册表** 一致性；`graph-edge` 归属边不进注册表（§12 C-4） | 单载体回退：装配处不注册该 id → 该位置 `Unbound` + 诊断，其它位置照常 |
+| **P0-2** ✅ | 落 Placement 声明（设计 §4 草案，**按框架契约校正为 4 个可寻址位置**，见 §11 D-1/D-2）+ 宿主装载点 | 新增 `...\Agent\Config\nodes\conversation.json`；装载点 `...\Agent.Modules\Data\NodeSpec\AgentNodeSpec.cs`（`NodeFrameworkSpecLoader` + `NodeFramework.FromSpec`；**不得**进 `Modules.Node`，门禁 D） | 声明命中且 **0 Error 诊断**；4 位置 + writer 一对一；`legacy-history` 拒写可读；`FromSpec` 写侧候选 = 3；声明缺失 → `null` + 可见化 | 声明文件删除 → 装载点返回 `null` + 日志（框架回 Null 端口 + 诊断，不阻断） |
+| **P0-3** ✅ | 载体适配器（D-1）落四件（**每位置一个 carrier id**，见 §12 C-2）：`sql-nodes-archive`（归档，`cline_messages` + 容器作 ThreadId）、`sql-nodes-session`（会话视图，`conversation_message`）、`sql-nodes-task`（业务节点，`NodeTypes.Node`）、`sql-kv-legacy`（ur_histories 灰度面） | 新增 `...\Agent.Modules\Data\NodeCarriers\{AgentSqlNodeCarrier,AgentSqlKvCarrier,AgentNodeCarriers}.cs`；声明 `placement.carrier` 同步改名 | 四原语对拍（幂等 upsert / AppendOnly 冲突不覆盖 / 前缀枚举跨分页 / 未装配拒写不抛）；**声明 carrier id ↔ 注册表** 一致性；`graph-edge` 归属边不进注册表（§12 C-4） | 单载体回退：装配处不注册该 id → 该位置 `Unbound` + 诊断，其它位置照常 |
 
 ---
 
@@ -72,8 +72,8 @@
 | 步 | 动作 | 落点 | 验收 |
 |---|---|---|---|
 | **B1** | ① `ClineDiagnosticsHosting` 由 `static` 改**实例级**（消 E6、去 `Interlocked` 进程静态）；② 帧 → 节点 JSON（`{NodeKey, WorkflowId, OutputPorts}`，键 `{session}.{node}.{seq}`，seq 由 `ISequenceAuthority` 分配）；③ 合并窗口（背压，毫秒级）+ 幂等（同 `(Key,port,Digest)` 跳过）；④ `NodeMaterializer.Materialize(...)`，placement=`archive-raw`/port=stream，writer=`writer-stream`；热路径 append 复用 `OutboxWriter` 模式（参照 `NodeStepPersistCoordinator.cs:58`） | `Agent.Modules\Cline\ClineDiagnosticsHosting.cs:57-64`（`OnPersistFrame`）+ 新增物化适配器 | 新增 `...\Agent.Modules.Tests\PersistFrameMaterializationTests.cs`：帧到达 N ms 内读侧可读；重放不重复写；崩溃恢复（已物化不丢） |
-| **B2** | 帧写（`writer-stream`）与轮末写（`writer-task-node`/`writer-archive`）**位置分离**；结清 P1–P5 §6.3 遗留项：`NodeWriteGate` 的 target 口径（`carrier\|placementKey`）与 `NodeStepPersistCoordinator`（`workflowId`）粒度不一 → 装配处显式声明「节点级 ⊆ 库级」 | `Frame\CsharpPrj\Modules\Node\Materialization\NodeWriteGate.cs` 装配点 + `Agent.Orchestration\...\PersistNodesBlock.cs` | 单写者判定零冲突（`Check-SingleWriter.ps1` + 新增零冲突断言） |
-| **B3** | 读侧 `Origin` 叠加（`Live > Snapshot > Derived`，字段级；`RunStateProjection` 单入口） | `Frame\CsharpPrj\Modules\Node\Projection\NodeReadProjection.cs` + 面板读路径 | 帧前后读一致（CT-5 风格） |
+| **B2** | 帧写（`writer-stream`）与轮末写（`writer-task-node`/`writer-archive`）**位置分离**；结清 P1–P5 §6.3 遗留项：`NodeWriteGate` 的 target 口径（`carrier\|placementKey`）与 `NodeStepPersistCoordinator`（`workflowId`）粒度不一 → 装配处显式声明「节点级 ⊆ 库级」 | `Frame\CsharpPrj\Modules\Data\Node\Materialization\NodeWriteGate.cs` 装配点 + `Agent.Orchestration\...\PersistNodesBlock.cs` | 单写者判定零冲突（`Check-SingleWriter.ps1` + 新增零冲突断言） |
+| **B3** | 读侧 `Origin` 叠加（`Live > Snapshot > Derived`，字段级；`RunStateProjection` 单入口） | `Frame\CsharpPrj\Modules\Data\Node\Projection\NodeReadProjection.cs` + 面板读路径 | 帧前后读一致（CT-5 风格） |
 
 ---
 
@@ -120,9 +120,9 @@ A1 轮次单源 ─┬─► A3 键映射 ──► A4 边收敛 ──► A5 �
 
 ```powershell
 # 框架侧（任一步后必跑）
-dotnet build Frame\CsharpPrj\Modules\Node\Modules.Node.csproj
-& Frame\PowerShellScript\Modules\Node\Check-NodeFramework.ps1 -ShowDetail
-& Frame\PowerShellScript\Modules\Node\Check-NodeWriteBypass.ps1 -ShowDetail
+dotnet build Frame\CsharpPrj\Modules\Data\Node\Modules.Node.csproj
+& Frame\PowerShellScript\Modules\Data\Node\Check-NodeFramework.ps1 -ShowDetail
+& Frame\PowerShellScript\Modules\Data\Node\Check-NodeWriteBypass.ps1 -ShowDetail
 & Environment\CentralTest\Run-CSharpTests.ps1 -Test node
 
 # 烘焙/层序（P0-1、B2、D3′ 必跑）
@@ -174,8 +174,8 @@ dotnet build Frame\CsharpPrj\Modules\Node\Modules.Node.csproj
 | 步 | 落地事实 | 证据 |
 |---|---|---|
 | P0-1 | ① `Modules.Node` 进烘焙闭包（manifest 99 → 100）；② `Projects\BuildFramework\CsharpBakeRefs.props` ① 清单增 `<CsharpBakedAssembly Include="Modules.Node" />`（`Modules.Observe` 前，附闭包来源注释「经 `Modules.csproj` 的 `$(Proj_Node)` 进入本烘焙闭包，勿改为 Reference」） | §10 P0-1 |
-| P0-2 | ① 声明 `Projects\Plug\Agent\Config\nodes\conversation.json`（`domain=conversation` / `identity={container}.r{round}` / `sequence=[round]` / 4 位置 / `selections` / `retentions`）；② 宿主装载点 `Projects\Plug\Agent\src\Agent.Modules\NodeSpec\AgentNodeSpec.cs`（`TryLoad` / `TryCreate`，缺失→null+可见化，**不静默兜底**）；③ 契约用例 `Environment\CentralTest\AgentTest\Agent.Modules.Tests\AgentNodeSpecDeclarationTests.cs`（5 例） | §10 P0-2 |
-| P0-3 | ① `Agent.Modules\NodeCarriers\AgentSqlNodeCarrier.cs`（ur_nodes 载体，参数化 (nodeType, threadIdOf)，`afterId` 分页枚举）；② `AgentSqlKvCarrier.cs`（ur_histories 载体，载荷绑定 `ConversationLog` 既有序列化）；③ `AgentNodeCarriers.cs`（四载体唯一装配点 + 键↔ThreadId 约定）；④ 声明 `placement.carrier` 改为每位置一 id；⑤ 契约用例 `AgentNodeCarriersTests.cs`（8 例） | §10 P0-3 |
+| P0-2 | ① 声明 `Projects\Plug\Agent\Config\nodes\conversation.json`（`domain=conversation` / `identity={container}.r{round}` / `sequence=[round]` / 4 位置 / `selections` / `retentions`）；② 宿主装载点 `Projects\Plug\Agent\src\Agent.Modules\Data\NodeSpec\AgentNodeSpec.cs`（`TryLoad` / `TryCreate`，缺失→null+可见化，**不静默兜底**）；③ 契约用例 `Environment\CentralTest\AgentTest\Agent.Modules.Tests\AgentNodeSpecDeclarationTests.cs`（5 例） | §10 P0-2 |
+| P0-3 | ① `Agent.Modules\Data\NodeCarriers\AgentSqlNodeCarrier.cs`（ur_nodes 载体，参数化 (nodeType, threadIdOf)，`afterId` 分页枚举）；② `AgentSqlKvCarrier.cs`（ur_histories 载体，载荷绑定 `ConversationLog` 既有序列化）；③ `AgentNodeCarriers.cs`（四载体唯一装配点 + 键↔ThreadId 约定）；④ 声明 `placement.carrier` 改为每位置一 id；⑤ 契约用例 `AgentNodeCarriersTests.cs`（8 例） | §10 P0-3 |
 | A1 | ① `Agent.Modules\Cline\ClineArchiveRoundPolicy.cs`（轮次单源裁决 + 来源标签）；② `ClineDaemonEndpoint.TryArchiveRoundAsync` 增 `requestRound` 并优先取调用方轮次（无上下文才回退归档派生 + `ClineArchive_RoundSource` 可见化）；③ 契约用例 `ClineArchiveRoundPolicyTests.cs`（3 例） | §10 A1 |
 | A5 | ① 新增 `Agent.Core\Nodes\NodeExecutionRecordFactory.cs`（**生产侧唯一构造点**：`FromExecution` / `FromStepPort` / `FromStepPorts`）；② 三处构造点改委托：`RoundStepInvoker.cs:227`（保留「产物→端口/溯源」语义）、`SignalWorkflowRunner.BuildNodes`、`FoldConversationRunner.BuildNodes`（两 runner 的私有 `BuildNodes` 收敛为一行 `FromStepPorts` 调用）；③ 用例 `NodeExecutionRecordFactoryTests.cs`（6 例：字段口径 / 跳过规则 / 两 runner 同形对拍） | §14 A5 |
 | A4′ | **方案 C（真退役 + 读侧改键序）**：① `RefHead` 改按**键内序数**排序（`SessionMessageKeys.OrderComparer`，可由 `RefHeadContext.KeyOrder` 覆写），删除 `RoundSequence` 链式折叠；② `RefHeadContext` 以 `KeyOrder` 取代 `RoundSequence`；③ 退役边写原语全链：`IHistoryRelationManager.AddSequenceAsync` / `HistoryRelationManager` / `HistoryRelationGateway` / `ReferenceMaintenance.AddRoundSequenceEdgeAsync` / `ReferenceGrounding` / `NodeTaskHistoryService` / `CrossDbReferenceTypes.RoundSequence` / `ReferenceTypes.RoundSequence`；④ 删三写点：`SyncRelationsBlock`（③ 段）、`HistoryProjector.PersistRoundAsync` / `ProjectMarkedAsync`（`round_sequence` 写点 3 → **0**） | §14 A4′ |
@@ -190,7 +190,7 @@ dotnet build Frame\CsharpPrj\Modules\Node\Modules.Node.csproj
 
 | # | 动作 | 命令 | 结果 |
 |---|---|---|---|
-| 1 | 确认 `Modules.Node` 进烘焙闭包 | `Generate-CsharpBakeManifest.ps1 -Configuration Debug` | ✅ **99 → 100 程序集**；`Modules.Node` = `exists=True / fresh=True / project=Modules\Node\Modules.Node.csproj`；`missing=0 / stale=0`；stamp 保留 |
+| 1 | 确认 `Modules.Node` 进烘焙闭包 | `Generate-CsharpBakeManifest.ps1 -Configuration Debug` | ✅ **99 → 100 程序集**；`Modules.Node` = `exists=True / fresh=True / project=Modules\Data\Node\Modules.Node.csproj`；`missing=0 / stale=0`；stamp 保留 |
 | 2 | 烘焙引用清单增行 | 编辑 `Projects\BuildFramework\CsharpBakeRefs.props` | ✅ `+4` 行（1 条 `CsharpBakedAssembly` + 3 行注释） |
 | 3 | 烘焙门禁 #3（引用 ∈ manifest） | `Projects\BuildFramework\Check-BakeFramework.ps1` | ✅ `3) CsharpBakeRefs.props：52 个烘焙轨引用全部在 manifest 内`（原 51） |
 | 4 | Agent 侧编译可见性 | `dotnet build Projects\Plug\Agent\src\Agent.Core\Agent.Core.csproj -v q` | ✅ **0 警告 0 错误**；`Projects\Plug\Agent\BuildOutput\Debug\Modules.Node.dll`（172544 B）已生成 → 引用生效 |
@@ -204,7 +204,7 @@ dotnet build Frame\CsharpPrj\Modules\Node\Modules.Node.csproj
 
 | # | 动作 | 命令 | 结果 |
 |---|---|---|---|
-| 1 | 落声明 + 装载点 | 新增 `Agent\Config\nodes\conversation.json`、`Agent.Modules\NodeSpec\AgentNodeSpec.cs` | ✅ 声明经 `ConfigFileLoader.Resolve` → `ConfigSourceResolver` 命中 `Projects\Plug\Agent\Config\nodes\conversation.json` |
+| 1 | 落声明 + 装载点 | 新增 `Agent\Config\nodes\conversation.json`、`Agent.Modules\Data\NodeSpec\AgentNodeSpec.cs` | ✅ 声明经 `ConfigFileLoader.Resolve` → `ConfigSourceResolver` 命中 `Projects\Plug\Agent\Config\nodes\conversation.json` |
 | 2 | `Agent.Modules` 编译 | `dotnet build Projects\Plug\Agent\src\Agent.Modules\Agent.Modules.csproj -v q` | ✅ **0 警告 0 错误**（⇒ `Modules.Node` 类型在 Agent 侧可见，P0-1 端到端成立） |
 | 3 | 契约用例（新增） | `Run-CSharpTests.ps1 -Test AgentNodeSpecDeclaration -Project 'Agent\.Modules'` | ✅ **通过 5 / 失败 0** —— 含 ① 0 Error 诊断；② 4 位置 + writer 一对一；③ `legacy-history` = `PlacementState.Legacy` 且拒写可读；④ `FromSpec` 装配后写侧候选 = 3（legacy 被排除）；⑤ 声明缺失 → `null`（可见化，不静默） |
 | 4 | 该工程全量基线 | `Run-CSharpTests.ps1 -Project 'Agent\.Modules'` | ✅ **通过 32 / 失败 0**（27 既有 + 5 新增，零回归） |
@@ -215,7 +215,7 @@ dotnet build Frame\CsharpPrj\Modules\Node\Modules.Node.csproj
 
 | # | 动作 | 命令 | 结果 |
 |---|---|---|---|
-| 1 | 四载体落码 | 新增 `Agent.Modules\NodeCarriers\{AgentSqlNodeCarrier,AgentSqlKvCarrier,AgentNodeCarriers}.cs` | ✅ `Agent.SqlNodeCarrier` 参数化 (carrierId, nodeType, threadIdOf, semantics, pageSize)；`AgentSqlKvCarrier` 绑定 `ConversationLog.Serialize/Deserialize` |
+| 1 | 四载体落码 | 新增 `Agent.Modules\Data\NodeCarriers\{AgentSqlNodeCarrier,AgentSqlKvCarrier,AgentNodeCarriers}.cs` | ✅ `Agent.SqlNodeCarrier` 参数化 (carrierId, nodeType, threadIdOf, semantics, pageSize)；`AgentSqlKvCarrier` 绑定 `ConversationLog.Serialize/Deserialize` |
 | 2 | 声明同步 | `Config\nodes\conversation.json` 的 `placement.carrier` → `sql-nodes-archive` / `sql-nodes-session` / `sql-nodes-task` / `sql-kv-legacy` | ✅ 每位置一 id（`ICarrierRegistry` 按 id 单例查询，共用 id 会退化为同一 nodeType/线程约定） |
 | 3 | `Agent.Modules` 编译 | `dotnet build ...\Agent.Modules.csproj -v q` | ✅ **0 警告 0 错误** |
 | 4 | 契约用例（新增 8 例） | `Run-CSharpTests.ps1 -Test AgentNodeCarriers -Project 'Agent\.Modules'` | ✅ **通过 8 / 失败 0** —— ① upsert→read 往返（JSON+摘要+ThreadId）；② 同载荷幂等（不产第二行）；③ AppendOnly 异摘要 → `Conflict` 且**不覆盖**；④ 前缀枚举 **跨分页**（pageSize=2）无漏项；⑤ sql-kv 往返 `ConversationLog`；⑥ 未装配库 → `Rejected` + `carrier.unbound` 诊断（不抛）；⑦ **声明 carrier id ↔ 注册表** 全量一致；⑧ ThreadId 提取取**末尾**标记（含容器自带 `.round.` 场景） |

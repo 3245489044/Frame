@@ -37,7 +37,7 @@ Write-Host '============================================================'
 
 function Get-Count([string]$Text, [string]$Pattern) { return [regex]::Matches($Text, $Pattern).Count }
 
-$nodeRoot = Join-Path $Root 'Frame\CsharpPrj\Modules\Node'
+$nodeRoot = Join-Path $Root 'Frame\CsharpPrj\Modules\Data\Node'
 $sfRoot   = Join-Path $Root 'Frame\CsharpPrj\Plate\DataManage\StorageFramework'
 
 if (Test-Path -LiteralPath $nodeRoot) {

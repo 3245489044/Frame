@@ -150,7 +150,7 @@ flowchart LR
 
 ```xml
 <ItemGroup>
-  <ProjectReference Include="..\..\Modules\Pipeline\Pipeline.csproj" />
+  <ProjectReference Include="..\..\Modules\Composition\Pipeline\Pipeline.csproj" />
 </ItemGroup>
 ```
 
@@ -909,7 +909,7 @@ guard.TryExecute(() => { /* 临界区 */ });
 
 **需要检查的点：**
 
-1. **项目引用**：确保 `.csproj` 中引用了 `Modules/Pipeline/Pipeline.csproj`
+1. **项目引用**：确保 `.csproj` 中引用了 `Modules/Composition/Pipeline/Pipeline.csproj`
 2. **命名空间**：将 `using BasicMethod.Pipeline;` 改为 `using Modules.Pipeline;`
 3. **SkeletonFlow 依赖**：确保项目引用了 `BasicMethod.csproj`
 

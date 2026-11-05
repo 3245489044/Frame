@@ -41,7 +41,7 @@
 > 本轮基于全量分析（2026-08 复盘），聚焦错误逻辑修复 + 死代码收敛；构建 0 警告 0 错误。
 
 ### P0 错误逻辑修复
-- [x] **修复构建断链**：`Modules/Pipeline/Registry.cs` 删除引用已移除类型 `SequentialStrategy` 的死方法 `ExecuteAll`/`ExecuteAllAsync` 及孤立接口 `IExecutionStrategy`（全库 0 消费方；7.13 重构遗留悬空引用）→ 依赖链恢复编译
+- [x] **修复构建断链**：`Modules/Composition/Pipeline/Registry.cs` 删除引用已移除类型 `SequentialStrategy` 的死方法 `ExecuteAll`/`ExecuteAllAsync` 及孤立接口 `IExecutionStrategy`（全库 0 消费方；7.13 重构遗留悬空引用）→ 依赖链恢复编译
 - [x] **修复 `FieldMappingReferenceResolver.GetMappingForPath` 空值缓存崩溃**：`ConcurrentDictionary.GetOrAdd` 遇 null 抛 `ArgumentNullException`，改为 `TryGetValue` + 守卫 `TryAdd`，恢复友好错误路径
 - [x] **消除 `Resource` 的 `new` 字段隐藏**：删除重复声明的 `CreatedAt`/`LastModified`，改由基类 `ResourceData` 继承（消除双时间戳隐患）
 

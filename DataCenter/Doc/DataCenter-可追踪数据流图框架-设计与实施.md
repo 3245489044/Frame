@@ -515,7 +515,7 @@ D0 根实例骨架 ──▶ D1 投影基座 ──▶ D2 图契约/追踪字段
 | S1 | **兜底第二根**：`_center = center ?? new StateCenter(new StorageCell("agent-default"))` | `Agent.Core\Nodes\WorkflowRunner.cs:89` | 未注入即自建根 → 同进程出现两个状态真源，状态分叉后**不可追踪** |
 | S2 | **编排器自建根**：`_stateCenter = new StateCenter(new StorageCell("agent-orchestrator"))` | `Agent.Core\Composition\AgentOrchestrator.cs:93` | 与 S1 叠加即"双根并存"（SSOT 破） |
 | S3 | **静态槽承载运行时**：`static` 上下文/运行时状态散落插件各处 | Agent 侧（`AgentUiHost`/`LlmRuntime`/`SkillRuntimeState`/`AgentCoreRuntime`/MCP 回环等，见 `DataCenter-架构设计.md §1`） | 数据与逻辑同命：插件卸载 = 数据丢失 |
-| S4 | **扩展加载不可回收**：`public static class ExtensionAssemblyHost` + `private static ExtensionLoadContext? _context` + `isCollectible: false` | `Frame\CsharpPrj\Modules\Registry\ExtensionAssemblyHost.cs:14/20/218` | 静态持有 + 不可收集 ALC ⇒ 换代无法回收旧代数 |
+| S4 | **扩展加载不可回收**：`public static class ExtensionAssemblyHost` + `private static ExtensionLoadContext? _context` + `isCollectible: false` | `Frame\CsharpPrj\Modules\Composition\Registry\ExtensionAssemblyHost.cs:14/20/218` | 静态持有 + 不可收集 ALC ⇒ 换代无法回收旧代数 |
 | S5 | **幂等单例根（无契约）**：`StateCenterFactory` 静态 `_instance` + `Reset()` | `FrontEndDriven\State\Projection\StateCenterFactory.cs` | 已是单根雏形，但无端口契约、无生命周期/换代入口 |
 | S6 | **引擎已有组合根形态**：`EngineStateCenter` 持 `StateCenter` + `EngineCompositionLifecycle` | `Projects\Plug\Engine\...\StateManagement\EngineStateCenter.cs` | 可对齐（形态对，缺端口契约） |
 | S7 | **`RuntimeSlot` 尚不存在** | 架构设计 §5.2 计划名，代码中 NOT FOUND | 需要落位（P10） |

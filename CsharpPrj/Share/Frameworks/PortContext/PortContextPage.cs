@@ -11,15 +11,20 @@ namespace Share.PortContexts;
 public sealed record PortContextPageRequest(string MemberKey, string? Cursor, int Take);
 
 /// <summary>
-/// 单成员一页窗口（条 = 结构化消息项）：<paramref name="HasMore"/> / <paramref name="NextCursor"/>
-/// 由装配器给出；<paramref name="EmptyCode"/> 非空 ⇒ 空页且空因可见（禁静默空）。
+/// 单成员一页窗口（双向无状态游标）：<paramref name="HasOlder"/> / <paramref name="OlderCursor"/> 指向更早，
+/// <paramref name="HasNewer"/> / <paramref name="NewerCursor"/> 指向更晚；<paramref name="OffsetFromEnd"/> = 离尾偏移
+/// （0 = 最近一页），<paramref name="Take"/> = 本页请求条数。<paramref name="EmptyCode"/> 非空 ⇒ 空页且空因可见。
 /// </summary>
 public sealed record PortContextPage(
     string ContainerKey,
     string MemberKey,
     IReadOnlyList<PortContextWindowItem> Items,
-    string? NextCursor,
-    bool HasMore,
+    string? OlderCursor,
+    string? NewerCursor,
+    bool HasOlder,
+    bool HasNewer,
+    int OffsetFromEnd,
+    int Take,
     string? EmptyCode,
     bool Truncated)
 {
@@ -31,7 +36,8 @@ public sealed record PortContextPage(
     /// <param name="memberKey">成员键。</param>
     /// <param name="code">空因码（受控词）。</param>
     public static PortContextPage Empty(string containerKey, string memberKey, string code)
-        => new(containerKey, memberKey, Array.Empty<PortContextWindowItem>(), null, false, code, false);
+        => new(containerKey, memberKey, Array.Empty<PortContextWindowItem>(),
+            null, null, false, false, 0, 0, code, false);
 }
 
 /// <summary>

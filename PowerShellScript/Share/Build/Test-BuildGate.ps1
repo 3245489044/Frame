@@ -1,37 +1,30 @@
 <#
 .SYNOPSIS
-    启动前构建门（提交态）：判定 UI 启动是否需要编译。
+    启动前构建门（构建判定单源）—— 判定「本次启动是否需要编译」。
 
 .DESCRIPTION
-    判据（结构事实，非叙述）：
-      1) 工作区脏（含子模块、未跟踪文件）⇒ 不自动编译（代码修改在途）。
-      2) 工作区干净：
-           - 关键产物缺失 ⇒ 需要编译；
-           - 无上次成功构建记录 ⇒ 需要编译；
-           - 主仓 HEAD / 子模块提交与上次成功构建记录一致 ⇒ 跳过编译；
-           - 不一致 ⇒ 需要编译。
+    判据（结构事实；全部由 git 产出，不引入第二套指纹体系）：
+      A 提交态   : 各仓 HEAD（Main + 逐级子模块 checked-out SHA）与上次成功构建记录一致
+      B 工作树态 : 各仓工作树内容标识一致
+                   = 已跟踪改动（git diff HEAD --raw 的 blob 哈希）⊕ 构建相关未跟踪文件（git hash-object）
+                   判据载体 = 内容哈希，非 mtime
+      C 产物态   : 启动链关键产物在位（闭包派生，禁手抄清单）
+    Skip ⇔ A ∧ B ∧ C；任一不符 ⇒ Build；判据不可得 ⇒ Build（fail-closed）。
 
-    stamp 落点：<RepoRoot>\BuildOutput\.build-gate\last-built.json
-    由 UI启动.bat 在构建成功后以 -UpdateStamp 写入（工作区脏时拒绝写入）。
+    语义（消除旧实现的两极）：工作区脏既不是「跳过」的理由，也不是「永远重编」的理由 ——
+    脏而内容未再变（上次已构建过这份内容）⇒ Skip；脏且内容变了 ⇒ Build。
+    只改 Docs/crash 等非构建文件不进入 B 判据（Test-BuildRelevantPath 过滤）。
 
-    退出码：
-      0  = 需要编译
-      10 = 跳过（提交未变化）
-      11 = 跳过（工作区脏）
-      12 = 阻断（工作区脏且关键产物缺失）
-      2  = 前置失败（路径/模块缺失）
+    账本：<RepoRoot>\BuildOutput\.build-gate\last-built.json（schema=build-gate-v2）
+          唯一写者 = 本脚本 -UpdateStamp（脏状态照写：账本记录「这份内容已构建过」）。
+          由唯一启动入口（Share\Launch\Invoke-Launch.ps1）在构建成功后调用。
 
-.PARAMETER RepoRoot
-    仓库根；缺省由框架 ReadProjectConfig.Get-ProjectRoot 解析。
-
-.PARAMETER Configuration
-    构建配置（Debug/Release）。
-
-.PARAMETER UpdateStamp
-    构建成功后记录当前提交态；工作区脏或 git 不可用时拒绝写入并清除旧 stamp。
-
-.PARAMETER Invalidate
-    清除旧构建 stamp（强制编译前调用，避免失败/脏构建后误命中旧记录）。
+    退出码：0 = 需要编译 / 10 = 跳过（新鲜）/ 2 = 前置失败（路径/模块缺失）
+    用法：
+      Test-BuildGate.ps1                → 判定（0/10）
+      Test-BuildGate.ps1 -Json          → 判定 + 证据（stdout 仅 JSON）
+      Test-BuildGate.ps1 -UpdateStamp   → 记录当前状态为「已构建」
+      Test-BuildGate.ps1 -Invalidate    → 清除账本（强制下次编译）
 #>
 [CmdletBinding()]
 param(
@@ -39,7 +32,10 @@ param(
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Debug',
     [switch]$UpdateStamp,
-    [switch]$Invalidate
+    [switch]$Invalidate,
+    [switch]$Json,
+    # 未跟踪文件纳入 B 判据的上限；超限 ⇒ 判据不可得 ⇒ Build（fail-closed，避免全树哈希）
+    [int]$UntrackedHashCap = 200
 )
 
 $ErrorActionPreference = 'Stop'
@@ -63,40 +59,53 @@ if (-not (Test-Path -LiteralPath $RepoRoot)) {
 }
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 
-$gitCommand = Get-Command -Name 'git' -ErrorAction SilentlyContinue
-if ($null -eq $gitCommand -or [string]::IsNullOrWhiteSpace($gitCommand.Source)) {
-    Write-Gate '未找到 git，无法判定提交态；按需要编译' 'Yellow'
-    if ($UpdateStamp) { exit 1 }
+$stampDir = Join-Path $RepoRoot 'BuildOutput\.build-gate'
+$stampFile = Join-Path $stampDir 'last-built.json'
+$stampSchema = 'build-gate-v2'
+
+if ($Invalidate) {
+    if (Test-Path -LiteralPath $stampFile) {
+        Remove-Item -LiteralPath $stampFile -Force
+        Write-Gate '已清除构建账本（下次启动按 git 态重判）' 'DarkGray'
+    }
     exit 0
 }
 
-function Invoke-Git {
-    param([string[]]$GitArgs)
+$gitCommand = Get-Command -Name 'git' -ErrorAction SilentlyContinue
+if ($null -eq $gitCommand -or [string]::IsNullOrWhiteSpace($gitCommand.Source)) {
+    Write-Gate '未找到 git：判据不可得，按需要编译' 'Yellow'
+    if ($UpdateStamp) { exit 1 }
+    if ($Json) { (@{ decision = 'Build'; reasonCode = 'toolchain-unknown'; evidence = @{} } | ConvertTo-Json -Depth 6 -Compress) }
+    exit 0
+}
+$gitExe = $gitCommand.Source
 
-    $output = & $gitCommand.Source -C $RepoRoot @GitArgs 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        throw ("git {0} 失败（exit {1}）" -f ($GitArgs -join ' '), $LASTEXITCODE)
+function Invoke-GitText {
+    param(
+        [string]$RepoPath,
+        [string[]]$GitArgs,
+        [switch]$AllowFail
+    )
+
+    $out = & $gitExe -c core.quotepath=false -C $RepoPath @GitArgs 2>$null
+    if ($LASTEXITCODE -ne 0 -and -not $AllowFail) {
+        throw ("git {0} 失败（exit {1}，repo={2}）" -f ($GitArgs -join ' '), $LASTEXITCODE, $RepoPath)
     }
-    return @($output)
+    return @($out)
 }
 
-function Get-StatusPath {
-    param([string]$Line)
-
-    if ([string]::IsNullOrWhiteSpace($Line) -or $Line.Length -le 3) { return '' }
-    $path = $Line.Substring(3).Trim()
-    if ($path.StartsWith('"') -and $path.EndsWith('"') -and $path.Length -ge 2) {
-        $path = $path.Substring(1, $path.Length - 2)
-    }
-    if ($path -match ' -> ') { $path = ($path -split ' -> ')[-1] }
-    return $path
+function Get-Sha256Hex {
+    param([string]$Text)
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Text)
+    return [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
 }
 
+# ---- 构建相关性（哪些改动算「代码变更」；判据载体 = 路径结构事实）----
 function Test-IsGitlink {
     param([string]$Path)
 
     try {
-        $out = & $gitCommand.Source -C $RepoRoot ls-files -s -- $Path 2>$null
+        $out = & $gitExe -C $RepoRoot ls-files -s -- $Path 2>$null
         return [bool]($out -match '^160000\s')
     }
     catch {
@@ -113,7 +122,7 @@ function Test-BuildRelevantPath {
     if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
     $normalized = $Path.Replace('/', '\')
 
-    # 构建产物/临时目录不属于“代码修改在途”
+    # 构建产物/临时目录不属于「代码修改在途」
     if ($normalized -match '(^|\\)(BuildOutput|obj|bin|Temp|\.vs|\.vscode)(\\|$)') { return $false }
     if ($normalized -match '^(Docs|doc)(\\|$)') { return $false }
 
@@ -128,65 +137,74 @@ function Test-BuildRelevantPath {
     return $true
 }
 
-function Get-RepoSnapshot {
-    $dirtyEntries = New-Object System.Collections.Generic.List[string]
-
-    # 主仓：忽略子模块 gitlink 条目，仅保留构建相关文件（随后再逐子模块检查）
-    $mainStatus = @(Invoke-Git -GitArgs @('status', '--porcelain', '--ignore-submodules=all'))
-    foreach ($line in $mainStatus) {
-        $path = Get-StatusPath -Line $line
-        if (Test-BuildRelevantPath -Path $path -MainRepo) { $dirtyEntries.Add($line) }
-    }
-
-    $head = [string](Invoke-Git -GitArgs @('rev-parse', 'HEAD') | Select-Object -First 1)
-
-    $subLines = @()
-    try { $subLines = @(Invoke-Git -GitArgs @('submodule', 'status', '--recursive')) }
-    catch { $subLines = @() }
-
-    $subEntries = foreach ($line in $subLines) {
+function Get-SubmodulePaths {
+    $lines = @(Invoke-GitText -RepoPath $RepoRoot -GitArgs @('submodule', 'status', '--recursive') -AllowFail)
+    $paths = foreach ($line in $lines) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        if ($line -notmatch '^(?<flag>[ +\-U])(?<sha>[0-9a-fA-F]{7,40})\s+(?<path>\S+)') { continue }
+        if ($line -match '^(?<flag>[ +\-U])(?<sha>[0-9a-fA-F]{7,40})\s+(?<path>\S+)') { $Matches['path'] }
+    }
+    return @($paths)
+}
 
-        $subPath = $Matches['path']
-        $subSha = $Matches['sha'].ToLowerInvariant()
+# 单仓状态：head（提交态）+ worktreeId（工作树内容态）+ 可见化明细
+function Get-RepoState {
+    param([string]$RelPath = '')
 
-        $subRoot = Join-Path $RepoRoot $subPath
-        if (Test-Path -LiteralPath $subRoot) {
-            try {
-                $subStatus = @(& $gitCommand.Source -C $subRoot status --porcelain --ignore-submodules=all 2>$null)
-                foreach ($subLine in $subStatus) {
-                    $subFile = Get-StatusPath -Line $subLine
-                    if (Test-BuildRelevantPath -Path $subFile) {
-                        $dirtyEntries.Add(('[{0}] {1}' -f $subPath, $subLine))
-                    }
-                }
-            }
-            catch {
-                # 子模块不可读：不阻断，交由产物检查/构建处理
-            }
+    $isMain = [string]::IsNullOrWhiteSpace($RelPath)
+    $repoPath = if ($isMain) { $RepoRoot } else { Join-Path $RepoRoot $RelPath }
+
+    $head = ''
+    $headOut = @(Invoke-GitText -RepoPath $repoPath -GitArgs @('rev-parse', 'HEAD') -AllowFail)
+    if ($LASTEXITCODE -eq 0 -and $headOut.Count -gt 0) { $head = ([string]$headOut[0]).Trim().ToLowerInvariant() }
+    if ([string]::IsNullOrWhiteSpace($head)) {
+        return [pscustomobject]@{
+            Path = $RelPath; Head = ''; WorktreeId = ''; Unborn = $true
+            Changed = @(); Unresolved = @('unborn-or-unreadable')
         }
-
-        '{0}={1}' -f $subPath, $subSha
     }
 
-    $revision = (@('main=' + $head.ToLowerInvariant()) + @($subEntries | Sort-Object)) -join ';'
+    $entries = [System.Collections.Generic.List[string]]::new()
+    $changed = [System.Collections.Generic.List[string]]::new()
+    $unresolved = [System.Collections.Generic.List[string]]::new()
+
+    # 已跟踪改动：git diff HEAD --raw（blob 哈希为内容判据，二进制无编码问题）
+    $raw = @(Invoke-GitText -RepoPath $repoPath -GitArgs @('diff', 'HEAD', '--raw', '--no-abbrev', '--no-color') -AllowFail)
+    foreach ($line in $raw) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        if ($line -notmatch '^:\d+\s+\d+\s+(?<old>[0-9a-f]+)\s+(?<new>[0-9a-f]+)\s+(?<status>[A-Za-z?]+)\t(?<path>.+)$') { continue }
+        $p = $Matches['path']
+        if ($p -match ' -> ') { $p = ($p -split ' -> ')[-1] }
+        if (-not (Test-BuildRelevantPath -Path $p -MainRepo:$isMain)) { continue }
+        $entries.Add(('{0}|{1}|{2}' -f $p, $Matches['status'], $Matches['new']))
+        $changed.Add($p)
+    }
+
+    # 构建相关未跟踪文件：内容哈希（git hash-object，不写对象库）
+    $untracked = @(Invoke-GitText -RepoPath $repoPath -GitArgs @('ls-files', '-o', '--exclude-standard') -AllowFail)
+    $relevantUntracked = @($untracked | Where-Object { $_ -and (Test-BuildRelevantPath -Path $_ -MainRepo:$isMain) })
+    if ($relevantUntracked.Count -gt $UntrackedHashCap) {
+        $unresolved.Add(('untracked-over-cap:{0}>{1}' -f $relevantUntracked.Count, $UntrackedHashCap))
+    }
+    else {
+        foreach ($p in $relevantUntracked) {
+            $fp = @(Invoke-GitText -RepoPath $repoPath -GitArgs @('hash-object', '--', $p) -AllowFail)
+            if ($LASTEXITCODE -ne 0 -or $fp.Count -eq 0) { $unresolved.Add(('untracked-unhashable:{0}' -f $p)); continue }
+            $entries.Add(('{0}|U|{1}' -f $p, ([string]$fp[0]).Trim()))
+            $changed.Add($p)
+        }
+    }
+
+    $worktreeId = if ($unresolved.Count -gt 0) { '' } else { Get-Sha256Hex -Text ((@($entries) | Sort-Object) -join "`n") }
 
     return [pscustomobject]@{
-        Dirty    = ($dirtyEntries.Count -gt 0)
-        Status   = @($dirtyEntries)
-        Head     = $head
-        Revision = $revision
+        Path = $RelPath; Head = $head; WorktreeId = $worktreeId; Unborn = $false
+        Changed = @($changed); Unresolved = @($unresolved)
     }
 }
 
-$stampDir = Join-Path $RepoRoot 'BuildOutput\.build-gate'
-$stampFile = Join-Path $stampDir 'last-built.json'
-
+# 关键产物 = 启动链自身两件 + 装配闭包（声明派生；单一实现 = Share\AssemblyClosure\AssemblyClosure.psm1）
 function Test-KeyArtifacts {
-    # 关键产物 = 启动链自身两件 + 装配闭包（由声明派生；禁手抄产品清单）。
-    # 判据载体 = assembly-closure.json ∪ 磁盘（单一实现 = Share\AssemblyClosure\AssemblyClosure.psm1）。
-    $required = New-Object System.Collections.Generic.List[string]
+    $required = [System.Collections.Generic.List[string]]::new()
     $required.Add((Join-Path $RepoRoot "Projects\FileDriven\BuildOutput\$Configuration\FileDriven.Launcher.exe"))
     $required.Add((Join-Path $RepoRoot "Frame\CsharpPrj\BuildOutput\$Configuration\BasicMethod.dll"))
 
@@ -210,91 +228,126 @@ function Test-KeyArtifacts {
     return @($required | Where-Object { -not (Test-Path -LiteralPath $_) } | Select-Object -Unique)
 }
 
-if ($Invalidate) {
-    if (Test-Path -LiteralPath $stampFile) {
-        Remove-Item -LiteralPath $stampFile -Force
-        Write-Gate '已清除构建 stamp（下次启动按提交态重判）' 'DarkGray'
+# ---- 汇总当前 git 态（Main + 逐级子模块；逐仓判定，子模块内部脏主仓看不见）----
+$stateRows = [System.Collections.Generic.List[object]]::new()
+$stateRows.Add((Get-RepoState ''))
+foreach ($sub in @(Get-SubmodulePaths)) { $stateRows.Add((Get-RepoState $sub)) }
+
+$evidence = [ordered]@{}
+$unresolvedAll = [System.Collections.Generic.List[string]]::new()
+foreach ($s in $stateRows) {
+    $key = if ([string]::IsNullOrWhiteSpace($s.Path)) { '.' } else { $s.Path }
+    $evidence[$key] = [ordered]@{
+        head       = $s.Head
+        worktreeId = $s.WorktreeId
+        changed    = @($s.Changed)
+        unresolved = @($s.Unresolved)
     }
-    exit 0
+    foreach ($u in @($s.Unresolved)) { $unresolvedAll.Add(('{0}:{1}' -f $key, $u)) }
 }
 
+function Format-Short {
+    param([string]$Value)
+    if ([string]::IsNullOrWhiteSpace($Value)) { return '(none)' }
+    return $Value.Substring(0, [Math]::Min(12, $Value.Length))
+}
+
+# ---- 写账本（唯一写者；脏状态照写 —— 记录的是「这份内容已构建过」）----
 if ($UpdateStamp) {
-    $snapshot = Get-RepoSnapshot
-    if ($snapshot.Dirty) {
-        if (Test-Path -LiteralPath $stampFile) { Remove-Item -LiteralPath $stampFile -Force }
-        Write-Gate '工作区有未提交修改：不记录「已构建」stamp（已清除旧 stamp）' 'Yellow'
+    if ($unresolvedAll.Count -gt 0) {
+        Write-Gate ("判据不可得，未记录构建账本：{0}" -f (($unresolvedAll | Select-Object -First 3) -join '; ')) 'Yellow'
         exit 1
     }
-
     New-Item -ItemType Directory -Path $stampDir -Force | Out-Null
     $payload = [ordered]@{
-        schema        = 'build-gate-v1'
-        revision      = $snapshot.Revision
+        schema        = $stampSchema
         configuration = $Configuration
         builtAt       = (Get-Date).ToString('o')
         repoRoot      = $RepoRoot
+        repos         = $evidence
     }
-    $payload | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $stampFile -Encoding UTF8
-    $shortHead = $snapshot.Head.Substring(0, [Math]::Min(12, $snapshot.Head.Length))
-    Write-Gate ("已记录构建 stamp（{0}）" -f $shortHead) 'DarkGray'
+    $payload | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $stampFile -Encoding UTF8
+    Write-Gate ("已记录构建账本（{0} 仓；脏状态照写）" -f $evidence.Keys.Count) 'DarkGray'
     exit 0
 }
 
-try {
-    $snapshot = Get-RepoSnapshot
-}
-catch {
-    Write-Gate ("无法读取 git 状态：{0}；按需要编译" -f $_.Exception.Message) 'Yellow'
-    exit 0
-}
-
+# ---- 判定：A 提交态 ∧ B 工作树态 ∧ C 产物态 ⇒ Skip；任一不符 ⇒ Build（fail-closed）----
+$decision = 'Build'
+$reason = ''
 $missing = @(Test-KeyArtifacts)
 
-if ($snapshot.Dirty) {
-    Write-Gate ("工作区有未提交修改（{0} 项）：跳过自动编译" -f $snapshot.Status.Count) 'Yellow'
-    foreach ($line in ($snapshot.Status | Select-Object -First 8)) {
-        Write-Host ("             {0}" -f $line) -ForegroundColor DarkGray
+if ($unresolvedAll.Count -gt 0) {
+    $reason = 'evidence-unavailable'
+}
+elseif ($missing.Count -gt 0) {
+    $reason = 'artifacts-missing'
+}
+elseif (-not (Test-Path -LiteralPath $stampFile)) {
+    $reason = 'no-stamp'
+}
+else {
+    $stamp = $null
+    try { $stamp = Get-Content -LiteralPath $stampFile -Raw | ConvertFrom-Json }
+    catch { $stamp = $null }
+
+    if ($null -eq $stamp -or [string]$stamp.schema -ne $stampSchema) {
+        $reason = 'stamp-incompatible'
     }
-    if ($snapshot.Status.Count -gt 8) {
-        Write-Host '             ...' -ForegroundColor DarkGray
+    elseif ([string]$stamp.configuration -ne $Configuration) {
+        $reason = 'config-changed'
     }
-    if ($missing.Count -gt 0) {
-        Write-Gate ("关键产物缺失 {0} 项，且工作区脏：不自动编译，也不启动" -f $missing.Count) 'Red'
-        foreach ($path in $missing) { Write-Host ("             {0}" -f $path) -ForegroundColor DarkRed }
-        Write-Gate '处置：提交/暂存修改后重试，或显式编译 UI启动.bat --fast / --full' 'Yellow'
-        exit 12
+    else {
+        $diffs = [System.Collections.Generic.List[string]]::new()
+        foreach ($key in @($evidence.Keys)) {
+            $cur = $evidence[$key]
+            $old = $null
+            if ($null -ne $stamp.repos) {
+                $prop = @($stamp.repos.PSObject.Properties | Where-Object { $_.Name -eq $key })
+                if ($prop.Count -gt 0) { $old = $prop[0].Value }
+            }
+            if ($null -eq $old) { $diffs.Add(('repo-unknown:{0}' -f $key)); continue }
+            if ([string]$old.head -ne [string]$cur.head) { $diffs.Add(('commit-changed:{0}' -f $key)); continue }
+            if ([string]$old.worktreeId -ne [string]$cur.worktreeId) { $diffs.Add(('worktree-changed:{0}' -f $key)) }
+        }
+        if ($diffs.Count -eq 0) { $decision = 'Skip'; $reason = 'fresh' }
+        else { $reason = ($diffs -join ',') }
     }
-    Write-Gate '显式编译：UI启动.bat --fast（快速）或 --full（完整）' 'DarkGray'
-    exit 11
 }
 
+if ($Json) {
+    $result = [ordered]@{
+        decision         = $decision
+        reasonCode       = $reason
+        configuration    = $Configuration
+        artifactsMissing = @($missing)
+        repos            = $evidence
+        stampFile        = $stampFile
+    }
+    Write-Output (($result | ConvertTo-Json -Depth 8 -Compress))
+}
+
+if ($decision -eq 'Skip') {
+    Write-Gate ("decision=Skip reason=fresh（{0} 仓：提交态/工作树态/产物均一致）" -f $evidence.Keys.Count) 'Green'
+    foreach ($key in @($evidence.Keys)) {
+        $row = $evidence[$key]
+        $wt = if ([string]::IsNullOrWhiteSpace([string]$row.worktreeId)) { '(clean)' } else { Format-Short ([string]$row.worktreeId) }
+        Write-Host ("             {0,-10} head={1} worktree={2} changed={3}" -f $key, (Format-Short ([string]$row.head)), $wt, @($row.changed).Count) -ForegroundColor DarkGray
+    }
+    exit 10
+}
+
+Write-Gate ("decision=Build reason={0}" -f $reason) 'Yellow'
 if ($missing.Count -gt 0) {
-    Write-Gate ("关键产物缺失 {0} 项：需要编译" -f $missing.Count) 'Yellow'
-    foreach ($path in $missing) { Write-Host ("             {0}" -f $path) -ForegroundColor DarkGray }
-    exit 0
+    Write-Gate ("关键产物缺失 {0} 项：" -f $missing.Count) 'Yellow'
+    foreach ($path in ($missing | Select-Object -First 8)) { Write-Host ("             {0}" -f $path) -ForegroundColor DarkGray }
 }
+foreach ($key in @($evidence.Keys)) {
+    $row = $evidence[$key]
+    if (@($row.changed).Count -eq 0) { continue }
+    Write-Gate ("{0}：{1} 项构建相关改动" -f $key, @($row.changed).Count) 'DarkGray'
+    foreach ($p in (@($row.changed) | Select-Object -First 6)) { Write-Host ("             {0}" -f $p) -ForegroundColor DarkGray }
+    if (@($row.changed).Count -gt 6) { Write-Host '             ...' -ForegroundColor DarkGray }
+}
+exit 0
 
-if (-not (Test-Path -LiteralPath $stampFile)) {
-    Write-Gate '无上次成功构建记录：需要编译' 'Yellow'
-    exit 0
-}
 
-try {
-    $stamp = Get-Content -LiteralPath $stampFile -Raw | ConvertFrom-Json
-}
-catch {
-    Write-Gate '构建 stamp 解析失败：需要编译' 'Yellow'
-    exit 0
-}
-
-if ([string]$stamp.schema -ne 'build-gate-v1' -or
-    [string]$stamp.configuration -ne $Configuration -or
-    [string]$stamp.revision -ne $snapshot.Revision) {
-    $shortHead = $snapshot.Head.Substring(0, [Math]::Min(12, $snapshot.Head.Length))
-    Write-Gate ("提交态已变化（{0}）：需要编译" -f $shortHead) 'Yellow'
-    exit 0
-}
-
-$shortHead = $snapshot.Head.Substring(0, [Math]::Min(12, $snapshot.Head.Length))
-Write-Gate ("提交未变化（{0}）：跳过编译" -f $shortHead) 'Green'
-exit 10

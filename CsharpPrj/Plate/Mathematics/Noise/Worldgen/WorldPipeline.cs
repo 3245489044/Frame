@@ -62,6 +62,18 @@ public sealed class WorldPipeline : IHeightSpanSource
         return span;
     }
 
+    /// <summary>带 footprint 的各节垂直影响范围并集（cm）。</summary>
+    public HeightSpan HeightSpanFor(
+        int minX, int minZ, int maxX, int maxZ,
+        int groundMinCm, int groundMaxCm, int seaLevelCm)
+    {
+        var span = HeightSpan.Empty;
+        foreach (var section in _sections)
+            span = span.Union(section.HeightSpanFor(
+                minX, minZ, maxX, maxZ, groundMinCm, groundMaxCm, seaLevelCm));
+        return span;
+    }
+
     /// <summary>单列（ground 已知）的垂直影响范围。</summary>
     public HeightSpan ColumnSpan(int groundYCm, int seaLevelCm) =>
         HeightSpanFor(groundYCm, groundYCm, seaLevelCm);

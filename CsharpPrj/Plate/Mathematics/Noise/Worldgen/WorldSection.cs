@@ -66,6 +66,15 @@ public interface IWorldSection
     /// <summary>在 [groundMin, groundMax] 的 footprint 内，本节可能写入内容的垂直范围（cm）。</summary>
     HeightSpan HeightSpanFor(int groundMinCm, int groundMaxCm, int seaLevelCm);
 
+    /// <summary>
+    /// 带水平 footprint 的重载：稀疏内容（如植被）只在 footprint 内确实存在实体时才抬升上界。
+    /// 默认退化到不带 bounds 的保守实现，避免破坏既有 section。
+    /// </summary>
+    HeightSpan HeightSpanFor(
+        int minX, int minZ, int maxX, int maxZ,
+        int groundMinCm, int groundMaxCm, int seaLevelCm) =>
+        HeightSpanFor(groundMinCm, groundMaxCm, seaLevelCm);
+
     /// <summary>按 input.Current 决定是否改写；返回 false 表示保持不变（<paramref name="output"/> 等于输入）。</summary>
     bool Apply(in WorldSectionInput input, out WorldVoxel output);
 }
@@ -76,6 +85,14 @@ public interface IHeightSpanSource
     long Signature { get; }
 
     HeightSpan HeightSpanFor(int groundMinCm, int groundMaxCm, int seaLevelCm);
+
+    /// <summary>
+    /// 带水平 footprint 的重载（供稀疏内容按实际存在情况收缩候选带）；默认忽略 bounds。
+    /// </summary>
+    HeightSpan HeightSpanFor(
+        int minX, int minZ, int maxX, int maxZ,
+        int groundMinCm, int groundMaxCm, int seaLevelCm) =>
+        HeightSpanFor(groundMinCm, groundMaxCm, seaLevelCm);
 }
 
 /// <summary>固定阶段常量：顺序即覆盖优先级（后面的节只能改写前面留下的明确材质）。</summary>

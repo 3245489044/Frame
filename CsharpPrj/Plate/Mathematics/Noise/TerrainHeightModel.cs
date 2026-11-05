@@ -312,7 +312,8 @@ public sealed class TerrainHeightModel
         // 内容范围：由分节流水线按真实 section 声明求值（洞穴/矿脉向下，植被向上）。
         if (_contentSpans is not null)
         {
-            var content = _contentSpans.HeightSpanFor(ground.MinY, ground.MaxY, _constants.SeaLevelCm);
+            var content = _contentSpans.HeightSpanFor(
+                minX, minZ, maxX, maxZ, ground.MinY, ground.MaxY, _constants.SeaLevelCm);
             if (!content.IsEmpty)
             {
                 minY = Math.Min(minY, content.MinY);

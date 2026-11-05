@@ -132,7 +132,7 @@ public sealed partial class PortContextAssembler : IPortContextPort
 
     /// <summary>
     /// 单成员分页（尾部下推 + 无状态游标）：解码失败 ⇒ <c>cursor-invalid</c>；条数夹到规格上限；
-    /// <c>HasMore</c> 由「多读 1 条」探测（不二次取数）。
+    /// <c>HasOlder/HasNewer</c> 与双向游标由「多读 1 条」探测（不二次取数）。
     /// </summary>
     /// <param name="containerKey">容器键。</param>
     /// <param name="request">分页请求。</param>
@@ -164,7 +164,7 @@ public sealed partial class PortContextAssembler : IPortContextPort
         IReadOnlyList<PortContextWindowItem> fetched;
         try
         {
-            // 多读 1 条只用于 HasMore 判定（调用方决定 take 上限）。
+            // 多读 1 条只用于 HasOlder 判定（多出的首条在更早一侧，窗口本体须 Skip(1)）。
             fetched = await _windows
                 .GetWindowPageAsync(container, memberKey, take + 1, skipFromEnd, ct)
                 .ConfigureAwait(false) ?? Array.Empty<PortContextWindowItem>();
@@ -178,23 +178,37 @@ public sealed partial class PortContextAssembler : IPortContextPort
             return PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.WindowEmpty);
         }
 
-        var hasMore = fetched.Count > take;
-        var items = hasMore ? fetched.Take(take).ToArray() : fetched;
+        // 多读 1 条在更早一侧（Older 探测）：多出的首条须跳过，窗口本体 = Skip(1).Take(take)。
+        var hasOlderProbe = fetched.Count > take;
+        var hasOlder = hasOlderProbe
+                       && skipFromEnd + take <= PortContextCursor.MaxOffsetFromEnd;
+        var items = hasOlderProbe ? fetched.Skip(1).Take(take).ToArray() : fetched;
+        var hasNewer = skipFromEnd > 0;
+        var olderCursor = hasOlder ? PortContextCursor.Encode(memberKey, skipFromEnd + take) : null;
+        var newerCursor = hasNewer
+            ? PortContextCursor.Encode(memberKey, Math.Max(0, skipFromEnd - take))
+            : null;
+
         if (items.Count == 0)
         {
-            // 首页空 ⇒ 空因可见；翻页到底 ⇒ 正常结束（非错误）。
+            // 首页空 ⇒ 空因可见；翻页到底 ⇒ 正常结束（非错误；保留更晚游标以便回退）。
             return skipFromEnd == 0
                 ? PortContextPage.Empty(container, memberKey, PortContextEmptyCodes.WindowEmpty)
-                : new PortContextPage(container, memberKey, Array.Empty<PortContextWindowItem>(), null, false, null, false);
+                : new PortContextPage(container, memberKey, Array.Empty<PortContextWindowItem>(),
+                    null, newerCursor, false, hasNewer, skipFromEnd, take, null, false);
         }
 
         return new PortContextPage(
             container,
             memberKey,
             items,
-            hasMore ? PortContextCursor.Encode(memberKey, skipFromEnd + take) : null,
-            hasMore,
+            olderCursor,
+            newerCursor,
+            hasOlder,
+            hasNewer,
+            skipFromEnd,
+            take,
             EmptyCode: null,
-            Truncated: hasMore);
+            Truncated: hasOlder);
     }
 }

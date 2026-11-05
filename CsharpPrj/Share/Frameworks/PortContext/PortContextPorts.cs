@@ -104,7 +104,7 @@ public interface IPortContextPort
 
     /// <summary>
     /// 单成员分页（唯一获取口之二：分页不得另起第二读法）。
-    /// <para>默认实现回退 <see cref="GetAsync"/> 的该成员窗口（首页口径，<c>HasMore=false</c>）；
+    /// <para>默认实现回退 <see cref="GetAsync"/> 的该成员窗口（首页口径，<c>HasOlder/HasNewer=false</c>）；
     /// 具备尾部下推/游标的实现（装配器）覆盖本方法。</para>
     /// </summary>
     /// <param name="containerKey">容器键。</param>
@@ -128,6 +128,7 @@ public interface IPortContextPort
 
         return member.WindowItems.Count == 0
             ? PortContextPage.Empty(key, memberKey, PortContextEmptyCodes.WindowEmpty)
-            : new PortContextPage(key, memberKey, member.WindowItems, null, false, null, member.Truncated);
+            : new PortContextPage(key, memberKey, member.WindowItems,
+                null, null, false, false, 0, member.WindowItems.Count, null, member.Truncated);
     }
 }

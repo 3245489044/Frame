@@ -187,6 +187,16 @@ public sealed class VegetationSection : IWorldSection
     public HeightSpan HeightSpanFor(int groundMinCm, int groundMaxCm, int seaLevelCm) =>
         new(groundMinCm, groundMaxCm + _maxTreeTopAboveGroundCm);
 
+    /// <summary>
+    /// 流式候选带不并入树冠高度：高度带是单个闭区间，一旦上界抬到树冠，
+    /// 地面与树冠之间的空气块也会被当成内容块，按距离排序会占满可见配额，地表永远画不出来。
+    /// 树干/树叶仍由体素生成写入；只有“高于地表”的候选优先级让给地表。
+    /// </summary>
+    public HeightSpan HeightSpanFor(
+        int minX, int minZ, int maxX, int maxZ,
+        int groundMinCm, int groundMaxCm, int seaLevelCm) =>
+        HeightSpan.Empty;
+
     public bool Apply(in WorldSectionInput input, out WorldVoxel output)
     {
         output = input.Current;

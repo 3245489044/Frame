@@ -1,4 +1,6 @@
 using System;
+using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -21,13 +23,21 @@ namespace Common.Diagnostics
 
         private static EventHandler<UnobservedTaskExceptionEventArgs>? _taskHandler;
 
+        private static EventHandler<FirstChanceExceptionEventArgs>? _firstChanceHandler;
+
+        private static readonly AsyncLocal<Exception?> _currentException = new();
+
+        /// <summary>正在分发中的原始异常（供 OnCrash 订阅方保留类型/栈/内部异常）。</summary>
+        internal static Exception? CurrentException => _currentException.Value;
+
         public static Action<CrashRecord>? OnCrash { get; set; }
 
         public static void Configure(Action<CrashRecord>? onCrash = null, bool diagnostics = false)
         {
             lock (_lock)
             {
-                if (onCrash != null) OnCrash = onCrash;
+                // 仅在尚未配置时设置，避免后配置者静默覆盖已有回调（§4.7）。
+                if (onCrash != null && OnCrash == null) OnCrash = onCrash;
                 if (_configured) return;
 
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
@@ -55,8 +65,9 @@ namespace Common.Diagnostics
 
                 if (diagnostics)
                 {
-                    AppDomain.CurrentDomain.FirstChanceException += (_, e) =>
+                    _firstChanceHandler = (_, e) =>
                         Capture(CrashKind.FirstChance, e.Exception, "FirstChance", notify: false);
+                    AppDomain.CurrentDomain.FirstChanceException += _firstChanceHandler;
                 }
 
                 EvidenceRing.Attach();
@@ -86,7 +97,16 @@ namespace Common.Diagnostics
                 if (!notify) return;
 
                 CrashHalt.Signal(record);
-                OnCrash?.Invoke(record);
+
+                try
+                {
+                    _currentException.Value = ex;
+                    OnCrash?.Invoke(record);
+                }
+                finally
+                {
+                    _currentException.Value = null;
+                }
             }
             catch (Exception inner)
             {
@@ -102,10 +122,14 @@ namespace Common.Diagnostics
                 if (_threadHandler != null) Application.ThreadException -= _threadHandler;
                 if (_appDomainHandler != null) AppDomain.CurrentDomain.UnhandledException -= _appDomainHandler;
                 if (_taskHandler != null) TaskScheduler.UnobservedTaskException -= _taskHandler;
+                if (_firstChanceHandler != null)
+                    AppDomain.CurrentDomain.FirstChanceException -= _firstChanceHandler;
 
                 _threadHandler = null;
                 _appDomainHandler = null;
                 _taskHandler = null;
+                _firstChanceHandler = null;
+                OnCrash = null;
                 _configured = false;
             }
         }

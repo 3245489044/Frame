@@ -10,15 +10,22 @@ namespace Common.Diagnostics
 {
     public static class ProjectSourceResolver
     {
-        private static readonly Dictionary<string, string[]> _projectPrefixes = new();
+        private static readonly object _gate = new();
 
-        private static bool _initialized;
+        // 仅在 _gate 内可变；读者只读取 _prefixSnapshot（§4.9）。
+        private static Dictionary<string, string[]> _projectPrefixes = new(StringComparer.Ordinal);
+
+        // 不可变快照：发布后不再修改，供异常路径无锁枚举。
+        private static volatile Dictionary<string, string[]> _prefixSnapshot = new(StringComparer.Ordinal);
+
+        private static volatile bool _initialized;
 
         private const string DefaultConfigFileName = "projectPrefixes.json";
 
 
         public static void InitializeFromAssemblies(Func<Assembly, bool>? assemblyFilter = null)
         {
+            var collected = new Dictionary<string, string[]>(StringComparer.Ordinal);
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 
             foreach (var assembly in assemblies)
@@ -51,16 +58,7 @@ namespace Common.Diagnostics
                     var assemblyName = assembly.GetName().Name;
                     if (assemblyName != null && namespaces.Count > 0)
                     {
-                        if (_projectPrefixes.TryGetValue(assemblyName, out var existingPrefixes))
-                        {
-                            var merged = new HashSet<string>(existingPrefixes);
-                            merged.UnionWith(namespaces);
-                            _projectPrefixes[assemblyName] = merged.ToArray();
-                        }
-                        else
-                        {
-                            _projectPrefixes[assemblyName] = namespaces.ToArray();
-                        }
+                        collected[assemblyName] = namespaces.ToArray();
                     }
                 }
                 catch
@@ -68,7 +66,27 @@ namespace Common.Diagnostics
                 }
             }
 
-            _initialized = true;
+            lock (_gate)
+            {
+                var merged = new Dictionary<string, string[]>(_projectPrefixes, StringComparer.Ordinal);
+                foreach (var kvp in collected)
+                {
+                    if (merged.TryGetValue(kvp.Key, out var existingPrefixes))
+                    {
+                        var union = new HashSet<string>(existingPrefixes);
+                        union.UnionWith(kvp.Value);
+                        merged[kvp.Key] = union.ToArray();
+                    }
+                    else
+                    {
+                        merged[kvp.Key] = kvp.Value;
+                    }
+                }
+
+                _projectPrefixes = merged;
+                PublishSnapshot();
+                _initialized = true;
+            }
         }
 
         public static bool InitializeFromConfig(string? configPath = null)
@@ -85,12 +103,19 @@ namespace Common.Diagnostics
                 if (config?.Projects == null)
                     return false;
 
-                foreach (var kvp in config.Projects)
+                lock (_gate)
                 {
-                    if (!string.IsNullOrWhiteSpace(kvp.Key) && kvp.Value != null && kvp.Value.Length > 0)
+                    var merged = new Dictionary<string, string[]>(_projectPrefixes, StringComparer.Ordinal);
+                    foreach (var kvp in config.Projects)
                     {
-                        _projectPrefixes[kvp.Key] = kvp.Value;
+                        if (!string.IsNullOrWhiteSpace(kvp.Key) && kvp.Value != null && kvp.Value.Length > 0)
+                        {
+                            merged[kvp.Key] = kvp.Value;
+                        }
                     }
+
+                    _projectPrefixes = merged;
+                    PublishSnapshot();
                 }
 
                 return true;
@@ -101,10 +126,19 @@ namespace Common.Diagnostics
             }
         }
 
+        private static void PublishSnapshot()
+        {
+            // 调用方必须已持有 _gate。
+            _prefixSnapshot = new Dictionary<string, string[]>(_projectPrefixes, StringComparer.Ordinal);
+        }
+
         private static void EnsureInitialized()
         {
-            if (!_initialized)
+            if (_initialized) return;
+
+            lock (_gate)
             {
+                if (_initialized) return;
                 InitializeFromAssemblies();
             }
         }
@@ -117,19 +151,34 @@ namespace Common.Diagnostics
             if (prefixes == null || prefixes.Length == 0)
                 throw new ArgumentException("至少需要一个前缀", nameof(prefixes));
 
-            _projectPrefixes[projectName] = prefixes;
+            lock (_gate)
+            {
+                var merged = new Dictionary<string, string[]>(_projectPrefixes, StringComparer.Ordinal)
+                {
+                    [projectName] = prefixes.ToArray()
+                };
+                _projectPrefixes = merged;
+                PublishSnapshot();
+            }
         }
 
         public static void RegisterProjects(Dictionary<string, string[]> projects)
         {
             projects = PortGuard.Required(projects, nameof(projects));
 
-            foreach (var kvp in projects)
+            lock (_gate)
             {
-                if (!string.IsNullOrWhiteSpace(kvp.Key) && kvp.Value != null && kvp.Value.Length > 0)
+                var merged = new Dictionary<string, string[]>(_projectPrefixes, StringComparer.Ordinal);
+                foreach (var kvp in projects)
                 {
-                    _projectPrefixes[kvp.Key] = kvp.Value;
+                    if (!string.IsNullOrWhiteSpace(kvp.Key) && kvp.Value != null && kvp.Value.Length > 0)
+                    {
+                        merged[kvp.Key] = kvp.Value.ToArray();
+                    }
                 }
+
+                _projectPrefixes = merged;
+                PublishSnapshot();
             }
         }
 
@@ -160,19 +209,51 @@ namespace Common.Diagnostics
 
         private static string? MatchFromText(string text)
         {
-            foreach (var kvp in _projectPrefixes)
+            if (string.IsNullOrEmpty(text)) return null;
+
+            // 枚举不可变快照，避免与写入并发时抛“集合已修改”（§4.9）。
+            var snapshot = _prefixSnapshot;
+            string? bestProject = null;
+            var bestLength = -1;
+
+            foreach (var kvp in snapshot)
             {
                 foreach (var prefix in kvp.Value)
                 {
-                    if (text.Contains(prefix))
+                    if (string.IsNullOrEmpty(prefix) || prefix.Length <= bestLength) continue;
+
+                    // 命名空间前缀精确匹配，替代 Contains 子串匹配导致的短前缀误判（§4.9）。
+                    if (MatchesNamespacePrefix(text, prefix))
                     {
-                        return kvp.Key;
+                        bestProject = kvp.Key;
+                        bestLength = prefix.Length;
                     }
                 }
             }
 
-            return null;
+            return bestProject;
         }
+
+        private static bool MatchesNamespacePrefix(string text, string prefix)
+        {
+            var index = 0;
+            while ((index = text.IndexOf(prefix, index, StringComparison.Ordinal)) >= 0)
+            {
+                var startOk = index == 0 || !IsIdentifierChar(text[index - 1]);
+                var endIndex = index + prefix.Length;
+                var endOk = endIndex == text.Length ||
+                            text[endIndex] == '.' ||
+                            !IsIdentifierChar(text[endIndex]);
+
+                if (startOk && endOk) return true;
+
+                index += prefix.Length;
+            }
+
+            return false;
+        }
+
+        private static bool IsIdentifierChar(char c) => char.IsLetterOrDigit(c) || c == '_';
 
         public static string? ExtractClassName(Exception ex)
         {

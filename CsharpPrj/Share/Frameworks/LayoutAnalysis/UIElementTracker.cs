@@ -139,7 +139,8 @@ namespace Modules.LayoutAnalysis
                     nameToLayoutId[baseName] = layoutId;
 
                 layoutIdToControl[layoutId] = c;
-                elements.Add(new ElementPosition(layoutId, c.Left, c.Top, c.Width, c.Height));
+                // AbsolutePosition 必须是 form 相对（唯一口径，含 SplitterPanel 修正），不得再塞父相对 .Left/.Top（§4.8）。
+                elements.Add(new ElementPosition(layoutId, c.FormLeft, c.FormTop, c.Width, c.Height));
             }
 
             var result = _layoutCollector.Collect(elements, referenceBounds, entity =>

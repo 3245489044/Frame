@@ -48,13 +48,20 @@ public class LogInitSkeleton : SyncSkeletonBase
         if (string.IsNullOrWhiteSpace(input.BatchId))
             throw new ArgumentException("BatchId cannot be empty", nameof(input.BatchId));
 
-        BatchManager.Instance.RegisterBatch(
+        var registered = BatchManager.Instance.RegisterBatch(
             input.BatchId,
             input.BatchName,
             input.Source,
             input.WorkflowId,
             input.Description
         );
+
+        if (!registered)
+        {
+            LogRepository.Write("ERROR", "Launcher_Bootstrap", _logger.ModuleName,
+                $"Batch logging initialization skipped: batch '{input.BatchId}' is already registered (keeping existing context)");
+            return input;
+        }
 
         if (input.EnabledCategories != LogCategory.None)
         {
@@ -166,6 +173,7 @@ public class LogTryExecuteSkeleton : SkeletonBase<LogPipelineContext, LogPipelin
     private LogPipelineContext HandleException(LogPipelineContext input, SkeletonContext ctx, Exception ex)
     {
         ctx.SetData(new LogPipelineException(ex) { StepName = _main.Name }, "LastException");
+        input.ExecutionFailed = true;
 
         LogRepository.Write("ERROR", "Batch_Routing", _logger.ModuleName, 
             $"Pipeline main path '{_main.Name}' failed: {ex.Message}, switching to emergency fallback");
@@ -203,20 +211,6 @@ public class LogTryExecuteSkeleton : SkeletonBase<LogPipelineContext, LogPipelin
 
 public static class LogPipeline
 {
-    private static (
-        LogInitSkeleton init,
-        LogTryExecuteSkeleton tryFlush,
-        LogSummarySkeleton summary,
-        LogEmergencyDumpSkeleton emergencyDump) CreateBaseSkeletons()
-    {
-        var init = new LogInitSkeleton();
-        var flush = new LogFlushSkeleton();
-        var emergencyDump = new LogEmergencyDumpSkeleton();
-        var tryFlush = new LogTryExecuteSkeleton(flush, emergencyDump);
-        var summary = new LogSummarySkeleton();
-        return (init, tryFlush, summary, emergencyDump);
-    }
-
     public static ISkeleton<LogPipelineContext, LogPipelineContext> BuildDefaultPipeline()
     {
         var central = LogPipelineAdapter.CreateDefaultPipeline();

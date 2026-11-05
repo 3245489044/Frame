@@ -17,8 +17,10 @@ namespace Common.Diagnostics
                 }
                 return logs;
             }
-            catch
+            catch (Exception ex)
             {
+                // 无数据与读取失败必须可区分：失败走降级出口而非静默返回（§4.5）。
+                CrashDiag.Degrade($"EmergencyDump 读取内存日志失败: {ex.Message}");
                 return null;
             }
         }

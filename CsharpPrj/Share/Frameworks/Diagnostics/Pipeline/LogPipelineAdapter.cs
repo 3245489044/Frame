@@ -94,6 +94,14 @@ public static class LogPipelineAdapter
 
         var result = central.Execute(context, context);
 
+        // 仅在执行阶段未发生失败时才把批次标为 Completed（§4.4）。
+        if (result.ExecutionFailed)
+        {
+            LogRepository.Write("ERROR", "Batch_Routing", "LogPipeline",
+                $"Batch '{batchId}' execution failed; batch is NOT marked as completed.");
+            return result;
+        }
+
         try
         {
             BatchManager.Instance.CompleteBatch(batchId);

@@ -29,7 +29,8 @@ public sealed class RelationGatherPoint : IRelationGatherPoint, IRelationGatherP
         _diagnostics = diagnostics;
     }
 
-    public RelationOperation? Describe(string operation) => _catalog.Resolve(operation);
+    // 与写入口同源：命令端口的 Describe 已含 [Edge] 声明/废弃校验，禁在本层直读目录绕过策略。
+    public RelationOperation? Describe(string operation) => _commands.Describe(operation);
 
     public async Task<RelationResult> InvokeAsync(
         RelationIntent intent, RelationRequest request, CancellationToken ct = default)

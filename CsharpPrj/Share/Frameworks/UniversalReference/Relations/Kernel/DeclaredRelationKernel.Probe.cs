@@ -5,7 +5,7 @@ namespace UniversalWorkflowFramework.Relations.Kernel;
 public sealed partial class DeclaredRelationKernel
 {
     private async Task<string?> ProbeAsync(
-        RelationOperation plan, string sourceKey, string targetKey, List<string> diagnostics)
+        RelationOperation plan, string sourceKey, string targetKey, List<string> diagnostics, CancellationToken ct)
     {
         var probeSource = plan.Probes("src");
         var probeTarget = plan.Probes("tgt");
@@ -23,9 +23,9 @@ public sealed partial class DeclaredRelationKernel
         var missing = new List<string>();
 
         if (probeSource)
-            await CheckEndpointAsync(plan.Source, sourceKey, unmapped, missing).ConfigureAwait(false);
+            await CheckEndpointAsync(plan.Source, sourceKey, unmapped, missing, ct).ConfigureAwait(false);
         if (probeTarget)
-            await CheckEndpointAsync(plan.Target, targetKey, unmapped, missing).ConfigureAwait(false);
+            await CheckEndpointAsync(plan.Target, targetKey, unmapped, missing, ct).ConfigureAwait(false);
 
         if (unmapped.Count > 0)
         {
@@ -50,7 +50,7 @@ public sealed partial class DeclaredRelationKernel
     }
 
     private async Task CheckEndpointAsync(
-        string entityType, string id, List<string> unmapped, List<string> missing)
+        string entityType, string id, List<string> unmapped, List<string> missing, CancellationToken ct)
     {
         if (!_probe.IsMapped(entityType))
         {
@@ -58,7 +58,7 @@ public sealed partial class DeclaredRelationKernel
             return;
         }
 
-        if (!await _probe.ExistsAsync(entityType, id).ConfigureAwait(false))
+        if (!await _probe.ExistsAsync(entityType, id, ct).ConfigureAwait(false))
             missing.Add($"{entityType}:{id}");
     }
 

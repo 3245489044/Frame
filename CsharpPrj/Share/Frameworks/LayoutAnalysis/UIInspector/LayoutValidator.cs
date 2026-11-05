@@ -8,12 +8,13 @@ namespace Modules.LayoutAnalysis.UIInspector
     {
         public ValidationResult ValidatePosition(ControlMetadata info, int expectedX, int expectedY)
         {
-            bool isValid = info.Left == expectedX && info.Top == expectedY;
+            // 位置校验统一按 form 相对口径（FormLeft/FormTop）；父相对 .Left/.Top 不得用于跨容器校验（§4.8/§4.9）。
+            bool isValid = info.FormLeft == expectedX && info.FormTop == expectedY;
             if (isValid)
                 return ValidationResult.Success(info.Name + LayoutAnalysisConfig.PropertyNames.SuffixPosition);
 
             return ValidationResult.Failure(info.Name + LayoutAnalysisConfig.PropertyNames.SuffixPosition,
-                string.Format(LayoutAnalysisConfig.ValidationMessages.PositionError, expectedX, expectedY, info.Left, info.Top));
+                string.Format(LayoutAnalysisConfig.ValidationMessages.PositionError, expectedX, expectedY, info.FormLeft, info.FormTop));
         }
 
         public ValidationResult ValidateSize(ControlMetadata info, int expectedWidth, int expectedHeight)

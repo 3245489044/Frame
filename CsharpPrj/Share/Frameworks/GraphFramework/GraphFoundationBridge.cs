@@ -200,8 +200,9 @@ namespace GraphFramework.Bridge
             newNodes = PortGuard.Required(newNodes, nameof(newNodes));
             nodeDataFactory = PortGuard.Required(nodeDataFactory, nameof(nodeDataFactory));
 
-            // 空插入列表 = 无操作（禁 newNodes[0] 下标越界）。
-            if (newNodes.Count == 0) return;
+            // 空插入列表 ⇒ 前置参数校验（禁 newNodes[0] 下标越界，且必须在删入边之前失败以免破坏图）。
+            if (newNodes.Count == 0)
+                throw new ArgumentException("InsertNodesBefore 的 newNodes 不能为空列表：无插入目标，且会破坏目标节点入边。", nameof(newNodes));
 
             var incomingEdges = graph.GetIncomingEdges(targetNodeKey).ToList();
 

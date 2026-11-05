@@ -84,7 +84,8 @@ namespace UniversalWorkflowFramework.Core.Graph
                 {
                     var sourceKey = source.GetUniqueKey();
                     var targetKey = target.GetUniqueKey();
-                    if (!seen.Add($"{sourceKey}->{targetKey}")) continue;
+                    // 去重键必须含边类型：同一 from/to 的不同类型边是不同事实，不得合并。
+                    if (!seen.Add($"{sourceKey}->{targetKey}->{type.ToString()}")) continue;
 
                     edges.Add(new ReferenceEdge
                     {

@@ -34,7 +34,8 @@ namespace Common.Diagnostics
             batchName ??= batchId;
 
             BatchStatisticsBackfill.EnsureSubscribed();
-            BatchManager.Instance.RegisterBatch(batchId, batchName, batchSource, batchDesc);
+            // 5 参重载：batchDesc 落到 description，workflowId 保持为空（§4.8）。
+            BatchManager.Instance.RegisterBatch(batchId, batchName, batchSource, workflowId: null, description: batchDesc);
 
             logAction?.Invoke("Executor_InitializeBatchLogging_ok",
                 new { batchId, batchName });

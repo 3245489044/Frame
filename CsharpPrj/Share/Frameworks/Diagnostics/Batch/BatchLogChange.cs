@@ -6,19 +6,27 @@ using UniversalWorkflowFramework.BatchIntegration;
 
 namespace Common.Diagnostics
 {
-    /// <summary>LogEntry 批次差异比较器（按消息文本去重）。</summary>
+    /// <summary>LogEntry 批次差异比较器（按稳定字段组合判等，避免仅按消息文本折叠）。</summary>
     public class LogEntryMessageComparer : IEqualityComparer<LogEntry>
     {
         public bool Equals(LogEntry? x, LogEntry? y)
         {
             if (x == null && y == null) return true;
             if (x == null || y == null) return false;
-            return x.Message == y.Message;
+            // 重复日志是常态：需按 Message + Level + Category + Module 组合判等（§4.16）。
+            return x.Message == y.Message
+                && x.Level == y.Level
+                && x.Category == y.Category
+                && x.Module == y.Module;
         }
 
         public int GetHashCode(LogEntry obj)
         {
-            return obj.Message?.GetHashCode() ?? 0;
+            return HashCode.Combine(
+                obj.Message?.GetHashCode() ?? 0,
+                obj.Level?.GetHashCode() ?? 0,
+                obj.Category,
+                obj.Module?.GetHashCode() ?? 0);
         }
     }
 
@@ -41,8 +49,11 @@ namespace Common.Diagnostics
             IEnumerable<LogEntry> batchA,
             IEnumerable<LogEntry> batchB)
         {
+            var listA = batchA?.ToList() ?? new List<LogEntry>();
+            var listB = batchB?.ToList() ?? new List<LogEntry>();
+
             var tracker = new BatchChangeTracker<LogEntry>(new LogEntryMessageComparer());
-            var report = tracker.CompareBatches(batchA, batchB,
+            var report = tracker.CompareBatches(listA, listB,
                 isModified: (old, @new) =>
                     old.Level != @new.Level ||
                     old.Message != @new.Message ||
@@ -50,8 +61,8 @@ namespace Common.Diagnostics
 
             return new LogBatchDiffSummary
             {
-                BatchACount = batchA?.Count() ?? 0,
-                BatchBCount = batchB?.Count() ?? 0,
+                BatchACount = listA.Count,
+                BatchBCount = listB.Count,
                 Added = report.Summary.Added,
                 Removed = report.Summary.Removed,
                 Modified = report.Summary.Modified,

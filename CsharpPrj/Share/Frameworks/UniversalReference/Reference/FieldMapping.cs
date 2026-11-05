@@ -235,9 +235,17 @@ namespace ReferenceManagement.FieldMapping
 
         private string TransformIdentifier(string identifier)
         {
-            string actualIdentifier = _renameMap!.GetValueOrDefault(identifier);
-            actualIdentifier = _symbolRenameMap!.GetValueOrDefault(actualIdentifier);
-            return actualIdentifier;
+            // 未命中重命名表 ⇒ 保持原值（不得把 null 作为字典键而抛 ArgumentNullException）。
+            if (string.IsNullOrEmpty(identifier))
+                return identifier;
+
+            if (_renameMap!.TryGetValue(identifier, out var renamed) && !string.IsNullOrEmpty(renamed))
+                identifier = renamed;
+
+            if (_symbolRenameMap!.TryGetValue(identifier, out var symbol) && !string.IsNullOrEmpty(symbol))
+                identifier = symbol;
+
+            return identifier;
         }
 
         private object? ResolveDirectRename(string oldValue, FieldReferenceMapping mapping)

@@ -31,20 +31,24 @@ public sealed partial class DeclaredRelationKernel
         {
             var target = RelationEndpoints.Create(plan.Target, targetKey, location);
 
-            if (await ProbeAsync(plan, request.SourceKey, targetKey, diagnostics).ConfigureAwait(false)
+            if (await ProbeAsync(plan, request.SourceKey, targetKey, diagnostics, ct).ConfigureAwait(false)
                 is { } missingReason)
-                return PartialFailure(operation, plan.Edge, missingReason, written, targets.Count, diagnostics);
+                return PartialFailure(operation, plan.Edge, missingReason, written, targets.Count, diagnostics,
+                    revived: revived, reviveReasons: reviveReasons);
 
             if (await CheckContainerAsync(plan, request.SourceKey, targetKey, diagnostics, ct).ConfigureAwait(false)
                 is { } containerReason)
-                return PartialFailure(operation, plan.Edge, containerReason, written, targets.Count, diagnostics);
+                return PartialFailure(operation, plan.Edge, containerReason, written, targets.Count, diagnostics,
+                    revived: revived, reviveReasons: reviveReasons);
 
             if (await EvaluateGuardPreAsync(plan, source, target, ct).ConfigureAwait(false) is { } guardReason)
-                return PartialFailure(operation, plan.Edge, guardReason, written, targets.Count, diagnostics);
+                return PartialFailure(operation, plan.Edge, guardReason, written, targets.Count, diagnostics,
+                    revived: revived, reviveReasons: reviveReasons);
 
             var violation = await FirstRejectingViolationAsync(plan, source, target, diagnostics, ct).ConfigureAwait(false);
             if (violation is not null)
-                return PartialFailure(operation, plan.Edge, violation, written, targets.Count, diagnostics);
+                return PartialFailure(operation, plan.Edge, violation, written, targets.Count, diagnostics,
+                    revived: revived, reviveReasons: reviveReasons);
 
             if (string.Equals(plan.Duplicate, "reject", StringComparison.Ordinal)
                 && await EdgeExistsAsync(source, target, plan.Edge, ct).ConfigureAwait(false))
@@ -52,7 +56,7 @@ public sealed partial class DeclaredRelationKernel
                 var reason = $"重复边（duplicate=reject）：{RelationEndpoints.KeyOf(source)} → {RelationEndpoints.KeyOf(target)} @ {plan.Edge}";
                 _diagnostics?.RelationDuplicate(operation, plan.Edge, reason);
                 return PartialFailure(operation, plan.Edge, reason, written, targets.Count, diagnostics,
-                    RelationOutcome.Duplicate);
+                    RelationOutcome.Duplicate, revived, reviveReasons);
             }
 
             var writeOutcome = await _store

@@ -46,5 +46,7 @@ public sealed partial class DeclaredRelationKernel : IRelationCommandPort
         _invariants = new RelationInvariantChecker(store);
     }
 
-    public RelationOperation? Describe(string operation) => _catalog.Resolve(operation);
+    /// <summary>声明反查：走与写路径同源的解析（含 [Edge] 声明/废弃检查），未声明 ⇒ null（禁返回未校验描述）。</summary>
+    public RelationOperation? Describe(string operation)
+        => TryResolve(operation, out var plan, out _) ? plan : null;
 }

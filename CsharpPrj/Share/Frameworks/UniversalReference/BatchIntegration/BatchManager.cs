@@ -100,11 +100,7 @@ namespace UniversalWorkflowFramework.BatchIntegration
                 metadata.Status = BatchStatus.Completed;
                 metadata.EndTime = DateTime.Now;
                 // 批次结束即退出上下文：残留当前批次会让后续日志仍挂到已完结批次上。
-                if (string.Equals(_contextManager.Current, batchId, StringComparison.Ordinal))
-                {
-                    _contextManager.Clear();
-                    BatchExited?.Invoke(batchId);
-                }
+                ExitContextIfCurrent(batchId);
             }
         }
 
@@ -115,6 +111,8 @@ namespace UniversalWorkflowFramework.BatchIntegration
                 metadata.Status = BatchStatus.Failed;
                 metadata.EndTime = DateTime.Now;
                 metadata.Description = errorDescription;
+                // 失败路径同样退出上下文并广播 BatchExited，否则后续批次继承错误上下文、统计回填收不到事件。
+                ExitContextIfCurrent(batchId);
             }
         }
 
@@ -124,7 +122,16 @@ namespace UniversalWorkflowFramework.BatchIntegration
             {
                 metadata.Status = BatchStatus.Cancelled;
                 metadata.EndTime = DateTime.Now;
+                ExitContextIfCurrent(batchId);
             }
+        }
+
+        private void ExitContextIfCurrent(string batchId)
+        {
+            if (!string.Equals(_contextManager.Current, batchId, StringComparison.Ordinal)) return;
+
+            _contextManager.Clear();
+            BatchExited?.Invoke(batchId);
         }
 
 

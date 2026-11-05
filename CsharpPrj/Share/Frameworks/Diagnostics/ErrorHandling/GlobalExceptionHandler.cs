@@ -15,14 +15,23 @@ namespace Common.Diagnostics
         {
             ExceptionGateway.Configure(onCrash: record =>
             {
-                var ex = new Exception(record.Message);
-                if (record.Kind == CrashKind.ThreadException)
+                // 直接使用网关捕获到的原始异常，保留类型、StackTrace 与 InnerException（§4.7）。
+                var ex = ExceptionGateway.CurrentException ?? new Exception(record.Message);
+
+                switch (record.Kind)
                 {
-                    onThreadException?.Invoke(ex);
-                }
-                else
-                {
-                    onAppDomainException?.Invoke(ex);
+                    case CrashKind.ThreadException:
+                        onThreadException?.Invoke(ex);
+                        break;
+                    case CrashKind.AppDomainUnhandled:
+                    case CrashKind.UnobservedTask:
+                    case CrashKind.FirstChance:
+                    case CrashKind.Halt:
+                        onAppDomainException?.Invoke(ex);
+                        break;
+                    default:
+                        onAppDomainException?.Invoke(ex);
+                        break;
                 }
             });
         }

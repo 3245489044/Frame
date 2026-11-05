@@ -67,6 +67,9 @@ namespace Common.Diagnostics
 
         public int FailCount { get; set; }
 
+        /// <summary>执行阶段是否发生失败（异常被骨架捕获后仍可据此判定）。</summary>
+        internal bool ExecutionFailed { get; set; }
+
         public static LogPipelineContext CreateDefault()
         {
             return new LogPipelineContext

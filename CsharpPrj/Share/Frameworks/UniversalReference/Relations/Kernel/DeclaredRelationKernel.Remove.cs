@@ -42,8 +42,17 @@ public sealed partial class DeclaredRelationKernel
                             + $"（{outcome.Status}：{outcome.Message}{(existed ? string.Empty : "；删除前该边不存在")}）");
         }
 
-        return removed > 0
-            ? new RelationResult(true, operation, plan.Edge, removed, diagnostics, RelationOutcome.Applied)
-            : new RelationResult(false, operation, plan.Edge, 0, diagnostics, RelationOutcome.NotFound);
+        var total = targets.Count;
+        if (removed == total)
+            return new RelationResult(true, operation, plan.Edge, removed, diagnostics, RelationOutcome.Applied);
+
+        if (removed > 0)
+        {
+            // 部分删除不得报 Applied：按实际删除条数返回，并显式标注未全量完成。
+            diagnostics.Add($"部分成功：已删除 {removed}/{total} 条边；其余目标未删除（不报 Applied）");
+            return new RelationResult(false, operation, plan.Edge, removed, diagnostics, RelationOutcome.Skipped);
+        }
+
+        return new RelationResult(false, operation, plan.Edge, 0, diagnostics, RelationOutcome.NotFound);
     }
 }

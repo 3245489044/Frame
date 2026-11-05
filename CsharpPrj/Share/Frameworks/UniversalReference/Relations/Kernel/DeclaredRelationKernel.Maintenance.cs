@@ -81,10 +81,16 @@ public sealed partial class DeclaredRelationKernel : IRelationMaintenancePort
 
         var diagnostics = new List<string>();
         var removed = 0;
+        var failed = 0;
 
         foreach (var raw in request.TargetKeys)
         {
-            if (string.IsNullOrWhiteSpace(raw)) continue;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                diagnostics.Add("gc:blank-target（空白目标已忽略，未计入孤儿）");
+                continue;
+            }
+
             var target = raw.Trim();
 
             if (!_probe.IsMapped(ensurePlan.Target))
@@ -102,12 +108,21 @@ public sealed partial class DeclaredRelationKernel : IRelationMaintenancePort
                 ct).ConfigureAwait(false);
             diagnostics.AddRange(outcome.Diagnostics);
             if (outcome.Ok) removed++;
+            else failed++;
         }
 
         if (removed > 0)
         {
             return new RelationResult(true, request.Operation, ensurePlan.Edge, removed, diagnostics,
                 RelationOutcome.Applied);
+        }
+
+        // 删除失败不得伪装成「无孤儿」：失败与真正的空集必须可辨。
+        if (failed > 0)
+        {
+            diagnostics.Add($"gc:delete-failed（{failed} 个候选删除失败；不报 no-orphan）");
+            return new RelationResult(false, request.Operation, ensurePlan.Edge, 0, diagnostics,
+                RelationOutcome.Skipped);
         }
 
         var empty = new List<string>(diagnostics) { "gc:no-orphan" };
@@ -126,10 +141,8 @@ public sealed partial class DeclaredRelationKernel : IRelationMaintenancePort
         if (string.IsNullOrWhiteSpace(request.Operation))
             return Fail(request.Operation, request.Edge, "repair 需要显式 operation（intent=repair）");
 
-        var plan = _catalog.Resolve(request.Operation);
-        if (plan is null)
-            return Fail(request.Operation, request.Edge,
-                $"operation '{request.Operation}' 未在 [Relation] 声明");
+        // 与写路径同源解析（含 [Edge] 声明/废弃检查），禁绕过策略直读目录。
+        if (!TryResolve(request.Operation, out var plan, out var failure)) return failure!;
         if (!plan.IsRepair())
             return Fail(request.Operation, plan.Edge,
                 $"operation '{request.Operation}' 的 intent={plan.Intent}（repair 需要 intent=repair）");

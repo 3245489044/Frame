@@ -109,10 +109,11 @@ public sealed partial class DeclaredRelationKernel
         bool? targetExists = null;
         if (_probeAssembled)
         {
+            // 探针契约 = 实体类型 + 裸 Id；sourceKey/targetKey 是 type:id 复合键，不得直接传入（否则节点恒判不存在）。
             if (_probe.IsMapped(plan.Source))
-                sourceExists = await _probe.ExistsAsync(plan.Source, sourceKey, ct).ConfigureAwait(false);
+                sourceExists = await _probe.ExistsAsync(plan.Source, source.Id, ct).ConfigureAwait(false);
             if (_probe.IsMapped(plan.Target))
-                targetExists = await _probe.ExistsAsync(plan.Target, targetKey, ct).ConfigureAwait(false);
+                targetExists = await _probe.ExistsAsync(plan.Target, target.Id, ct).ConfigureAwait(false);
         }
 
         // 环检测：唯一实现复用不变量检查器（超预算 ⇒ null = 不可判定，不冒充「成环」）。

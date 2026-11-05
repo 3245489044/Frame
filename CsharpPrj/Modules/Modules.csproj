@@ -28,6 +28,9 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_ComponentData)" />
+    <!-- 通用计算基底（Modules\Compute，L1、BCL + Modules.Threading）：扁平/SoA 布局、Arena/Scratch、
+         3D cache-block 遍历、具名 SIMD 核、tile 调度、算子图编译；不含体素/群系语义 -->
+    <ProjectReference Include="$(Proj_Compute)" />
     <!-- 通用并发策略内核（Modules\Concurrency，L1、BCL-only）：复杂度/拆分/成本门禁/组键/成本记账；
          价格/容量/成本账经端口反转由宿主注入（零 Frame 依赖） -->
     <ProjectReference Include="$(Proj_Concurrency)" />
@@ -66,6 +69,7 @@
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
   <ItemGroup>
     <Compile Remove="ComponentData\**\*.cs" />
+    <Compile Remove="Compute\**\*.cs" />
     <Compile Remove="Concurrency\**\*.cs" />
     <Compile Remove="ContractFramework\**\*.cs" />
     <Compile Remove="DeclarativeDataflow\**\*.cs" />

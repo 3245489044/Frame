@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-04 13:43:50
+  生成时间: 2026-11-05 10:12:18
 -->
 <Project>
 
@@ -47,6 +47,7 @@
     <Mod_ReflectionMethod>$(CsharpPrjDir)BasicMethod\RefectionMethod\</Mod_ReflectionMethod>
     <Mod_UniversalLayoutMath>$(CsharpPrjDir)BasicMethod\UniversalLayout\</Mod_UniversalLayoutMath>
     <Mod_ComponentData>$(CsharpPrjDir)Modules\ComponentData\</Mod_ComponentData>
+    <Mod_Compute>$(CsharpPrjDir)Modules\Compute\</Mod_Compute>
     <Mod_Concurrency>$(CsharpPrjDir)Modules\Concurrency\</Mod_Concurrency>
     <Mod_ContractFramework>$(CsharpPrjDir)Modules\ContractFramework\</Mod_ContractFramework>
     <Mod_DeclarativeDataflow>$(CsharpPrjDir)Modules\DeclarativeDataflow\</Mod_DeclarativeDataflow>
@@ -176,6 +177,7 @@
     <Proj_ReflectionMethod>$(CsharpPrjDir)BasicMethod\RefectionMethod\ReflectionMethod.csproj</Proj_ReflectionMethod>
     <Proj_UniversalLayoutMath>$(CsharpPrjDir)BasicMethod\UniversalLayout\UniversalLayoutMath.csproj</Proj_UniversalLayoutMath>
     <Proj_ComponentData>$(CsharpPrjDir)Modules\ComponentData\ComponentData.csproj</Proj_ComponentData>
+    <Proj_Compute>$(CsharpPrjDir)Modules\Compute\Compute.csproj</Proj_Compute>
     <Proj_Concurrency>$(CsharpPrjDir)Modules\Concurrency\Concurrency.csproj</Proj_Concurrency>
     <Proj_ContractFramework>$(CsharpPrjDir)Modules\ContractFramework\ContractFramework.csproj</Proj_ContractFramework>
     <Proj_DeclarativeDataflow>$(CsharpPrjDir)Modules\DeclarativeDataflow\DeclarativeDataflow.csproj</Proj_DeclarativeDataflow>

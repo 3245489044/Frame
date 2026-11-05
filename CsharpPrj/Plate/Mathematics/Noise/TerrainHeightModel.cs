@@ -1,5 +1,6 @@
 using MathematicalAlgorithms.Core;
 using MathematicalAlgorithms.Spatial;
+using Modules.Compute.Adapters;
 
 namespace MathematicalAlgorithms.Noise;
 
@@ -64,6 +65,7 @@ public sealed class TerrainHeightModel
     private readonly int _surfaceExtraAboveCm;
     private readonly long _baseSignature;
     private IHeightSpanSource? _contentSpans;
+    private TerrainHeightBatchEvaluator? _batch;
 
     /// <summary>
     /// <paramref name="biomes"/> 为 null ⇒ 保持原「单调高度」公式；非 null ⇒ 高度幅度/偏移由群系决定。
@@ -107,6 +109,21 @@ public sealed class TerrainHeightModel
 
     /// <summary>群系数量（未接入为 0）。</summary>
     public int BiomeCount => _biomes?.Biomes.Count ?? 0;
+
+    /// <summary>群系列表（未接入为 null）；只读，供批量求值/签名使用。</summary>
+    public IReadOnlyList<BiomeClimate>? Biomes => _biomes?.Biomes;
+
+    /// <summary>
+    /// 高度批量求值器（通用计算基底路径）；旧 <see cref="HeightCm"/> 原样保留为逐位基准。
+    /// <para>实例无可变 scratch（<c>TileCache</c> 并发安全）⇒ 可跨 worker 共用。</para>
+    /// </summary>
+    public TerrainHeightBatchEvaluator Batch => _batch ??= new TerrainHeightBatchEvaluator(this);
+
+    /// <summary>批量高度（cm，未取整）：逐点结果与 <see cref="HeightCm"/> 逐位一致（A 档）。</summary>
+    public void FillHeightCm(GridRect rect, Span<float> dst) => Batch.FillHeightCm(rect, dst);
+
+    /// <summary>批量地表 Y（cm）：逐点结果与 <see cref="GroundYCm"/> 逐位一致（A 档）。</summary>
+    public void FillGroundYCm(GridRect rect, Span<int> dst) => Batch.FillGroundYCm(rect, dst);
 
     /// <summary>在 (x,z) 处采样群系（世界坐标；未接入群系时返回 default）。</summary>
     public BiomeSample SampleBiome(int x, int z) => _biomes?.Sample(x, z) ?? default;

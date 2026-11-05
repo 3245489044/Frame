@@ -13,6 +13,8 @@
   <ItemGroup>
     <!-- 通用 3D 数学（Culling/Noise/Spatial）复用 TConfig.GameMath 基元（Vec3/Aabb） -->
     <ProjectReference Include="$(Proj_TConfig)" />
+    <!-- 通用计算基底（Modules\Compute）：高度/噪声的 tile 遍历、lattice 角值缓存、算子图/计划签名 -->
+    <ProjectReference Include="$(Proj_Compute)" />
     <!-- 采集探针（Modules\Observe\Metrics）：碰撞列读与列高耗时在此层的最小埋点；关闭态零分配。 -->
     <ProjectReference Include="$(Proj_Observe)" />
   </ItemGroup>

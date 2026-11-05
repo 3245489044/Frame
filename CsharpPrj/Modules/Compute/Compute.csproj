@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用计算基底</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>扁平/SoA 布局 + Arena/Scratch + 3D tile 遍历 + 具名 SIMD 核 + tile 调度 + 算子图编译；不含体素语义，只依赖 BCL 与 Modules.Threading。</ModuleRule_Description>
+    <ModuleRule_Keywords>计算基底;SoA;Arena;tile;SIMD;算子图;确定性</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="不含体素/群系/地形语义：只提供布局、遍历、SIMD 核、调度与算子图编译" />
+    <ModuleRule_Rule Include="逐位一致（A 档）：SIMD 核逐 lane 复现同一运算顺序，禁止近似函数进入世界生成通道" />
+    <ModuleRule_Rule Include="近似函数（ApproxMath）仅限非世界确定性通道；世界生成只允许精确闭式" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Modules.Compute</AssemblyName>
+    <RootNamespace>Modules.Compute</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Description>通用计算基底 — 扁平/SoA 布局、Arena/Scratch、3D cache-block 遍历、具名 SIMD 核、tile 调度、算子图编译</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 复用现有代际作业调度器（GenerationJobScheduler），不新建线程池 -->
+    <ProjectReference Include="$(Proj_Threading)" />
+  </ItemGroup>
+
+</Project>

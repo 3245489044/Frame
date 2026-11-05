@@ -53,6 +53,11 @@
 
 
         @{ File = 'Meta\AntiPatternFamily.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'AntiPatternFamily'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-AntiPatternFamily.ps1' }
+        @{ File = 'Meta\AssemblyClosure.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'AssemblyClosure'; Shape = 'FactRow'; Origins = @('Derived', 'Verdict'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-AssemblyClosure.ps1' }
+        @{ File = 'Meta\BuildLayout.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'BuildLayout'; Shape = 'FactRow'; Origins = @('Derived', 'Verdict'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-BuildLayout.ps1' }
+        @{ File = 'Meta\BuildClosure.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'BuildClosure'; Shape = 'FactRow'; Origins = @('Derived', 'Verdict'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-BuildClosure.ps1' }
+        @{ File = 'Meta\LaunchSmoke.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'LaunchSmoke'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-LaunchSmoke.ps1' }
+        @{ File = 'Meta\LaunchEntrypoint.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'LaunchEntrypoint'; Shape = 'FactRow'; Origins = @('Derived', 'Verdict'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Process\Check-LaunchEntrypoint.ps1' }
         @{ File = 'Meta\GateFileIndex.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'GateFileIndex'; Shape = 'Grid'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-GateFileIndex.ps1' }
         @{ File = 'Meta\OperationLayerIsolation.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'OperationLayerIsolation'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-OperationLayerIsolation.ps1' }
       @{ File = 'Meta\ProjectReferences.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'ProjectReferences'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-ProjectReferences.ps1' }

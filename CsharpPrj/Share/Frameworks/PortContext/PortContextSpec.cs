@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Share.PortContexts;
 
@@ -57,14 +58,60 @@ public static class PortContextFieldClasses
     public static readonly IReadOnlyList<string> All = new[] { Code, Semantic, Window };
 }
 
-/// <summary>稳定度受控词（Stable→前缀 / Volatile→尾部）。</summary>
+/// <summary>
+/// 变化频率受控词（按频次升序 = 排序/分段依据：静态 → 慢变 → 快变 → 追加流）。
+/// <para>兼容保留 <see cref="Stable"/>/<see cref="Volatile"/> 两档旧值（既有声明面与消费方）；新写入优先用四档。</para>
+/// </summary>
 public static class PortContextVolatility
 {
-    /// <summary>跨帧逐字稳定。</summary>
+    /// <summary>跨会话不变（身份/结构）：恒置最前，可进缓存前缀。</summary>
+    public const string Static = "static";
+
+    /// <summary>跨帧逐字稳定（兼容旧档；等价于静态/慢变之间的保守档）。</summary>
     public const string Stable = "stable";
 
-    /// <summary>逐帧变化。</summary>
+    /// <summary>轮次边界变化（stage/round/actor）：中段。</summary>
+    public const string Slow = "slow";
+
+    /// <summary>逐拍变化（elapsed/status/语义摘要）：后段，尾部。</summary>
+    public const string Fast = "fast";
+
+    /// <summary>逐帧变化（兼容旧档）。</summary>
     public const string Volatile = "volatile";
+
+    /// <summary>追加流（成员会话窗口/消息）：恒置最末，禁入前缀。</summary>
+    public const string Stream = "stream";
+}
+
+/// <summary>
+/// 变化频率排序单点（单一实现）：按频次升序 + 键序稳定排序。
+/// <para>消费方禁各自 <c>OrderBy</c>：装配器、出口投影、UI 摘要、提示词分段统一调用本类。</para>
+/// </summary>
+public static class PortContextOrdering
+{
+    /// <summary>变化频率 → 排序秩（小者前置；未知档按 <see cref="PortContextVolatility.Fast"/> 处理，不抛）。</summary>
+    /// <param name="volatility">变化频率档。</param>
+    public static int Rank(string? volatility) => volatility switch
+    {
+        PortContextVolatility.Static => 0,
+        PortContextVolatility.Stable => 1,
+        PortContextVolatility.Slow => 2,
+        PortContextVolatility.Fast => 3,
+        PortContextVolatility.Volatile => 4,
+        PortContextVolatility.Stream => 5,
+        _ => 3,
+    };
+
+    /// <summary>按变化频率排序（秩升序 → 键序 → 原序稳定）。</summary>
+    /// <param name="fields">待排序字段（返回新数组，不改入参）。</param>
+    public static IReadOnlyList<PortContextField> Order(IReadOnlyList<PortContextField> fields)
+    {
+        if (fields is null || fields.Count <= 1) return fields ?? Array.Empty<PortContextField>();
+        return fields
+            .OrderBy(static f => Rank(f.Volatility))
+            .ThenBy(static f => f.Key, StringComparer.Ordinal)
+            .ToArray();
+    }
 }
 
 /// <summary>空策略受控词。</summary>

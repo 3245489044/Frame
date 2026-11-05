@@ -18,7 +18,7 @@ public static class PromptSnapshotBuilder
         string? toolBlock = null, IReadOnlyList<string>? selectedTools = null, string? mode = null,
         IReadOnlyList<PromptBand>? l0Bands = null, string? subAgent = null,
         IReadOnlyCollection<string>? enabledToggles = null, string? resourceBlock = null,
-        int schemaVersion = PromptSnapshot.CurrentSchemaVersion)
+        int schemaVersion = PromptSnapshot.CurrentSchemaVersion, string? taskRuntime = null)
     {
         var skills = (selectedSkills ?? Array.Empty<string>())
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -53,7 +53,7 @@ public static class PromptSnapshotBuilder
         // 其余固定段：键 / 组 / 顺序 / 适用性 / 档案开关 全部由声明面**单一驱动**（新增段只改声明 ⇒ 不漏发射/漏投影）。
         var inputs = new SegmentBuildInputs(
             l0 ?? string.Empty, skillBlock ?? string.Empty, l1 ?? string.Empty, l2 ?? string.Empty,
-            toolBlock, mode, subAgent, resourceBlock);
+            toolBlock, mode, subAgent, resourceBlock, taskRuntime);
         foreach (var row in rows)
         {
             if (row.ExpandBands) continue;                                              // 分段族模板行按 bands 展开
@@ -92,6 +92,7 @@ public static class PromptSnapshotBuilder
             Mode = mode ?? string.Empty,
             SubAgent = subAgent ?? string.Empty,
             ResourceBlock = resourceBlock ?? string.Empty,
+            TaskRuntime = taskRuntime ?? string.Empty,
             // 顺序单一权威 = 内核（OrderKey 升序 + 声明序稳定）；本类不再二次排序。
             Bindings = assembly.Bindings
                 .Where(static b => b.State == TextState.Known)

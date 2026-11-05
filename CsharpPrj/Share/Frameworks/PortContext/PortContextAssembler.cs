@@ -85,7 +85,7 @@ public sealed partial class PortContextAssembler : IPortContextPort
         foreach (var memberKey in selected)
         {
             var stateFields = stateByMember.TryGetValue(memberKey, out var found)
-                ? Filter(spec, found)
+                ? PortContextOrdering.Order(Filter(spec, found))
                 : Array.Empty<PortContextField>();
             var windows = windowByMember.TryGetValue(memberKey, out var window)
                 ? window
@@ -98,7 +98,7 @@ public sealed partial class PortContextAssembler : IPortContextPort
                 foreach (var item in windows)
                 {
                     memberFields.Add(new PortContextField(
-                        PortContextFieldClasses.Window, PortContextVolatility.Volatile, "window", item.Text));
+                        PortContextFieldClasses.Window, PortContextVolatility.Stream, "window", item.Text));
                 }
             }
 
@@ -112,10 +112,8 @@ public sealed partial class PortContextAssembler : IPortContextPort
             merged.AddRange(memberFields);
         }
 
-        // 稳定段在前、易变段在后（同稳定度保声明序；供前缀缓存最大化）。
-        var ordered = merged
-            .OrderBy(static field => string.Equals(field.Volatility, PortContextVolatility.Stable, StringComparison.Ordinal) ? 0 : 1)
-            .ToArray();
+        // 变化频率升序（排序单点 = PortContextOrdering：静态/慢变前置、追加流置尾，供前缀缓存最大化）。
+        var ordered = PortContextOrdering.Order(merged);
 
         var contextEmpty = !stateAttached
             ? PortContextEmptyCodes.StateProviderNotAttached

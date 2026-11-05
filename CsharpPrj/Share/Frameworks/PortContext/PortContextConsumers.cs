@@ -49,7 +49,7 @@ public static class PortContextProjection
         {
             var fields = member.StateFields
                 .Concat(member.WindowItems.Select(static item => new PortContextField(
-                    PortContextFieldClasses.Window, PortContextVolatility.Volatile, "window", item.Text)))
+                    PortContextFieldClasses.Window, PortContextVolatility.Stream, "window", item.Text)))
                 .Select(ToView)
                 .ToArray();
             members.Add(new PortContextMemberView(member.MemberKey, fields, member.EmptyCode, member.Truncated));

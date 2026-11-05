@@ -184,12 +184,30 @@ $stampDir = Join-Path $RepoRoot 'BuildOutput\.build-gate'
 $stampFile = Join-Path $stampDir 'last-built.json'
 
 function Test-KeyArtifacts {
-    $required = @(
-        (Join-Path $RepoRoot "Projects\FileDriven\BuildOutput\$Configuration\FileDriven.Launcher.exe")
-        (Join-Path $RepoRoot "Frame\CsharpPrj\BuildOutput\$Configuration\BasicMethod.dll")
-        (Join-Path $RepoRoot "Projects\Plug\Agent\BuildOutput\$Configuration\Agent.Launcher.dll")
-    )
-    return @($required | Where-Object { -not (Test-Path -LiteralPath $_) })
+    # 关键产物 = 启动链自身两件 + 装配闭包（由声明派生；禁手抄产品清单）。
+    # 判据载体 = assembly-closure.json ∪ 磁盘（单一实现 = Share\AssemblyClosure\AssemblyClosure.psm1）。
+    $required = New-Object System.Collections.Generic.List[string]
+    $required.Add((Join-Path $RepoRoot "Projects\FileDriven\BuildOutput\$Configuration\FileDriven.Launcher.exe"))
+    $required.Add((Join-Path $RepoRoot "Frame\CsharpPrj\BuildOutput\$Configuration\BasicMethod.dll"))
+
+    $closureModule = Join-Path $RepoRoot 'Frame\PowerShellScript\Share\AssemblyClosure\AssemblyClosure.psm1'
+    if (Test-Path -LiteralPath $closureModule) {
+        Import-Module $closureModule -Force -DisableNameChecking
+        foreach ($s in @(Get-ClosureStates -RepoRoot $RepoRoot -Configuration $Configuration)) {
+            if (-not $s.Required) { continue }
+            foreach ($m in @($s.Missing)) {
+                if ($m -like 'manifest:*') { $required.Add((Join-Path $s.Root $m.Substring('manifest:'.Length))) }
+                elseif ($m -like 'entry:*') { $required.Add((Join-Path $s.Root $m.Substring('entry:'.Length))) }
+                elseif ($m -like 'root:*') { $required.Add($s.Root) }
+            }
+        }
+    }
+    else {
+        # 闭包实现缺失 ⇒ 判据不可得，按缺失处理（禁静默降级为「两件都在」）
+        $required.Add('assembly-closure-module-missing')
+    }
+
+    return @($required | Where-Object { -not (Test-Path -LiteralPath $_) } | Select-Object -Unique)
 }
 
 if ($Invalidate) {

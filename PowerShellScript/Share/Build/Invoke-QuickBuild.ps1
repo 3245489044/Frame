@@ -119,11 +119,14 @@ if ([string]::IsNullOrWhiteSpace($LauncherBat)) {
 }
 
 # 扩展层装配清单（FileDriven.Launcher\Bootstrap\LauncherBootstrap.cs 的运行期探测点，缺一即对应扩展函数库注册失败）
-$ExtensionManifests = @(
-    @{ Label = 'Agent';   Path = Join-Path $RepoRoot "Projects\Plug\Agent\BuildOutput\$Configuration\Agent.Launcher.deps.json" }
-    @{ Label = 'Engine';  Path = Join-Path $RepoRoot "Projects\Plug\Engine\BuildOutput\$Configuration\GameEditor.Host.deps.json" }
-    @{ Label = 'Produce'; Path = Join-Path $RepoRoot "Projects\Plug\Produce\BuildOutput\$Configuration\Produce.Launcher.deps.json" }
-)
+# 扩展清单来自装配闭包声明（单一真源 = assembly-closure.json）；禁在此内联产品清单
+# （门禁 BuildClosure K2 会把内联清单判红）。
+$closureModule = Join-Path $RepoRoot 'Frame\PowerShellScript\Share\AssemblyClosure\AssemblyClosure.psm1'
+if (-not (Test-Path -LiteralPath $closureModule)) { throw "装配闭包实现缺失：$closureModule" }
+Import-Module $closureModule -Force -DisableNameChecking
+$ExtensionManifests = @(Get-ClosureStates -RepoRoot $RepoRoot -Configuration $Configuration |
+    Where-Object { $_.Required -and -not [string]::IsNullOrWhiteSpace($_.Manifest) } |
+    ForEach-Object { @{ Label = $_.Id; Path = $_.Manifest } })
 
 if ([string]::IsNullOrWhiteSpace($LogPath)) {
     $LogPath = Join-Path $env:TEMP 'QuickBuild.log'

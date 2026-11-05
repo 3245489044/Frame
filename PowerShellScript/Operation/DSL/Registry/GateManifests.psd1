@@ -2396,4 +2396,61 @@
         Note   = 'C1 摘要直调=0（阻断）/ C2 嵌入资源直调=0（阻断）/ C3 TryGetProperty 直调≤37（棘轮只降不升）/ C4 单键域拼接=0（阻断）/ C5 诊断归因单表（无 ||）/ C6 负对照'
     }
 
+    # ===== 启动面：装配闭包 / 布局 / 构建闭包 / 冒烟 / 入口（框架级，2026-11-05）=====
+    AssemblyClosure = @{
+        Domain  = 'Meta'
+        Family  = 'Closure'
+        Form    = 'Closure'
+        Args    = @{ Check = $true }
+        Tier    = 'fast'
+        Expect  = 0
+        Carrier = 'assembly-closure.json ∪ deps.json ∪ 文件系统（A1 根/清单、A2 资产闭包、A3 归属唯一、A4 正对照）'
+        Note    = '装载组三段闭包；缺件即红并列出资产/清单；实现单源 Share\AssemblyClosure\AssemblyClosure.psm1'
+    }
+
+    BuildLayout = @{
+        Domain  = 'Meta'
+        Family  = 'Build'
+        Form    = 'Closure'
+        Args    = @{ Check = $true }
+        Tier    = 'fast'
+        Expect  = 0
+        Carrier = 'props 文本结构（<OutputPath> 含 $(Configuration) / 生成件 Import）+ 文件系统（扁平权威层=0）'
+        Note    = 'L1 配置层必备 / L2 自包含 props 必须 Import 生成件 / L3 扁平层允许 0 / L4 正对照'
+    }
+
+    BuildClosure = @{
+        Domain  = 'Meta'
+        Family  = 'Build'
+        Form    = 'Closure'
+        Args    = @{ Check = $true }
+        Tier    = 'fast'
+        Expect  = 0
+        Carrier = 'BuildTargetMap.props 的 BuildProfiles.launch ∪ assembly-closure.json ∪ 脚本文本结构'
+        Note    = 'K1 launch ⊇ required 装配组 buildTarget / K2 禁内联产品清单 / K3 清单就绪 / K4 正对照'
+    }
+
+    LaunchSmoke = @{
+        Domain  = 'Meta'
+        Family  = 'Launch'
+        Form    = 'Closure'
+        Args    = @{ Check = $true }
+        Tier    = 'fast'
+        Expect  = 0
+        Carrier = '进程生命周期（超时/退出）+ %TEMP% 诊断文件集合（StartupFailure / FunctionLibFallback）'
+        Note    = 'macro 判据「能启动」：只判 bootstrap 层，不判引擎业务失败；缺失启动器 ⇒ fail-fast'
+    }
+
+    LaunchEntrypoint = @{
+        Domain  = 'Meta'
+        Family  = 'Launch'
+        Form    = 'SingleSource'
+        Args    = @{ Check = $true }
+        Tier    = 'fast'
+        Expect  = 0
+        Carrier = 'EnableMent\*.bat 文本结构'
+        Note    = 'P1 入口数正对照 / P2 禁直呼 Launcher.exe 与 ps1 / P3 必须引用 Invoke-Frame.ps1（唯一入口）'
+    }
+
 }
+

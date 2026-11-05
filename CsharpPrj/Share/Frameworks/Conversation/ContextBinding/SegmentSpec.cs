@@ -16,7 +16,8 @@ public sealed record SegmentBuildInputs(
     string? ToolBlock,
     string? Mode,
     string? SubAgent,
-    string? ResourceBlock = null);
+    string? ResourceBlock = null,
+    string? TaskRuntime = null);
 
 /// <summary>
 /// 提示词段声明（SegmentSpec）—— 段的**单一真相**：键 + 展示 stage + 写侧取值（<see cref="Produce"/>）

@@ -50,6 +50,8 @@ public static class PromptSegmentCatalog
         new SegmentSpec(AnchorKey.PromptL2, "prompt:l2", i => i.L2, s => s.L2, Band: CacheBand.B3, Target: SegmentTarget.User),
         new SegmentSpec(AnchorKey.PromptMode, "prompt:mode", i => i.Mode, s => s.Mode, ToggleMode, CacheBand.B5, SegmentTarget.User),
         new SegmentSpec(AnchorKey.PromptSubAgent, "prompt:subagent", i => i.SubAgent, s => s.SubAgent, Band: CacheBand.B5, Target: SegmentTarget.User),
+        // B6：挂载成员运行态 —— 逐拍变化，恒置上下文最末（order=6 > B5）。
+        new SegmentSpec(AnchorKey.PromptTaskRuntime, "prompt:task_runtime", i => i.TaskRuntime, s => s.TaskRuntime, Band: CacheBand.B6, Target: SegmentTarget.User),
     };
 
     /// <summary>L0 分段族模板行键（<c>expand=band</c>）。</summary>

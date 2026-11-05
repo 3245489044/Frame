@@ -11,6 +11,7 @@ internal sealed record PromptSnapshotData(
     string L0, string SkillBlock, string L1, string L2, IReadOnlyList<string> SelectedSkills,
     string? ToolBlock = null, IReadOnlyList<string>? SelectedTools = null, string? Mode = null,
     IReadOnlyList<PromptBand>? L0Bands = null, string? SubAgent = null, string? ResourceBlock = null,
+    string? TaskRuntime = null,
     int SchemaVersion = PromptSnapshot.CurrentSchemaVersion);
 
 /// <summary>
@@ -21,7 +22,7 @@ internal sealed record PromptSnapshotData(
 public sealed class PromptSnapshot
 {
     /// <summary>当前快照 schema 版本（改字段必须先升版本 + 保 Legacy 读取路径）。</summary>
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>快照 schema 版本（旧归档 &lt; 当前 ⇒ <see cref="IsLegacy"/>）。</summary>
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
@@ -57,6 +58,10 @@ public sealed class PromptSnapshot
     /// 空 = 无资源段（头提示层跳过，零回归）。</summary>
     public string ResourceBlock { get; init; } = string.Empty;
 
+    /// <summary>挂载成员运行态段（容器上下文末尾；逐拍变化，CacheBand.B6）—— 消费方 = 容器（history）LLM 上下文。
+    /// 空 = 无挂载/未装配（不伪造）；旧快照（schema &lt; 3）恒空并按 Legacy 解释。</summary>
+    public string TaskRuntime { get; init; } = string.Empty;
+
     /// <summary>逐段绑定（prompt.l0/l1/l2 / skill.block），供 UI 与 LLM 双向比对。</summary>
     public IReadOnlyList<MessageBinding> Bindings { get; init; } = Array.Empty<MessageBinding>();
 
@@ -79,7 +84,7 @@ public sealed class PromptSnapshot
     public string ToJson()
         => JsonSerializer.Serialize(new PromptSnapshotData(
             L0, SkillBlock, L1, L2, SelectedSkills, ToolBlock, SelectedTools, Mode, L0Bands, SubAgent, ResourceBlock,
-            SchemaVersion));
+            TaskRuntime, SchemaVersion));
 
     /// <summary>从 JSON 反序列化并重建 Bindings；null/空/非法 → null（无快照）。</summary>
     public static PromptSnapshot? FromJson(string? json)
@@ -95,6 +100,7 @@ public sealed class PromptSnapshot
                 d.L0 ?? string.Empty, d.SkillBlock ?? string.Empty,
                 d.L1 ?? string.Empty, d.L2 ?? string.Empty, d.SelectedSkills,
                 d.ToolBlock, d.SelectedTools, d.Mode, d.L0Bands, d.SubAgent, resourceBlock: d.ResourceBlock,
+                taskRuntime: d.TaskRuntime,
                 schemaVersion: declaredVersion <= 0 ? 1 : declaredVersion);
             return snapshot;
         }

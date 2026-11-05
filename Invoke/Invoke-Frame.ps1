@@ -36,7 +36,7 @@ param(
         'search-repo', 'test-jsonfiles', 'invoke-gatecheck',
         'keyspace-check', 'keyspace-verify',
         'invoke-verify', 'invoke-regression', 'locate-test', 'locate-build', 'locate-port', 'locate-failure',
-        'invoke-buildeffective',
+        'invoke-buildeffective', 'launch',
         'invoke-specgen', 'get-spec-chain', 'new-spec-chain', 'use-spec-chain', 'set-spec-chain',
         'remove-spec-chain', 'new-specchains', 'foreach-speccase', 'test-specrefs', 'get-specgenerated',
         'read-agentdb', 'watch-observe', 'state-root-audit', 'task-consistency-audit',

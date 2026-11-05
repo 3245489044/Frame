@@ -24,6 +24,9 @@ public enum CacheBand
 
     /// <summary>B5 本轮：当前输入、工具结果、mode、subagent、时间戳/遥测 —— 每轮，**禁止进前缀（尾部）**。</summary>
     B5 = 5,
+
+    /// <summary>B6 逐拍：挂载成员运行态（stage/round/elapsed/语义摘要）—— 每次读取即变，**恒置上下文最末**。</summary>
+    B6 = 6,
 }
 
 /// <summary>段投喂目标声明 —— 段进 LLM 的槽位（system 前缀 / users 有序列表）。</summary>
@@ -42,6 +45,6 @@ public static class CacheBandRules
     /// <summary>是否允许进 LLM system 前缀（B0/B1）。</summary>
     public static bool IsPrefix(CacheBand band) => band is CacheBand.B0 or CacheBand.B1;
 
-    /// <summary>是否禁止进前缀（B5 本轮易变；禁入 system）。</summary>
-    public static bool IsPrefixForbidden(CacheBand band) => band == CacheBand.B5;
+    /// <summary>是否禁止进前缀（B5 本轮易变、B6 逐拍变化；均禁入 system 前缀）。</summary>
+    public static bool IsPrefixForbidden(CacheBand band) => band >= CacheBand.B5;
 }

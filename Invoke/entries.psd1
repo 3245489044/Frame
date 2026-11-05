@@ -142,6 +142,13 @@
             Fixed = @{ Action = 'locate-port' }
         }
 
+        # ---------- 启动（唯一入口）----------
+        'launch' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Share\Launch\Invoke-Launch.ps1'
+            Map = @{ Configuration = 'Configuration' }
+        }
+
         # ---------- 生效 ----------
         'invoke-buildeffective' = @{
             Kind = 'Ps'

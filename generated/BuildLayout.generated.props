@@ -1,0 +1,19 @@
+<Project>
+
+  <!-- ============================================================
+       产物布局生成件（单一真源；自动生成，请勿手改）
+       生成器：Frame\PowerShellScript\Share\Solution\Generate-BuildLayout.ps1
+       生成时间: 2026-11-05
+
+       不变量：在自包含 props（Engine / DataProcess 等不 Import 上游 props 的工程）
+       求值 OutputPath 之前，$(Configuration) 必须已有值；否则
+       BuildOutput\$(Configuration)\ 会固化为扁平 BuildOutput\（产物分裂、装载面失配）。
+       守卫：Check-BuildLayout.ps1（L1 配置层 / L2 必须 Import 本件 / L3 禁扁平层）
+       ============================================================ -->
+  <PropertyGroup Label="BuildLayoutGenerated">
+    <BuildLayoutGenerated>true</BuildLayoutGenerated>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+</Project>

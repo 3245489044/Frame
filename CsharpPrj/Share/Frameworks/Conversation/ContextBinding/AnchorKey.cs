@@ -33,6 +33,10 @@ public readonly record struct AnchorKey(string Value)
     /// 作独立头提示层段（消除「野段」：复用 Band 排序 / I3 哈希 / UI 投影 / 档案开关）。</summary>
     public static AnchorKey PromptResources => new("prompt.resources");
 
+    /// <summary>挂载成员运行态段锚点 —— 容器（history）整体上下文的**末尾**动态段（逐拍变化，CacheBand.B6）。
+    /// 与 <c>task_runtime</c> 入参同源；进入 system 尾部后，UI「查看 AI 上下文」与 LLM 同源可见。</summary>
+    public static AnchorKey PromptTaskRuntime => new("prompt.task_runtime");
+
     /// <summary>按目录源取资源分级段锚点：<c>prompt.resources.&lt;sourceId&gt;</c>（供分级组逐源展开）。
     /// 命中 R5 白名单前缀 <c>prompt.</c>，无需改校验器。</summary>
     public static AnchorKey PromptResource(string sourceId) => new($"prompt.resources.{sourceId}");

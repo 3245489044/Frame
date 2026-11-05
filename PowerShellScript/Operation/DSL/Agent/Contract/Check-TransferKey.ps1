@@ -30,6 +30,8 @@ function Require-File([string]$Path, [string]$Label) {
 
 Require-File (Join-Path $agentRoot 'src\Agent.Session\Keys\TransferKeyCodec.cs') 'TransferKeyCodec'
 Require-File (Join-Path $agentRoot 'src\Agent.Contract\Runtime\Transfer\ITransferKeyStore.cs') 'TransferKey DTO/端口'
+# 词表常量事实源：生成契约常量（partial class 的实现体；接口文件里的同名类只是空壳）。
+Require-File (Join-Path $agentRoot 'src\Agent.Contract\Generated\GeneratedContractConstants.g.cs') '生成契约常量'
 Require-File (Join-Path $agentRoot 'src\Agent.Modules\Framework\Transfer\TransferKeyStore.cs') 'TransferKeyStore'
 Require-File (Join-Path $agentRoot 'src\Agent.Modules\Framework\Transfer\TransferKeyOpsFunctions.cs') 'TransferKeyOpsFunctions'
 Require-File (Join-Path $agentRoot 'src\Agent.McpRegistryHost\Tracks\TransferKeyCallableTrack.cs') 'TransferKeyCallableTrack'
@@ -98,7 +100,30 @@ function Read-CSharpConstValues([string]$Text, [string]$ClassName) {
         ForEach-Object { $_.Groups[1].Value })
 }
 
-$contractText = Get-Content -LiteralPath (Join-Path $agentRoot 'src\Agent.Contract\Runtime\Transfer\ITransferKeyStore.cs') -Raw -Encoding UTF8
+# 集合比较统一 Ordinal（D6）：PowerShell 默认大小写不敏感 + 区域性排序，
+# 会把 Foo 与 foo 判等（假绿）。词表比较是键集语义，必须与 C# 的 StringComparer.Ordinal 一致。
+function Get-OrdinalSortedSet([string[]]$Values) {
+    $kept = [System.Collections.Generic.List[string]]::new()
+    foreach ($v in @($Values)) { if (-not [string]::IsNullOrWhiteSpace($v)) { $kept.Add([string]$v) } }
+    $arr = $kept.ToArray()
+    [Array]::Sort($arr, [System.StringComparer]::Ordinal)
+    $unique = [System.Collections.Generic.List[string]]::new()
+    foreach ($v in $arr) {
+        if ($unique.Count -eq 0 -or [string]::CompareOrdinal($unique[$unique.Count - 1], $v) -ne 0) { $unique.Add($v) }
+    }
+    return , $unique.ToArray()
+}
+function Test-OrdinalSetEqual([string[]]$Left, [string[]]$Right) {
+    if ($Left.Count -ne $Right.Count) { return $false }
+    for ($i = 0; $i -lt $Left.Count; $i++) {
+        if ([string]::CompareOrdinal($Left[$i], $Right[$i]) -ne 0) { return $false }
+    }
+    return $true
+}
+
+# 常量载体 = 生成契约常量文件（ITransferKeyStore.cs 的同名 partial class 是空壳，读它必然得到空集）。
+$contractTextPath = Join-Path $agentRoot 'src\Agent.Contract\Generated\GeneratedContractConstants.g.cs'
+$contractText = if (Test-Path -LiteralPath $contractTextPath) { Get-Content -LiteralPath $contractTextPath -Raw -Encoding UTF8 } else { '' }
 $transferPath = Join-Path $configRoot 'nodes\transfer.ushar'
 $pairs = @(
     @{ Space = 'TransferDirection'; Class = 'TransferDirections'; Label = '方向词表' },
@@ -106,10 +131,10 @@ $pairs = @(
     @{ Space = 'TransferStatus'; Class = 'TransferStatuses'; Label = '状态词表' }
 )
 foreach ($pair in $pairs) {
-    $declared = @(Read-UsharpSpaceValues $transferPath $pair.Space | Sort-Object -Unique)
-    $code = @(Read-CSharpConstValues $contractText $pair.Class | Sort-Object -Unique)
-    if (($declared -join '|') -ne ($code -join '|')) {
-        $violations.Add("$($pair.Label)集合不等价：declared=[$($declared -join ',')] code=[$($code -join ',')]")
+    $declared = Get-OrdinalSortedSet @(Read-UsharpSpaceValues $transferPath $pair.Space)
+    $code = Get-OrdinalSortedSet @(Read-CSharpConstValues $contractText $pair.Class)
+    if (-not (Test-OrdinalSetEqual $declared $code)) {
+        $violations.Add("$($pair.Label)集合不等价（Ordinal）：declared=[$($declared -join ',')] code=[$($code -join ',')]")
     }
 }
 
@@ -123,7 +148,11 @@ if (Test-Path -LiteralPath $flow) {
 }
 
 # 键空间族（仓库必检；Data 仅在存在时做镜像检查）
-$keyspacePaths = @(Join-Path $configRoot 'keyspaces\agent.keyspace.json')
+# 权威事实源 = 生成的键空间产物（agent.keyspace.generated.json）：
+#   产出方 Generate-DeclaredBundle.ps1 -Kind keyspace（消费 [KeySpace] 声明），构建期生成并入库。
+#   手写 agent.keyspace.json 已退役（仅存 Config\_deprecated），不得再作判据载体（D1）。
+$repoKeyspace = Join-Path $configRoot 'keyspaces\agent.keyspace.generated.json'
+$keyspacePaths = @($repoKeyspace)
 if ($dataAvailable) { $keyspacePaths += Join-Path $dataRoot 'keyspaces\agent.keyspace.json' }
 foreach ($path in $keyspacePaths) {
     if (-not (Test-Path -LiteralPath $path)) { $violations.Add("缺键空间声明：$path"); continue }

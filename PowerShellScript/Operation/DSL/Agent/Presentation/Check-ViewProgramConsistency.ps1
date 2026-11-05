@@ -31,7 +31,7 @@ $hostLayoutPath = Join-Path $repo 'Projects\Information\DrivenConfig\JsonConfig\
 function Get-Containers {
     if (-not (Test-Path -LiteralPath $declaration)) { throw "产物缺失：$declaration" }
     $decl = Get-Content -LiteralPath $declaration -Raw -Encoding UTF8 | ConvertFrom-Json
-    $keys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $keys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     foreach ($c in @($decl.containers)) { if ($c -and $c.key) { [void]$keys.Add([string]$c.key) } }
     return $keys
 }
@@ -60,8 +60,9 @@ $rules = @(
         Ok = {
             if (-not (Test-Path -LiteralPath $hostLayoutPath)) { return $false }
             $hostLayout = Get-Content -LiteralPath $hostLayoutPath -Raw
-            $declared = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-            foreach ($m in [regex]::Matches($hostLayout, '"key"\s*:\s*"(region-[a-z0-9-]+)"')) { [void]$declared.Add($m.Groups[1].Value) }
+            $declared = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+            $pattern = '"key"\s*:\s*"(' + (Get-GateRegionKeyPattern) + ')"'
+            foreach ($m in [regex]::Matches($hostLayout, $pattern)) { [void]$declared.Add($m.Groups[1].Value) }
             if ($declared.Count -eq 0) { return $false }
             foreach ($container in (Get-Containers)) {
                 if (-not $declared.Contains($container)) { return $false }
@@ -73,8 +74,9 @@ $rules = @(
 if ($NegativeControl) {
     if (-not (Test-Path -LiteralPath $hostLayoutPath)) { throw '负对照失败：缺宿主布局（判据不可判）' }
     $hostLayout = Get-Content -LiteralPath $hostLayoutPath -Raw
-    $declared = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    foreach ($m in [regex]::Matches($hostLayout, '"key"\s*:\s*"(region-[a-z0-9-]+)"')) { [void]$declared.Add($m.Groups[1].Value) }
+    $declared = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $pattern = '"key"\s*:\s*"(' + (Get-GateRegionKeyPattern) + ')"'
+    foreach ($m in [regex]::Matches($hostLayout, $pattern)) { [void]$declared.Add($m.Groups[1].Value) }
     $probe = 'region-negative-control'
     if ($declared.Contains($probe)) { throw '负对照失败：探针键已存在于宿主布局' }
     foreach ($container in (Get-Containers)) {

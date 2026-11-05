@@ -184,6 +184,18 @@ function Test-BaselineNoIncrease {
     return $violations
 }
 
+# 区域/容器键字形单源（D7）：声明产物（ui-regions.json / ui-declaration.generated.json）
+# 的容器键一律小写；提取正则只允许小写，禁各门自写大小写不同的变体（大写键不再被静默接受）。
+$script:GateRegionKeyPattern = 'region-[a-z0-9-]+'
+
+<#
+.SYNOPSIS
+    区域/容器键提取正则（单源常量；调用方自行拼 JSON 引号与捕获组）。
+#>
+function Get-GateRegionKeyPattern {
+    return $script:GateRegionKeyPattern
+}
+
 <#
 .SYNOPSIS
     构造门禁上下文（参数协议 + 根定位 + 违规清单的单源）。
@@ -319,6 +331,7 @@ Export-ModuleMember -Function @(
     'New-GateContext',
     'Assert-GatePrerequisite',
     'Assert-GateControls',
+    'Get-GateRegionKeyPattern',
     # 目录映射（委托 DirectoryMap；一键装载供门禁消费）
     'Get-SuperRoot',
     'Get-RepositoryRoot',

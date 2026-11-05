@@ -41,23 +41,38 @@ $violations = New-Object System.Collections.Generic.List[string]
 
 function Read-Keyspace([string]$Path) {
     $json = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-    $families = @{}
+    # 键集语义 = Ordinal（对齐 C# AgentKeySpaceDeclarationLoader / LedgerKeyClosure）。
+    # PowerShell 默认 hashtable 大小写不敏感，会把 Foo 与 foo 判等（假绿）。
+    $families = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::Ordinal)
     foreach ($f in @($json.families)) {
         if ($null -ne $f -and -not [string]::IsNullOrWhiteSpace([string]$f.id)) {
             $families[[string]$f.id] = [PSCustomObject]@{
                 Template = [string]$f.template
                 Business = [string]$f.businessKeyTemplate
-                Derived  = (@($f.derivedPrefixes) -join ',')
+                # 保留声明序的数组（禁 -join 比较：分隔符与区域性排序会掩盖差异）
+                Derived  = [string[]]@($f.derivedPrefixes)
             }
         }
     }
-    $ports = @{}
+    $ports = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::Ordinal)
     foreach ($p in @($json.ports)) {
         if ($null -ne $p -and -not [string]::IsNullOrWhiteSpace([string]$p.name)) {
             $ports[[string]$p.name] = [string]$p.direction
         }
     }
     return [PSCustomObject]@{ Families = $families; Ports = $ports }
+}
+
+function Test-OrdinalText([string]$Left, [string]$Right) {
+    return [string]::Equals($Left, $Right, [System.StringComparison]::Ordinal)
+}
+
+function Test-OrdinalArray([string[]]$Left, [string[]]$Right) {
+    if ($Left.Count -ne $Right.Count) { return $false }
+    for ($i = 0; $i -lt $Left.Count; $i++) {
+        if ([string]::CompareOrdinal($Left[$i], $Right[$i]) -ne 0) { return $false }
+    }
+    return $true
 }
 
 function Compare-Declarations([string]$Label, [string]$Path, $RepoDoc) {
@@ -69,14 +84,14 @@ function Compare-Declarations([string]$Label, [string]$Path, $RepoDoc) {
         }
         $repo = $RepoDoc.Families[$id]
         $other = $doc.Families[$id]
-        if ($other.Template -ne $repo.Template) {
+        if (-not (Test-OrdinalText $other.Template $repo.Template)) {
             $violations.Add("${Label} family 模板漂移：$id（repo=$($repo.Template); $Label=$($other.Template)）")
         }
-        if ($other.Business -ne $repo.Business) {
+        if (-not (Test-OrdinalText $other.Business $repo.Business)) {
             $violations.Add("${Label} family 业务键模板漂移：$id（repo=$($repo.Business); $Label=$($other.Business)）")
         }
-        if ($other.Derived -ne $repo.Derived) {
-            $violations.Add("${Label} family 派生前缀漂移：$id（repo=$($repo.Derived); $Label=$($other.Derived)）")
+        if (-not (Test-OrdinalArray $other.Derived $repo.Derived)) {
+            $violations.Add("${Label} family 派生前缀漂移：$id（repo=[$($repo.Derived -join ',')]; $Label=[$($other.Derived -join ',')]）")
         }
     }
     foreach ($id in $doc.Families.Keys) {
@@ -85,7 +100,11 @@ function Compare-Declarations([string]$Label, [string]$Path, $RepoDoc) {
         }
     }
     foreach ($name in $RepoDoc.Ports.Keys) {
-        if (-not $doc.Ports.ContainsKey($name)) { $violations.Add("${Label} 缺 port：$name") }
+        if (-not $doc.Ports.ContainsKey($name)) { $violations.Add("${Label} 缺 port：$name"); continue }
+        # direction 此前只读不比较（死字段，D13）：纳入 Ordinal 比较，禁「同名异向」假绿。
+        if (-not (Test-OrdinalText $doc.Ports[$name] $RepoDoc.Ports[$name])) {
+            $violations.Add("${Label} port 方向漂移：$name（repo=$($RepoDoc.Ports[$name]); $Label=$($doc.Ports[$name])）")
+        }
     }
     foreach ($name in $doc.Ports.Keys) {
         if (-not $RepoDoc.Ports.ContainsKey($name)) { $violations.Add("${Label} 多出 port（仓库未声明）：$name") }

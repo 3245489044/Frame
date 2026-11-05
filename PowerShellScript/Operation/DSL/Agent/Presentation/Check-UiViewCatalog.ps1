@@ -46,10 +46,11 @@ $runtimeUiPath = Join-Path $repo 'Projects\Information\DrivenConfig\JsonConfig\A
 $kindBaselinePath = Join-Path $repo 'Frame\PowerShellScript\Baselines\Agent\UiRegionKind.psd1'
 
 function Get-ConfigRegionKeys {
-    $keys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $keys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     if (-not (Test-Path -LiteralPath $runtimeUiPath)) { return $keys }
     $text = Get-Content -LiteralPath $runtimeUiPath -Raw
-    foreach ($m in [regex]::Matches($text, '"key"\s*:\s*"(region-[A-Za-z0-9_-]+)"')) { [void]$keys.Add($m.Groups[1].Value) }
+    $pattern = '"key"\s*:\s*"(' + (Get-GateRegionKeyPattern) + ')"'
+    foreach ($m in [regex]::Matches($text, $pattern)) { [void]$keys.Add($m.Groups[1].Value) }
     return $keys
 }
 
@@ -63,12 +64,12 @@ function Get-ViewProp($obj, [string]$name) {
 function Test-RegionDeclaration([object]$decl, $configKeys, [string]$catalogText, [string[]]$allowedKinds) {
     # 结构事实：kind 取自受控词汇快照；key 必须在配置区域键内；视图键必须在视图目录；配置内容键必须被声明覆盖
     $violations = [System.Collections.Generic.List[string]]::new()
-    $declared = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    $kinds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $declared = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $kinds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     foreach ($r in @($decl.regions)) {
         if (-not $r.kind) { $violations.Add('[C4] 区域条目缺 kind'); continue }
         [void]$kinds.Add($r.kind)
-        if ($allowedKinds -notcontains $r.kind) { $violations.Add("[C4] 区域 kind 不在受控词汇（UiRegionKind 基线）：$($r.kind)") }
+        if ($allowedKinds -cnotcontains $r.kind) { $violations.Add("[C4] 区域 kind 不在受控词汇（UiRegionKind 基线）：$($r.kind)") }
         if (-not $r.key) { $violations.Add("[C4] 区域 $($r.kind) 缺 DOM 区域键") }
         elseif (-not $configKeys.Contains($r.key)) { $violations.Add("[C4] 区域键不在 AgentRuntimeUI regions：$($r.key)") }
         else { [void]$declared.Add($r.key) }
@@ -303,7 +304,7 @@ if ($NegativeControl) {
         regions = @([pscustomobject]@{ kind = 'Feed'; key = 'region-main'; loc = $null })
         views   = @([pscustomobject]@{ view = 'history'; typeKey = 'history'; regions = @('Feed') })
     }
-    $negConfig = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $negConfig = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     [void]$negConfig.Add('region-main')
     $negKinds = @('Feed')
     if ((Test-RegionDeclaration $badDecl $negConfig 'TypeKey: "history"' $negKinds).Count -eq 0) { throw '负对照失败：C4 未捕获非法 kind' }

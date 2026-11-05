@@ -23,7 +23,7 @@ function Add-Violation([string]$code, [string]$message) { $violations.Add("[$cod
 
 $agentRoot = Join-Path $repoRoot 'Projects\Plug\Agent\src'
 $files = @(Get-ChildItem -LiteralPath $agentRoot -Recurse -File -Filter *.cs |
-    Where-Object { $_.FullName -notmatch '\\\\(obj|bin)\\\\' })
+    Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' })
 
 # 并发内核已下沉 Frame（Modules.Concurrency）：D2/D3/D4/D5 的判据载体同时覆盖该目录。
 $concurrencyRoot = Join-Path $repoRoot 'Frame\CsharpPrj\Modules\Concurrency'

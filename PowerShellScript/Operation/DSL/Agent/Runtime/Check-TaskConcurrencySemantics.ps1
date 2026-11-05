@@ -27,7 +27,7 @@ function Get-CsFiles([string[]]$roots) {
     foreach ($root in $roots) {
         if (Test-Path -LiteralPath $root) {
             Get-ChildItem -LiteralPath $root -Recurse -File -Filter *.cs |
-                Where-Object { $_.FullName -notmatch '\\\\(obj|bin)\\\\' }
+                Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' }
         }
     }
 }

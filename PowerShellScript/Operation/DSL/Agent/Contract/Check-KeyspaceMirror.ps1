@@ -52,19 +52,14 @@ $probeDir = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('keyspac
 New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
 
 function Invoke-Facts([string]$ModeName, [string]$InputPath, [string]$OutFile) {
-    Write-Host "[debug-call] $bundle | $ModeName | $InputPath | $OutFile" -ForegroundColor DarkGray
-    & $bundle $ModeName $InputPath $OutFile
-    Write-Host "[debug-exit] $LASTEXITCODE size=$((Get-Item -LiteralPath $OutFile -ErrorAction SilentlyContinue).Length)" -ForegroundColor DarkGray
+    & $bundle $ModeName $InputPath $OutFile | Out-Null
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $OutFile)) {
         throw "Usharp.Bundle $ModeName 失败（输入：$InputPath）"
     }
     # 生成器刚写完的产物可能被索引/杀软短暂占用：重试读取（不改内容）。
     for ($attempt = 0; $attempt -lt 5; $attempt++) {
         try { return [System.IO.File]::ReadAllText($OutFile) }
-        catch {
-            Write-Host ("[debug-read] " + $_.Exception.GetType().Name + ": " + $_.Exception.Message) -ForegroundColor DarkGray
-            Start-Sleep -Milliseconds 50
-        }
+        catch { Start-Sleep -Milliseconds 50 }
     }
     throw "无法读取事实产物：$OutFile"
 }

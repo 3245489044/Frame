@@ -94,6 +94,7 @@
     "Parsing.Keys": "Modules\\Parsing\\Keys\\Modules.Parsing.Keys.csproj",
     "Pipeline": "Modules\\Pipeline\\Pipeline.csproj",
     "Registry": "Modules\\Registry\\Registry.csproj",
+    "Sync": "Modules\\Sync\\Sync.csproj",
     "Threading": "Modules\\Threading\\Threading.csproj",
     "ValidationFramework": "Modules\\ValidationFramework\\ValidationFramework.csproj",
     "BackEndDriven": "Operation\\BackEndDriven\\BackEndDriven.csproj",

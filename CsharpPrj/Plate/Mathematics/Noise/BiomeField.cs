@@ -1,4 +1,5 @@
 using MathematicalAlgorithms.Core;
+using Modules.Compute.Adapters;
 using Modules.Compute.Formula;
 
 namespace MathematicalAlgorithms.Noise;
@@ -141,16 +142,227 @@ public sealed class BiomeField
     /// <summary>湿度噪声波长（cm）。</summary>
     public int HumidityCellCm => _humidityCellCm;
 
+    /// <summary>气候角值缓存（只读探针用：<c>Misses</c> 即实际执行的 Hash2D 次数）。</summary>
+    public TileCache ClimateCache => _climateCorners;
+
+    /// <summary>清空气候角值缓存（只影响耗时统计，不影响任何采样数值）。</summary>
+    public void ClearClimateCache() => _climateCorners.Clear();
+
     /// <summary>在 (x,z) 处采样气候与最近两个群系（世界坐标，任意 chunk 求值一致）。</summary>
     public BiomeSample Sample(int x, int z)
     {
         float temperature = NormalizeClimate(
-            TerrainNoise.ValueNoise(x, z, _temperatureCellCm, _temperatureSeed));
+            ClimaticNoise(x, z, _temperatureCellCm, _temperatureSeed, _temperatureKey));
         float humidity = NormalizeClimate(
-            TerrainNoise.ValueNoise(x, z, _humidityCellCm, _humiditySeed));
+            ClimaticNoise(x, z, _humidityCellCm, _humiditySeed, _humidityKey));
 
         float weight = PrimaryWeight(_biomes, temperature, humidity, out int primary, out int secondary);
         return new BiomeSample(primary, secondary, weight, temperature, humidity);
+    }
+
+    /// <summary>
+    /// 与 <c>TerrainNoise.ValueNoise</c> 逐运算同序的值噪声，仅把四个 lattice 角值改为走缓存。
+    /// <para>缓存命中拿到的是同一个角值位模式，插值与 <c>TerrainNoise.ValueNoise</c> 完全一致。</para>
+    /// </summary>
+    private float ClimaticNoise(int x, int z, int cell, int seed, long key)
+    {
+        int x0 = FloorDiv(x, cell);
+        int z0 = FloorDiv(z, cell);
+        float u = (x - x0 * cell) / (float)cell;
+        float v = (z - z0 * cell) / (float)cell;
+
+        float h00 = Corner(key, cell, x0, z0, seed);
+        float h10 = Corner(key, cell, x0 + 1, z0, seed);
+        float h01 = Corner(key, cell, x0, z0 + 1, seed);
+        float h11 = Corner(key, cell, x0 + 1, z0 + 1, seed);
+
+        float a = h00 + (h10 - h00) * u;
+        float b = h01 + (h11 - h01) * u;
+        return a + (b - a) * v;
+    }
+
+    private float Corner(long key, int cell, int cx, int cz, int seed)
+    {
+        var cacheKey = new TileCache.Key(key, cx, cell, cz);
+        if (_climateCorners.TryGet(cacheKey, out float cached))
+            return cached;
+
+        // 与 TerrainNoise.HashToUnit 逐字同式：单位噪声 → 有符号
+        float value = NoisePrimitives.HashToFloat(NoisePrimitives.Hash2D(cx, cz, seed)) * 2f - 1f;
+        _climateCorners.Put(cacheKey, value);
+        return value;
+    }
+
+    /// <summary>与 <c>TerrainNoise.FloorDiv</c> 逐字一致（不改成整数除法）。</summary>
+    private static int FloorDiv(int value, int divisor) =>
+        (int)MathF.Floor(value / (float)divisor);
+
+    /// <summary>
+    /// 按 <paramref name="rect"/> 列主序批量采样（x 最快，偏移见 <see cref="GridRect.Offset"/>）。
+    /// <para>每张气候场的角值网格、列向 u 各只取一次；逐点只做插值 + <see cref="PrimaryWeight"/>。</para>
+    /// <para>结果与逐点 <see cref="Sample"/> <b>逐位相同</b>：同一角值（缓存命中即同一位模式）、同一插值顺序、
+    /// 同一群系判据与顺序。线程私有的 scratch 只存中间格号/u，不参与数值。</para>
+    /// </summary>
+    public void FillSamples(GridRect rect, Span<BiomeSample> dst)
+    {
+        if (rect.IsEmpty)
+            return;
+        if (dst.Length < rect.Count)
+            throw new ArgumentException($"目标缓冲太短：需要 {rect.Count}，实际 {dst.Length}", nameof(dst));
+
+        FillSamplesCore(rect.MinX, rect.MinZ, rect.MaxX, rect.MaxZ, 1, rect.Width, rect.Height, dst);
+    }
+
+    /// <summary>
+    /// 按步长 <paramref name="step"/> 抽样批量采样；采样点定义与 <c>TerrainHeightModel.GroundSpan</c> 完全一致
+    /// （<c>x0, x0+step, …</c>，末点夹到末坐标，可能重复一次）。数值与逐点 <see cref="Sample"/> 逐位相同。
+    /// </summary>
+    public void FillSamplesStrided(
+        int minX, int minZ, int maxX, int maxZ, int step, Span<BiomeSample> dst)
+    {
+        if (step <= 0)
+            throw new ArgumentOutOfRangeException(nameof(step), "采样步长必须为正");
+
+        int x0 = Math.Min(minX, maxX), x1 = Math.Max(minX, maxX);
+        int z0 = Math.Min(minZ, maxZ), z1 = Math.Max(minZ, maxZ);
+        int nx = SampleCount(x0, x1, step);
+        int nz = SampleCount(z0, z1, step);
+
+        if (dst.Length < nx * nz)
+            throw new ArgumentException($"目标缓冲太短：需要 {nx * nz}，实际 {dst.Length}", nameof(dst));
+
+        FillSamplesCore(x0, z0, x1, z1, step, nx, nz, dst);
+    }
+
+    private void FillSamplesCore(
+        int x0, int z0, int x1, int z1, int step, int nx, int nz, Span<BiomeSample> dst)
+    {
+        var scratch = SampleScratch.Acquire();
+
+        for (int f = 0; f < 2; f++)
+        {
+            int cell = f == 0 ? _temperatureCellCm : _humidityCellCm;
+            long key = f == 0 ? _temperatureKey : _humidityKey;
+            int seed = f == 0 ? _temperatureSeed : _humiditySeed;
+
+            int cxLo = FloorDiv(x0, cell);
+            int cxHi = FloorDiv(x1, cell);
+            int czLo = FloorDiv(z0, cell);
+            int czHi = FloorDiv(z1, cell);
+            int cellsX = cxHi - cxLo + 2;
+            int cellsZ = czHi - czLo + 2;
+
+            scratch.NxCell[f] = cellsX;
+            scratch.CzLo[f] = czLo;
+            scratch.Ensure(f, nx, cellsX * cellsZ);
+
+            float[] grid = scratch.Corners[f];
+            int index = 0;
+            for (int iz = 0; iz < cellsZ; iz++)
+            {
+                int cz = czLo + iz;
+                for (int ix = 0; ix < cellsX; ix++)
+                    grid[index++] = Corner(key, cell, cxLo + ix, cz, seed);
+            }
+
+            int[] cx = scratch.Cx[f];
+            float[] uu = scratch.U[f];
+            for (int i = 0; i < nx; i++)
+            {
+                int wx = SampleAt(x0, x1, step, i);
+                int c = FloorDiv(wx, cell);
+                cx[i] = c - cxLo;
+                uu[i] = (wx - c * cell) / (float)cell;
+            }
+        }
+
+        int outIndex = 0;
+        int tCell = _temperatureCellCm;
+        int hCell = _humidityCellCm;
+
+        for (int j = 0; j < nz; j++)
+        {
+            int wz = SampleAt(z0, z1, step, j);
+
+            int czT = FloorDiv(wz, tCell);
+            int rowT = czT - scratch.CzLo[0];
+            float vT = (wz - czT * tCell) / (float)tCell;
+
+            int czH = FloorDiv(wz, hCell);
+            int rowH = czH - scratch.CzLo[1];
+            float vH = (wz - czH * hCell) / (float)hCell;
+
+            int nxT = scratch.NxCell[0];
+            int nxH = scratch.NxCell[1];
+            float[] gridT = scratch.Corners[0];
+            float[] gridH = scratch.Corners[1];
+            int[] cxT = scratch.Cx[0];
+            int[] cxH = scratch.Cx[1];
+            float[] uT = scratch.U[0];
+            float[] uH = scratch.U[1];
+
+            for (int i = 0; i < nx; i++)
+            {
+                float temperature = NormalizeClimate(
+                    Interpolate(gridT, cxT[i] + nxT * rowT, nxT, uT[i], vT));
+                float humidity = NormalizeClimate(
+                    Interpolate(gridH, cxH[i] + nxH * rowH, nxH, uH[i], vH));
+
+                float weight = PrimaryWeight(_biomes, temperature, humidity, out int primary, out int secondary);
+                dst[outIndex++] = new BiomeSample(primary, secondary, weight, temperature, humidity);
+            }
+        }
+    }
+
+    private static int SampleCount(int a0, int a1, int step)
+    {
+        int span = a1 - a0;
+        return span / step + 1 + (span % step != 0 ? 1 : 0);
+    }
+
+    private static int SampleAt(int a0, int a1, int step, int i)
+    {
+        int v = a0 + i * step;
+        return v > a1 ? a1 : v;
+    }
+
+    private static float Interpolate(float[] grid, int baseIndex, int nxCell, float u, float v)
+    {
+        float h00 = grid[baseIndex];
+        float h10 = grid[baseIndex + 1];
+        float h01 = grid[baseIndex + nxCell];
+        float h11 = grid[baseIndex + nxCell + 1];
+
+        float a = h00 + (h10 - h00) * u;
+        float b = h01 + (h11 - h01) * u;
+        return a + (b - a) * v;
+    }
+
+    /// <summary>线程私有批量采样 scratch（按需增长、跨调用复用）。</summary>
+    private sealed class SampleScratch
+    {
+        public int[][] Cx = new int[2][];
+        public float[][] U = new float[2][];
+        public float[][] Corners = new float[2][];
+        public readonly int[] NxCell = new int[2];
+        public readonly int[] CzLo = new int[2];
+
+        [ThreadStatic]
+        private static SampleScratch? _instance;
+
+        public static SampleScratch Acquire() => _instance ??= new SampleScratch();
+
+        public void Ensure(int field, int columns, int corners)
+        {
+            if (Cx[field] is null || Cx[field].Length < columns)
+            {
+                Cx[field] = new int[columns];
+                U[field] = new float[columns];
+            }
+
+            if (Corners[field] is null || Corners[field].Length < corners)
+                Corners[field] = new float[corners];
+        }
     }
 
     /// <summary>气候噪声归一化到 0..1（CPU 与高度契约共用）。</summary>

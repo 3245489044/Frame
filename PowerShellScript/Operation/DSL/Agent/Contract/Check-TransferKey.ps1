@@ -65,79 +65,33 @@ if (-not (Test-Path -LiteralPath $routing)) {
     }
 }
 
-# 键文法：前缀 + 三段词表 + slot 有界（单一实现 = TransferKeyCodec）
-$codec = Join-Path $agentRoot 'src\Agent.Session\Keys\TransferKeyCodec.cs'
-if (Test-Path -LiteralPath $codec) {
-    $text = Get-Content -LiteralPath $codec -Raw -Encoding UTF8
-    foreach ($needle in @('xfer:', 'history', 'task', 'node', 'request', 'result', 'event', 'context', 'ack', 'MaxSlotLength = 64')) {
-        if ($text -notmatch [regex]::Escape($needle)) { $violations.Add("TransferKeyCodec 缺：$needle") }
-    }
+# 键文法 + 词表事实（A3/D6/D11）：唯一抽取值集/边界实现 = C# transfer-facts。
+# PS 侧不再解析 [Space]、不再正则读生成常量、不再复制 xfer:/64/层词表/kind 词表。
+$codecPath = Join-Path $agentRoot 'src\Agent.Session\Keys\TransferKeyCodec.cs'
+$constsPath = Join-Path $agentRoot 'src\Agent.Contract\Generated\GeneratedContractConstants.g.cs'
+$transferPath = Join-Path $configRoot 'nodes\transfer.ushar'
+if (-not ((Test-Path -LiteralPath $codecPath) -and (Test-Path -LiteralPath $constsPath) -and (Test-Path -LiteralPath $transferPath))) {
+    Write-GateSkip -Key 'TransferKey' -Reason '键文法/词表事实源缺失（值集等价与 slot 边界未验证）'
 }
-
-# 词表：方向 / kind / status 单一真源
-$transfer = Join-Path $configRoot 'nodes\transfer.ushar'
-if (Test-Path -LiteralPath $transfer) {
-    $text = Get-Content -LiteralPath $transfer -Raw -Encoding UTF8
-    foreach ($needle in @('TransferDirection', 'TransferKeyKind', 'TransferStatus', 'published', 'claimed', 'consumed', 'acked', 'expired')) {
-        if ($text -notmatch [regex]::Escape($needle)) { $violations.Add("transfer.ushar 缺：$needle") }
-    }
-}
-
-# 词表集合等价（D6）：声明面 [Space] 值集 == C# 常量值集（不再靠子串包含）。
-function Read-UsharpSpaceValues([string]$Path, [string]$SpaceName) {
-    $values = New-Object System.Collections.Generic.List[string]
-    if (-not (Test-Path -LiteralPath $Path)) { return $values }
-    $in = $false
-    foreach ($line in (Get-Content -LiteralPath $Path -Encoding UTF8)) {
-        if ($line -match ('^\s*\[Space\]\s+' + [regex]::Escape($SpaceName) + '\b')) { $in = $true; continue }
-        if ($in) {
-            if ($line -match '^\s*\[Space\]') { break }
-            $t = $line.Trim()
-            if ($t -and -not $t.StartsWith('#')) { $values.Add($t) }
+else {
+    $factsOut = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('transfer-facts-' + [guid]::NewGuid().ToString('N') + '.json'))
+    try {
+        & $ledgerForge transfer-facts --ushar $transferPath --consts $constsPath --codec $codecPath --out $factsOut | Out-Null
+        $factsCode = $LASTEXITCODE
+        if ($factsCode -eq 2 -or -not (Test-Path -LiteralPath $factsOut)) {
+            $violations.Add('无法执行：transfer-facts 输入不可读（值集等价与 slot 边界未验证）')
+        }
+        else {
+            $facts = Get-Content -LiteralPath $factsOut -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach ($mismatch in @($facts.mismatches)) { $violations.Add("转移键事实不一致：$mismatch") }
+            if ([string]::IsNullOrEmpty([string]$facts.codec.prefix)) { $violations.Add('TransferKeyCodec 缺 Prefix 事实') }
+            if ([int]$facts.codec.maxSlotLength -le 0) { $violations.Add('TransferKeyCodec 缺 MaxSlotLength 事实') }
+            if (@($facts.codec.layers).Count -eq 0) { $violations.Add('TransferKeyCodec 缺 Layers 词表') }
+            if (@($facts.codec.kinds).Count -eq 0) { $violations.Add('TransferKeyCodec 缺 Kinds 词表') }
         }
     }
-    return $values
-}
-function Read-CSharpConstValues([string]$Text, [string]$ClassName) {
-    $m = [regex]::Match($Text, ('(?s)class\s+' + [regex]::Escape($ClassName) + '\s*\{(?<body>.*?)\n\s*\}'))
-    if (-not $m.Success) { return @() }
-    return @([regex]::Matches($m.Groups['body'].Value, 'public\s+const\s+string\s+\w+\s*=\s*"([^"]+)"') |
-        ForEach-Object { $_.Groups[1].Value })
-}
-
-# 集合比较统一 Ordinal（D6）：PowerShell 默认大小写不敏感 + 区域性排序，
-# 会把 Foo 与 foo 判等（假绿）。词表比较是键集语义，必须与 C# 的 StringComparer.Ordinal 一致。
-function Get-OrdinalSortedSet([string[]]$Values) {
-    $kept = [System.Collections.Generic.List[string]]::new()
-    foreach ($v in @($Values)) { if (-not [string]::IsNullOrWhiteSpace($v)) { $kept.Add([string]$v) } }
-    $arr = $kept.ToArray()
-    [Array]::Sort($arr, [System.StringComparer]::Ordinal)
-    $unique = [System.Collections.Generic.List[string]]::new()
-    foreach ($v in $arr) {
-        if ($unique.Count -eq 0 -or [string]::CompareOrdinal($unique[$unique.Count - 1], $v) -ne 0) { $unique.Add($v) }
-    }
-    return , $unique.ToArray()
-}
-function Test-OrdinalSetEqual([string[]]$Left, [string[]]$Right) {
-    # 键集比较统一到 C# LedgerKeyClosure(Ordinal)（A8），本门不再自带比较器。
-    $diff = Compare-GateKeySet -Reference $Left -Other $Right -ReferenceLabel 'declared' -OtherLabel 'code' -RepoRoot $Root
-    return (@($diff.OnlyLeft).Count -eq 0 -and @($diff.OnlyRight).Count -eq 0)
-}
-
-# 常量载体 = 生成契约常量文件（ITransferKeyStore.cs 的同名 partial class 是空壳，读它必然得到空集）。
-$contractTextPath = Join-Path $agentRoot 'src\Agent.Contract\Generated\GeneratedContractConstants.g.cs'
-$contractText = if (Test-Path -LiteralPath $contractTextPath) { Get-Content -LiteralPath $contractTextPath -Raw -Encoding UTF8 } else { '' }
-$transferPath = Join-Path $configRoot 'nodes\transfer.ushar'
-$pairs = @(
-    @{ Space = 'TransferDirection'; Class = 'TransferDirections'; Label = '方向词表' },
-    @{ Space = 'TransferKeyKind'; Class = 'TransferKinds'; Label = '种类词表' },
-    @{ Space = 'TransferStatus'; Class = 'TransferStatuses'; Label = '状态词表' }
-)
-foreach ($pair in $pairs) {
-    $declared = Get-OrdinalSortedSet @(Read-UsharpSpaceValues $transferPath $pair.Space)
-    $code = Get-OrdinalSortedSet @(Read-CSharpConstValues $contractText $pair.Class)
-    if (-not (Test-OrdinalSetEqual $declared $code)) {
-        $violations.Add("$($pair.Label)集合不等价（Ordinal）：declared=[$($declared -join ',')] code=[$($code -join ',')]")
+    finally {
+        if (Test-Path -LiteralPath $factsOut) { Remove-Item -LiteralPath $factsOut -Force }
     }
 }
 

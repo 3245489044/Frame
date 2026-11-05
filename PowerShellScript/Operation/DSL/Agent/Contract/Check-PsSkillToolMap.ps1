@@ -69,28 +69,35 @@ if (Test-Path -LiteralPath $trackFile) {
 
 # ---- M1 输入：契约 action 集（AgentRoot 下全量 *.contracts.json）----
 $contractActions = @()
-# 契约根单源（与 PsRuntimeHost.ResolveContractRoots 同口径）：ps1-runtime.json 的 projectRoot + contractDirs。
-$repoRoot = Split-Path (Split-Path (Split-Path $AgentRoot -Parent) -Parent) -Parent
-$contractRoots = @()
-$runtimeConfig = Join-Path $AgentRoot 'Config\ps1-runtime.json'
-if (Test-Path -LiteralPath $runtimeConfig) {
-    try {
-        $runtime = Get-Content -LiteralPath $runtimeConfig -Raw -Encoding UTF8 | ConvertFrom-Json
-        $base = if ($runtime.projectRoot) { Join-Path $repoRoot ([string]$runtime.projectRoot) } else { $repoRoot }
-        foreach ($dir in @($runtime.contractDirs)) {
-            if ($dir) { $contractRoots += (Join-Path $base ([string]$dir)) }
-        }
+# 契约根单源（A4）：唯一解析实现 = C# PowerShellHostRoots（经 LedgerForge ps-runtime-facts 导出）。
+# PS 不再自算 repoRoot/projectRoot/contractDirs，也不再自带 Frame 回退分支。
+$frameRoot = Join-Path $GateRuntimeRoot 'Frame'
+$factsOut = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('ps-runtime-facts-' + [guid]::NewGuid().ToString('N') + '.json'))
+try {
+    & $ledgerForge ps-runtime-facts --repo $repoRoot --agent $AgentRoot --frame-root $frameRoot --out $factsOut | Out-Null
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $factsOut)) {
+        Write-Host '[FAIL] 无法执行：ps-runtime-facts 未产出（契约根解析不可用）' -ForegroundColor Red
+        exit 2
     }
-    catch {
-        $violations.Add("ps1-runtime.json 不可解析：$($_.Exception.Message)")
-    }
+    $runtimeFacts = Get-Content -LiteralPath $factsOut -Raw -Encoding UTF8 | ConvertFrom-Json
 }
+finally {
+    if (Test-Path -LiteralPath $factsOut) { Remove-Item -LiteralPath $factsOut -Force }
+}
+# 口径对齐断言：运行期不得另有一份契约根解析（必须复用同一实现）。
+$runtimeHostSource = Join-Path $AgentRoot 'src\Agent.Modules\Framework\Invoke\PsRuntime\PsRuntimeHost.cs'
+if (-not (Test-Path -LiteralPath $runtimeHostSource)) {
+    $violations.Add("缺 PsRuntimeHost.cs：$runtimeHostSource")
+}
+elseif ((Get-Content -LiteralPath $runtimeHostSource -Raw -Encoding UTF8) -notmatch 'PowerShellHostRoots\.Resolve') {
+    $violations.Add('[A4] PsRuntimeHost 未复用 PowerShellHostRoots（契约根口径双实现）')
+}
+$contractRoots = @($runtimeFacts.resolvedRoots)
+foreach ($missing in @($runtimeFacts.missingRoots)) { $violations.Add("契约根不存在：$missing") }
 if ($contractRoots.Count -eq 0) {
-    $contractRoots = @((Join-Path $repoRoot 'Frame\PowerShellScript\BasicMethod'))
+    $violations.Add("契约根解析为空（projectRoot/contractDirs 无效）：base=$($runtimeFacts.baseRoot)")
 }
-
 foreach ($root in $contractRoots) {
-    if (-not (Test-Path -LiteralPath $root)) { $violations.Add("契约根不存在：$root"); continue }
     foreach ($file in (Get-ChildItem -LiteralPath $root -Recurse -Filter '*.contracts.json' -File -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -notmatch '\\(obj|bin)\\' })) {
         try {

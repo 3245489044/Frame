@@ -79,7 +79,8 @@ public sealed class TerrainHeightTiles
 
         int x0 = tileX * _tileSize;
         int z0 = tileZ * _tileSize;
-        var span = _model.SurfaceSpan(x0, z0, x0 + _tileSize - 1, z0 + _tileSize - 1, _margin);
+        // 批量路径：柱高采样由 TerrainHeightBatchEvaluator 的 stride 批量求值完成（逐位同值）。
+        var span = _model.SurfaceSpanBatch(x0, z0, x0 + _tileSize - 1, z0 + _tileSize - 1, _margin);
 
         Misses++;
         _tiles[key] = new Entry { Signature = _model.Signature, Span = span };

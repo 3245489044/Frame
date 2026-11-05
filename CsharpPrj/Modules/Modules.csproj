@@ -64,6 +64,8 @@
     <ProjectReference Include="$(Proj_Wiring)" />
     <ProjectReference Include="$(Proj_ValidationFramework)" />
     <ProjectReference Include="$(Proj_Observe)" />
+    <!-- 同步协议 MVP（Modules\Sync）：协议 v1 契约 + 进程内三端环路；下游仅经本聚合工程消费 -->
+    <ProjectReference Include="$(Proj_Sync)" />
   </ItemGroup>
 
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
@@ -93,6 +95,7 @@
     <Compile Remove="ValidationFramework\**\*.cs" />
     <Compile Remove="EventFramework\**\*.cs" />
     <Compile Remove="Observe\**\*.cs" />
+    <Compile Remove="Sync\**\*.cs" />
   </ItemGroup>
 
 </Project>

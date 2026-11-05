@@ -64,6 +64,60 @@ public enum MetricId
 
     /// <summary>当前已上传网格的分块数（“入网格”集合；不等于驻留集合）。</summary>
     ChunkMeshed = 19,
+
+    // ── 同步协议 MVP：17 个 sync.*（追加段 20..36，名字/类型/下标与
+    //    Modules\Sync\Observe\SyncObservationPoints.All 一一对应；禁止插队或改既有 id 语义） ──
+
+    /// <summary>P01 一次完整握手的往返耗时。</summary>
+    SyncHandshakeRtt = 20,
+
+    /// <summary>P02 失败握手次数。</summary>
+    SyncHandshakeFail = 21,
+
+    /// <summary>P03 单条消息序列化耗时。</summary>
+    SyncEncodeTime = 22,
+
+    /// <summary>P04 单条消息反序列化耗时。</summary>
+    SyncDecodeTime = 23,
+
+    /// <summary>P05 每条消息的累计字节。</summary>
+    SyncPayloadBytes = 24,
+
+    /// <summary>P06 单条消息字节数（保留 last/min/max）。</summary>
+    SyncMessageBytes = 25,
+
+    /// <summary>P07 一个决策周期的状态提交耗时。</summary>
+    SyncCommitTime = 26,
+
+    /// <summary>P08 成功提交次数。</summary>
+    SyncCommitCount = 27,
+
+    /// <summary>P09 提交中止/回滚次数。</summary>
+    SyncCommitAbort = 28,
+
+    /// <summary>P10 重传次数。</summary>
+    SyncRetransmitCount = 29,
+
+    /// <summary>P11 窗口内 retransmit / send（万分之一定点）。</summary>
+    SyncRetransmitRatio = 30,
+
+    /// <summary>P12 最近一次成功提交的窗口序号。</summary>
+    SyncWindowSeq = 31,
+
+    /// <summary>P13 ACK 超时导致窗口未推进的次数。</summary>
+    SyncWindowStall = 32,
+
+    /// <summary>P14 当前未确认消息数。</summary>
+    SyncInflightCount = 33,
+
+    /// <summary>P15 心跳往返耗时。</summary>
+    SyncHeartbeatRtt = 34,
+
+    /// <summary>P16 心跳超时次数。</summary>
+    SyncHeartbeatMiss = 35,
+
+    /// <summary>P17 待发队列字节数。</summary>
+    SyncQueueBytes = 36,
 }
 
 /// <summary>指标类型：决定写入 cell 的方式（Counter 累加 / Gauge 水位置 / Histogram 分位）。</summary>
@@ -79,7 +133,8 @@ public enum MetricKind
 /// </summary>
 public static class MetricCatalog
 {
-    public const int Count = 20;
+    /// <summary>指标总数 = 既有 20 + 同步协议 17 = 37。必须与 <c>Names</c>/<c>Kinds</c> 长度一致。</summary>
+    public const int Count = 37;
 
     private static readonly string[] Names =
     {
@@ -103,6 +158,23 @@ public static class MetricCatalog
         "chunk.candidate",
         "chunk.admitted",
         "chunk.meshed",
+        "sync.handshake.rtt",
+        "sync.handshake.fail",
+        "sync.encode.time",
+        "sync.decode.time",
+        "sync.payload.bytes",
+        "sync.message.bytes",
+        "sync.commit.time",
+        "sync.commit.count",
+        "sync.commit.abort",
+        "sync.retransmit.count",
+        "sync.retransmit.ratio",
+        "sync.window.seq",
+        "sync.window.stall",
+        "sync.inflight.count",
+        "sync.heartbeat.rtt",
+        "sync.heartbeat.miss",
+        "sync.queue.bytes",
     };
 
     private static readonly MetricKind[] Kinds =
@@ -126,6 +198,23 @@ public static class MetricCatalog
         MetricKind.Counter,
         MetricKind.Gauge,
         MetricKind.Gauge,
+        MetricKind.Gauge,
+        MetricKind.Histogram,
+        MetricKind.Counter,
+        MetricKind.Histogram,
+        MetricKind.Histogram,
+        MetricKind.Counter,
+        MetricKind.Gauge,
+        MetricKind.Histogram,
+        MetricKind.Counter,
+        MetricKind.Counter,
+        MetricKind.Counter,
+        MetricKind.Gauge,
+        MetricKind.Gauge,
+        MetricKind.Counter,
+        MetricKind.Gauge,
+        MetricKind.Histogram,
+        MetricKind.Counter,
         MetricKind.Gauge,
     };
 

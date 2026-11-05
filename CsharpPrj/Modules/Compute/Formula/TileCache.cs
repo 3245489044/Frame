@@ -14,6 +14,7 @@ public sealed class TileCache
 
     private readonly ConcurrentDictionary<Key, object?> _entries;
     private readonly int _capacity;
+    private int _writes;
 
     public TileCache(int capacity = 4096)
     {
@@ -69,10 +70,16 @@ public sealed class TileCache
 
     public void Put(Key key, object? value)
     {
-        if (_entries.Count >= _capacity)
+        // 注意：ConcurrentDictionary.Count 会锁全部分段（O(n)），绝不能每 Put 调一次；
+        // 这里用写入计数做软上限，满时整表清空（语义与原先一致，只是判断依据不再精确等于条目数）。
+        if (Volatile.Read(ref _writes) >= _capacity)
+        {
             _entries.Clear();
+            Volatile.Write(ref _writes, 0);
+        }
 
         _entries[key] = value;
+        Interlocked.Increment(ref _writes);
     }
 
     /// <summary>参数/内容签名变化：只保留新签名的条目。</summary>
@@ -91,6 +98,7 @@ public sealed class TileCache
     public void Clear()
     {
         _entries.Clear();
+        Volatile.Write(ref _writes, 0);
         Hits = 0;
         Misses = 0;
     }

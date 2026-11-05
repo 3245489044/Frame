@@ -63,9 +63,25 @@ public static class KeySpaceFactsNormalizer
         }
 
         families.Sort((left, right) => StringComparer.Ordinal.Compare(left.Id, right.Id));
-        ports.Sort((left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
+        // ports 是「(name, direction) 对」的集合：同名异向必须全部保留；
+        // 按 (name, direction) Ordinal 排序并去掉完全重复项，消除来源顺序差异（否则文本对拍假红）。
+        ports.Sort((left, right) =>
+        {
+            var byName = StringComparer.Ordinal.Compare(left.Name, right.Name);
+            return byName != 0 ? byName : StringComparer.Ordinal.Compare(left.Direction, right.Direction);
+        });
+        var canonicalPorts = new List<PortFacts>(ports.Count);
+        foreach (var port in ports)
+        {
+            if (canonicalPorts.Count == 0
+                || !string.Equals(canonicalPorts[^1].Name, port.Name, StringComparison.Ordinal)
+                || !string.Equals(canonicalPorts[^1].Direction, port.Direction, StringComparison.Ordinal))
+            {
+                canonicalPorts.Add(port);
+            }
+        }
 
-        return JsonSerializer.Serialize(new KeySpaceFacts(families, ports), Options);
+        return JsonSerializer.Serialize(new KeySpaceFacts(families, canonicalPorts), Options);
     }
 
     private static string ReadString(JsonElement node, string property)

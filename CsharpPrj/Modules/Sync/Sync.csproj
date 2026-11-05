@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Modules.Sync</RootNamespace>
+    <AssemblyName>Modules.Sync</AssemblyName>
+    <Description>同步协议 v1（Contracts）+ 进程内三端环路（Transport/Authority/Replica/Observe）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 观测指标（Modules\Observe）：SyncMetricsObserver 只经 ModuleObserver 端口上报，不直接触碰 Metrics 全局 -->
+    <ProjectReference Include="$(Proj_Observe)" />
+  </ItemGroup>
+
+</Project>

@@ -80,8 +80,16 @@ public sealed class TerrainHeightBatchEvaluator
         var cursor = new TileCursor3(extent, TileSize, 1, TileSize);
         var scratch = new TileScratch(TileSize);
 
+        // 群系气候一次批量取齐（每气候格角值只查一次），逐点不再走字典
+        BiomeSample[]? samples = null;
+        if (_biomes is not null)
+        {
+            samples = SampleBuffer(rect.Count);
+            _model.FillBiomeSamples(rect, samples.AsSpan(0, rect.Count));
+        }
+
         while (cursor.MoveNext())
-            FillHeightTile(rect, cursor.Current, dst, scratch);
+            FillHeightTile(rect, cursor.Current, dst, scratch, samples);
     }
 
     /// <summary>批量求 <c>GroundYCm</c>：先批量高度，再逐点 <c>(int)MathF.Round</c>（与单点逐位一致）。</summary>
@@ -99,7 +107,175 @@ public sealed class TerrainHeightBatchEvaluator
             dst[i] = (int)MathF.Round(heights[i]);
     }
 
-    private void FillHeightTile(GridRect rect, Tile3 tile, Span<float> dst, TileScratch scratch)
+    /// <summary>
+    /// 按 <paramref name="step"/> 抽样的柱形网格求地表 Y 的极值（与 <c>GroundYCm</c> 逐点逐位一致）。
+    /// <para>采样点与原 <c>GroundSpan</c> 的循环完全一致：<c>x0, x0+step, …</c>，末点夹到 <c>x1</c>（可能重复一次）。</para>
+    /// <para>与 <see cref="FillHeightCm"/> 同一套角值缓存/同序插值，区别只是不写回整块缓冲、只聚合 min/max。</para>
+    /// </summary>
+    public bool TryGroundYRange(
+        int minX, int minZ, int maxX, int maxZ, int step,
+        out int minGround, out int maxGround)
+    {
+        if (step <= 0)
+            throw new ArgumentOutOfRangeException(nameof(step), "采样步长必须为正");
+
+        minGround = int.MaxValue;
+        maxGround = int.MinValue;
+
+        int x0 = Math.Min(minX, maxX), x1 = Math.Max(minX, maxX);
+        int z0 = Math.Min(minZ, maxZ), z1 = Math.Max(minZ, maxZ);
+
+        int nx = SampleCount(x0, x1, step);
+        int nz = SampleCount(z0, z1, step);
+
+        // 群系气候按同一采样点一次批量取齐（与 GroundSpan 采样集合完全一致）
+        BiomeSample[]? samples = null;
+        if (_biomes is not null)
+        {
+            samples = SampleBuffer(nx * nz);
+            _model.FillBiomeSamplesStrided(x0, z0, x1, z1, step, samples.AsSpan(0, nx * nz));
+        }
+
+        // 每倍频：列向格号/u 只算一次（与 z 无关）；角值网格按本区间的格覆盖一次取齐
+        var scratch = Strided();
+        var cxOf = scratch.Cx;
+        var uOf = scratch.U;
+        var corners = scratch.Corners;
+        var nxCell = scratch.NxCell;
+        var cz0 = scratch.Cz0;
+        var czRow = scratch.CzRow;
+        var vRow = scratch.VRow;
+
+        for (int o = 0; o < OctaveCount; o++)
+        {
+            int cell = _cells[o];
+            int cxLo = FloorDiv(x0, cell);
+            int cxHi = FloorDiv(x1, cell);
+            int czLo = FloorDiv(z0, cell);
+            int czHi = FloorDiv(z1, cell);
+
+            int cellsX = cxHi - cxLo + 2;
+            int cellsZ = czHi - czLo + 2;
+            nxCell[o] = cellsX;
+            cz0[o] = czLo;
+            scratch.Ensure(o, nx, cellsX * cellsZ);
+
+            float[] grid = corners[o];
+            int index = 0;
+            for (int iz = 0; iz < cellsZ; iz++)
+            {
+                int cz = czLo + iz;
+                for (int ix = 0; ix < cellsX; ix++)
+                    grid[index++] = CornerValue(cell, cxLo + ix, cz);
+            }
+
+            int[] cx = cxOf[o];
+            float[] uu = uOf[o];
+            for (int i = 0; i < nx; i++)
+            {
+                int wx = SampleAt(x0, x1, step, i);
+                int cxi = FloorDiv(wx, cell);
+                cx[i] = cxi - cxLo;
+                uu[i] = (wx - cxi * cell) / (float)cell;
+            }
+        }
+
+        // 行主序：每行 v 每倍频一次；点值保持 0.62*a + 0.28*b + 0.10*c 的左结合顺序
+        for (int j = 0; j < nz; j++)
+        {
+            int wz = SampleAt(z0, z1, step, j);
+
+            for (int o = 0; o < OctaveCount; o++)
+            {
+                int cell = _cells[o];
+                int cz = FloorDiv(wz, cell);
+                czRow[o] = cz - cz0[o];
+                vRow[o] = (wz - cz * cell) / (float)cell;
+            }
+
+            for (int i = 0; i < nx; i++)
+            {
+                int wx = SampleAt(x0, x1, step, i);
+                float noise = 0.62f * StridedOctave(0, cxOf, uOf, corners, nxCell, czRow, vRow, i) +
+                              0.28f * StridedOctave(1, cxOf, uOf, corners, nxCell, czRow, vRow, i) +
+                              0.10f * StridedOctave(2, cxOf, uOf, corners, nxCell, czRow, vRow, i);
+
+                int ground = (int)MathF.Round(HeightCmFromNoise(noise, samples, j * nx + i));
+                if (ground < minGround) minGround = ground;
+                if (ground > maxGround) maxGround = ground;
+            }
+        }
+
+        return minGround != int.MaxValue;
+    }
+
+    /// <summary>
+    /// 线程私有 stride scratch（按需增长、跨调用复用）：避免每次查询都分配整组数组。
+    /// <para>线程私有 ⇒ 与 <see cref="TileCache"/> 的并发使用是安全的（同一线程串行复用）。</para>
+    /// </summary>
+    [ThreadStatic]
+    private static StridedScratch? _strided;
+
+    private static StridedScratch Strided() => _strided ??= new StridedScratch();
+
+    private sealed class StridedScratch
+    {
+        public int[][] Cx = new int[OctaveCount][];
+        public float[][] U = new float[OctaveCount][];
+        public float[][] Corners = new float[OctaveCount][];
+        public readonly int[] NxCell = new int[OctaveCount];
+        public readonly int[] Cz0 = new int[OctaveCount];
+        public readonly int[] CzRow = new int[OctaveCount];
+        public readonly float[] VRow = new float[OctaveCount];
+
+        public void Ensure(int octave, int columns, int corners)
+        {
+            if (Cx[octave] is null || Cx[octave].Length < columns)
+            {
+                Cx[octave] = new int[columns];
+                U[octave] = new float[columns];
+            }
+
+            if (Corners[octave] is null || Corners[octave].Length < corners)
+                Corners[octave] = new float[corners];
+        }
+    }
+
+    private static int SampleCount(int a0, int a1, int step)
+    {
+        int span = a1 - a0;
+        return span / step + 1 + (span % step != 0 ? 1 : 0);
+    }
+
+    private static int SampleAt(int a0, int a1, int step, int i)
+    {
+        int v = a0 + i * step;
+        return v > a1 ? a1 : v;
+    }
+
+    private static float StridedOctave(
+        int octave, int[][] cxOf, float[][] uOf, float[][] corners,
+        int[] nxCell, int[] czRow, float[] vRow, int i)
+    {
+        int nx = nxCell[octave];
+        int baseIndex = cxOf[octave][i] + nx * czRow[octave];
+
+        float[] grid = corners[octave];
+        float h00 = grid[baseIndex];
+        float h10 = grid[baseIndex + 1];
+        float h01 = grid[baseIndex + nx];
+        float h11 = grid[baseIndex + nx + 1];
+
+        float u = uOf[octave][i];
+        float v = vRow[octave];
+
+        float a = h00 + (h10 - h00) * u;
+        float b = h01 + (h11 - h01) * u;
+        return a + (b - a) * v;
+    }
+
+    private void FillHeightTile(
+        GridRect rect, Tile3 tile, Span<float> dst, TileScratch scratch, BiomeSample[]? samples)
     {
         int worldX0 = rect.MinX + tile.X;
         int worldZ0 = rect.MinZ + tile.Z;
@@ -165,7 +341,7 @@ public sealed class TerrainHeightBatchEvaluator
                               0.28f * OctaveValue(scratch, 1, xx, width) +
                               0.10f * OctaveValue(scratch, 2, xx, width);
 
-                dst[rowStart + xx] = HeightCmFromNoise(noise, worldX0 + xx, worldZ);
+                dst[rowStart + xx] = HeightCmFromNoise(noise, samples, rowStart + xx);
             }
         }
     }
@@ -191,13 +367,24 @@ public sealed class TerrainHeightBatchEvaluator
         return a + (b - a) * v;
     }
 
-    private float HeightCmFromNoise(float noise, int x, int z)
+    private float HeightCmFromNoise(float noise, BiomeSample[]? samples, int sampleIndex)
     {
         if (_biomes is null)
             return _constants.HeightOffsetCm + noise * _constants.HeightScaleCm;
 
         // 与 TerrainHeightModel.HeightCm 同一条公式（同一个 Evaluate，含左结合顺序）
-        return HeightFormula.Evaluate(_constants, _biomes, _model.SampleBiome(x, z), noise);
+        return HeightFormula.Evaluate(_constants, _biomes, samples![sampleIndex], noise);
+    }
+
+    /// <summary>线程私有群系采样缓冲（按需增长、跨调用复用）。</summary>
+    [ThreadStatic]
+    private static BiomeSample[]? _biomeSamples;
+
+    private static BiomeSample[] SampleBuffer(int count)
+    {
+        if (_biomeSamples is null || _biomeSamples.Length < count)
+            _biomeSamples = new BiomeSample[count];
+        return _biomeSamples;
     }
 
     private float CornerValue(int cell, int cx, int cz)

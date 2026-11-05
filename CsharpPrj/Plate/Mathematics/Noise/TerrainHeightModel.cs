@@ -125,6 +125,20 @@ public sealed class TerrainHeightModel
     /// <summary>批量地表 Y（cm）：逐点结果与 <see cref="GroundYCm"/> 逐位一致（A 档）。</summary>
     public void FillGroundYCm(GridRect rect, Span<int> dst) => Batch.FillGroundYCm(rect, dst);
 
+    /// <summary>批量气候采样（无群系时不做任何事）；与逐点 <see cref="SampleBiome"/> 逐位同值。</summary>
+    public void FillBiomeSamples(GridRect rect, Span<BiomeSample> dst)
+    {
+        if (_biomes is not null)
+            _biomes.FillSamples(rect, dst);
+    }
+
+    /// <summary>按步长抽样的批量气候采样（采样点定义与 <see cref="GroundSpan"/> 一致）。</summary>
+    public void FillBiomeSamplesStrided(int minX, int minZ, int maxX, int maxZ, int step, Span<BiomeSample> dst)
+    {
+        if (_biomes is not null)
+            _biomes.FillSamplesStrided(minX, minZ, maxX, maxZ, step, dst);
+    }
+
     /// <summary>在 (x,z) 处采样群系（世界坐标；未接入群系时返回 default）。</summary>
     public BiomeSample SampleBiome(int x, int z) => _biomes?.Sample(x, z) ?? default;
 
@@ -198,31 +212,65 @@ public sealed class TerrainHeightModel
     /// 水平 footprint 内的地表 Y 采样区间（保守）：按 1/8 m 步长在网格点上求值，包含四角与上界。
     /// <para>用于高度加速提示；步长小于最小的 4 m 噪声波长，外接查询时再由 <see cref="SurfaceSpan"/> 加余量。</para>
     /// </summary>
-    public HeightSpan GroundSpan(int minX, int minZ, int maxX, int maxZ)
+    public HeightSpan GroundSpan(int minX, int minZ, int maxX, int maxZ) =>
+        GroundSpanCore(minX, minZ, maxX, maxZ, useBatch: false);
+
+    /// <summary>
+    /// 与 <see cref="GroundSpan"/> <b>逐点逐位同值</b>，但采样走 <see cref="Batch"/> 的 stride 批量求值
+    /// （同一角值缓存跨 chunk 复用，采样集合与原来完全相同）。
+    /// </summary>
+    public HeightSpan GroundSpanBatch(int minX, int minZ, int maxX, int maxZ) =>
+        GroundSpanCore(minX, minZ, maxX, maxZ, useBatch: true);
+
+    private HeightSpan GroundSpanCore(int minX, int minZ, int maxX, int maxZ, bool useBatch)
     {
         int x0 = Math.Min(minX, maxX), x1 = Math.Max(minX, maxX);
         int z0 = Math.Min(minZ, maxZ), z1 = Math.Max(minZ, maxZ);
         int step = Math.Max(1, _constants.UnitsPerMeter / 8);
 
-        int minGround = int.MaxValue, maxGround = int.MinValue;
-        for (int z = z0; ; z += step)
+        int minGround, maxGround;
+        if (useBatch)
         {
-            int sz = Math.Min(z, z1);
-            for (int x = x0; ; x += step)
+            if (!Batch.TryGroundYRange(x0, z0, x1, z1, step, out minGround, out maxGround))
+                return HeightSpan.Empty;
+        }
+        else
+        {
+            minGround = int.MaxValue;
+            maxGround = int.MinValue;
+            for (int z = z0; ; z += step)
             {
-                int sx = Math.Min(x, x1);
-                int ground = GroundYCm(sx, sz);
-                if (ground < minGround) minGround = ground;
-                if (ground > maxGround) maxGround = ground;
-                if (sx >= x1) break;
+                int sz = Math.Min(z, z1);
+                for (int x = x0; ; x += step)
+                {
+                    int sx = Math.Min(x, x1);
+                    int ground = GroundYCm(sx, sz);
+                    if (ground < minGround) minGround = ground;
+                    if (ground > maxGround) maxGround = ground;
+                    if (sx >= x1) break;
+                }
+                if (sz >= z1) break;
             }
-            if (sz >= z1) break;
         }
 
         // 补中心点：chunk footprint 的查询点（自检与网格中心）可能落在粗采样格之间。
         if (minGround != int.MaxValue)
         {
-            int centerGround = GroundYCm((x0 + x1) / 2, (z0 + z1) / 2);
+            int cx = (x0 + x1) / 2;
+            int cz = (z0 + z1) / 2;
+            int centerGround;
+            if (useBatch)
+            {
+                if (Batch.TryGroundYRange(cx, cz, cx, cz, 1, out int c, out _))
+                    centerGround = c;
+                else
+                    centerGround = GroundYCm(cx, cz);
+            }
+            else
+            {
+                centerGround = GroundYCm(cx, cz);
+            }
+
             if (centerGround < minGround) minGround = centerGround;
             if (centerGround > maxGround) maxGround = centerGround;
         }
@@ -237,9 +285,20 @@ public sealed class TerrainHeightModel
     /// 由各 section 显式声明，不再靠固定常量猜测。</para>
     /// <paramref name="marginCm"/> 覆盖采样步长内的插值起伏；逐 chunk 查询时传 0，避免把上方空气块带进候选。
     /// </summary>
-    public HeightSpan SurfaceSpan(int minX, int minZ, int maxX, int maxZ, int marginCm = 0)
+    public HeightSpan SurfaceSpan(int minX, int minZ, int maxX, int maxZ, int marginCm = 0) =>
+        SurfaceSpanCore(minX, minZ, maxX, maxZ, marginCm, useBatch: false);
+
+    /// <summary>
+    /// 与 <see cref="SurfaceSpan"/> <b>逐值同结果</b>，但柱高采样走批量路径（见 <see cref="GroundSpanBatch"/>）。
+    /// </summary>
+    public HeightSpan SurfaceSpanBatch(int minX, int minZ, int maxX, int maxZ, int marginCm = 0) =>
+        SurfaceSpanCore(minX, minZ, maxX, maxZ, marginCm, useBatch: true);
+
+    private HeightSpan SurfaceSpanCore(int minX, int minZ, int maxX, int maxZ, int marginCm, bool useBatch)
     {
-        var ground = GroundSpan(minX, minZ, maxX, maxZ);
+        var ground = useBatch
+            ? GroundSpanBatch(minX, minZ, maxX, maxZ)
+            : GroundSpan(minX, minZ, maxX, maxZ);
         if (ground.IsEmpty) return HeightSpan.Empty;
 
         int minY = ground.MinY - _constants.SoilDepthCm;

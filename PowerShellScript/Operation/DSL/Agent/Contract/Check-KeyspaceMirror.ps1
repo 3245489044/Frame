@@ -1,5 +1,18 @@
-# 键空间镜像门禁（E26）：仓库声明 vs Data 运行时声明（family 模板 + port 集合）。
-# 口径：Data 缺失 = 干净 checkout，跳过并显式提示（不判红）；Data 存在则必须与仓库等价。
+#requires -Version 5.1
+<#
+.SYNOPSIS
+    keyspace 声明镜像守卫（Data / 部署代 必须与仓库声明事实一致）。
+.DESCRIPTION
+    A2/D1：键空间事实**只由 C# 产出**（Usharp.Bundle keyspace-facts / keyspace-facts-json）。
+    本脚本不解析 .ushar、不解析 keyspace JSON 字段、不复制常量；只做三次 Ordinal 文本对拍：
+      1) 仓库声明复算 facts  vs  已入库 agent.keyspace.generated.json（生成产物是否过期）
+      2) 仓库声明复算 facts  vs  Data\Agent\Config\keyspaces\agent.keyspace.json（部署镜像）
+      3) 仓库声明复算 facts  vs  Runtime 代目录 keyspace（若 current 指针存在）
+    事实字形 = families 按 id、ports 按 name 的 Ordinal 排序；derivedPrefixes 保留声明序；
+    ports 保留「同名异向」全部条目（旧 PS 用 Dictionary 会静默覆盖，已修）。
+
+    Data 缺失 = 干净 checkout：输出 [SKIPPED_NO_TARGET]（未验证），不计入通过。
+#>
 [CmdletBinding()]
 param(
     [string]$Root = '',
@@ -9,7 +22,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
 $GateRuntimeRoot = $PSScriptRoot
 while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
@@ -21,112 +33,82 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = $probe
 }
 
-# 仓库侧真源 = 键空间声明产物（agent.keyspace.generated.json；手写 agent.keyspace.json 已退役，
-# 恒红缺件会掩盖真实漂移 ⇒ 载体指向实际产物）。
-$repoPath = Join-Path $Root 'Projects\Plug\Agent\Config\keyspaces\agent.keyspace.generated.json'
+$bundleCandidates = @(
+    (Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Bundle.exe'),
+    (Join-Path $Root 'Frame\Usharp\BuildOutput\Release\Usharp.Bundle.exe')
+)
+$bundle = $bundleCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $bundle) {
+    Write-Host '[FAIL] 无法执行：Usharp.Bundle 未构建（键空间事实不可产出）' -ForegroundColor Red
+    exit 2
+}
+
+$repoConfig = Join-Path $Root 'Projects\Plug\Agent\Config'
+$repoGenerated = Join-Path $repoConfig 'keyspaces\agent.keyspace.generated.json'
 $dataPath = Join-Path $Root 'Data\Agent\Config\keyspaces\agent.keyspace.json'
-
-if (-not (Test-Path -LiteralPath $repoPath)) {
-    Write-Host "VIOLATION: 缺仓库 keyspace：$repoPath" -ForegroundColor Red
-    exit 1
-}
-if (-not (Test-Path -LiteralPath $dataPath)) {
-    Write-Host 'SKIP: Data keyspace 不存在（干净 checkout），跳过镜像比对。' -ForegroundColor Yellow
-    if ($RequireData) { exit 1 }
-    exit 0
-}
-
 $violations = New-Object System.Collections.Generic.List[string]
 
+$probeDir = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('keyspace-' + [guid]::NewGuid().ToString('N')))
+New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
 
-function Read-Keyspace([string]$Path) {
-    $json = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-    # 键集语义 = Ordinal（对齐 C# AgentKeySpaceDeclarationLoader / LedgerKeyClosure）。
-    # PowerShell 默认 hashtable 大小写不敏感，会把 Foo 与 foo 判等（假绿）。
-    $families = [System.Collections.Generic.Dictionary[string, object]]::new([System.StringComparer]::Ordinal)
-    foreach ($f in @($json.families)) {
-        if ($null -ne $f -and -not [string]::IsNullOrWhiteSpace([string]$f.id)) {
-            $families[[string]$f.id] = [PSCustomObject]@{
-                Template = [string]$f.template
-                Business = [string]$f.businessKeyTemplate
-                # 保留声明序的数组（禁 -join 比较：分隔符与区域性排序会掩盖差异）
-                Derived  = [string[]]@($f.derivedPrefixes)
+function Invoke-Facts([string]$ModeName, [string]$InputPath, [string]$OutFile) {
+    Write-Host "[debug-call] $bundle | $ModeName | $InputPath | $OutFile" -ForegroundColor DarkGray
+    & $bundle $ModeName $InputPath $OutFile
+    Write-Host "[debug-exit] $LASTEXITCODE size=$((Get-Item -LiteralPath $OutFile -ErrorAction SilentlyContinue).Length)" -ForegroundColor DarkGray
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $OutFile)) {
+        throw "Usharp.Bundle $ModeName 失败（输入：$InputPath）"
+    }
+    # 生成器刚写完的产物可能被索引/杀软短暂占用：重试读取（不改内容）。
+    for ($attempt = 0; $attempt -lt 5; $attempt++) {
+        try { return [System.IO.File]::ReadAllText($OutFile) }
+        catch {
+            Write-Host ("[debug-read] " + $_.Exception.GetType().Name + ": " + $_.Exception.Message) -ForegroundColor DarkGray
+            Start-Sleep -Milliseconds 50
+        }
+    }
+    throw "无法读取事实产物：$OutFile"
+}
+
+function Compare-Facts([string]$Label, [string]$Expected, [string]$Actual) {
+    if (-not [string]::Equals($Expected, $Actual, [System.StringComparison]::Ordinal)) {
+        $violations.Add("$Label 键空间事实漂移（Ordinal 文本不等；按 families/ports 规范化后比较）")
+    }
+}
+
+try {
+    $repoFacts = Invoke-Facts 'keyspace-facts' $repoConfig (Join-Path $probeDir 'repo.json')
+
+    # 生成产物必须与声明复算一致：第二处「读生成文件但可能过期」的载体（与 ITransferKeyStore.cs 空壳同类）。
+    if (-not (Test-Path -LiteralPath $repoGenerated)) {
+        $violations.Add("缺仓库键空间产物：$repoGenerated")
+    } else {
+        $committedFacts = Invoke-Facts 'keyspace-facts-json' $repoGenerated (Join-Path $probeDir 'committed.json')
+        Compare-Facts '仓库声明 vs agent.keyspace.generated.json' $repoFacts $committedFacts
+    }
+
+    $dataAvailable = Test-Path -LiteralPath $dataPath
+    if ($dataAvailable) {
+        $dataFacts = Invoke-Facts 'keyspace-facts-json' $dataPath (Join-Path $probeDir 'data.json')
+        Compare-Facts '仓库声明 vs Data\Agent\Config' $repoFacts $dataFacts
+    }
+
+    $currentPtr = Join-Path $Root 'Runtime\Plugins\Agent\current'
+    if (Test-Path -LiteralPath $currentPtr) {
+        $generation = (Get-Content -LiteralPath $currentPtr -Raw).Trim()
+        if (-not [string]::IsNullOrWhiteSpace($generation)) {
+            $genPath = Join-Path $Root "Runtime\Plugins\Agent\Generations\$generation\assets\Config\keyspaces\agent.keyspace.json"
+            if (Test-Path -LiteralPath $genPath) {
+                $genFacts = Invoke-Facts 'keyspace-facts-json' $genPath (Join-Path $probeDir 'generation.json')
+                Compare-Facts "仓库声明 vs Gen($generation)" $repoFacts $genFacts
+            }
+            else {
+                $violations.Add("Gen($generation) 缺 keyspace 声明：$genPath")
             }
         }
     }
-    $ports = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::Ordinal)
-    foreach ($p in @($json.ports)) {
-        if ($null -ne $p -and -not [string]::IsNullOrWhiteSpace([string]$p.name)) {
-            $ports[[string]$p.name] = [string]$p.direction
-        }
-    }
-    return [PSCustomObject]@{ Families = $families; Ports = $ports }
 }
-
-function Test-OrdinalText([string]$Left, [string]$Right) {
-    return [string]::Equals($Left, $Right, [System.StringComparison]::Ordinal)
-}
-
-function Test-OrdinalArray([string[]]$Left, [string[]]$Right) {
-    if ($Left.Count -ne $Right.Count) { return $false }
-    for ($i = 0; $i -lt $Left.Count; $i++) {
-        if ([string]::CompareOrdinal($Left[$i], $Right[$i]) -ne 0) { return $false }
-    }
-    return $true
-}
-
-function Compare-Declarations([string]$Label, [string]$Path, $RepoDoc) {
-    $doc = Read-Keyspace $Path
-    foreach ($id in $RepoDoc.Families.Keys) {
-        if (-not $doc.Families.ContainsKey($id)) {
-            $violations.Add("${Label} 缺 family：$id")
-            continue
-        }
-        $repo = $RepoDoc.Families[$id]
-        $other = $doc.Families[$id]
-        if (-not (Test-OrdinalText $other.Template $repo.Template)) {
-            $violations.Add("${Label} family 模板漂移：$id（repo=$($repo.Template); $Label=$($other.Template)）")
-        }
-        if (-not (Test-OrdinalText $other.Business $repo.Business)) {
-            $violations.Add("${Label} family 业务键模板漂移：$id（repo=$($repo.Business); $Label=$($other.Business)）")
-        }
-        if (-not (Test-OrdinalArray $other.Derived $repo.Derived)) {
-            $violations.Add("${Label} family 派生前缀漂移：$id（repo=[$($repo.Derived -join ',')]; $Label=[$($other.Derived -join ',')]）")
-        }
-    }
-    foreach ($id in $doc.Families.Keys) {
-        if (-not $RepoDoc.Families.ContainsKey($id)) {
-            $violations.Add("${Label} 多出 family（仓库未声明）：$id")
-        }
-    }
-    foreach ($name in $RepoDoc.Ports.Keys) {
-        if (-not $doc.Ports.ContainsKey($name)) { $violations.Add("${Label} 缺 port：$name"); continue }
-        # direction 此前只读不比较（死字段，D13）：纳入 Ordinal 比较，禁「同名异向」假绿。
-        if (-not (Test-OrdinalText $doc.Ports[$name] $RepoDoc.Ports[$name])) {
-            $violations.Add("${Label} port 方向漂移：$name（repo=$($RepoDoc.Ports[$name]); $Label=$($doc.Ports[$name])）")
-        }
-    }
-    foreach ($name in $doc.Ports.Keys) {
-        if (-not $RepoDoc.Ports.ContainsKey($name)) { $violations.Add("${Label} 多出 port（仓库未声明）：$name") }
-    }
-}
-
-$repoDoc = Read-Keyspace $repoPath
-Compare-Declarations -Label 'Data' -Path $dataPath -RepoDoc $repoDoc
-
-# 代目录镜像（部署态）：current 指针存在则必须同步（否则「单测绿 / 运行红」的声明分叉不可见）。
-$currentPtr = Join-Path $Root 'Runtime\Plugins\Agent\current'
-if (Test-Path -LiteralPath $currentPtr) {
-    $generation = (Get-Content -LiteralPath $currentPtr -Raw).Trim()
-    if (-not [string]::IsNullOrWhiteSpace($generation)) {
-        $genPath = Join-Path $Root "Runtime\Plugins\Agent\Generations\$generation\assets\Config\keyspaces\agent.keyspace.json"
-        if (Test-Path -LiteralPath $genPath) {
-            Compare-Declarations -Label "Gen($generation)" -Path $genPath -RepoDoc $repoDoc
-        }
-        else {
-            $violations.Add("Gen($generation) 缺 keyspace 声明：$genPath")
-        }
-    }
+finally {
+    if (Test-Path -LiteralPath $probeDir) { Remove-Item -LiteralPath $probeDir -Recurse -Force }
 }
 
 if ($violations.Count -gt 0) {
@@ -134,5 +116,13 @@ if ($violations.Count -gt 0) {
     if ($Check) { exit 1 }
     exit 0
 }
-Write-Host ("KeyspaceMirror gate OK（families={0}, ports={1}）" -f $repoDoc.Families.Count, $repoDoc.Ports.Count) -ForegroundColor Green
+
+if (-not $dataAvailable) {
+    Write-GateSkip -Key 'KeyspaceMirror' -Reason 'Data\Agent\Config\keyspaces\agent.keyspace.json 不存在（无对照对象）'
+    if ($RequireData) { exit 1 }
+    Write-Host '[PASS] KeyspaceMirror 仓库声明面通过（生成产物未过期）；Data/代目录镜像未验证' -ForegroundColor Green
+    exit 0
+}
+
+Write-Host '[PASS] KeyspaceMirror gate 通过（仓库声明、生成产物、Data、代目录均 Ordinal 一致）' -ForegroundColor Green
 exit 0

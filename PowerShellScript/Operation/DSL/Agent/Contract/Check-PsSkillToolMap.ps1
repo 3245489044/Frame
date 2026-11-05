@@ -25,22 +25,23 @@ while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRunti
 if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
+$repoRoot = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
+$ledgerForge = Get-GateLedgerForge -RepoRoot $repoRoot
+if (-not $ledgerForge) {
+    Write-Host '[FAIL] 无法执行：LedgerForge 未构建（键集比较不可用）' -ForegroundColor Red
+    exit 2
+}
 if ([string]::IsNullOrWhiteSpace($AgentRoot)) {
-    $repoRoot = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
     $AgentRoot = Join-Path $repoRoot 'Projects\Plug\Agent'
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
 $warnings   = [System.Collections.Generic.List[string]]::new()
 
+# 键集比较统一到 C# LedgerKeyClosure(Ordinal)（A8）；本门只保留 M1/M2 业务判据。
 function Compare-Set {
     param([string[]]$Left, [string[]]$Right)
-    $l = @($Left | Where-Object { $_ } | Sort-Object -Unique)
-    $r = @($Right | Where-Object { $_ } | Sort-Object -Unique)
-    [pscustomobject]@{
-        OnlyLeft  = @($l | Where-Object { $r -notcontains $_ })
-        OnlyRight = @($r | Where-Object { $l -notcontains $_ })
-    }
+    return (Compare-GateKeySet -Reference $Left -Other $Right -ReferenceLabel 'left' -OtherLabel 'right' -RepoRoot $repoRoot)
 }
 
 # ---- M1/M2 输入：映射表 ----

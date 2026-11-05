@@ -14,12 +14,11 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = $PSScriptRoot
-while ($repoRoot -and -not (Test-Path (Join-Path $repoRoot 'Projects\Plug\Agent'))) {
-    $parent = Split-Path $repoRoot -Parent
-    if ($parent -eq $repoRoot) { $repoRoot = $null; break }
-    $repoRoot = $parent
-}
+while ($repoRoot -and -not ((Test-Path (Join-Path $repoRoot 'Frame')) -and (Test-Path (Join-Path $repoRoot 'Projects')))) { $repoRoot = Split-Path $repoRoot -Parent }
 if (-not $repoRoot) { Write-Host '[FAIL] 无法定位仓库根'; exit 2 }
+Import-Module (Join-Path $repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$ledgerForge = Get-GateLedgerForge -RepoRoot $repoRoot
+if (-not $ledgerForge) { Write-Host '[FAIL] 无法执行：LedgerForge 未构建（键集比较不可用）'; exit 2 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
 function Add-Violation([string]$code, [string]$message) { $violations.Add("[$code] $message") | Out-Null }
@@ -69,9 +68,11 @@ function Get-SchemaKeySet([string]$Text, [string]$Section) {
     return $set
 }
 
+# 键集比较统一到 C# LedgerKeyClosure(Ordinal)（A8）；C1–C5 业务判据仍在本门。
 function Compare-KeySets([string]$Label, $Expected, $Actual, $ExtraLabel) {
-    foreach ($k in $Expected) { if (-not $Actual.Contains($k)) { Add-Violation $Label "缺失键：$k（$ExtraLabel）" } }
-    foreach ($k in $Actual) { if (-not $Expected.Contains($k)) { Add-Violation $Label "多出键：$k（$ExtraLabel）" } }
+    $diff = Compare-GateKeySet -Reference @($Expected) -Other @($Actual) -ReferenceLabel 'expected' -OtherLabel 'actual' -RepoRoot $repoRoot
+    foreach ($k in @($diff.OnlyLeft)) { Add-Violation $Label "缺失键：$k（$ExtraLabel）" }
+    foreach ($k in @($diff.OnlyRight)) { Add-Violation $Label "多出键：$k（$ExtraLabel）" }
 }
 
 function Measure-Forbidden([string]$Text, [string[]]$Patterns) {

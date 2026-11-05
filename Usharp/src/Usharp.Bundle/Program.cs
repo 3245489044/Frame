@@ -1,12 +1,55 @@
 using System;
 using System.IO;
 using Usharp.Adapters.Declarations;
+using Usharp.Bundle;
 
 // 声明单点编译工具（G1）：<configRoot> <outDir> → manifest / round-spec / reference-schema / keyspace / commands。
 // UI 声明（专用闭包）：ui <configRoot> <outFile> → ui-declaration.generated.json
 //                     uiregions <configRoot> <outFile> → ui-regions.json（兼容视图，带生成标记）
 // 唯一编译点 = DeclaredBundleBuilder；本工具只做参数解析与产出上报。
 // selfcheck：值映射反例自检（E-4；零测试工程，退出码 0/1 供回归套件断言）。
+if (args.Length >= 3 && string.Equals(args[0], "keyspace-facts", StringComparison.OrdinalIgnoreCase))
+{
+    var factsConfigRoot = args[1];
+    var factsOutFile = args[2];
+    try
+    {
+        var artifacts = DeclaredBundleBuilder.Build(factsConfigRoot);
+        var normalized = KeySpaceFactsNormalizer.Normalize(artifacts.KeySpaceJson);
+        File.WriteAllText(factsOutFile, normalized);
+        Console.WriteLine($"keyspace-facts: errors={artifacts.Errors}");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"keyspace-facts 失败: {ex.Message}");
+        return 2;
+    }
+}
+
+if (args.Length >= 3 && string.Equals(args[0], "keyspace-facts-json", StringComparison.OrdinalIgnoreCase))
+{
+    var factsJsonIn = args[1];
+    var factsJsonOut = args[2];
+    try
+    {
+        if (!File.Exists(factsJsonIn))
+        {
+            Console.Error.WriteLine($"keyspace-facts-json 输入缺失: {factsJsonIn}");
+            return 2;
+        }
+
+        var normalized = KeySpaceFactsNormalizer.Normalize(File.ReadAllText(factsJsonIn));
+        File.WriteAllText(factsJsonOut, normalized);
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"keyspace-facts-json 失败: {ex.Message}");
+        return 2;
+    }
+}
+
 if (args.Length >= 1 && string.Equals(args[0], "selfcheck", StringComparison.OrdinalIgnoreCase))
 {
     var issues = UsharpValueMapperSelfCheck.Run();

@@ -93,7 +93,7 @@ public static class SyncObservationPoints
     public const int FirstIndex = 20;
 
     /// <summary>17 个观测点全部落地后的 <c>MetricCatalog.Count</c>。</summary>
-    public const int ExpectedCatalogCount = FirstIndex + 17;
+    public static readonly int ExpectedCatalogCount = FirstIndex + 17;
 
     /// <summary>按 <see cref="SyncObservationPoint"/> 顺序排列的元数据表。</summary>
     public static readonly IReadOnlyList<SyncObservationSpec> All = new SyncObservationSpec[]

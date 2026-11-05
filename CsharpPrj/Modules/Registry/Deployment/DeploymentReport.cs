@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Linq;
 
 namespace Modules.Registry;
 
@@ -47,6 +48,52 @@ public sealed record DeploymentReport(
     public int MissingCount => Assets.Count(a => !a.Resolved);
 
     public bool HasMissing => Assets.Any(a => !a.Resolved);
+
+    /// <summary>
+    /// 清单 → 插件单元（唯一映射；禁各处再写 deps.json 文件名 switch）。
+    /// 判据载体 = 清单路径（结构事实），不依赖执行者叙述。
+    /// </summary>
+    public static string UnitOf(string manifestPath) => ToProductLabel(manifestPath);
+
+    /// <summary>
+    /// 某单元的缺失资产（按 <see cref="DeploymentAsset.DeclaredByManifests"/> 归属；跨清单解析成功即不计缺）。
+    /// <para>隔离判定的唯一入口：装配门只看自身单元，**不得**用全局 <see cref="MissingCount"/> 推导任何单元状态。</para>
+    /// </summary>
+    public IReadOnlyList<DeploymentAsset> MissingOfUnit(string unit)
+        => MissingAssets
+            .Where(a => a.DeclaredByManifests.Any(m =>
+                string.Equals(UnitOf(m), unit, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+
+    /// <summary>单元 → 缺失数（隔离判定/可见化）。</summary>
+    public IReadOnlyDictionary<string, int> MissingPerUnit
+    {
+        get
+        {
+            var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var asset in MissingAssets)
+            {
+                foreach (var manifest in asset.DeclaredByManifests)
+                {
+                    var unit = UnitOf(manifest);
+                    map[unit] = map.TryGetValue(unit, out var count) ? count + 1 : 1;
+                }
+            }
+
+            return map;
+        }
+    }
+
+    /// <summary>单元状态摘要（唯一渲染口径；无缺失 ⇒ <c>units=all-clear</c>）。</summary>
+    public string FormatPerUnit()
+    {
+        var perUnit = MissingPerUnit;
+        return perUnit.Count == 0
+            ? "units=all-clear"
+            : "units=" + string.Join(", ", perUnit
+                .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(kv => $"{kv.Key}:{kv.Value}"));
+    }
 
     /// <summary>有界摘要（不拼接全量列表）。</summary>
     public string FormatSummary()

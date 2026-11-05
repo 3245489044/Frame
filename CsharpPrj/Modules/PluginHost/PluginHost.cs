@@ -18,16 +18,20 @@ public sealed partial class PluginHost : IPluginHost, IDisposable
     private readonly string _runtimeRoot;
     private readonly string _pluginsRoot;
     private readonly Action<string> _log;
+    private readonly IServiceProvider _hostServices;
     private readonly Dictionary<string, PluginSlot> _slots = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _gate = new();
 
-    public PluginHost(string? runtimeRoot = null, Action<string>? log = null)
+    public PluginHost(string? runtimeRoot = null, Action<string>? log = null, IServiceProvider? hostServices = null)
     {
         _runtimeRoot = runtimeRoot
             ?? RuntimeLayout.TryGetPublishedRoot()
             ?? throw new InvalidOperationException("PluginHost 需要 Runtime 根；Dev 模式请显式传入 runtimeRoot。");
         _pluginsRoot = Path.Combine(_runtimeRoot, "Plugins");
         _log = log ?? (message => Console.WriteLine("[PluginHost] " + message));
+        // 宿主服务注入（可选）：插件经 IPluginContext.HostServices 取宿主能力（控件解析/ECS sink 等）。
+        // 缺省空实现 ⇒ 插件按「无宿主服务」自降级（不把缺失伪装成可用）。
+        _hostServices = hostServices ?? EmptyServiceProvider.Instance;
     }
 
     public IReadOnlyList<PluginStatus> Statuses

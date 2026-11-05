@@ -71,7 +71,7 @@ public static class GatherSpecLoader
         if (forbidden.Count > 0)
         {
             throw new InvalidOperationException(
-                $"聚拢声明含过程语义键（禁 step/order/sequence/then/next）: {string.Join(", ", forbidden)}");
+                $"[V14] 聚拢声明含过程语义键（禁 step/order/sequence/then/next）: {string.Join(", ", forbidden)}");
         }
 
         var schema = ReadText(rootObject["schema"]) ?? string.Empty;

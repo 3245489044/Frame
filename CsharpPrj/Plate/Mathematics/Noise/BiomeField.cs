@@ -1,4 +1,5 @@
 using MathematicalAlgorithms.Core;
+using Modules.Compute.Formula;
 
 namespace MathematicalAlgorithms.Noise;
 
@@ -38,8 +39,20 @@ public readonly struct BiomeSample
 /// <summary>
 /// 群系气候场：温度/湿度两张 2D 值噪声（世界坐标求值，跨 chunk 连续），
 /// 在气候平面里取最近两个群系中心做 Voronoi 加权。
-/// <para>确定性：所有采样只依赖 (x,z,seed)；无 <see cref="Random"/>，无缓存状态。</para>
+/// <para>确定性：所有采样只依赖 (x,z,seed)；无 <see cref="Random"/>。</para>
 /// <para>尺度：配置以米传入，内部换算 cm，与 <see cref="TerrainNoise"/> 的坐标口径一致。</para>
+/// <para>
+/// <b>角值缓存（只省哈希，不改数值）</b>：气候噪声是「lattice 角值 + 双线性插值」，
+/// 同一气候格（<c>temperatureCellCm</c> / <c>humidityCellCm</c> 那级）内的所有列共享同一组角值。
+/// 缓存按 <c>(字段种子, 波长, 格号cx, 格号cz)</c> 命中，<b>缓存返回的是同一次插值所用的原始角值</b>，
+/// 因此 <see cref="Sample"/> 的输出与原逐点直算逐位相同（不是「重算结果相同」）。
+/// </para>
+/// <para>
+/// <b>作用域与失效</b>：缓存属于 <see cref="BiomeField"/> 实例，跨 chunk / 跨 tile 复用；
+/// 实例构造后波长、种子、群系表都是只读（<see cref="Signature"/> 已把它们全部混入），
+/// 因此已在缓存中的角值不可能过期——要改配置只能新建实例（另一实例另一份缓存）。
+/// 容量是软上限，满时整表清空（只影响命中率/耗时，不影响数值）。
+/// </para>
 /// </summary>
 public sealed class BiomeField
 {
@@ -54,6 +67,11 @@ public sealed class BiomeField
     private readonly int _humidityCellCm;
     private readonly int _temperatureSeed;
     private readonly int _humiditySeed;
+
+    // 气候角值缓存：每张气候噪声独立签名（种子 + 波长），键 (签名, 格号cx, 波长, 格号cz)。
+    private readonly TileCache _climateCorners;
+    private readonly long _temperatureKey;
+    private readonly long _humidityKey;
 
     public BiomeField(
         IReadOnlyList<BiomeClimate> biomes,
@@ -88,6 +106,11 @@ public sealed class BiomeField
         _humidityCellCm = humidityCellMeters * unitsPerMeter;
         _temperatureSeed = seed ^ TemperatureSeedSalt;
         _humiditySeed = seed ^ HumiditySeedSalt;
+
+        // 缓存键签名：与字段种子 + 波长绑定（群系只影响权重选择，不影响角值）。
+        _temperatureKey = SignatureSet.Mix(SignatureSet.Mix(SignatureSet.Seed, _temperatureSeed), _temperatureCellCm);
+        _humidityKey = SignatureSet.Mix(SignatureSet.Mix(SignatureSet.Seed, _humiditySeed), _humidityCellCm);
+        _climateCorners = new TileCache();
 
         var hash = SignatureHash.Begin();
         hash = SignatureHash.Mix(hash, _temperatureCellCm);

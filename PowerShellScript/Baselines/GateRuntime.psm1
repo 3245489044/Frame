@@ -87,6 +87,22 @@ function Write-GateHeader {
 
 <#
 .SYNOPSIS
+    显性「未验证」裁决出口（SKIP 不许算绿）。
+.DESCRIPTION
+    目标缺失 / 无对照对象 → 输出 `[SKIPPED_NO_TARGET]`，与 PASS 的 `[PASS]`/`OK` 字样严格区分。
+    跳过不是通过：台账统计与人工阅读都必须能一眼区分。退出码由调用方决定（通常仍为 0）。
+#>
+function Write-GateSkip {
+    param(
+        [Parameter(Mandatory = $true)][string]$Reason,
+        [string]$Key = ''
+    )
+    $label = if ($Key) { "$Key " } else { '' }
+    Write-Host "[SKIPPED_NO_TARGET] ${label}未验证：$Reason" -ForegroundColor Yellow
+}
+
+<#
+.SYNOPSIS
     统一门禁裁决尾巴（单义退出码：0 无违规 / -Check 且违规 → 1）。
 .DESCRIPTION
     · 无违规 → 打印 [PASS]，exit 0；
@@ -194,6 +210,77 @@ $script:GateRegionKeyPattern = 'region-[a-z0-9-]+'
 #>
 function Get-GateRegionKeyPattern {
     return $script:GateRegionKeyPattern
+}
+
+<#
+.SYNOPSIS
+    定位 LedgerForge 离线工具（未构建 → $null；调用方应 Assert-GatePrerequisite）。
+#>
+function Get-GateLedgerForge {
+    param([string]$RepoRoot = '')
+    $root = if ($RepoRoot) { $RepoRoot } else { Get-GateRepoRoot }
+    foreach ($configuration in @('Debug', 'Release')) {
+        $candidate = Join-Path $root "Frame\CsharpPrj\Plate\DeclarativeLedger.Tools\LedgerForge\BuildOutput\$configuration\LedgerForge.exe"
+        if (Test-Path -LiteralPath $candidate) { return $candidate }
+    }
+    return $null
+}
+
+<#
+.SYNOPSIS
+    键集对拍（唯一比较实现 = C# LedgerKeyClosure(Ordinal)，经 LedgerForge compare-faces）。
+.DESCRIPTION
+    只统一「键集比较」，不承载任何业务判据；业务规则仍留调用门。
+    返回 OnlyLeft（仅在 Reference）/ OnlyRight（仅在 Other）。
+#>
+function Compare-GateKeySet {
+    param(
+        [string[]]$Reference,
+        [string[]]$Other,
+        [string]$ReferenceLabel = 'reference',
+        [string]$OtherLabel = 'other',
+        [string]$RepoRoot = ''
+    )
+
+    $ledgerForge = Get-GateLedgerForge -RepoRoot $RepoRoot
+    if (-not $ledgerForge) { throw 'LedgerForge 未构建（缺 BuildOutput\Debug|Release\LedgerForge.exe），键集对拍不可执行' }
+
+    function ConvertTo-GateJsonArray([string[]]$Items) {
+        $quoted = @()
+        foreach ($item in @($Items)) {
+            if ([string]::IsNullOrEmpty($item)) { continue }
+            $quoted += '"' + ($item.Replace('\', '\\').Replace('"', '\"')) + '"'
+        }
+        return '[' + ($quoted -join ',') + ']'
+    }
+
+    $probeDir = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('keyset-' + [guid]::NewGuid().ToString('N')))
+    try {
+        New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
+        $refPath = Join-Path $probeDir 'reference.json'
+        $otherPath = Join-Path $probeDir 'other.json'
+        $outPath = Join-Path $probeDir 'result.json'
+        [System.IO.File]::WriteAllText($refPath, (ConvertTo-GateJsonArray @($Reference)))
+        [System.IO.File]::WriteAllText($otherPath, (ConvertTo-GateJsonArray @($Other)))
+
+        & $ledgerForge compare-faces --face "${ReferenceLabel}=$refPath" --face "${OtherLabel}=$otherPath" --ref $ReferenceLabel --out $outPath | Out-Null
+        $code = $LASTEXITCODE
+        if ($code -eq 2 -or -not (Test-Path -LiteralPath $outPath)) {
+            throw "compare-faces 不可执行（退出码 $code）"
+        }
+
+        $payload = Get-Content -LiteralPath $outPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $onlyLeft = [System.Collections.Generic.List[string]]::new()
+        $onlyRight = [System.Collections.Generic.List[string]]::new()
+        foreach ($violation in @($payload.violations)) {
+            if ($violation.kind -ceq 'missing') { $onlyLeft.Add([string]$violation.key) }
+            elseif ($violation.kind -ceq 'extra') { $onlyRight.Add([string]$violation.key) }
+        }
+        return [pscustomobject]@{ OnlyLeft = @($onlyLeft); OnlyRight = @($onlyRight) }
+    }
+    finally {
+        if (Test-Path -LiteralPath $probeDir) { Remove-Item -LiteralPath $probeDir -Recurse -Force }
+    }
 }
 
 <#
@@ -332,6 +419,9 @@ Export-ModuleMember -Function @(
     'Assert-GatePrerequisite',
     'Assert-GateControls',
     'Get-GateRegionKeyPattern',
+    'Get-GateLedgerForge',
+    'Compare-GateKeySet',
+    'Write-GateSkip',
     # 目录映射（委托 DirectoryMap；一键装载供门禁消费）
     'Get-SuperRoot',
     'Get-RepositoryRoot',

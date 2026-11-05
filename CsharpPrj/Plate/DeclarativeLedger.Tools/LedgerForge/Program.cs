@@ -29,9 +29,11 @@ internal static class Program
                 "emit-declaration" => EmitDeclarationCommand.Run(LedgerView.Load(options.Data), options.Family!, options.Out),
                 "lint" => LintCommand.Run(LedgerView.Load(options.Data), options.Only),
                 "entry-check" => EntryCheckCommand.Run(LedgerView.Load(options.Data), options.Bin!, options.Only, options.Kind),
+                "gather-validate" => GatherValidateCommand.Run(options.Dir, options.Out),
+                "compare-faces" => CompareFacesCommand.Run(options.Faces, options.Ref, options.Out),
                 "help" or "--help" or "-h" or "" => Help(),
                 _ => Fail($"未知命令 '{options.Command}'"
-                          + "（可用：check | compose | split | set-impl | normalize-key | derive-schema | emit-declaration | lint | entry-check | help）"),
+                          + "（可用：check | compose | split | set-impl | normalize-key | derive-schema | emit-declaration | lint | entry-check | gather-validate | compare-faces | help）"),
             };
         }
         catch (Exception exception)
@@ -62,6 +64,10 @@ internal static class Program
         Console.WriteLine("                                         产品**入口形态判据**（离线反射 indicative）：public static / 无委托");
         Console.WriteLine("                                         / 非 async / 有返回 / 实参可匹配；政策 = 数据视图 entry 段");
         Console.WriteLine("                                         --kind declared 判「已声明 target/method 但 kind 未切」的条目（预检）");
+        Console.WriteLine("  gather-validate --dir <声明目录> [--out <json>]");
+        Console.WriteLine("                                         聚拢声明校验（唯一实现 = GatherSpecLoader；V1–V15；issues 走 JSON）");
+        Console.WriteLine("  compare-faces --face <名>=<键集.json> (≥2) [--ref <名>] [--out <json>]");
+        Console.WriteLine("                                         多面键集对拍（唯一比较实现 = LedgerKeyClosure / Ordinal）");
         Console.WriteLine("  help                                   本帮助");
         Console.WriteLine();
         Console.WriteLine("  开关约束：--bytes 仅 check；--check 仅 normalize-key；--write 不适用于 check / help");
@@ -80,7 +86,7 @@ internal static class Program
     private sealed record Options(
         string Command, string? Data, bool Write, bool Bytes, bool Check,
         string? Impl, string? Project, string? Suite, string? Schemas, string? Family, string? Out, string? Only,
-        string? Bin, string? Kind);
+        string? Bin, string? Kind, string? Dir, IReadOnlyList<string> Faces, string? Ref);
 
     /// <summary>命令行解析（无第三方依赖；未知选项即抛；命令与开关不匹配即抛）。</summary>
     private static class Cli
@@ -92,6 +98,9 @@ internal static class Program
             string? only = null;
             string? bin = null;
             string? kind = null;
+            string? dir = null;
+            string? reference = null;
+            var faces = new List<string>();
             var write = false;
             var bytes = false;
             var check = false;
@@ -111,6 +120,18 @@ internal static class Program
 
                     case "--bin":
                         bin = Value(args, ref index, arg);
+                        continue;
+
+                    case "--dir":
+                        dir = Value(args, ref index, arg);
+                        continue;
+
+                    case "--face":
+                        faces.Add(Value(args, ref index, arg));
+                        continue;
+
+                    case "--ref":
+                        reference = Value(args, ref index, arg);
                         continue;
 
                     case "--kind" or "-k":
@@ -179,8 +200,14 @@ internal static class Program
                 throw new ArgumentException("normalize-key 需要 --project <工程名>");
             if (command == "emit-declaration" && string.IsNullOrWhiteSpace(family))
                 throw new ArgumentException("emit-declaration 需要 --family <夹具文件>");
+            if (command == "gather-validate" && string.IsNullOrWhiteSpace(dir))
+                throw new ArgumentException("gather-validate 需要 --dir <聚拢声明目录>");
+            if (command == "compare-faces" && faces.Count < 2)
+                throw new ArgumentException("compare-faces 至少需要两个 --face <名>=<键集 JSON>");
+            if (reference is not null && command != "compare-faces")
+                throw new ArgumentException($"--ref 仅适用于 compare-faces（实得命令 '{command}'）");
 
-            return new Options(command, data, write, bytes, check, impl, project, suite, schemas, family, output, only, bin, kind);
+            return new Options(command, data, write, bytes, check, impl, project, suite, schemas, family, output, only, bin, kind, dir, faces, reference);
         }
 
         private static string Value(string[] args, ref int index, string option)

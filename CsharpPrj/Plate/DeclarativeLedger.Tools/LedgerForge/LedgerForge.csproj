@@ -40,6 +40,9 @@
   <ItemGroup>
     <ProjectReference Include="$(Proj_JsonMethod)" />
     <ProjectReference Include="$(Proj_DeclarativeLedger)" />
+    <!-- A1/D10：聚拢声明校验唯一实现（GatherSpecLoader Validate/ResolveInheritance）。
+         本工具只做 CLI 接线与 issues 输出，禁第二份声明解析。 -->
+    <ProjectReference Include="$(Proj_Gather)" />
     <!-- F2-a ⑤ derive-schema：词表 → 结构门（schema enum / 键集）算法唯一实现在标准层，
          本工具只做 CLI 接线（禁第二份算法）。契约面 + 标准层均为 Frame 内工程（Frame 内源引用合法）。 -->
     <ProjectReference Include="$(CsharpPrjDir)..\DataCenter\DataCenter.Protocol\DataCenter.Protocol.csproj" />

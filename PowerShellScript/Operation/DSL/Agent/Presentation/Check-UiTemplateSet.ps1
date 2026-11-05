@@ -34,6 +34,11 @@ $ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 
 $Root = $ctx.Root
 $violations = $ctx.Violations
 function Add-Violation([string]$m) { $script:violations.Add($m) }
+$ledgerForge = Get-GateLedgerForge -RepoRoot $Root
+if (-not $ledgerForge) {
+    Write-Host '[FAIL] 无法执行：LedgerForge 未构建（键集比较不可用）' -ForegroundColor Red
+    exit 2
+}
 
 Write-Host ''
 Write-Host '============================================================'
@@ -64,7 +69,7 @@ function Get-Prop($obj, [string]$name) {
 }
 
 function Get-StringMapKeys($obj) {
-    $set = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $set = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     if ($null -eq $obj) { return $set }
     foreach ($p in $obj.PSObject.Properties) {
         if ($p.Value -is [string]) { [void]$set.Add($p.Name) }
@@ -72,15 +77,15 @@ function Get-StringMapKeys($obj) {
     return $set
 }
 
+# T1 子集判据：键集比较统一到 C# LedgerKeyClosure(Ordinal)（A8）。
 function Test-RequiredKeys($map, [string]$source, [System.Collections.Generic.List[string]]$out) {
-    foreach ($k in $requiredKeys) {
-        if (-not $map.Contains($k)) { $out.Add("[$source] 缺必需模板键: $k") }
-    }
+    $diff = Compare-GateKeySet -Reference @($requiredKeys) -Other @($map) -ReferenceLabel 'required' -OtherLabel 'effective' -RepoRoot $Root
+    foreach ($k in @($diff.OnlyLeft)) { $out.Add("[$source] 缺必需模板键: $k") }
 }
 
 # ---- T1 生效集必需键（默认集 ∪ 配置覆盖）----
 $defaultKeys = $null
-$configKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+$configKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 if (-not (Test-Path -LiteralPath $defaultsPath)) {
     Add-Violation "[T1] 缺件（判据不可判）：$defaultsPath"
 } else {
@@ -106,7 +111,7 @@ if (-not (Test-Path -LiteralPath $configPath)) {
 }
 
 if ($defaultKeys) {
-    $effective = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $effective = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     foreach ($k in $defaultKeys) { [void]$effective.Add($k) }
     foreach ($k in $configKeys) { [void]$effective.Add($k) }
     Test-RequiredKeys $effective 'T1' $violations
@@ -119,7 +124,7 @@ if (-not (Test-Path -LiteralPath $ownershipPath)) {
 } else {
     $ownedKeys = @((Import-PowerShellDataFile -LiteralPath $ownershipPath).Keys)
     foreach ($k in $configKeys) {
-        if ($ownedKeys -notcontains $k) {
+        if ($ownedKeys -cnotcontains $k) {
             Add-Violation "[T2] 配置模板键未登记为 Agent 自有：$k（Baselines\Agent\UiTemplateOwnership.psd1）"
         }
     }

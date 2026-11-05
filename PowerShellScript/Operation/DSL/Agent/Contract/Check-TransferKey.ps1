@@ -20,6 +20,11 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 }
 
 $violations = New-Object System.Collections.Generic.List[string]
+$ledgerForge = Get-GateLedgerForge -RepoRoot $Root
+if (-not $ledgerForge) {
+    Write-Host '[FAIL] 无法执行：LedgerForge 未构建（键集比较不可用）' -ForegroundColor Red
+    exit 2
+}
 $agentRoot = Join-Path $Root 'Projects\Plug\Agent'
 $configRoot = Join-Path $agentRoot 'Config'
 $dataRoot = Join-Path $Root 'Data\Agent\Config'
@@ -41,7 +46,7 @@ $dataAvailable = Test-Path -LiteralPath $dataRoot
 if ($dataAvailable) {
     Require-File (Join-Path $dataRoot 'workflows\transfer-key.ushar') '数据根转移键声明面'
 } else {
-    Write-Host 'SKIP: Data\Agent\Config 不存在，跳过声明镜像检查。' -ForegroundColor Yellow
+    Write-GateSkip -Key 'TransferKey' -Reason 'Data\Agent\Config 不存在（无对照对象，声明镜像未验证）'
 }
 
 # 路由单实现（D1）：唯一实现文件存在，且两个入口都调用它（结构事实，不 grep 文案）。
@@ -114,11 +119,9 @@ function Get-OrdinalSortedSet([string[]]$Values) {
     return , $unique.ToArray()
 }
 function Test-OrdinalSetEqual([string[]]$Left, [string[]]$Right) {
-    if ($Left.Count -ne $Right.Count) { return $false }
-    for ($i = 0; $i -lt $Left.Count; $i++) {
-        if ([string]::CompareOrdinal($Left[$i], $Right[$i]) -ne 0) { return $false }
-    }
-    return $true
+    # 键集比较统一到 C# LedgerKeyClosure(Ordinal)（A8），本门不再自带比较器。
+    $diff = Compare-GateKeySet -Reference $Left -Other $Right -ReferenceLabel 'declared' -OtherLabel 'code' -RepoRoot $Root
+    return (@($diff.OnlyLeft).Count -eq 0 -and @($diff.OnlyRight).Count -eq 0)
 }
 
 # 常量载体 = 生成契约常量文件（ITransferKeyStore.cs 的同名 partial class 是空壳，读它必然得到空集）。
@@ -186,5 +189,9 @@ if ($violations.Count -gt 0) {
     if ($Check) { exit 1 }
     exit 0
 }
-Write-Host 'TransferKey gate OK' -ForegroundColor Green
+if (-not $dataAvailable) {
+    Write-Host '[PASS] TransferKey 仓库面通过（Data 镜像见上方 SKIPPED_NO_TARGET，不计入通过）' -ForegroundColor Green
+} else {
+    Write-Host '[PASS] TransferKey gate 通过（仓库面 + Data 镜像均已比对）' -ForegroundColor Green
+}
 exit 0

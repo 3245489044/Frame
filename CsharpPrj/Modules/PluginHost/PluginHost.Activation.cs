@@ -51,7 +51,7 @@ public sealed partial class PluginHost
                 dataDir,
                 message => _log($"plugin={manifest.Id}: {message}"),
                 new PluginFunctionTable(),
-                EmptyServiceProvider.Instance);
+                _hostServices);
 
             // 域函数库 → 插件级 table（只认本代目录清单；不触碰全局 FunctionRegistry）。
             if (!string.IsNullOrWhiteSpace(manifest.FunctionLibraries))

@@ -38,6 +38,16 @@ public sealed record DeclarationClosureSpec(
 
     /// <summary>关系闭包（全量 bundle 的子集；筛选在 <see cref="DeclarationClosures.Filter"/>）。</summary>
     public static DeclarationClosureSpec Relations(string root) => Bundle(root);
+
+    /// <summary>
+    /// UI 声明闭包（仅 <c>ui</c> 子目录的顶层 <c>*.ushar</c>）。
+    /// <para>
+    /// 独立于 <see cref="Bundle"/>：UI 声明（<c>[Space] UiLoc</c> / UI 表 / UI 记录）**不进入**共享
+    /// manifest 的词表段（否则改 UI 文案即改 manifest 指纹），也保证回退只改一行。
+    /// </para>
+    /// </summary>
+    public static DeclarationClosureSpec Ui(string root) => new(
+        root, new[] { "ui" }, Array.Empty<string>());
 }
 
 /// <summary>

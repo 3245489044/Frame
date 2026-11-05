@@ -118,6 +118,10 @@ public static class UsharpCodes
     public const string ProductLevelUndeclared = UsharpDiagnosticCatalog.ProductLevelUndeclared;
     public const string ProductLineUnparsed = UsharpDiagnosticCatalog.ProductLineUnparsed;
     public const string ProductAcceptsInvalid = UsharpDiagnosticCatalog.ProductAcceptsInvalid;
+
+    // UI 声明面（[Record] view_* / region_* / loc_*）发射
+    public const string UiDeclarationShapeInvalid = UsharpDiagnosticCatalog.UiDeclarationShapeInvalid;
+    public const string UiDeclarationNotProducible = UsharpDiagnosticCatalog.UiDeclarationNotProducible;
     public const string FaceDuplicate = UsharpDiagnosticCatalog.FaceDuplicate;
     public const string FaceProductUndeclared = UsharpDiagnosticCatalog.FaceProductUndeclared;
     public const string FaceFieldNotSubset = UsharpDiagnosticCatalog.FaceFieldNotSubset;

@@ -56,12 +56,6 @@ public sealed class UiViewBlueprintCatalog
             throw new InvalidOperationException($"{sourceName}: 根宿主名缺失");
     }
 
-    /// <summary>取视图程序；未声明 ⇒ 抛（fail-fast：新增视图必须先在声明面登记）。</summary>
-    public UiViewBlueprint Require(string viewKey)
-        => TryGet(viewKey, out var blueprint)
-            ? blueprint
-            : throw new InvalidOperationException($"视图程序未声明：{viewKey}（ui-regions.json）");
-
     /// <summary>取视图程序（未声明 ⇒ false）。</summary>
     public bool TryGet(string? viewKey, out UiViewBlueprint blueprint)
     {

@@ -7,7 +7,8 @@
     两种用法：
       · -OutDir <dir>                      ：三份 JSON + declared-manifest.json.gz 写入该目录（重生成提交产物用）。
       · -OutFile <file> -Kind <k>          ：只导出指定一份 JSON（供 Check-GeneratedArtifactsDrift 复算比对）。
-    Kind：manifest（declared-manifest.json）/ roundspec（round-spec.generated.json）/ schema（reference-schema.generated.json）。
+    Kind：manifest（declared-manifest.json）/ roundspec（round-spec.generated.json）/ schema（reference-schema.generated.json）/
+          keyspace / commands / ui（ui-declaration.generated.json，专用闭包）。
 
 .PARAMETER ConfigRoot
     声明配置根（含 nodes / workflows 子目录；仓库相对或绝对）。
@@ -29,7 +30,7 @@ param(
     [Parameter(Mandatory = $true)][string]$ConfigRoot,
     [string]$OutDir = '',
     [string]$OutFile = '',
-    [ValidateSet('manifest', 'roundspec', 'schema', 'keyspace', 'commands')][string]$Kind = 'manifest'
+    [ValidateSet('manifest', 'roundspec', 'schema', 'keyspace', 'commands', 'ui')][string]$Kind = 'manifest'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,6 +54,14 @@ $fileName = switch ($Kind) {
     'schema'    { 'reference-schema.generated.json' }
     'keyspace'  { 'agent.keyspace.generated.json' }
     'commands'  { 'ui-commands.generated.json' }
+    'ui'        { 'ui-declaration.generated.json' }
+}
+
+# UI 声明走专用闭包（只产 ui-declaration；不并入主 bundle）。
+if ($OutFile -and $Kind -eq 'ui') {
+    $uiOut = if ([System.IO.Path]::IsPathRooted($OutFile)) { $OutFile } else { Join-Path $root $OutFile }
+    & dotnet $toolDll ui $configAbs $uiOut
+    exit $LASTEXITCODE
 }
 
 if ($OutDir) {

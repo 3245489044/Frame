@@ -195,13 +195,21 @@ public readonly record struct ChunkStreamOptions(
 /// <param name="VisibleBounds">与 <paramref name="VisibleChunks"/> 同序的 cm 包围盒；规划时已算出，消费侧直接复用。</param>
 /// <param name="VisibleCenters">与 <paramref name="VisibleChunks"/> 同序的中心点（cm），避免消费侧重复求中。</param>
 /// <param name="ViewFrustum">本帧规划所用视锥；绘制端直接复用，避免同一帧再按姿态构造一次。</param>
+/// <param name="CandidateCoords">候选域全集（与 <paramref name="CandidateChunks"/> 同一次枚举派生）；缺省 null 表示旧快照未采集。</param>
+/// <param name="AdmittedCoords">候选集中通过视锥 + 距离上限的分块（配额截断<b>之前</b>）；配额排除量 = 本集合 − 可见集合。</param>
 public readonly record struct ChunkStreamSnapshot(
     IReadOnlyList<ChunkCoord> VisibleChunks,
     Aabb Bounds,
     int CandidateChunks,
     IReadOnlyList<Aabb>? VisibleBounds = null,
     IReadOnlyList<Vec3>? VisibleCenters = null,
-    Frustum ViewFrustum = default);
+    Frustum ViewFrustum = default,
+    IReadOnlyList<ChunkCoord>? CandidateCoords = null,
+    IReadOnlyList<ChunkCoord>? AdmittedCoords = null)
+{
+    /// <summary>几何通过（视锥 + 距离）的分块数；未采集时退化为可见数（不静默造假值）。</summary>
+    public int AdmittedChunks => AdmittedCoords?.Count ?? VisibleChunks.Count;
+}
 
 /// <summary>脏分块（编辑改动的更新调度单元，版本号用于消费侧判断是否需要重建）。</summary>
 public readonly record struct DirtyChunk(ChunkCoord Coord, long Version);

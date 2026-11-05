@@ -9,6 +9,8 @@ namespace MathematicalAlgorithms.Spatial;
 /// 不读取世界内容、不持有版本或脏块状态。</para>
 /// <para>垂直候选域不再只枚举眼点所在区块的邻域：同时并入 <c>heightSpan</c> 给出的内容高度带，
 /// 从结构上保证「脚下地表」进入候选集（1 cm 世界里眼点比地表高约 1.6 m ≈ 10 个 16 cm 区块）。</para>
+/// <para>副作用：候选枚举路径顺手填充 <see cref="ChunkStreamSnapshot.CandidateCoords"/> 与
+/// <see cref="ChunkStreamSnapshot.AdmittedCoords"/>，供上层按集合取证；候选计数直接取集合长度，剔除决策不变。</para>
 /// </summary>
 public static class ChunkVisibility
 {
@@ -24,8 +26,8 @@ public static class ChunkVisibility
         var eyeChunk = ChunkCoord.Of(eye, chunkSize);
 
         int maxVisible = options.MaxVisibleChunks > 0 ? options.MaxVisibleChunks : int.MaxValue;
+        var candidates = new List<ChunkCoord>();
         var visible = new List<(ChunkCoord Coord, float Distance, Aabb Bounds, Vec3 Center)>();
-        int candidateCount = 0;
         Aabb streamBounds = default;
         bool hasBounds = false;
 
@@ -64,8 +66,10 @@ public static class ChunkVisibility
 
             for (int cy = cy0; cy <= cy1; cy++)
             {
-                candidateCount++;
-                var chunkBounds = new ChunkCoord(cx, cy, cz).Bounds(chunkSize);
+                // 候选集合与候选计数同源：计数直接取集合长度，禁止两条独立统计口径。
+                var coord = new ChunkCoord(cx, cy, cz);
+                candidates.Add(coord);
+                var chunkBounds = coord.Bounds(chunkSize);
                 streamBounds = hasBounds ? Union(streamBounds, chunkBounds) : chunkBounds;
                 hasBounds = true;
 
@@ -85,7 +89,7 @@ public static class ChunkVisibility
                 if (distance > options.MaxDistance)
                     continue;
 
-                visible.Add((new ChunkCoord(cx, cy, cz), distance, chunkBounds, center));
+                visible.Add((coord, distance, chunkBounds, center));
                 if (!quotaFilled && visible.Count >= maxVisible)
                 {
                     quotaFilled = true;
@@ -99,6 +103,11 @@ public static class ChunkVisibility
         // 近→远：渲染与流式都按此顺序消费，保证先看到近处数据。
         visible.Sort(static (a, b) => a.Distance.CompareTo(b.Distance));
 
+        // 配额截断前的几何通过集：与可见集合同一次构造，配额排除量可直接用差集得出。
+        var admittedChunks = new List<ChunkCoord>(visible.Count);
+        foreach (var kept in visible)
+            admittedChunks.Add(kept.Coord);
+
         int take = Math.Min(visible.Count, maxVisible);
         var visibleChunks = new List<ChunkCoord>(take);
         var visibleBounds = new List<Aabb>(take);
@@ -111,7 +120,9 @@ public static class ChunkVisibility
         }
 
         // 保守渲染域 = 候选范围并集（不因朝向裁掉射线可能进入的 chunk）。
-        return new ChunkStreamSnapshot(visibleChunks, streamBounds, candidateCount, visibleBounds, visibleCenters, frustum);
+        return new ChunkStreamSnapshot(
+            visibleChunks, streamBounds, candidates.Count, visibleBounds, visibleCenters, frustum,
+            candidates, admittedChunks);
     }
 
     private static Aabb Union(in Aabb a, in Aabb b) => new(

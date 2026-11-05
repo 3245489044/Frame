@@ -55,6 +55,15 @@ public enum MetricId
 
     /// <summary>网格构建函数的缓存命中次数（未真正构建）。</summary>
     MeshLookup = 16,
+
+    /// <summary>当前帧候选分块数（候选域枚举结果；与可见集合同一次采集）。</summary>
+    ChunkCandidate = 17,
+
+    /// <summary>当前帧几何通过（视锥 + 距离，配额截断前）的分块数。</summary>
+    ChunkAdmitted = 18,
+
+    /// <summary>当前已上传网格的分块数（“入网格”集合；不等于驻留集合）。</summary>
+    ChunkMeshed = 19,
 }
 
 /// <summary>指标类型：决定写入 cell 的方式（Counter 累加 / Gauge 水位置 / Histogram 分位）。</summary>
@@ -70,7 +79,7 @@ public enum MetricKind
 /// </summary>
 public static class MetricCatalog
 {
-    public const int Count = 17;
+    public const int Count = 20;
 
     private static readonly string[] Names =
     {
@@ -91,6 +100,9 @@ public static class MetricCatalog
         "frame.state",
         "frame.render",
         "mesh.lookup",
+        "chunk.candidate",
+        "chunk.admitted",
+        "chunk.meshed",
     };
 
     private static readonly MetricKind[] Kinds =
@@ -112,6 +124,9 @@ public static class MetricCatalog
         MetricKind.Histogram,
         MetricKind.Histogram,
         MetricKind.Counter,
+        MetricKind.Gauge,
+        MetricKind.Gauge,
+        MetricKind.Gauge,
     };
 
     public static string NameOf(MetricId id)

@@ -151,5 +151,42 @@
             Origin             = 'Derived'
             DueWhen            = ''
         }
+        @{
+            Name               = 'UiDeclaration'
+            Artifact           = 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Declaration\ui-declaration.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Ui\Generate-UiDeclaration.ps1'
+            GeneratorArgs      = @{ OutFile = '{TEMP}' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'ui-declaration-v1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Ui\Generate-UiDeclaration.ps1 -Apply'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
+            Name               = 'UiRegions'
+            Artifact           = 'Projects\Plug\Agent\Config\ui\ui-regions.json'
+            Generator          = 'Frame\PowerShellScript\Share\Ui\Generate-UiDeclaration.ps1'
+            GeneratorArgs      = @{ OutFile = '{TEMP}'; Target = 'regions' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'ui-regions-v1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Ui\Generate-UiDeclaration.ps1 -Apply'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
+            Name               = 'UiDeclarationCs'
+            Artifact           = 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Declaration\GeneratedUiDeclaration.g.cs'
+            Generator          = 'Frame\PowerShellScript\Share\Ui\Generate-UiDeclarationCs.ps1'
+            GeneratorArgs      = @{ OutFile = '{TEMP}' }
+            Kind               = 'Text'
+            IgnoreLinePatterns = @()
+            SentinelPattern    = '此文件由 Generate-UiDeclarationCs.ps1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Ui\Generate-UiDeclarationCs.ps1'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+
     )
 }

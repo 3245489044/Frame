@@ -575,7 +575,6 @@ if (Test-Path -LiteralPath $uiRegionsPath) {
     if ($uiRegions) {
         $declaredKeys = @(@($uiRegions.regions) | ForEach-Object { [string]$_.key } | Where-Object { $_ })
         foreach ($slot in $shellSlots) {
-            if ($declaredKeys -notcontains $slot) { [void]$shellRegionKeys.Add($slot) }
             [void]$shellRegionKeys.Add($slot)
         }
         foreach ($k in $declaredKeys) { [void]$shellRegionKeys.Add($k) }

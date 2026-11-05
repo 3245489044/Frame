@@ -167,6 +167,12 @@ public static class UsharpDiagnosticCatalog
 
     /// <summary>同名 <c>[Record]</c> 重复声明（产物 winner = FirstWins）。</summary>
     public const string RecordIdDuplicate = "US7208";
+
+    /// <summary>UI 声明形态非法（<c>[Record] view_*</c> / <c>region_*</c> / <c>loc_*</c> 缺项或引用未声明区域）。</summary>
+    public const string UiDeclarationShapeInvalid = "US7211";
+
+    /// <summary>UI 声明不可产出（缺 <c>[Table]</c> / 缺视图 / 缺 <c>[Space]</c> loc 坐标集）。</summary>
+    public const string UiDeclarationNotProducible = "US7212";
     public const string LlmContractOutputUndeclared = "US7301";
     public const string LlmContractInputUndeclared = "US7302";
     public const string LlmDeclShapeInvalid = "US7303";
@@ -410,6 +416,8 @@ public static class UsharpDiagnosticCatalog
         E(RecordTableUsesContainer, "Record", UsharpSeverity.Error, "[Record] table= 使用容器名而非表 id（表 id 与容器 id 不得混同）", "recordId, table"),
         E(TableIdDuplicate, "Table", UsharpSeverity.Error, "同名 [Table] 重复声明", "tableId"),
         E(RecordIdDuplicate, "Record", UsharpSeverity.Error, "同名 [Record] 重复声明", "recordId"),
+        E(UiDeclarationShapeInvalid, "Ui", UsharpSeverity.Error, "UI 声明形态非法", "recordId"),
+        E(UiDeclarationNotProducible, "Ui", UsharpSeverity.Error, "UI 声明不可产出", "file"),
 
         E(LlmContractOutputUndeclared, "LLMDecl", UsharpSeverity.Error, "output= 字段未在 O 区声明", "llmId, field"),
         E(LlmContractInputUndeclared, "LLMDecl", UsharpSeverity.Error, "input= 字段未在 I 区声明", "llmId, field"),

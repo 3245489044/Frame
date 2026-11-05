@@ -31,15 +31,14 @@ public enum UiViewContainerSlot
 /// </summary>
 public static class UiViewContainerSlots
 {
-    /// <summary>容器键前缀（单一来源：<see cref="UiViewNames.RegionNamePrefix"/>）。</summary>
-    public const string Prefix = UiViewNames.RegionNamePrefix;
-
     /// <summary>容器键 → 槽后缀（无前缀 ⇒ 原样返回）。</summary>
     public static string Suffix(string? containerKey)
     {
         if (string.IsNullOrWhiteSpace(containerKey)) return string.Empty;
         var key = containerKey!.Trim();
-        return key.StartsWith(Prefix, StringComparison.Ordinal) ? key.Substring(Prefix.Length) : key;
+        return key.StartsWith(UiViewNames.RegionNamePrefix, StringComparison.Ordinal)
+            ? key.Substring(UiViewNames.RegionNamePrefix.Length)
+            : key;
     }
 
     /// <summary>容器键（+ 角色）→ 结构槽。</summary>

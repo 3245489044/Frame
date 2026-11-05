@@ -4,10 +4,9 @@
     UI 位置反解声明守卫（UiLocDeclaration）—— 「UI 呈现位置 = loc 的反解产物」的机器判据。
 
 .DESCRIPTION
-      声明面 = Projects\Plug\Agent\Config\ui\ui-loc.ushar（单空间 [Space] UiLoc；spec id ≡ loc，无反解矩阵）
-      属性面 = Projects\Plug\Agent\Config\ui\ui-loc.spec.json（唯一属性来源；运行期直接读，无生成物）
-      C1 闸A 编译：ui-loc.ushar 经 Usharp.Cli build ⇒ 错误 0
-      C2 属性闭合：spec 键集 ≡ 声明坐标集（G1 缺属性 / G3 死声明）
+      声明面 = Projects\Plug\Agent\Config\ui\ui-loc.ushar（[Space] UiLoc 坐标集 + [Record] loc_* 属性；无反解矩阵）
+      C1 闸A 编译：ui-loc.ushar 经 Usharp.Cli build ⇒ 错误 0（坐标数 = 属性记录集）
+      C2 属性闭合：产物 locs[] ≡ [Space] 坐标集（G1 缺属性 / G3 死声明）
       C3 C# 引用闭合：UiLocCatalog.<Api>("...") 字面量须已在声明面
       C4 中文文案棘轮：UI 呈现链路中文字面量 ≤ 基线（基线外置 Baselines\Agent\UiText.psd1，只降不升）
       C5 负对照：未声明 loc / 缺行声明 / 动态 loc 拼接必须被判出
@@ -32,13 +31,20 @@ Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\Gate
 $root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 $uiDir = Join-Path $root 'Projects\Plug\Agent\Config\ui'
 $declaration = Join-Path $uiDir 'ui-loc.ushar'
-$spec = Join-Path $uiDir 'ui-loc.spec.json'
 $agentUi = Join-Path $root 'Projects\Plug\Agent\src\Agent.Ui'
 $views = Join-Path $agentUi 'Ui\Views'
 $cliExe = Join-Path $root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
 $cliProj = Join-Path $root 'Frame\Usharp\src\Usharp.Cli\Usharp.Cli.csproj'
 
 function Get-DeclarationDump {
+    # 坐标集单源 = 生成产物（E7：本门禁不再自带 [Space] ushar 解析）。
+    $product = Join-Path $root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Declaration\ui-declaration.generated.json'
+    if (Test-Path -LiteralPath $product) {
+        $decl = Get-Content -LiteralPath $product -Raw -Encoding UTF8 | ConvertFrom-Json
+        $productLocs = @(@($decl.locs) | ForEach-Object { [string]$_.loc } | Where-Object { $_ })
+        return [pscustomobject]@{ locs = $productLocs }
+    }
+
     # 坐标集唯一来源 = ui-loc.ushar 的 [Space] UiLoc 块（简单列表；生成器已退役，反解 = spec 键取名）
     $locs = [System.Collections.Generic.List[string]]::new()
     $section = ''
@@ -145,15 +151,21 @@ if (-not (Test-Path -LiteralPath $declaration)) {
     }
 }
 
-# ---- C2 属性面 ≡ 声明坐标集（G1 缺属性 / G3 死声明；生成器已退役） ----
+# 坐标数（闸A 输出的事实；C2 的判据输入，禁本门禁自建 [Space] 解析）。
+$declaredCount = -1
+if ($null -ne $output -and $output -match '坐标\s*(?<c>\d+)') { $declaredCount = [int]$Matches['c'] }
+
+# ---- C2 属性面 ≡ 声明坐标集（G1 缺属性 / G3 死声明；单源 = ui-loc.ushar） ----
 try {
-    $specKeys = @((Get-Content -LiteralPath $spec -Raw -Encoding utf8 | ConvertFrom-Json).specs.PSObject.Properties.Name | Where-Object { $_ -ne 'spec_end' })
     $declaredLocs = @((Get-DeclarationDump).locs)
-    foreach ($loc in $declaredLocs) {
-        if ($specKeys -notcontains $loc) { $violations.Add("[C2] G1 缺属性声明：$loc") }
+    if ($declaredLocs.Count -eq 0) { $violations.Add('[C2] 判据不可判：产物 locs[] 为空（先跑 Generate-UiDeclaration.ps1 -Apply）') }
+    if ($declaredCount -lt 0) {
+        $violations.Add('[C2] 判据不可判：闸A 未取得坐标数（C1 未产出事实）')
+    } elseif ($declaredCount -ne $declaredLocs.Count) {
+        $violations.Add("[C2] G1/G3 键集不闭合：声明坐标 $declaredCount ≠ 产物 locs $($declaredLocs.Count)")
     }
-    foreach ($key in $specKeys) {
-        if ($declaredLocs -notcontains $key) { $violations.Add("[C2] G3 死声明：$key") }
+    foreach ($loc in $declaredLocs) {
+        if ([string]::IsNullOrWhiteSpace([string]$loc)) { $violations.Add('[C2] G1 产物 loc 为空') }
     }
 } catch {
     $violations.Add("[C2] 判据不可判：$($_.Exception.Message)")
@@ -180,7 +192,7 @@ if (-not (Test-Path -LiteralPath $baselinePath)) {
         $scanRoot = Join-Path $root $rootRel
         if (-not (Test-Path -LiteralPath $scanRoot)) { $violations.Add("[C4] 扫描根缺失：$rootRel"); continue }
         $scanFiles = Get-ChildItem -LiteralPath $scanRoot -Recurse -Include *.cs -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' }
+            Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' -and $_.Name -notlike '*.g.cs' }
         foreach ($file in $scanFiles) {
             $rel = $file.FullName.Substring($root.Length + 1)
             $exempt = $false
@@ -201,7 +213,7 @@ if (-not (Test-Path -LiteralPath $baselinePath)) {
 # ---- C6 动态 loc 拼接闭集（E5）：前缀 + 变量只允许在 UiLocCatalog 单点 ----
 $singlePoint = Join-Path $agentUi 'Ui\Views\Declaration\UiLocCatalog.cs'
 $dynamicScan = Get-ChildItem -LiteralPath $agentUi -Recurse -Include *.cs -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' -and $_.FullName -ne $singlePoint }
+    Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' -and $_.FullName -ne $singlePoint -and $_.Name -notlike '*.g.cs' }
 foreach ($h in (Test-DynamicLocClosure @($dynamicScan))) {
     $violations.Add("[C6] 动态 loc 拼接绕过单点（$($h.Prefix) + 变量）：$($h.File)")
 }

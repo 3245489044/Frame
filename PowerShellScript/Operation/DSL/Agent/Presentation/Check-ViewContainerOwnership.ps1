@@ -4,12 +4,13 @@
     视图容器所有权守卫（ViewContainerOwnership）——每容器恰一个 ownerView，框架不引入领域区域词。
 
 .DESCRIPTION
+    容器派生单源 = Agent.Ui 生成产物 ui-declaration.generated.json（C# Provider 与门禁读同一份）。
     C1 容器非空：每视图至少一个容器（视图不可挂载 ⇒ 红）
-    C2 所有者一致：containers[].ownerView == viewKey（禁跨视图共享同一 DOM 容器）
+    C2 所有者一致：containers[].owner == viewKey（禁跨视图共享同一 DOM 容器）
     C3 容器键唯一：同一视图内容器键不重复
     C4 流容器至多一个（append-only 面单实例）
     C5 框架零领域词：Frame\Plate\HtmlViewer 与 Operation\FrontEndDriven\HtmlViewerBridge 源码不得出现 UiRegionKind
-    C6 单源：ui-regions.json 为唯一视图声明面（禁 view-programs.generated.json 回流）
+    C6 单源：禁 view-programs.generated.json 回流
     C7 负对照：合成「同容器两 owner」必须被判红
     纯扫描（只读、0 写入）。
 #>
@@ -24,7 +25,7 @@ if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时�
 Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
 $repo = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
-$declaration = Join-Path $repo 'Projects\Plug\Agent\Config\ui\ui-regions.json'
+$declaration = Join-Path $repo 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Declaration\ui-declaration.generated.json'
 $retiredGenerated = Join-Path $repo 'Projects\Plug\Agent\Config\ui\view-programs.generated.json'
 $frameRoots = @(
     (Join-Path $repo 'Frame\CsharpPrj\Plate\HtmlViewer'),
@@ -32,29 +33,19 @@ $frameRoots = @(
 )
 
 function Get-Views {
-    $decl = Get-Content -LiteralPath $declaration -Raw | ConvertFrom-Json
-    $defs = @{}
-    foreach ($r in @($decl.regions)) {
-        if ($null -eq $r) { continue }
-        $defs[[string]$r.kind] = [pscustomobject]@{ Key = [string]$r.key; Stream = ([string]$r.role -eq 'stream') }
-    }
+    # 派生单源 = 产物（禁本地再派生壳槽/区域集）。
+    if (-not (Test-Path -LiteralPath $declaration)) { throw "产物缺失：$declaration（先跑 Generate-UiDeclaration.ps1 -Apply）" }
+    $decl = Get-Content -LiteralPath $declaration -Raw -Encoding UTF8 | ConvertFrom-Json
     $views = [System.Collections.Generic.List[object]]::new()
     foreach ($v in @($decl.views)) {
         if ($null -eq $v) { continue }
         $viewKey = [string]$v.view
-        $containers = [System.Collections.Generic.List[object]]::new()
-        $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-        foreach ($chrome in @('region-seg', 'region-head', 'region-subhead')) {
-            if ($seen.Add($chrome)) { $containers.Add([pscustomobject]@{ key = $chrome; ownerView = $viewKey; role = 'region' }) }
-        }
-        foreach ($kind in @($v.regions)) {
-            $kindText = [string]$kind
-            if (-not $defs.ContainsKey($kindText)) { throw "视图 '$viewKey' 引用未声明区域：$kindText" }
-            $def = $defs[$kindText]
-            if (-not $seen.Add($def.Key)) { continue }
-            $containers.Add([pscustomobject]@{ key = $def.Key; ownerView = $viewKey; role = $(if ($def.Stream) { 'stream' } else { 'region' }) })
-        }
-        $views.Add([pscustomobject]@{ viewKey = $viewKey; containers = $containers.ToArray() })
+        $containers = @(@($decl.containers) |
+            Where-Object { [string]$_.view -eq $viewKey } |
+            ForEach-Object {
+                [pscustomobject]@{ key = [string]$_.key; ownerView = [string]$_.owner; role = [string]$_.role }
+            })
+        $views.Add([pscustomobject]@{ viewKey = $viewKey; containers = $containers })
     }
     return $views.ToArray()
 }
@@ -89,7 +80,9 @@ $rules = @(
                 if (-not (Test-Path -LiteralPath $rootDir)) { continue }
                 $hits += @(Get-ChildItem -LiteralPath $rootDir -Recurse -File -Filter *.cs |
                     Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\' } |
-                    ForEach-Object { ([System.IO.File]::ReadAllText($_.FullName) -split "`n" | Where-Object { $_ -match '\bUiRegionKind\b' }).Count } |
+                    ForEach-Object { [System.IO.File]::ReadAllText($_.FullName) } |
+                    Select-String -Pattern '\bUiRegionKind\b' -AllMatches |
+                    ForEach-Object { $_.Matches.Count } |
                     Measure-Object -Sum).Sum
             }
             return ($hits -eq 0)
@@ -119,7 +112,10 @@ if ($Check) {
     $failed = 0
     foreach ($r in $rules) {
         $pass = $false
-        try { $pass = [bool](& $r.Ok) } catch { $pass = $false }
+        try { $pass = [bool](& $r.Ok) } catch {
+            Write-Host ("[FAIL] {0} {1} — {2}" -f $r.Id, $r.Title, $_.Exception.Message) -ForegroundColor Red
+            $pass = $false
+        }
         $mark = if ($pass) { 'PASS' } else { 'FAIL' }
         if (-not $pass) { $failed++ }
         Write-Host ("[{0}] {1} {2}" -f $mark, $r.Id, $r.Title) -ForegroundColor $(if ($pass) { 'Green' } else { 'Red' })

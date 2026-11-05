@@ -76,6 +76,9 @@ public static class DeclaredBundleBuilder
     /// <summary>连接点命令目录产物文件名（<c>ui-commands-v2</c>，<c>readModels</c> 段随读模型声明落地）。</summary>
     public const string CommandsFileName = "ui-commands.generated.json";
 
+    /// <summary>UI 声明产物文件名（<c>ui-declaration-v1</c>；<c>Config/ui</c> 专用闭包产出）。</summary>
+    public const string UiDeclarationFileName = "ui-declaration.generated.json";
+
     /// <summary>产物文件名（磁盘形态）。</summary>
     public const string ManifestFileName = "declared-manifest.json";
 
@@ -184,6 +187,50 @@ public static class DeclaredBundleBuilder
         ArgumentNullException.ThrowIfNull(documents);
         return DeclarationArtifactFingerprint.Of(
             documents.Select(d => new UsharpSourceFile(d.Path, d.Text ?? string.Empty, null)));
+    }
+
+    /// <summary>
+    /// 由 <c>Config\ui</c> 专用闭包构建 UI 声明产物（不并入主 manifest 词表段）。
+    /// <para>错误 &gt; 0 ⇒ <c>Json = null</c>（不产出；失败姿态由调用方/门禁裁决）。</para>
+    /// </summary>
+    /// <param name="configRoot">配置根（含 <c>ui</c> 子目录）。</param>
+    public static (string? Json, string Fingerprint, int Errors, IReadOnlyList<UsharpDiagnostic> Diagnostics)
+        BuildUiDeclaration(string configRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
+        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Ui(configRoot));
+        var compilation = UsharpCompilationHost.Shared.Resolve(closure);
+        var emitted = Usharp.Emit.UsharpUiDeclarationEmitter.Emit(compilation);
+        var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
+        return (emitted.Json, emitted.Fingerprint ?? string.Empty, errors, emitted.Diagnostics);
+    }
+
+    /// <summary>
+    /// 由 <c>Config\ui</c> 专用闭包构建 <c>ui-regions-v1</c> 兼容视图（运行期/既有门禁的读取面）。
+    /// <para>由 <see cref="UsharpUiDeclarationEmitter.EmitRegions"/> 投影派生，非第二真源。</para>
+    /// </summary>
+    /// <param name="configRoot">配置根（含 <c>ui</c> 子目录）。</param>
+    public static (string? Json, int Errors, IReadOnlyList<UsharpDiagnostic> Diagnostics)
+        BuildUiRegions(string configRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
+        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Ui(configRoot));
+        var compilation = UsharpCompilationHost.Shared.Resolve(closure);
+        var emitted = Usharp.Emit.UsharpUiDeclarationEmitter.EmitRegions(compilation);
+        var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
+        return (emitted.Json, errors, emitted.Diagnostics);
+    }
+
+    /// <summary>写出 UI 声明产物（UTF-8 无 BOM；目录不存在则创建）。</summary>
+    /// <param name="outputFile">产物文件路径。</param>
+    /// <param name="json">产物 JSON。</param>
+    public static void WriteUiDeclaration(string outputFile, string json)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputFile);
+        ArgumentNullException.ThrowIfNull(json);
+        var directory = Path.GetDirectoryName(outputFile);
+        if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+        File.WriteAllText(outputFile, json, new UTF8Encoding(false));
     }
 
     private static void WriteGzip(string path, string content)

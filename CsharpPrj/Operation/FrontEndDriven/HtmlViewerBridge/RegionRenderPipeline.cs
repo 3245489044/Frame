@@ -68,7 +68,7 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
         IUiDeclarationPort declarations,
         string regionNamePrefix = HtmlShellProjector.RegionNamePrefix,
         Action<string, Exception>? onFailure = null,
-        string streamRegionPrefix = HtmlPageRegionLayout.StreamSectionPrefix)
+        string streamRegionPrefix = UiViewNames.StreamSectionPrefix)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _hash = hash ?? throw new ArgumentNullException(nameof(hash));

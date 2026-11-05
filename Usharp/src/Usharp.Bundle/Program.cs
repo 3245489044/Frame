@@ -2,7 +2,9 @@ using System;
 using System.IO;
 using Usharp.Adapters.Declarations;
 
-// 声明单点编译工具（G1）：<configRoot> <outDir> → manifest / round-spec / reference-schema。
+// 声明单点编译工具（G1）：<configRoot> <outDir> → manifest / round-spec / reference-schema / keyspace / commands。
+// UI 声明（专用闭包）：ui <configRoot> <outFile> → ui-declaration.generated.json
+//                     uiregions <configRoot> <outFile> → ui-regions.json（兼容视图，带生成标记）
 // 唯一编译点 = DeclaredBundleBuilder；本工具只做参数解析与产出上报。
 // selfcheck：值映射反例自检（E-4；零测试工程，退出码 0/1 供回归套件断言）。
 if (args.Length >= 1 && string.Equals(args[0], "selfcheck", StringComparison.OrdinalIgnoreCase))
@@ -16,6 +18,60 @@ if (args.Length >= 1 && string.Equals(args[0], "selfcheck", StringComparison.Ord
 
     foreach (var issue in issues) Console.Error.WriteLine(issue);
     return 1;
+}
+
+if (args.Length >= 3 && string.Equals(args[0], "uiregions", StringComparison.OrdinalIgnoreCase))
+{
+    var regionsConfigRoot = args[1];
+    var regionsOutFile = args[2];
+    try
+    {
+        var regions = DeclaredBundleBuilder.BuildUiRegions(regionsConfigRoot);
+        if (regions.Json is null)
+        {
+            Console.Error.WriteLine($"ui-regions 不可产出：errors={regions.Errors}");
+            return 1;
+        }
+
+        DeclaredBundleBuilder.WriteUiDeclaration(regionsOutFile, regions.Json);
+        Console.WriteLine($"ui-regions: errors={regions.Errors}");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"ui-regions 失败: {ex.Message}");
+        return 2;
+    }
+}
+
+if (args.Length >= 3 && string.Equals(args[0], "ui", StringComparison.OrdinalIgnoreCase))
+{
+    var uiConfigRoot = args[1];
+    var uiOutFile = args[2];
+    try
+    {
+        var ui = DeclaredBundleBuilder.BuildUiDeclaration(uiConfigRoot);
+        if (ui.Json is null)
+        {
+            Console.Error.WriteLine($"ui-declaration 不可产出：errors={ui.Errors}");
+            foreach (var diagnostic in ui.Diagnostics)
+            {
+                if (diagnostic.Severity != Usharp.Semantics.UsharpSeverity.Error) continue;
+                Console.Error.WriteLine("  " + diagnostic);
+            }
+
+            return 1;
+        }
+
+        DeclaredBundleBuilder.WriteUiDeclaration(uiOutFile, ui.Json);
+        Console.WriteLine($"ui-declaration: fingerprint={ui.Fingerprint} errors={ui.Errors}");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"ui-declaration 失败: {ex.Message}");
+        return 2;
+    }
 }
 
 if (args.Length < 2)

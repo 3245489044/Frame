@@ -3,6 +3,8 @@
     # 语义：产物唯一手写源 = 生成器的输入；产物本体禁止手工编辑。
     #   守卫三段：① 产物存在 ② 哨兵在位（手改即失守） ③ 复算到 temp 逐字比对 ⇒ 漂移即红。
     # 未登记者不检；新增生成物必须在此登记（否则为无人看守产物）。
+    # 例外：compute.manifest.json 是按需产物（随 DeclaredBundle 输出目录生成，生成器 = Generate-DeclaredBundle.ps1 -Kind compute）；
+    #   仓库当前无含 [Compute] 的已入库配置，故无受检实例可登记；首个入库实例出现时必须补登记。
     Schema    = 'generated-artifacts-v1'
     Canonical = 'Frame\PowerShellScript\Baselines\README.md'
 

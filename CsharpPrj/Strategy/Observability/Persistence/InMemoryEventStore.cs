@@ -21,37 +21,25 @@ public sealed class InMemoryEventStore : IEventStore
 
     public async IAsyncEnumerable<PersistedEvent> TimelineAsync(string scopeId, long? afterSeq = null, int limit = 100, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var window = Snapshot(scopeId, afterSeq);
-        var count = 0;
-        foreach (var e in window)
+        foreach (var e in EventWindow.Timeline(SnapshotAll(), scopeId, afterSeq, limit))
         {
             ct.ThrowIfCancellationRequested();
-            if (count++ >= limit) yield break;
             yield return e;
         }
     }
 
     public async IAsyncEnumerable<PersistedEvent> EntityChainAsync(EntityId entity, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        foreach (var e in Snapshot(entity.ScopeId, null))
+        foreach (var e in EventWindow.EntityChain(SnapshotAll(), entity))
         {
             ct.ThrowIfCancellationRequested();
-            if (!e.Event.Entity.Matches(entity)) continue;
             yield return e;
         }
     }
 
-    private IReadOnlyList<PersistedEvent> Snapshot(string scopeId, long? afterSeq)
+    private IReadOnlyList<PersistedEvent> SnapshotAll()
     {
-        lock (_gate)
-        {
-            var q = _events
-                .Where(e => string.Equals(e.ScopeId, scopeId, StringComparison.Ordinal))
-                .Where(e => !afterSeq.HasValue || e.EventSeq > afterSeq.Value)
-                .OrderBy(e => e.EventSeq)
-                .ToList();
-            return q;
-        }
+        lock (_gate) return _events.ToArray();
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

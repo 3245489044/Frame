@@ -58,12 +58,15 @@ internal sealed class EvalFrame
     /// <summary>取下一个依赖下标（<c>Dep</c> 指令执行序 = 声明序）。</summary>
     internal int TakeDependencyIndex() => _nextDependency++;
 
+    /// <summary>当前已构建的依赖数（AD6 可见性：调用/实参只能引用更早的依赖）。</summary>
+    internal int DependencyCount => _nextDependency;
+
     /// <summary>调用解算（按指令序号缓存：同一指令每次求值只解一次）。</summary>
     internal ComposedCall ResolveCall(int instructionIndex, CallStandard call)
     {
         if (_calls.TryGetValue(instructionIndex, out var cached)) return cached;
 
-        var resolved = PortComposedCall.Resolve(Declared, PortKey, call);
+        var resolved = PortComposedCall.Resolve(Declared, PortKey, call, _nextDependency);
         _calls[instructionIndex] = resolved;
         return resolved;
     }

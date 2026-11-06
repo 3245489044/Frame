@@ -135,9 +135,11 @@ internal sealed class ComposedCall
     private readonly Type? _expect;
     private readonly MethodInfo? _method;
     private readonly MemberInfo? _member;
+    private readonly int _visibleDeps;
 
     internal ComposedCall(
         string portKey, CallStandard spec, int? depIndex, Type? expect,
+        int visibleDeps = int.MaxValue,
         MethodInfo? method = null, MemberInfo? member = null)
     {
         _portKey = portKey;
@@ -146,6 +148,7 @@ internal sealed class ComposedCall
         _expect = expect;
         _method = method;
         _member = member;
+        _visibleDeps = visibleDeps;
     }
 
     internal CallStandard Spec { get; }
@@ -158,12 +161,14 @@ internal sealed class ComposedCall
 
     private object? Execute(IPortInput input, object?[] deps)
     {
-        var instance = DepIndex is { } index ? deps[index] : null;
+        var instance = DepIndex is { } index
+            ? PortDependencyReference.Require(deps, index, _visibleDeps, _portKey, $"调用 '{Spec.As}' 的依赖")
+            : null;
 
         if (_method is not null)
         {
             var args = ComposedArgs.Build(
-                _method.GetParameters(), Spec.Args, input, deps, _portKey, $"call '{Spec.As}'");
+                _method.GetParameters(), Spec.Args, input, deps, _portKey, $"call '{Spec.As}'", _visibleDeps);
             return _method.Invoke(instance, args);
         }
 
@@ -181,13 +186,14 @@ internal sealed class ComposedCall
 /// </summary>
 internal static class PortComposedCall
 {
-    internal static ComposedCall Resolve(IReadOnlyList<DepStandard> deps, string portKey, CallStandard call)
+    internal static ComposedCall Resolve(
+        IReadOnlyList<DepStandard> deps, string portKey, CallStandard call, int visibleDeps = int.MaxValue)
     {
         if (string.IsNullOrWhiteSpace(call.Method))
             throw new PortBindingViolationException(
                 portKey, $"端口 '{portKey}' 的调用 '{call.As}' 缺少 method");
 
-        var type = ResolveCallType(deps, portKey, call, out var depIndex);
+        var type = ResolveCallType(deps, portKey, call, visibleDeps, out var depIndex);
         var isStatic = depIndex is null;
         var expect = call.Expect is { Length: > 0 } expectName
             ? ReflectivePortResolver.ResolveType(expectName)
@@ -195,18 +201,19 @@ internal static class PortComposedCall
 
         if (call.IsProperty)
             return new ComposedCall(
-                portKey, call, depIndex, expect,
+                portKey, call, depIndex, expect, visibleDeps,
                 member: ReflectivePortResolver.ResolveMember(type, portKey, call.Method, isStatic));
 
         return new ComposedCall(
-            portKey, call, depIndex, expect,
+            portKey, call, depIndex, expect, visibleDeps,
             method: ReflectivePortResolver.ResolveMethod(
                 type, portKey, call.Method, call.Args?.Count ?? 0, isStatic));
     }
 
     /// <summary>调用所属类型：静态调用取 <c>target</c>；实例调用取依赖的 <c>contract</c> / <c>new</c> 类型。</summary>
     internal static Type ResolveCallType(
-        IReadOnlyList<DepStandard> deps, string portKey, CallStandard call, out int? depIndex)
+        IReadOnlyList<DepStandard> deps, string portKey, CallStandard call, int visibleDeps,
+        out int? depIndex)
     {
         depIndex = call.Dep;
         if (call.Dep is not { } index)
@@ -218,10 +225,8 @@ internal static class PortComposedCall
             return ReflectivePortResolver.ResolveType(call.Target!);
         }
 
-        if (index < 0 || index >= deps.Count)
-            throw new PortBindingViolationException(
-                portKey,
-                $"端口 '{portKey}' 的调用 '{call.As}' 引用了不存在的依赖下标 {index}（依赖 {deps.Count} 个）");
+        _ = PortDependencyReference.RequireDeclared(
+            deps, index, visibleDeps, portKey, $"调用 '{call.As}'");
 
         return ComposedDeps.DeclaredInstanceType(deps, index, portKey, $"调用 '{call.As}'");
     }

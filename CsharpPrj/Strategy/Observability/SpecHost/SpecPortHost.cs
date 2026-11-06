@@ -235,10 +235,15 @@ public sealed class SpecPortHost : IPortHost, IDisposable
         };
     }
 
-    /// <summary>端口投影：参数可为端口键或步骤名（历史 kind 名），统一归一到实现承载位后取调用记录（记录键 = 端口键）。</summary>
+    /// <summary>
+    /// 端口投影：参数可为端口键或步骤名（历史 kind 名），统一归一到实现承载位后取调用记录（记录键 = 端口键）。
+    /// 未登记端口 → 走 <see cref="PortCatalog.Resolve"/> 的 <see cref="PortNotRegisteredException"/>（可见失败，
+    /// 不静默返回空投影；与本文件「不得静默空集」口径一致）。
+    /// </summary>
     private Strategy.Observability.Projection.PortProjection ProjectPort(string step)
     {
         var portKey = ResolveStep(step);
+        _ = _catalog.Resolve(portKey);
         return new Strategy.Observability.Projection.PortProjection(portKey, _catalog.Log.For(portKey));
     }
 

@@ -34,7 +34,10 @@ public static class RuntimeStage
         _ => Idle,
     };
 
-    /// <summary>归一任意 stage 字符串到受控常量：识别 started/running/completed/paused/idle，其余/空/空白回退 running。</summary>
+    /// <summary>
+    /// 归一任意 stage 字符串到受控常量：识别 started/running/completed/paused/idle。
+    /// 未知 / 空 / 空白统一回退 <see cref="Idle"/>（与 <see cref="FromStatus"/> 的默认臂一致；不得两处给出相反兜底）。
+    /// </summary>
     public static string Normalize(string? stage) => (stage?.Trim().ToLowerInvariant()) switch
     {
         Started => Started,
@@ -42,6 +45,6 @@ public static class RuntimeStage
         Completed => Completed,
         Paused => Paused,
         Idle => Idle,
-        _ => Running,
+        _ => Idle,
     };
 }

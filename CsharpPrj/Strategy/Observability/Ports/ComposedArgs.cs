@@ -14,14 +14,14 @@ internal static class ComposedArgs
     /// <summary>按目标形参表构造实参数组（声明不足 → 该形参类型默认值，与反射绑定同口径）。</summary>
     internal static object?[] Build(
         ParameterInfo[] parameters, IReadOnlyList<ComposedArgStandard>? declared,
-        IPortInput input, object?[] deps, string portKey, string context)
+        IPortInput input, object?[] deps, string portKey, string context, int visibleDeps = int.MaxValue)
     {
         var count = declared?.Count ?? 0;
         var args = new object?[parameters.Length];
 
         for (var i = 0; i < parameters.Length; i++)
             args[i] = i < count
-                ? Convert(parameters[i], declared![i], input, deps, portKey, context, i)
+                ? Convert(parameters[i], declared![i], input, deps, portKey, context, i, visibleDeps)
                 : ReflectivePortResolver.DefaultFor(parameters[i]);
 
         return args;
@@ -40,16 +40,18 @@ internal static class ComposedArgs
 
     /// <summary>按声明序求值（工厂实参：工厂签名自定，不做形参类型转换，值按原义传递）。</summary>
     internal static IReadOnlyList<object?> Values(
-        IReadOnlyList<ComposedArgStandard>? declared, IPortInput input, object?[] deps, string portKey, string context)
+        IReadOnlyList<ComposedArgStandard>? declared, IPortInput input, object?[] deps, string portKey, string context,
+        int visibleDeps = int.MaxValue)
         => declared is not { Count: > 0 }
             ? Array.Empty<object?>()
-            : declared.Select((spec, index) => Value(spec, input, deps, portKey, context, index)).ToArray();
+            : declared.Select((spec, index) => Value(spec, input, deps, portKey, context, index, visibleDeps)).ToArray();
 
     /// <summary>无类型目标的取值（工厂实参用）。</summary>
     internal static object? Value(
-        ComposedArgStandard spec, IPortInput input, object?[] deps, string portKey, string context, int index)
+        ComposedArgStandard spec, IPortInput input, object?[] deps, string portKey, string context, int index,
+        int visibleDeps = int.MaxValue)
     {
-        if (spec.Dep is { } reference) return Dep(deps, reference, portKey, context, index);
+        if (spec.Dep is { } reference) return Dep(deps, reference, portKey, context, index, visibleDeps);
         if (spec.ArgIndex is { } position) return PositionalRaw(input, spec, position, portKey, context);
         if (spec.Key is { Length: > 0 } key) return WithRaw(input, key, portKey, context, spec.Optional);
         if (spec.Value is { } constant) return Unwrap(constant);
@@ -62,13 +64,13 @@ internal static class ComposedArgs
     /// <summary>按目标形参类型转换（位序即语义；无值分支由 <c>optional</c> 决定默认值或 fail-fast）。</summary>
     private static object? Convert(
         ParameterInfo parameter, ComposedArgStandard spec,
-        IPortInput input, object?[] deps, string portKey, string context, int index)
+        IPortInput input, object?[] deps, string portKey, string context, int index, int visibleDeps)
     {
         var target = parameter.ParameterType;
 
         if (spec.Dep is { } reference)
         {
-            var dep = Dep(deps, reference, portKey, context, index);
+            var dep = Dep(deps, reference, portKey, context, index, visibleDeps);
             if (dep is not null && !target.IsInstanceOfType(dep))
                 throw new PortBindingViolationException(
                     portKey, $"端口 '{portKey}' 的 {context} 第 {index} 个实参：依赖对象的类型与形参 {target.Name} 不匹配");
@@ -182,13 +184,11 @@ internal static class ComposedArgs
             portKey, $"端口 '{portKey}' 的 {context} 缺具名实参 '{key}'（with）");
     }
 
-    /// <summary>依赖引用（下标必须存在；越界 fail-fast）。</summary>
-    private static object? Dep(object?[] deps, int reference, string portKey, string context, int index)
-        => reference >= 0 && reference < deps.Length
-            ? deps[reference]
-            : throw new PortBindingViolationException(
-                portKey,
-                $"端口 '{portKey}' 的 {context} 第 {index} 个实参引用了不可用的依赖下标 {reference}（依赖共 {deps.Length} 个）");
+    /// <summary>依赖引用（只能引用可见的更早依赖；校验单源 = <see cref="PortDependencyReference"/>）。</summary>
+    private static object? Dep(
+        object?[] deps, int reference, string portKey, string context, int index, int visibleDeps)
+        => PortDependencyReference.Require(
+            deps, reference, visibleDeps, portKey, $"{context} 第 {index} 个实参");
 
     /// <summary>常量 JSON → 原义值（标量取 CLR 值；结构保留元素）。</summary>
     private static object? Unwrap(JsonElement element) => PortValues.Unwrap(element);

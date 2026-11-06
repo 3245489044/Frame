@@ -64,7 +64,15 @@ public sealed class PortCatalog : IPortCatalog
 
         try
         {
-            _contracts?.TryRegister(contract);
+            // AX22：TryRegister 的 false 不得静默沿用旧契约 —— 同键语义不同即回滚句柄并可见失败。
+            if (_contracts is not null
+                && !_contracts.TryRegister(contract)
+                && !SameDefinition(_contracts.Require(contract.Key), contract))
+            {
+                _handles.TryRemove(contract.Key, out _);
+                throw new BoundaryContractViolationException(
+                    contract.Key, "同一端口键已存在语义不同的边界契约（拒绝沿用旧契约；先 Clear 或改用新键）");
+            }
         }
         catch
         {
@@ -104,12 +112,27 @@ public sealed class PortCatalog : IPortCatalog
     public async ValueTask<object?> InvokeAsync(string portKey, IPortInput input, CancellationToken ct = default)
         => await Resolve(portKey).Binding.InvokeAsync(input, ct).ConfigureAwait(false);
 
-    /// <summary>清空登记与调用记录（测试隔离用）。</summary>
+    /// <summary>清空登记、契约面与调用记录（测试隔离用）。</summary>
     public void Clear()
     {
         _handles.Clear();
+        // 契约面必须同步清空：否则 Clear 后同键 TryRegister 会“登记成功”却沿用旧契约（声明漂移）。
+        _contracts?.Clear();
         Log.Clear();
     }
+
+    /// <summary>同键契约是否语义等价（用于 TryRegister 容忍“多来源播种同一契约”，拒绝语义漂移）。</summary>
+    private static bool SameDefinition(BoundaryContract a, BoundaryContract b)
+        => a.Kind == b.Kind
+           && a.Direction == b.Direction
+           && a.Scope == b.Scope
+           && a.SchemaVersion == b.SchemaVersion
+           && a.ValueType == b.ValueType
+           && string.Equals(a.EntityType, b.EntityType, StringComparison.Ordinal)
+           && a.Fields.SequenceEqual(b.Fields)
+           && a.MetricKeys.SequenceEqual(b.MetricKeys)
+           && a.Depends.SequenceEqual(b.Depends)
+           && a.Emits.SequenceEqual(b.Emits);
 
     private static void EnsurePortKind(BoundaryContract contract)
     {

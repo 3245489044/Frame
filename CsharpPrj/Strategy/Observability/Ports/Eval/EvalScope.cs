@@ -28,6 +28,12 @@ internal sealed class EvalScope
     internal string PortKey { get; }
 
     /// <summary>
+    /// 当前可解析依赖数（AD6）：程序内 <c>Dep</c> 指令按序构建，依赖只能引用更早的同组依赖。
+    /// 默认 <see cref="int.MaxValue"/> = 该作用域的依赖已全部构建（扁平执行器路径）。
+    /// </summary>
+    internal int VisibleDependencies { get; set; } = int.MaxValue;
+
+    /// <summary>
     /// 委托工厂（W26：<c>from:delegate</c> 由求值器回调本钩子）。
     /// <para>由 <see cref="ScriptedBinding"/> 在构造作用域后注入（委托体需执行声明步骤，属执行器职责，不属取值单源）；
     /// 未注入而声明了 <c>delegate</c> 来源 → fail-fast（不静默给 null）。</para>

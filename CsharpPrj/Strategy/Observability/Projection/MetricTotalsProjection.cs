@@ -1,5 +1,7 @@
 namespace Strategy.Observability.Projection;
 
+using Strategy.Observability.Ports;
+
 /// <summary>
 /// 全度量求和投影（<c>Aggregate(&lt;作用域&gt;)</c> 取值根）：该作用域内<b>全部事件的全部度量键</b>求和
 /// （如 <c>token_in</c> / <c>elapsed_ms</c> 成本 KPI），供 <c>Count</c> / <c>Samples</c> / <c>Metric(键)</c> 断言。
@@ -34,7 +36,7 @@ public sealed class MetricTotalsProjection
     {
         PortGuard.Required(events, nameof(events));
 
-        var sums = new Dictionary<string, double>(StringComparer.Ordinal);
+        var values = new Dictionary<string, List<double>>(StringComparer.Ordinal);
         var count = 0;
         var samples = 0;
 
@@ -45,8 +47,15 @@ public sealed class MetricTotalsProjection
 
             samples++;
             foreach (var (key, value) in evt.Metrics)
-                sums[key] = sums.TryGetValue(key, out var current) ? current + value : value;
+            {
+                if (!values.TryGetValue(key, out var list)) values[key] = list = new List<double>();
+                list.Add(value);
+            }
         }
+
+        // 求和口径单源 = PortValues.NumericStats（与 AggregateProjection / ObservabilityQuery 同一实现）。
+        var sums = new Dictionary<string, double>(values.Count, StringComparer.Ordinal);
+        foreach (var (key, list) in values) sums[key] = PortValues.NumericStats.Over(list).Sum;
 
         return new MetricTotalsProjection(count, sums, samples);
     }

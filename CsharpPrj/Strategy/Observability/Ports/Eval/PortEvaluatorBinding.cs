@@ -48,9 +48,18 @@ public sealed class PortEvaluatorBinding : IPortBinding
         if (!_spec.Program.Any(instruction => instruction.Op == PortOp.Call && instruction.Operand is CallStandard)) return;
 
         var declared = PortDependency.Declare(_spec.Program);
+        var visibleDeps = 0;
         foreach (var instruction in _spec.Program)
+        {
+            if (instruction.Op == PortOp.Dep && instruction.Operand is DepStandard)
+            {
+                visibleDeps++;      // 依赖按声明序构建；调用只能看见排在它之前的依赖
+                continue;
+            }
+
             if (instruction.Op == PortOp.Call && instruction.Operand is CallStandard call)
-                _ = PortComposedCall.Resolve(declared, _spec.PortKey, call);
+                _ = PortComposedCall.Resolve(declared, _spec.PortKey, call, visibleDeps);
+        }
     }
 
     /// <summary>求值（每调用一个上下文；上下文承载定位与留痕设施）。</summary>

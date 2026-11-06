@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Strategy.Observability.Entity;
 using Strategy.Observability.Envelope;
 using Strategy.Observability.Persistence;
+using Strategy.Observability.Ports;
 
 namespace Strategy.Observability.Query;
 
@@ -10,6 +11,12 @@ namespace Strategy.Observability.Query;
 public interface IObservabilityQuery
 {
     IAsyncEnumerable<ObservabilityEvent> TimelineAsync(string scopeId, long? afterSeq = null, int limit = 100, CancellationToken ct = default);
+
+    /// <summary>
+    /// 时序行（含行键关联维度 RunId / RoundId）。需要关联键的投影（如 <c>Timeline</c> 的 Rounds）必须走本口，
+    /// <see cref="TimelineAsync"/> 只返回信封本体、会丢失行字段。
+    /// </summary>
+    IAsyncEnumerable<PersistedEvent> TimelineRecordsAsync(string scopeId, long? afterSeq = null, int limit = 100, CancellationToken ct = default);
 
     IAsyncEnumerable<ObservabilityEvent> EntityChainAsync(EntityId entity, CancellationToken ct = default);
 
@@ -28,8 +35,14 @@ public sealed class ObservabilityQuery : IObservabilityQuery
 
     public async IAsyncEnumerable<ObservabilityEvent> TimelineAsync(string scopeId, long? afterSeq = null, int limit = 100, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        await foreach (var p in _store.TimelineAsync(scopeId, afterSeq, limit, ct).ConfigureAwait(false))
+        await foreach (var p in TimelineRecordsAsync(scopeId, afterSeq, limit, ct).ConfigureAwait(false))
             yield return p.Event;
+    }
+
+    public async IAsyncEnumerable<PersistedEvent> TimelineRecordsAsync(string scopeId, long? afterSeq = null, int limit = 100, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await foreach (var p in _store.TimelineAsync(scopeId, afterSeq, limit, ct).ConfigureAwait(false))
+            yield return p;
     }
 
     public async IAsyncEnumerable<ObservabilityEvent> EntityChainAsync(EntityId entity, [EnumeratorCancellation] CancellationToken ct = default)
@@ -42,10 +55,7 @@ public sealed class ObservabilityQuery : IObservabilityQuery
     {
         var kindSet = new HashSet<string>(PortGuard.Required(kinds, nameof(kinds)), StringComparer.Ordinal);
         var keySet = new HashSet<string>(PortGuard.Required(metricKeys, nameof(metricKeys)), StringComparer.Ordinal);
-        var sums = keySet.ToDictionary(k => k, _ => 0.0, StringComparer.Ordinal);
-        var counts = keySet.ToDictionary(k => k, _ => 0L, StringComparer.Ordinal);
-        var max = keySet.ToDictionary(k => k, _ => double.MinValue, StringComparer.Ordinal);
-        var min = keySet.ToDictionary(k => k, _ => double.MaxValue, StringComparer.Ordinal);
+        var samples = keySet.ToDictionary(k => k, _ => new List<double>(), StringComparer.Ordinal);
 
         await foreach (var p in _store.TimelineAsync(scopeId, null, int.MaxValue, ct).ConfigureAwait(false))
         {
@@ -55,20 +65,18 @@ public sealed class ObservabilityQuery : IObservabilityQuery
             if (p.Event.Metrics is null) continue;
             foreach (var key in keySet)
             {
-                if (!p.Event.Metrics.TryGetValue(key, out var v)) continue;
-                sums[key] += v;
-                counts[key]++;
-                if (v > max[key]) max[key] = v;
-                if (v < min[key]) min[key] = v;
+                if (p.Event.Metrics.TryGetValue(key, out var v)) samples[key].Add(v);
             }
         }
 
+        // 累加口径单源 = PortValues.NumericStats（与 AggregateProjection / MetricTotalsProjection 同一实现）。
         var result = new List<MetricAggregate>();
         foreach (var key in keySet)
         {
-            result.Add(counts[key] == 0
+            var stats = PortValues.NumericStats.Over(samples[key]);
+            result.Add(stats.Count == 0
                 ? new MetricAggregate(key, 0, 0, 0, null, null)
-                : new MetricAggregate(key, counts[key], sums[key], sums[key] / counts[key], max[key], min[key]));
+                : new MetricAggregate(key, stats.Count, stats.Sum, stats.Mean, stats.Max, stats.Min));
         }
         return result;
     }

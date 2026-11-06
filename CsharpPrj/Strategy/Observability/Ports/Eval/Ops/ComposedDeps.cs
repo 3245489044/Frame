@@ -38,7 +38,7 @@ internal static class ComposedDeps
             var type = ResolveType(typeName, dep.GenericArgs);
             var ctor = PickConstructor(portKey, type, index, dep.Args, input, deps);
             var args = ComposedArgs.Build(
-                ctor.GetParameters(), dep.Args, input, deps, portKey, $"dep[{index}].new {type.Name}");
+                ctor.GetParameters(), dep.Args, input, deps, portKey, $"dep[{index}].new {type.Name}", index);
             return PortInvocation.Construct(type, args);
         }
 
@@ -50,7 +50,7 @@ internal static class ComposedDeps
                     $"端口 '{portKey}' 的 dep[{index}] 引用未注入的工厂 '{factory}'" +
                     $"（已注入：{(factories.Count == 0 ? "(无)" : string.Join(", ", factories.Keys))}）");
 
-            return builder(ComposedArgs.Values(dep.Args, input, deps, portKey, $"dep[{index}].factory"));
+            return builder(ComposedArgs.Values(dep.Args, input, deps, portKey, $"dep[{index}].factory", index));
         }
 
         throw new PortBindingViolationException(
@@ -82,7 +82,7 @@ internal static class ComposedDeps
                 portKey,
                 $"端口 '{portKey}' 的 dep[{index}] 声明 fake='stateful' 但缺 state（须给 write/read/key）");
 
-        var wrapped = dep.Wrap is { } wrap ? Dep(deps, wrap, index, portKey) : null;
+        var wrapped = dep.Wrap is { } wrap ? Dep(deps, wrap, index, portKey, $"dep[{index}].wrap") : null;
         if (calls is null && shaped is FakeKind.Recording or FakeKind.Counting)
             wrapped = Wrapped(index, wrapped, kind, portKey);
 
@@ -189,14 +189,9 @@ internal static class ComposedDeps
             .ToArray();
     }
 
-    /// <summary>依赖引用（下标必须存在且指向更早的依赖）。</summary>
-    internal static object? Dep(object?[] deps, int reference, int index, string portKey)
-        => reference >= 0 && reference < deps.Length
-            ? deps[reference]
-            : throw new PortBindingViolationException(
-                portKey,
-                $"端口 '{portKey}' 的 dep[{index}] 引用了不可用的依赖下标 {reference}" +
-                $"（依赖共 {deps.Length} 个，且只能引用更早的依赖）");
+    /// <summary>依赖引用（下标必须存在且指向更早的依赖；校验单源 = <see cref="PortDependencyReference"/>）。</summary>
+    internal static object? Dep(object?[] deps, int reference, int visible, string portKey, string context)
+        => PortDependencyReference.Require(deps, reference, visible, portKey, context);
 
     /// <summary>类型解析（含开放泛型闭合：<c>GenericArgs</c> 按序闭合泛型形参）。</summary>
     internal static Type ResolveType(string typeName, IReadOnlyList<string>? genericArgs)
@@ -234,7 +229,7 @@ internal static class ComposedDeps
             declared is not { Count: > 0 }
                 ? null
                 : constructor => ComposedArgs.Build(
-                    constructor.GetParameters(), declared, input, deps, portKey, $"dep[{index}]"),
+                    constructor.GetParameters(), declared, input, deps, portKey, $"dep[{index}]", index),
             ComposedArgs.Describe(declared));
 
     /// <summary>

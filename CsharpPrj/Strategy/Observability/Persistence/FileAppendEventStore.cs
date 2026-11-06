@@ -10,12 +10,13 @@ namespace Strategy.Observability.Persistence;
 /// 满足 Batch1 持久化验收；供生产把同一端口适配到 SQLite / IZoneStore 事件区。
 /// 单写者（PersistentEventSink.FlushAsync 显式驱动）持文件锁追加；查询按需全量读后过滤（原型语义）。
 /// </summary>
-public sealed class FileAppendEventStore : IEventStore
+public sealed class FileAppendEventStore : IEventStore, IEventStoreDiagnostics
 {
     private static readonly JsonSerializerOptions Opt = new() { PropertyNameCaseInsensitive = true };
 
     private readonly string _path;
     private readonly object _writeGate = new();
+    private long _corruptLines;
 
     public FileAppendEventStore(string path)
     {
@@ -24,6 +25,9 @@ public sealed class FileAppendEventStore : IEventStore
     }
 
     public string Path => _path;
+
+    /// <summary>读侧累计跳过的损坏行数（坏行不静默：至少计数可见）。</summary>
+    public long CorruptLineCount => Interlocked.Read(ref _corruptLines);
 
     public Task InitializeAsync(CancellationToken ct = default)
     {
@@ -46,24 +50,18 @@ public sealed class FileAppendEventStore : IEventStore
 
     public async IAsyncEnumerable<PersistedEvent> TimelineAsync(string scopeId, long? afterSeq = null, int limit = 100, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var all = ReadAll();
-        var count = 0;
-        foreach (var e in all)
+        foreach (var e in EventWindow.Timeline(ReadAll(), scopeId, afterSeq, limit))
         {
             ct.ThrowIfCancellationRequested();
-            if (!string.Equals(e.ScopeId, scopeId, StringComparison.Ordinal)) continue;
-            if (afterSeq.HasValue && e.EventSeq <= afterSeq.Value) continue;
-            if (count++ >= limit) yield break;
             yield return e;
         }
     }
 
     public async IAsyncEnumerable<PersistedEvent> EntityChainAsync(EntityId entity, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        foreach (var e in ReadAll())
+        foreach (var e in EventWindow.EntityChain(ReadAll(), entity))
         {
             ct.ThrowIfCancellationRequested();
-            if (!e.Event.Entity.Matches(entity)) continue;
             yield return e;
         }
     }
@@ -84,12 +82,13 @@ public sealed class FileAppendEventStore : IEventStore
                 }
                 catch (JsonException)
                 {
-                    // 容忍损坏行（只读侧不影响已写批）
+                    // 容忍损坏行继续读（只读侧不影响已写批），但必须计数可见（不静默吞掉）。
+                    Interlocked.Increment(ref _corruptLines);
                 }
             }
-            return list.OrderBy(e => e.EventSeq).ToList();
+            return list;
         }
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-    }
+}

@@ -9,7 +9,7 @@
 
       {"t":"hello",...}                        连接首帧（回显 pid/pipe/ring 容量）
       {"t":"event","e":{...PersistedEvent...}} 实时/回放事件（行 schema 与旧 events.jsonl 完全一致）
-      {"t":"backlogEnd",...} / {"t":"end",...} 回放/查询窗口封口（含 ring 容量与 dropped 计数 ⇒ 是否被截断）
+      {"t":"backlogEnd",...} / {"t":"end",...} 回放/查询窗口封口（droppedTotal=生命周期累计丢弃；truncated=本次窗口被环截断）
       {"t":"items","events":[...]}             按 scope 查询命中批
       {"t":"error","message":...}              控制帧错误
 
@@ -232,7 +232,7 @@ try
             {
                 if (-not ($Probe -or $Quiet))
                 {
-                    Write-Host ("  [回放封口] {0} 条 · ring={1} · dropped={2} · 截断={3}" -f $obj.count, $obj.ring, $obj.dropped, ($obj.dropped -gt 0)) -ForegroundColor DarkGray
+                    Write-Host ("  [回放封口] {0} 条 · ring={1} · 累计丢弃={2} · 本次截断={3} · 坏行={4}" -f $obj.count, $obj.ring, $obj.droppedTotal, $obj.truncated, $obj.corrupt) -ForegroundColor DarkGray
                 }
                 if ($MaxEvents -gt 0 -and $events.Count -ge $MaxEvents) { break }
             }
@@ -240,7 +240,7 @@ try
             {
                 if (-not ($Probe -or $Quiet))
                 {
-                    Write-Host ("  [查询封口] scope={0} · {1} 条 · ring={2} · dropped={3} · 截断={4}" -f $obj.scope, $obj.scanned, $obj.ring, $obj.dropped, $obj.truncated) -ForegroundColor DarkGray
+                    Write-Host ("  [查询封口] scope={0} · {1} 条 · ring={2} · 累计丢弃={3} · 本次截断={4} · nextAfterSeq={5} · 坏行={6}" -f $obj.scope, $obj.matched, $obj.ring, $obj.droppedTotal, $obj.truncated, $obj.nextAfterSeq, $obj.corrupt) -ForegroundColor DarkGray
                 }
                 if ($Query) { break }
             }

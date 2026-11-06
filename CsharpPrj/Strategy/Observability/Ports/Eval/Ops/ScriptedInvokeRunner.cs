@@ -43,12 +43,12 @@ internal static class ScriptedInvokeRunner
         var isStatic = invoke.Dep is null;
         var type = isStatic
             ? StaticType(portKey, invoke, context)
-            : InstanceType(portKey, invoke, specs, resolvedDeps, context);
+            : InstanceType(portKey, invoke, specs, resolvedDeps, scope.VisibleDependencies, context);
         var expect = ExpectTypes(invoke.Expect);
         var declared = invoke.Args ?? Array.Empty<ValueSourceStandard>();
         var instance = isStatic
             ? null
-            : ComposedDeps.Dep(resolvedDeps, invoke.Dep!.Value, invoke.Dep.Value, portKey);
+            : ComposedDeps.Dep(resolvedDeps, invoke.Dep!.Value, scope.VisibleDependencies, portKey, $"{context} 的依赖");
 
         if (invoke.IsProperty)
         {
@@ -362,18 +362,15 @@ internal static class ScriptedInvokeRunner
     /// <summary>实例调用目标类型（依赖声明的 contract / new；未给声明时取运行时类型）。</summary>
     private static Type InstanceType(
         string portKey, InvokeStandard invoke, IReadOnlyList<DepStandard>? specs,
-        object?[] resolvedDeps, string context)
+        object?[] resolvedDeps, int visibleDeps, string context)
     {
         var index = invoke.Dep ?? -1;
         if (specs is null)
-            return ComposedDeps.Dep(resolvedDeps, index, index, portKey)?.GetType()
+            return ComposedDeps.Dep(resolvedDeps, index, visibleDeps, portKey, $"{context} 的依赖")?.GetType()
                 ?? throw new PortBindingViolationException(
                     portKey, $"端口 '{portKey}' 的 {context} 的依赖下标 {index} 无实例（类型不可知）");
 
-        if (index < 0 || index >= specs.Count)
-            throw new PortBindingViolationException(
-                portKey, $"端口 '{portKey}' 的 {context} 引用了不存在的依赖下标 {index}（依赖 {specs.Count} 个）");
-
+        _ = PortDependencyReference.RequireDeclared(specs, index, visibleDeps, portKey, context);
         return ComposedDeps.DeclaredInstanceType(specs, index, portKey, context);
     }
 }

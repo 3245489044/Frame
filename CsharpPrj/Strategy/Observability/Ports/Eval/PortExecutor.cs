@@ -145,12 +145,12 @@ internal sealed class PortExecutor
         if (deliverKind == "action")
             return new DeferredAction(() => _deliver.DeferSteps is { Count: > 0 } steps
                 ? RunDeferred(steps, input)
-                : Execute(input));
+                : Execute(input, deliverKind));
 
         if (deliverKind == "issues" && _deliver.Capture is { } capture)
             return new PortIssues(CaptureIssues(capture, input));
 
-        return Execute(input);
+        return Execute(input, deliverKind);
     }
 
     /// <summary>
@@ -198,8 +198,8 @@ internal sealed class PortExecutor
             Deliver: body.Deliver,
             Scopes: body.Scopes);
 
-    /// <summary>即时执行（主路径：建作用域 → 脚本 → 投影）。</summary>
-    private object? Execute(IPortInput input)
+    /// <summary>即时执行（主路径：建作用域 → 脚本 → 投影；载体形态由 <paramref name="deliverKind"/> 单一决定）。</summary>
+    private object? Execute(IPortInput input, string deliverKind)
     {
         var scope = Prepare(input);
 
@@ -212,7 +212,7 @@ internal sealed class PortExecutor
 
             var product = Project(scope, input, deps);
 
-            return _deliver.Issues ? new PortIssues(IssueList(IssueSource(product, scope))) : product;
+            return deliverKind == "issues" ? new PortIssues(IssueList(IssueSource(product, scope))) : product;
         });
     }
 
@@ -339,6 +339,26 @@ internal sealed class PortExecutor
         if (conflict is not null)
             throw new PortBindingViolationException(
                 _portKey, $"端口 '{_portKey}' 的载体 kind='{kind}' 与 {conflict} 互斥（载体形态单一）");
+
+        // AX2：kind 是唯一真源 —— 显式声明 kind 时，旧布尔字段只允许等价冗余，任何矛盾一律拒绝，
+        // 不再让两套判据同时生效（否则 kind=value + issues 会静默走 issues 判据）。
+        if (_deliver.Kind is { Length: > 0 })
+        {
+            string? legacyConflict = null;
+            if (kind == "value" && (_deliver.Issues || _deliver.Defer)) legacyConflict = "旧布尔字段 issues/defer";
+            else if (kind == "issues" && _deliver.Defer) legacyConflict = "旧布尔字段 defer";
+            else if (kind == "action" && _deliver.Issues) legacyConflict = "旧布尔字段 issues";
+
+            if (legacyConflict is not null)
+                throw new PortBindingViolationException(
+                    _portKey, $"端口 '{_portKey}' 已声明载体 kind='{kind}'，不得再声明矛盾的 {legacyConflict}" +
+                    "（载体形态单一真源 = kind）");
+        }
+
+        // AX3：issues 捕获体路径不执行 program —— 同时声明即 fail-fast，不静默跳过程序体。
+        if (kind == "issues" && _deliver.Capture is not null && _program.Count > 0)
+            throw new PortBindingViolationException(
+                _portKey, $"端口 '{_portKey}' 的 issues 捕获体与 program 互斥（捕获路径不执行程序体）");
 
         if (_deliver.Value is not null && kind != "value")
             throw new PortBindingViolationException(

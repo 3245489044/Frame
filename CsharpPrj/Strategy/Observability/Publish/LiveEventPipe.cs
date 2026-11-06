@@ -326,7 +326,8 @@ public sealed class LiveEventPipe : IAsyncDisposable
                 return;
             }
 
-            var events = recent.RecentSnapshot(backlog).Where(Matches).ToList();
+            var raw = recent.RecentSnapshot(backlog);
+            var events = raw.Where(Matches).ToList();
             foreach (var e in events)
             {
                 await SendAsync(writer, new { t = "event", e, backlog = true }).ConfigureAwait(false);
@@ -334,12 +335,15 @@ public sealed class LiveEventPipe : IAsyncDisposable
             }
 
             var ring = _store as RingEventStore;
+            var droppedTotal = ring?.DroppedCount ?? 0;
             await SendAsync(writer, new
             {
                 t = "backlogEnd",
                 count = events.Count,
                 ring = ring?.Capacity ?? 0,
-                dropped = ring?.DroppedCount ?? 0,
+                droppedTotal,                                    // 生命周期累计丢弃（非本次窗口）
+                truncated = droppedTotal > 0 && raw.Count < backlog,  // 本次回放窗口被环边界截断
+                corrupt = (_store as IEventStoreDiagnostics)?.CorruptLineCount ?? 0,
             }).ConfigureAwait(false);
         }
 
@@ -360,27 +364,40 @@ public sealed class LiveEventPipe : IAsyncDisposable
 
             var afterSeq = ReadLong(root, "afterSeq", 0);
             var limit = ReadInt(root, "limit", 500);
+            var effectiveLimit = limit <= 0 ? 500 : limit;
             var kinds = ReadStrings(root, "kinds");
 
+            // limit 必须在 kind 过滤之后生效：先取全窗口（store 侧只做 scope+afterSeq+排序），
+            // 再按 kind 过滤，最后截到 limit —— 否则「前 limit 条恰好都不是目标 kind」会误报空窗。
             var items = new List<PersistedEvent>();
-            await foreach (var e in _store.TimelineAsync(scope, afterSeq > 0 ? afterSeq : null, limit <= 0 ? 500 : limit).ConfigureAwait(false))
+            await foreach (var e in _store.TimelineAsync(
+                scope, afterSeq > 0 ? afterSeq : null, int.MaxValue).ConfigureAwait(false))
             {
                 if (kinds is { Count: > 0 } && !kinds.Contains(e.Event.EventKind, StringComparer.Ordinal)) continue;
+                if (items.Count >= effectiveLimit) break;
                 items.Add(e);
             }
+
+            var nextAfterSeq = items.Count > 0
+                ? items[^1].EventSeq
+                : afterSeq > 0 ? afterSeq : (long?)null;
 
             await SendAsync(writer, new { t = "items", id, events = items }).ConfigureAwait(false);
 
             var ring = _store as RingEventStore;
+            var droppedTotal = ring?.DroppedCount ?? 0;
             await SendAsync(writer, new
             {
                 t = "end",
                 id,
                 scope,
-                scanned = items.Count,
+                matched = items.Count,
+                nextAfterSeq,
                 ring = ring?.Capacity ?? 0,
-                dropped = ring?.DroppedCount ?? 0,
-                truncated = ring is not null && ring.DroppedCount > 0,
+                droppedTotal,                                      // 生命周期累计丢弃（非本次窗口）
+                truncated = ring is not null && EventWindow.WindowTruncated(
+                    afterSeq > 0 ? afterSeq : null, droppedTotal),  // 本次窗口被环边界截断
+                corrupt = (_store as IEventStoreDiagnostics)?.CorruptLineCount ?? 0,
             }).ConfigureAwait(false);
         }
 

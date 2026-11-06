@@ -8,7 +8,7 @@ namespace Strategy.Observability.Persistence;
 /// <b>零落盘</b>：语义观测的离线读面改由实时出口（<c>Publish.LiveEventPipe</c>）承担；
 /// 容量 = 回溯窗口上界，进程内查询与实时出口读<b>同一份</b>事实（单源，禁第二记分牌）。
 /// </summary>
-public sealed class RingEventStore : IEventStore, IRecentEvents
+public sealed class RingEventStore : IEventStore, IRecentEvents, IEventStoreDiagnostics
 {
     /// <summary>缺省容量（条）：约覆盖一次会话的链式回溯窗口。</summary>
     public const int DefaultCapacity = 8192;
@@ -38,8 +38,11 @@ public sealed class RingEventStore : IEventStore, IRecentEvents
     /// <summary>累计接收条数（只增）。</summary>
     public long AppendedCount => Interlocked.Read(ref _appended);
 
-    /// <summary>因容量超限被丢弃的条数（可见账；&gt;0 即回溯窗口已被截断）。</summary>
+    /// <summary>因容量超限被丢弃的条数（生命周期累计；是否截断“本次窗口”由读面另行判定）。</summary>
     public long DroppedCount => Interlocked.Read(ref _dropped);
+
+    /// <summary>环形区不解析落盘行，故读侧坏行恒为 0（接口统一口径）。</summary>
+    public long CorruptLineCount => 0;
 
     public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
 
@@ -66,10 +69,9 @@ public sealed class RingEventStore : IEventStore, IRecentEvents
     public async IAsyncEnumerable<PersistedEvent> TimelineAsync(
         string scopeId, long? afterSeq = null, int limit = 100, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        foreach (var e in Snapshot(scopeId, afterSeq))
+        foreach (var e in EventWindow.Timeline(SnapshotAll(), scopeId, afterSeq, limit))
         {
             ct.ThrowIfCancellationRequested();
-            if (limit-- <= 0) yield break;
             yield return e;
         }
     }
@@ -77,10 +79,9 @@ public sealed class RingEventStore : IEventStore, IRecentEvents
     public async IAsyncEnumerable<PersistedEvent> EntityChainAsync(
         EntityId entity, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        foreach (var e in Snapshot(entity.ScopeId, null))
+        foreach (var e in EventWindow.EntityChain(SnapshotAll(), entity))
         {
             ct.ThrowIfCancellationRequested();
-            if (!e.Event.Entity.Matches(entity)) continue;
             yield return e;
         }
     }
@@ -96,16 +97,9 @@ public sealed class RingEventStore : IEventStore, IRecentEvents
         }
     }
 
-    private IReadOnlyList<PersistedEvent> Snapshot(string scopeId, long? afterSeq)
+    private IReadOnlyList<PersistedEvent> SnapshotAll()
     {
-        lock (_gate)
-        {
-            return _events
-                .Where(e => string.Equals(e.ScopeId, scopeId, StringComparison.Ordinal))
-                .Where(e => !afterSeq.HasValue || e.EventSeq > afterSeq.Value)
-                .OrderBy(e => e.EventSeq)
-                .ToList();
-        }
+        lock (_gate) return _events.ToArray();
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

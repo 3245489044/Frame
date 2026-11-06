@@ -75,7 +75,7 @@ internal static class ScriptedValue
 
             case "dep":
                 return spec.Dep is { } index
-                    ? ComposedDeps.Dep(deps, index, index, scope.PortKey)
+                    ? ComposedDeps.Dep(deps, index, scope.VisibleDependencies, scope.PortKey, $"{context} 的 dep 来源")
                     : throw new PortBindingViolationException(
                         scope.PortKey, $"端口 '{scope.PortKey}' 的 {context} 的 dep 来源缺 dep（依赖下标）");
 

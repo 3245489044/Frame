@@ -30,7 +30,12 @@ public sealed class ObservedPortDecorator : IPortBinding
     private readonly string _portKey;
     private readonly IPortBinding _inner;
     private readonly Func<bool>? _enabled;
-    private readonly EntityIdFactory _ids = new();
+
+    /// <summary>
+    /// 实体序号分配器单源（AX1）：所有装饰器共享一个进程级工厂，避免不同端口在同一作用域各自从 1 起号
+    /// 导致 <c>(Scope, EntityType, Seq)</c> 三元碰撞、事件链串端口。
+    /// </summary>
+    private static readonly EntityIdFactory SharedIds = new();
 
     /// <summary><paramref name="enabled"/> 为观测可见性开关（null = 始终可见）。</summary>
     public ObservedPortDecorator(string portKey, IPortBinding inner, Func<bool>? enabled = null)
@@ -47,14 +52,17 @@ public sealed class ObservedPortDecorator : IPortBinding
     {
         if (_enabled is not null && !_enabled()) return await _inner.InvokeAsync(input, ct).ConfigureAwait(false);
 
+        // AX1：一次调用只分配一个实体（Invoked/Succeeded/Failed 复用同一 id ⇒ 同一条事件链可关联）。
+        var entity = Obs.IsReady ? CurrentEntity() : (EntityId?)null;
+
         var watch = Stopwatch.StartNew();
-        Emit(InvokedKind, b => b.Payload(new { port = _portKey, argsHash = input.ArgsHash, src = input.Src }));
+        Emit(entity, InvokedKind, b => b.Payload(new { port = _portKey, argsHash = input.ArgsHash, src = input.Src }));
 
         try
         {
             var result = await _inner.InvokeAsync(input, ct).ConfigureAwait(false);
             watch.Stop();
-            Emit(SucceededKind, b => b
+            Emit(entity, SucceededKind, b => b
                 .WithMetric("elapsed_ms", watch.Elapsed.TotalMilliseconds)
                 .Payload(new { port = _portKey, resultKind = result?.GetType().Name ?? "null" }));
             return result;
@@ -62,7 +70,7 @@ public sealed class ObservedPortDecorator : IPortBinding
         catch (Exception ex)
         {
             watch.Stop();
-            Emit(FailedKind, b => b
+            Emit(entity, FailedKind, b => b
                 .WithMetric("elapsed_ms", watch.Elapsed.TotalMilliseconds)
                 .Payload(new { port = _portKey, errorClass = Classify(ex), detail = ex.Message }));
             throw;
@@ -72,15 +80,21 @@ public sealed class ObservedPortDecorator : IPortBinding
     /// <summary>错误分类（纯映射，无动作；分类实现单源 = <see cref="PortErrorClass"/>）。</summary>
     public static string Classify(Exception ex) => PortErrorClass.Of(ex);
 
+    /// <summary>按当前作用域分配本调用的实体（调用方须先确认观测就绪）。</summary>
+    private EntityId CurrentEntity()
+    {
+        var bag = ObsScope.Current;
+        var scopeId = bag?.ScopeKey ?? bag?.RunId ?? _portKey;
+        return SharedIds.New(scopeId, EntityType);
+    }
+
     /// <summary>发射一条端口族事件（异常就地吞——观测不得阻断主路径）。</summary>
-    private void Emit(string kind, Action<ObservabilityEventBuilder> build)
+    private static void Emit(EntityId? entity, string kind, Action<ObservabilityEventBuilder> build)
     {
         try
         {
-            if (!Obs.IsReady) return;
-            var bag = ObsScope.Current;
-            var scopeId = bag?.ScopeKey ?? bag?.RunId ?? _portKey;
-            Obs.Emit(_ids.New(scopeId, EntityType), kind, build);
+            if (entity is null || !Obs.IsReady) return;
+            Obs.Emit(entity.Value, kind, build);
         }
         catch
         {

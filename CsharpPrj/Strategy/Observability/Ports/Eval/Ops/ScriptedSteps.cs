@@ -152,7 +152,7 @@ internal static class ScriptedSteps
 
         foreach (var item in PortValues.Elements(items))
         {
-            var produced = last;
+            object? produced = null;
             scope.Push(loop.As, item, index);
             try
             {
@@ -169,25 +169,22 @@ internal static class ScriptedSteps
                 {
                     produced = Run(host, body, scope, input, deps);
 
-                    // foreach 级收集只记录本迭代 body 实际执行后的产物（与「break 迭代未完成不入列」同一口径）。
-                    scope.Pop();
+                    // foreach 级收集只记录本迭代 body 实际执行后的产物（未执行 / 被 break 中止的迭代不入列）。
                     Collect(step, produced, scope);
                 }
-                else
-                {
-                    // where 过滤：body 未执行 → 本次迭代无产物，不收集（旧口径收上一轮末产物 → 幻影重复 / 首元素 null）。
-                    scope.Pop();
-                }
+
+                last = produced;
+                index++;
             }
             catch (BreakSignal)
             {
-                scope.Pop();
-                Collect(step, produced, scope);
-                return produced;
+                // break 迭代未完成：不收集本迭代产物（旧实现会把上一轮产物当本轮收集，产生幻影重复）。
+                return last;
             }
-
-            last = produced;
-            index++;
+            finally
+            {
+                scope.Pop();
+            }
         }
 
         return last;

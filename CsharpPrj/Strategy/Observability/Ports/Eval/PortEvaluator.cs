@@ -229,6 +229,9 @@ internal sealed class PortEvalSession
         _context.InstructionIndex = index;
         _context.OutSlot = instruction.Out;
 
+        // AD6：本条指令只能看见已构建的依赖（Dep 指令按序累加；前向引用在取值处 fail-fast）。
+        _scope.VisibleDependencies = _frame.DependencyCount;
+
         _product = PortEvaluator.Instruct(_spec, instruction, index, _input, _scope, _frame);
         _frame.Last = _product;
 

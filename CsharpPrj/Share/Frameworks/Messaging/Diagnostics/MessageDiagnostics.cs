@@ -49,4 +49,13 @@ public static class MessageDiagnostics
 
     /// <summary>声明面缺件/编译失败（不得静默取默认）。</summary>
     public const string DeclarationMissing = "MSG_DECLARATION_MISSING";
+
+    /// <summary>任务投递执行失败（任务池拒绝）。</summary>
+    public const string TaskDispatchFailed = "MSG_TASK_DISPATCH_FAILED";
+
+    /// <summary>结果槽分配/回填失败。</summary>
+    public const string ResultSlotFailed = "MSG_RESULT_SLOT_FAILED";
+
+    /// <summary>会话发送失败。</summary>
+    public const string SessionSendFailed = "MSG_SESSION_SEND_FAILED";
 }

@@ -46,10 +46,13 @@ $slots = @{}
 foreach ($name in PropNames $ui.slots) { $slots[$name] = $ui.slots.$name }
 
 $carrierIds = @{}
-foreach ($name in $slots.Keys) {
-    foreach ($carrier in PropNames $slots[$name]) {
-        if ([string]$slots[$name].$carrier.bind -ne 'none') { $carrierIds[$carrier] = $true }
-    }
+$declaredCarriers = @($ui.carriers)
+if ($declaredCarriers.Count -eq 0) {
+    $violations.Add('R0 载体清单未声明（单源 = [Table] UiCarrier ⇒ ui.generated.json carriers[]）')
+}
+foreach ($carrier in $declaredCarriers) {
+    $id = [string]$carrier
+    if ($id) { $carrierIds[$id] = $true }
 }
 
 $parts = @{}

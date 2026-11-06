@@ -18,7 +18,7 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
     private readonly SurfaceMapDeclaration _map;
     private readonly UiDeclaration? _declaration;
     private readonly string? _skin;
-    private readonly Dictionary<string, string> _unsupported = new(StringComparer.Ordinal);
+    private readonly HashSet<UnsupportedSlot> _unsupported = new();
 
     /// <param name="map">载体映射声明。</param>
     /// <param name="backendId">后端 id（声明面键；缺省 = 声明内 html 键）。</param>
@@ -40,7 +40,7 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
     public string BackendId { get; }
 
     /// <inheritdoc />
-    public IReadOnlyList<string> UnsupportedCells => _unsupported.Keys.ToList();
+    public IReadOnlyList<UnsupportedSlot> UnsupportedCells => _unsupported.ToList();
 
     /// <inheritdoc />
     public UiNode Project(RenderPlan plan)
@@ -59,7 +59,7 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         var props = _map.Props(BackendId, node.Role);
         if (props is null || !props.TryGetValue("tag", out var tag) || string.IsNullOrWhiteSpace(tag))
         {
-            _unsupported[SurfaceRoleIds.Unknown] = "role";
+            _unsupported.Add(new UnsupportedSlot(BackendId, SurfaceRoleIds.Unknown, string.Empty, "missing-structure"));
             return UiNode.TextNode($"?{node.Role}");
         }
 
@@ -88,7 +88,7 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         var props = _map.Props(BackendId, field.Cell);
         if (props is null || !props.TryGetValue("tag", out var tag) || string.IsNullOrWhiteSpace(tag))
         {
-            _unsupported[field.Cell] = field.Name;
+            _unsupported.Add(new UnsupportedSlot(BackendId, field.Cell, string.Empty, "missing-structure"));
             return UiNode.TextNode(field.IsUnknown ? $"?{field.Name}" : TextOf(field));
         }
 
@@ -124,12 +124,13 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         foreach (var visual in part.Visuals(BackendId, stateId))
         {
             if (!string.Equals(visual.Bind, "cssvar", StringComparison.Ordinal)) continue;
-            style.Add($"{visual.Prop}:{visual.Value}");
+            style.Add($"{visual.Prop}:{WithUnit(visual.Value, visual.Unit)}");
         }
 
         if (style.Count > 0) attributes["style"] = string.Join(";", style);
         attributes["data-part"] = part.Name;
 
+        // 槽位缺口只保留 DOM 属性（单一表示：供诊断读取；不进 UnsupportedCells）。
         var missing = part.MissingSlots(BackendId, stateId);
         if (missing.Count > 0) attributes["data-unsupported"] = string.Join(",", missing);
     }
@@ -141,20 +142,14 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         _ => null,
     };
 
-    /// <summary>字段值 → 文本（唯一合成点；未知占位走可见标记）。</summary>
+    /// <summary>字段值 → 文本（唯一合成点 = <see cref="FieldTextFormatter"/>）。</summary>
     /// <param name="field">字段。</param>
-    public static string TextOf(UiField field)
+    public static string TextOf(UiField field) => FieldTextFormatter.Format(field);
+
+    /// <summary>单位拼接：token 值单位less，载体声明单位（多值按空白分隔逐个追加）。</summary>
+    private static string WithUnit(string value, string unit)
     {
-        ArgumentNullException.ThrowIfNull(field);
-        if (field.IsUnknown) return "?";
-        return field.Value switch
-        {
-            null => "?",
-            string text => text,
-            bool flag => flag ? "true" : "false",
-            IEnumerable<KeyValuePair<string, string>> pairs => string.Join("; ", pairs.Select(p => $"{p.Key}={p.Value}")),
-            System.Collections.IEnumerable items => string.Join(", ", items.Cast<object?>()),
-            _ => field.Value.ToString() ?? "?",
-        };
+        if (unit.Length == 0) return value;
+        return string.Join(" ", value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(v => v + unit));
     }
 }

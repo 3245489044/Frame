@@ -42,6 +42,9 @@ public static class UsharpUiProgramEmitter
     /// <summary>渲染单元记录前缀。</summary>
     public const string PartPrefix = "ui_part_";
 
+    /// <summary>载体清单记录前缀（载体集合单源）。</summary>
+    public const string CarrierPrefix = "ui_carrier_";
+
     /// <summary>发射（声明缺项 ⇒ 不产出 + 诊断）。</summary>
     /// <param name="compilation">声明编译结果。</param>
     public static UsharpUiProgramResult Emit(UsharpCompilation compilation)
@@ -53,6 +56,7 @@ public static class UsharpUiProgramEmitter
         var slots = new JsonObject();
         var skins = new JsonObject();
         var parts = new JsonObject();
+        var carrierIds = new List<string>();
 
         foreach (var record in compilation.Records)
         {
@@ -84,8 +88,15 @@ public static class UsharpUiProgramEmitter
                 if (extends is not null) node["extends"] = extends;
                 var density = StrOrNull(record.Body, "density");
                 if (density is not null) node["density"] = density;
+                var isDefault = StrOrNull(record.Body, "default");
+                if (isDefault is not null) node["default"] = string.Equals(isDefault, "true", StringComparison.OrdinalIgnoreCase);
                 node["tokens"] = Rec(record.Body, "tokens") is { } overrides ? ScalarProps(overrides) : new JsonObject();
                 skins[name] = node;
+            }
+            else if (record.RecordId.StartsWith(CarrierPrefix, StringComparison.Ordinal))
+            {
+                var id = Name(record, CarrierPrefix, "id");
+                if (!carrierIds.Contains(id)) carrierIds.Add(id);
             }
             else if (record.RecordId.StartsWith(PartPrefix, StringComparison.Ordinal))
             {
@@ -116,6 +127,7 @@ public static class UsharpUiProgramEmitter
             ["tokens"] = tokens,
             ["skins"] = skins,
             ["parts"] = parts,
+            ["carriers"] = new JsonArray(carrierIds.Select(id => (JsonNode?)JsonValue.Create(id)).ToArray()),
         };
 
         var compact = body.ToJsonString();

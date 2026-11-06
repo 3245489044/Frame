@@ -9,8 +9,9 @@ namespace Share.Conversation.Rendering.Surface;
 /// <param name="Slot">语义槽位。</param>
 /// <param name="Bind">绑定方式（cssvar / prop）。</param>
 /// <param name="Prop">载体属性名。</param>
-/// <param name="Value">已解析 token 值。</param>
-public readonly record struct UiVisual(string Slot, string Bind, string Prop, string Value);
+/// <param name="Value">已解析 token 值（单位less）。</param>
+/// <param name="Unit">载体侧声明的单位（token 不含单位）。</param>
+public readonly record struct UiVisual(string Slot, string Bind, string Prop, string Value, string Unit);
 
 /// <summary>
 /// 一次渲染的样式上下文（**唯一解析产物**）：皮肤 + 密度 + token 值 + 每单元结构/样式。
@@ -124,13 +125,17 @@ public sealed class ResolvedPart
             if (slot is null || !slot.Bindings.TryGetValue(carrierId, out var binding)) continue;
             if (string.Equals(binding.Bind, "none", StringComparison.Ordinal)) continue;
             if (binding.Prop.Length == 0) continue;
-            visuals.Add(new UiVisual(pair.Key, binding.Bind, binding.Prop, value));
+            visuals.Add(new UiVisual(pair.Key, binding.Bind, binding.Prop, value, binding.Unit));
         }
 
         return visuals;
     }
 
-    /// <summary>该载体无法承载的槽位（声明为 none / 未声明 / 值缺失）——可见降级清单。</summary>
+    /// <summary>该载体**真实**无法承载的槽位（不可承载清单）。</summary>
+    /// <remarks>
+    /// <c>bind = none</c> 或该载体未声明绑定 = 该载体有意不支持（不计告警，否则文本载体逐槽位刷噪声）；
+    /// 只有「token 值缺失」与「声明了绑定却缺属性名」才是真实缺口。
+    /// </remarks>
     /// <param name="carrierId">载体 id。</param>
     /// <param name="state">节点状态（可空）。</param>
     public IReadOnlyList<string> MissingSlots(string carrierId, string? state = null)
@@ -145,12 +150,15 @@ public sealed class ResolvedPart
             }
 
             var slot = _slotOf(pair.Key);
-            if (slot is null || !slot.Bindings.TryGetValue(carrierId, out var binding)
-                || string.Equals(binding.Bind, "none", StringComparison.Ordinal)
-                || binding.Prop.Length == 0)
+            if (slot is null)
             {
                 missing.Add(pair.Key);
+                continue;
             }
+
+            if (!slot.Bindings.TryGetValue(carrierId, out var binding)) continue;
+            if (string.Equals(binding.Bind, "none", StringComparison.Ordinal)) continue;
+            if (binding.Prop.Length == 0) missing.Add(pair.Key);
         }
 
         return missing;

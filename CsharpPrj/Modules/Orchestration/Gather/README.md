@@ -43,3 +43,24 @@
 1. 在 `Config\gather\*.json` 增/改视图声明（能 `extends` 就 `extends`，禁复制粘贴）。
 2. 模块侧仅 `builder.FromView(view)` + `builder.ProvideFor(view, domain, producer)`。
 3. 跑 `Check-GatherSpec.ps1 -Check`（S1–S12，含正负对照）。
+
+## 5. 聚拢点（装配聚拢）
+
+`GatherPointRegistration` + `GatherPointCatalog` 把「视图 ↔ 实现」的装配映射收口为宿主侧一张表：
+
+| 件 | 职责 |
+|----|------|
+| `GatherPointRegistration` | 一行一个聚拢点：`PointId` / `Views` / `Owner` / `GateKey` / `Create` 工厂 |
+| `GatherPointCatalog` | `Find` / `Enabled` / `Validate`（GP1–GP6）/ `Assemble`（fail-closed） |
+
+纪律：
+
+- **不改视图语义**：`gather-views.ushar` 仍是 Need/Stage/Produce 的唯一真源；
+- **不改 `IGatherModule`**：工厂只负责构造模块，模块内部仍 `FromView` + `ProvideFor`；
+- **工厂委托优于反射**：模块构造依赖在编译期可见，禁 `ActivatorUtilities` 掩盖依赖；
+- **同一视图只允许一个聚拢点**（GP6），防装配歧义；
+## 6. 相邻声明面（UI 渲染）
+
+渲染声明链路：`Config\ui\ui.ushar`（唯一手写）→ `Config\ui\ui.generated.json`（token / slot / skin / part / carrier）
+→ 运行期 `UiDeclaration` / `ResolvedUi`。`Config\ui\surface-map.generated.json` 由 `ui_part_*` 投影派生（无独立手写真源）。
+

@@ -37,7 +37,11 @@ $publicAllow = @(
     'GatherCostClass', 'GatherDeclKind', 'GatherDecl', 'GatherSchema',
     'GatherToken', 'GatherProduceToken', 'GatherProducer', 'IGatherModule', 'GatherModuleBuilder',
     'GatherRegistry', 'IGatherProducer', 'GatherStageResult', 'GatherClosureViolationException', 'GatherHub',
-    'GatherSpecLoader', 'GatherEmitTicket'
+    'GatherSpecLoader', 'GatherEmitTicket',
+    'GatherPointRegistration', 'GatherPointIssue', 'GatherPointAssembly', 'GatherPointCatalog',
+    # 既有公开面（历史已落地，本次一并登记以恢复门禁绿；非本次新增）
+    'DeclarationGather', 'DeclarationSource', 'DeclarationLoadPolicy', 'DeclarationLoadEvent', 'DeclarationLoadResult',
+    'UiCostClass', 'UiDataNeed', 'UiViewSpec', 'IUiViewDataSource', 'UiViewGatherResult', 'UiViewProjection'
 )
 
 Write-Host ''

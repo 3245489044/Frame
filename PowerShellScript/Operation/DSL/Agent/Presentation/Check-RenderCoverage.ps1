@@ -36,13 +36,12 @@ function Read-Json([string]$path) {
 }
 
 $kinds = (Read-Json $kindsPath).kinds
-$fieldDefs = @{}
+$fieldTypes = @{}
+$typeCells = @{}
 if (Test-Path -LiteralPath $fieldsPath) {
     $fieldsRoot = Read-Json $fieldsPath
-    foreach ($p in $fieldsRoot.fields.PSObject.Properties) { $fieldDefs[$p.Name] = [string]$p.Value.type }
-    foreach ($p in $fieldsRoot.types.PSObject.Properties) {
-        $fieldDefs["::type::$($p.Name)"] = [string]$p.Value.cell
-    }
+    foreach ($p in $fieldsRoot.fields.PSObject.Properties) { $fieldTypes[$p.Name] = [string]$p.Value.type }
+    foreach ($p in $fieldsRoot.types.PSObject.Properties) { $typeCells[$p.Name] = [string]$p.Value.cell }
 }
 else {
     $violations.Add('R2 字段词表缺失：nodes\fields.generated.json（先跑 Generate-RenderDeclarations.ps1 -Apply）')
@@ -68,14 +67,13 @@ foreach ($kind in @($kinds)) {
 
     foreach ($field in @($kind.fields)) {
         $declared++
-        if (-not $fieldDefs.ContainsKey($field)) {
+        if (-not $fieldTypes.ContainsKey($field)) {
             $violations.Add("R2 kind '$name' 字段 '$field' 未在字段词表登记")
             continue
         }
 
-        $type = $fieldDefs[$field]
-        $cellKey = "::type::$type"
-        $cell = if ($fieldDefs.ContainsKey($cellKey)) { $fieldDefs[$cellKey] } else { 'unknown' }
+        $type = $fieldTypes[$field]
+        $cell = if ($typeCells.ContainsKey($type)) { $typeCells[$type] } else { 'unknown' }
         if (-not $roles.ContainsKey($cell)) {
             $violations.Add("R3 字段 '$field' 的单元 '$cell' 无载体承载（surface-map 缺键）")
             continue

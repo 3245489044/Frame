@@ -22,5 +22,5 @@ public interface IBackendProjector<out TArtifact>
     TArtifact Project(RenderPlan plan);
 
     /// <summary>显式声明不支持的字段单元（可见降级；禁静默丢字段）。</summary>
-    IReadOnlyList<string> UnsupportedCells { get; }
+    IReadOnlyList<UnsupportedSlot> UnsupportedCells { get; }
 }

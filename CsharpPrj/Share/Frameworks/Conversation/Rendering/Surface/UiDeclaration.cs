@@ -18,15 +18,13 @@ public sealed partial class UiDeclaration
     /// <summary>产物哨兵。</summary>
     public const string Schema = "ui-v1";
 
-    /// <summary>缺省皮肤 id（声明未覆盖时取首个皮肤）。</summary>
-    public const string DefaultSkin = "light";
-
     /// <summary>空声明（未装配）：一切单元缺失（可见降级，不伪造）。</summary>
     public static readonly UiDeclaration Empty = new(
         new Dictionary<string, UiSlotSpec>(StringComparer.Ordinal),
         new Dictionary<string, UiTokenSpec>(StringComparer.Ordinal),
         new Dictionary<string, UiSkinSpec>(StringComparer.Ordinal),
         new Dictionary<string, UiPartSpec>(StringComparer.Ordinal),
+        Array.Empty<string>(),
         "unavailable",
         declared: false,
         Array.Empty<string>());
@@ -35,12 +33,14 @@ public sealed partial class UiDeclaration
     private readonly IReadOnlyDictionary<string, UiTokenSpec> _tokens;
     private readonly IReadOnlyDictionary<string, UiSkinSpec> _skins;
     private readonly IReadOnlyDictionary<string, UiPartSpec> _parts;
+    private readonly IReadOnlyList<string> _carriers;
 
     private UiDeclaration(
         IReadOnlyDictionary<string, UiSlotSpec> slots,
         IReadOnlyDictionary<string, UiTokenSpec> tokens,
         IReadOnlyDictionary<string, UiSkinSpec> skins,
         IReadOnlyDictionary<string, UiPartSpec> parts,
+        IReadOnlyList<string> carriers,
         string fingerprint,
         bool declared,
         IReadOnlyList<string> diagnostics)
@@ -49,6 +49,7 @@ public sealed partial class UiDeclaration
         _tokens = tokens;
         _skins = skins;
         _parts = parts;
+        _carriers = carriers;
         Fingerprint = fingerprint;
         IsDeclared = declared;
         Diagnostics = diagnostics;
@@ -63,20 +64,8 @@ public sealed partial class UiDeclaration
     /// <summary>解析期可见诊断（非法条目逐条记录，禁静默）。</summary>
     public IReadOnlyList<string> Diagnostics { get; }
 
-    /// <summary>声明中出现的载体 id 集（联合）。</summary>
-    public IReadOnlyCollection<string> CarrierIds
-    {
-        get
-        {
-            var ids = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var slot in _slots.Values)
-            {
-                foreach (var carrier in slot.Bindings.Keys) ids.Add(carrier);
-            }
-
-            return ids;
-        }
-    }
+    /// <summary>声明载体 id 集（单源 = [Table] UiCarrier；缺声明 ⇒ 空）。</summary>
+    public IReadOnlyCollection<string> CarrierIds => _carriers;
 
     /// <summary>已声明渲染单元名集。</summary>
     public IReadOnlyCollection<string> PartNames => (IReadOnlyCollection<string>)_parts.Keys;
@@ -146,22 +135,22 @@ public sealed partial class UiDeclaration
         return (leaf?.Name ?? string.Empty, density, values);
     }
 
-    /// <summary>皮肤链（叶 → 根）；未知/缺省 ⇒ 回落默认档 + 诊断（禁静默）。</summary>
+    /// <summary>皮肤链（叶 → 根）；未知/缺省 ⇒ 回落声明缺省皮肤 + 诊断（禁静默）。</summary>
     private List<UiSkinSpec> ResolveChain(string? requested, List<string> diagnostics)
     {
         var chain = new List<UiSkinSpec>();
         var name = requested;
         if (string.IsNullOrWhiteSpace(name))
         {
-            name = _skins.ContainsKey(DefaultSkin) ? DefaultSkin : FirstSkin();
-            if (name is null) return chain;
+            name = DefaultSkinName();
         }
         else if (!_skins.ContainsKey(name))
         {
             diagnostics.Add($"skin-unknown:{name}");
-            name = _skins.ContainsKey(DefaultSkin) ? DefaultSkin : FirstSkin();
-            if (name is null) return chain;
+            name = DefaultSkinName();
         }
+
+        if (name is null) return chain;
 
         var guard = new HashSet<string>(StringComparer.Ordinal);
         while (name is not null && _skins.TryGetValue(name, out var skin))
@@ -184,8 +173,14 @@ public sealed partial class UiDeclaration
         return chain;
     }
 
-    private string? FirstSkin()
+    /// <summary>缺省皮肤：声明 <c>default = true</c> 者优先，其次首个皮肤（无皮肤 ⇒ null）。</summary>
+    private string? DefaultSkinName()
     {
+        foreach (var skin in _skins.Values)
+        {
+            if (skin.IsDefault) return skin.Name;
+        }
+
         foreach (var name in _skins.Keys) return name;
         return null;
     }

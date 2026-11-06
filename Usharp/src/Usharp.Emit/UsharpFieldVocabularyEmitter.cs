@@ -36,6 +36,7 @@ public static class UsharpFieldVocabularyEmitter
                 types[type] = new JsonObject
                 {
                     ["cell"] = UsharpRecordJson.Str(record.Body, "cell", string.Empty),
+                    ["shape"] = UsharpRecordJson.Str(record.Body, "shape", "text"),
                     ["caps"] = UsharpRecordJson.Array(UsharpRecordJson.StrList(record.Body, "caps")),
                 };
             }

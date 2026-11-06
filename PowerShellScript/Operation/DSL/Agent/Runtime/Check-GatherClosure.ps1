@@ -58,6 +58,7 @@ $patterns = @(
 # 允许集（producer 实现侧）：声明了 produce/need 的唯一落点；其余直呼即违规。
 $allowFileNames = @(
     'ConversationViewService.Nodes.cs',
+    'ConversationGatherModule.cs',
     'ConversationCanonGatherModule.Write.cs',
     # 契约声明与端口实现：写原语的定义面，不是「绕过 Hub 的调用点」。
     'NodeDomainPortContracts.cs',

@@ -6,20 +6,22 @@ using System.Text.Json;
 
 namespace Share.Conversation.Rendering.Surface;
 
-/// <summary>字段类型规格（type → 渲染单元 + 能力）。</summary>
+/// <summary>字段类型规格（type → 渲染单元 + 值形态 + 能力）。</summary>
 /// <param name="Type">类型名。</param>
 /// <param name="Cell">渲染单元。</param>
+/// <param name="Shape">值形态受控词（structured | text）。</param>
 /// <param name="Caps">能力集（受控词）。</param>
-public sealed record FieldTypeSpec(string Type, string Cell, IReadOnlyList<string> Caps);
+public sealed record FieldTypeSpec(string Type, string Cell, string Shape, IReadOnlyList<string> Caps);
 
 /// <summary>字段规格（field → 类型 + 标签键）。</summary>
 /// <param name="Name">字段名。</param>
 /// <param name="Type">类型名。</param>
 /// <param name="Cell">渲染单元（由类型解析）。</param>
+/// <param name="Shape">值形态受控词（由类型解析）。</param>
 /// <param name="Caps">能力集。</param>
 /// <param name="LabelKey">标签 loc 键（可空）。</param>
 public sealed record FieldSpec(
-    string Name, string Type, string Cell, IReadOnlyList<string> Caps, string? LabelKey = null);
+    string Name, string Type, string Cell, string Shape, IReadOnlyList<string> Caps, string? LabelKey = null);
 
 /// <summary>
 /// 字段词表声明（生成物 <c>fields.generated.json</c>；真源 = <c>Config\nodes\fields.ushar</c>）。
@@ -27,6 +29,12 @@ public sealed record FieldSpec(
 /// </summary>
 public sealed class FieldDeclaration
 {
+    /// <summary>值形态：需要结构值（对象/数组）而非纯文本。</summary>
+    public const string StructuredShape = "structured";
+
+    /// <summary>值形态：纯文本。</summary>
+    public const string TextShape = "text";
+
     /// <summary>空声明（未装配/不可用）：一切字段按 unknown 呈现（可见降级）。</summary>
     public static readonly FieldDeclaration Empty = new(
         new Dictionary<string, FieldTypeSpec>(StringComparer.Ordinal),
@@ -57,7 +65,8 @@ public sealed class FieldDeclaration
     public FieldSpec Resolve(string name)
     {
         if (name is not null && _fields.TryGetValue(name, out var spec)) return spec;
-        var unknown = new FieldSpec(name ?? string.Empty, "unknown", SurfaceCellIds.Unknown, Array.Empty<string>());
+        var unknown = new FieldSpec(
+            name ?? string.Empty, "unknown", SurfaceCellIds.Unknown, TextShape, Array.Empty<string>());
         return unknown;
     }
 
@@ -77,7 +86,9 @@ public sealed class FieldDeclaration
                 if (property.Value.ValueKind != JsonValueKind.Object) continue;
                 var id = property.Name;
                 var cell = ReadText(property.Value, "cell") ?? SurfaceCellIds.Unknown;
-                types[id] = new FieldTypeSpec(id, SurfaceCellIds.Normalize(cell), ReadList(property.Value, "caps"));
+                var shape = ReadText(property.Value, "shape") ?? TextShape;
+                types[id] = new FieldTypeSpec(
+                    id, SurfaceCellIds.Normalize(cell), shape, ReadList(property.Value, "caps"));
             }
         }
 
@@ -91,9 +102,9 @@ public sealed class FieldDeclaration
                 var type = ReadText(property.Value, "type") ?? "unknown";
                 var typeSpec = types.TryGetValue(type, out var found)
                     ? found
-                    : new FieldTypeSpec(type, SurfaceCellIds.Unknown, Array.Empty<string>());
+                    : new FieldTypeSpec(type, SurfaceCellIds.Unknown, TextShape, Array.Empty<string>());
                 fields[name] = new FieldSpec(
-                    name, type, typeSpec.Cell, typeSpec.Caps, ReadText(property.Value, "labelKey"));
+                    name, type, typeSpec.Cell, typeSpec.Shape, typeSpec.Caps, ReadText(property.Value, "labelKey"));
             }
         }
 

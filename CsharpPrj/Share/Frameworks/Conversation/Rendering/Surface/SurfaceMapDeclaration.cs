@@ -7,7 +7,7 @@ using System.Text.Json;
 namespace Share.Conversation.Rendering.Surface;
 
 /// <summary>
-/// 载体映射声明（生成物 <c>surface-map.generated.json</c>；真源 = <c>Config\ui\surface-map.ushar</c>）。
+/// 载体映射声明（生成物 <c>surface-map.generated.json</c>；真源 = <c>Config\ui\ui.ushar</c> 的 <c>ui_part_*</c> 投影）。
 /// <para>
 /// 结构：<c>roles[key][backendId] = { prop: value }</c>。载体名只出现在声明面，
 /// 代码侧按后端 id 取值（零载体字面量）。

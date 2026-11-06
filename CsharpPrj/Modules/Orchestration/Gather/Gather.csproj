@@ -12,6 +12,8 @@
     <ModuleRule_Rule Include="声明面禁过程语义键（step/order/sequence/then/next）：阶段序只由 deps 拓扑表达（对齐 SEP.DeclarativeProcessDisjoint）" />
     <ModuleRule_Rule Include="复用键 = (Domain, Scope)：跨作用域复用视为影子缓存缺陷，CrossScope=false 默认" />
     <ModuleRule_Rule Include="零 UI / 零宿主依赖：成本档为本工程中性枚举 GatherCostClass，UI 适配在调用方（禁把宿主枚举写进本工程公共签名）" />
+    <ModuleRule_Rule Include="装配聚拢单表：聚拢点 = PointId × Views × Owner × GateKey × Create；宿主禁在调用点直接 new 模块，统一经 GatherPointCatalog.Assemble" />
+    <ModuleRule_Rule Include="聚拢点工厂显式依赖：Create 委托而非反射 Type，模块构造依赖必须在编译期可见（禁 ActivatorUtilities 掩盖依赖）" />
   </ItemGroup>
 
   <PropertyGroup>

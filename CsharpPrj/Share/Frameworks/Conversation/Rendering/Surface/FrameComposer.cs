@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Modules.Node.Frame;
 using Share.Conversation.Presentation;
 
@@ -161,9 +163,55 @@ public static class FrameComposer
     {
         var spec = options.Fields.Resolve(name);
         var value = ValueOf(item, name, origin);
-        return value is null
-            ? UiField.Unknown(name)
-            : new UiField(name, spec.Cell, value, spec.LabelKey, spec.Caps);
+        if (value is null) return UiField.Unknown(name);
+
+        // 字段不压平：声明为 structured 的单元，其「紧凑 JSON 文本」在此反解析为结构值；
+        // 形似 JSON 但解析失败 ⇒ 可见 unknown（禁把坏串当正常值继续传）。
+        if (value is string text
+            && string.Equals(spec.Shape, FieldDeclaration.StructuredShape, StringComparison.Ordinal)
+            && LooksStructured(text))
+        {
+            return TryStructured(text, out var structured)
+                ? new UiField(name, spec.Cell, structured, spec.LabelKey, spec.Caps)
+                : UiField.Unknown(name);
+        }
+
+        return new UiField(name, spec.Cell, value, spec.LabelKey, spec.Caps);
+    }
+
+    private static bool LooksStructured(string text)
+    {
+        var trimmed = text.TrimStart();
+        return trimmed.Length > 0 && (trimmed[0] == '{' || trimmed[0] == '[');
+    }
+
+    /// <summary>JSON 文本 → 结构值（对象 = 键值表；数组 = 项表；其它 ⇒ 失败）。</summary>
+    private static bool TryStructured(string text, out object? value)
+    {
+        value = null;
+        try
+        {
+            var node = JsonNode.Parse(text);
+            switch (node)
+            {
+                case JsonObject obj:
+                    var map = new Dictionary<string, string>(StringComparer.Ordinal);
+                    foreach (var pair in obj) map[pair.Key] = pair.Value?.ToJsonString() ?? string.Empty;
+                    value = map;
+                    return true;
+                case JsonArray array:
+                    var list = new List<string>(array.Count);
+                    foreach (var element in array) list.Add(element?.ToJsonString() ?? string.Empty);
+                    value = list;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private static object? ValueOf(ConversationRenderItem item, string name, PresentationOrigin origin)

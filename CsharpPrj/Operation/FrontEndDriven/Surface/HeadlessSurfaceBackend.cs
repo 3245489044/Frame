@@ -20,13 +20,25 @@ public sealed class HeadlessSurfaceBackend : IBackendProjector<string>
     /// <summary>后端 id（测试/门禁用；不参与载体映射）。</summary>
     public string BackendId => "headless";
 
+    private readonly UiDeclaration? _declaration;
+    private readonly string? _skin;
+
+    /// <param name="declaration">UI 个性化声明（可空 ⇒ 快照不含主题段）。</param>
+    /// <param name="skin">皮肤 id（可空 ⇒ 声明默认档）。</param>
+    public HeadlessSurfaceBackend(UiDeclaration? declaration = null, string? skin = null)
+    {
+        _declaration = declaration;
+        _skin = skin;
+    }
+
     /// <inheritdoc />
-    public IReadOnlyList<string> UnsupportedCells => Array.Empty<string>();
+    public IReadOnlyList<UnsupportedSlot> UnsupportedCells => Array.Empty<UnsupportedSlot>();
 
     /// <inheritdoc />
     public string Project(RenderPlan plan)
     {
         ArgumentNullException.ThrowIfNull(plan);
+        var theme = _declaration?.Resolve(_skin);
         var snapshot = new
         {
             schema = "surface-snapshot-v1",
@@ -34,13 +46,16 @@ public sealed class HeadlessSurfaceBackend : IBackendProjector<string>
             nodeCount = plan.NodeCount,
             fieldCount = plan.FieldCount,
             unknownFieldCount = plan.UnknownFieldCount,
-            roots = ToNodes(plan.Roots),
+            theme = theme is null
+                ? null
+                : new { skin = theme.Skin, density = theme.Density, fingerprint = _declaration!.Fingerprint },
+            roots = ToNodes(plan.Roots, theme),
         };
 
         return JsonSerializer.Serialize(snapshot, Options);
     }
 
-    private static List<object> ToNodes(IReadOnlyList<UiSurfaceNode> nodes)
+    private static List<object> ToNodes(IReadOnlyList<UiSurfaceNode> nodes, ResolvedUi? theme)
     {
         var list = new List<object>(nodes.Count);
         foreach (var node in nodes)
@@ -54,7 +69,7 @@ public sealed class HeadlessSurfaceBackend : IBackendProjector<string>
                     cell = field.Cell,
                     label = field.Label,
                     unknown = field.IsUnknown,
-                    value = field.Value?.ToString(),
+                    value = FieldTextFormatter.Format(field),
                 });
             }
 
@@ -63,11 +78,12 @@ public sealed class HeadlessSurfaceBackend : IBackendProjector<string>
                 role = node.Role,
                 key = node.Key,
                 @class = node.Class,
+                part = theme?.PartForRole(node.Role)?.Name,
                 surface = node.Surface.ToString(),
                 state = node.State.ToString(),
                 actions = node.Actions,
                 fields,
-                children = ToNodes(node.Children),
+                children = ToNodes(node.Children, theme),
             });
         }
 

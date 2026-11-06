@@ -23,11 +23,29 @@ public sealed partial class UiDeclaration
         var tokens = ParseTokens(root, diagnostics);
         var skins = ParseSkins(root, diagnostics);
         var parts = ParseParts(root, diagnostics);
+        var carriers = ParseCarriers(root, diagnostics);
 
         var declared = slots.Count > 0 && tokens.Count > 0 && parts.Count > 0;
         if (!declared) diagnostics.Add("declaration-empty");
+        if (carriers.Count == 0) diagnostics.Add("carriers-undeclared");
 
-        return new UiDeclaration(slots, tokens, skins, parts, fingerprint, declared, diagnostics);
+        return new UiDeclaration(slots, tokens, skins, parts, carriers, fingerprint, declared, diagnostics);
+    }
+
+    /// <summary>载体清单（单源 = [Table] UiCarrier；缺声明 ⇒ 空 + 可见诊断）。</summary>
+    private static List<string> ParseCarriers(JsonElement root, List<string> diagnostics)
+    {
+        var carriers = new List<string>();
+        if (!root.TryGetProperty("carriers", out var element) || element.ValueKind != JsonValueKind.Array) return carriers;
+
+        foreach (var item in element.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String) continue;
+            var id = item.GetString();
+            if (!string.IsNullOrWhiteSpace(id) && !carriers.Contains(id)) carriers.Add(id);
+        }
+
+        return carriers;
     }
 
     private static Dictionary<string, UiSlotSpec> ParseSlots(JsonElement root, List<string> diagnostics)
@@ -55,7 +73,8 @@ public sealed partial class UiDeclaration
                 bindings[carrier.Name] = new UiSlotBinding(
                     carrier.Name,
                     ReadText(carrier.Value, "bind") ?? "none",
-                    ReadText(carrier.Value, "prop") ?? string.Empty);
+                    ReadText(carrier.Value, "prop") ?? string.Empty,
+                    ReadText(carrier.Value, "unit") ?? string.Empty);
             }
 
             slots[property.Name] = new UiSlotSpec(property.Name, bindings);
@@ -103,6 +122,7 @@ public sealed partial class UiDeclaration
                 property.Name,
                 ReadText(property.Value, "extends"),
                 ReadText(property.Value, "density") ?? string.Empty,
+                ReadBool(property.Value, "default"),
                 ReadMap(property.Value, "tokens", diagnostics, property.Name));
         }
 
@@ -161,6 +181,10 @@ public sealed partial class UiDeclaration
         => element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
+
+    /// <summary>布尔属性（缺失 ⇒ false）。</summary>
+    private static bool ReadBool(JsonElement element, string name)
+        => element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.True;
 
     private static IReadOnlyDictionary<string, string> ReadMap(
         JsonElement element, string? name, List<string> diagnostics, string owner)

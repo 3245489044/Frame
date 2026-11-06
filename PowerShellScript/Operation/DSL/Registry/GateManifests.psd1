@@ -2362,6 +2362,16 @@
         Note   = '聚拢声明守卫 S1–S7：Config\gather\*.json 合格性（schema / stages / needs 闭合 / deps 无环 / produces crit 与 macro recompute）/ 禁过程语义键（step/order/sequence/then/next）/ 正负对照（缺 need、成环、step 键三类样本必红）'
     }
 
+    GatherPoints = @{
+        Domain = 'Agent'
+        Family = 'Declaration'
+        Form   = 'Closure'
+        Args   = @{ Check = $true; ShowDetail = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '聚拢点装配守卫 GP1–GP7：PointId 唯一/视图已声明/IGatherModule 全覆盖/单表外禁直接 new/Owner/门控已登记/负对照'
+    }
+
     GatherClosure = @{
         Domain = 'Agent'
         Family = 'Runtime'

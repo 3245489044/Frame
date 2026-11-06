@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-05T05:32:38.6993199Z",
+  "builtAt": "2026-11-06T05:18:55.1447367Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -1508,11 +1508,11 @@
       "truncated": true,
       "byRole": {
         "Gate": 5,
-        "Test": 40,
+        "Test": 33,
         "Declaration": 1,
         "Code": 18,
         "Doc": 261,
-        "Other": 75
+        "Other": 82
       },
       "hits": [
         {
@@ -2235,6 +2235,55 @@
           "line": 110,
           "role": "Other",
           "text": "# （曾把 `--` 放在 -e 之前 ⇒ git 把 `proc.` 当 pathspec ⇒ fatal: ambiguous argument。）"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Launch/Invoke-LaunchSmoke.ps1",
+          "line": 83,
+          "role": "Other",
+          "text": "[void]$proc.StandardOutput.ReadToEndAsync()"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Launch/Invoke-LaunchSmoke.ps1",
+          "line": 84,
+          "role": "Other",
+          "text": "[void]$proc.StandardError.ReadToEndAsync()"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Launch/Invoke-LaunchSmoke.ps1",
+          "line": 88,
+          "role": "Other",
+          "text": "if ($proc.HasExited) { $earlyExit = $true; break }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Launch/Invoke-LaunchSmoke.ps1",
+          "line": 93,
+          "role": "Other",
+          "text": "$violations.Add((\"[S2] 未存活到 {0}s 即退出（ExitCode={1}）\" -f $AliveSeconds, $proc.ExitCode))"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Launch/Invoke-LaunchSmoke.ps1",
+          "line": 96,
+          "role": "Other",
+          "text": "Write-Host (\"  进程存活 {0}s：pid={1}\" -f $AliveSeconds, $proc.Id) -ForegroundColor Gray"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Launch/Invoke-LaunchSmoke.ps1",
+          "line": 106,
+          "role": "Other",
+          "text": "try { if (-not $proc.HasExited) { $proc.Kill($true) } } catch { }"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Share/Launch/Invoke-LaunchSmoke.ps1",
+          "line": 107,
+          "role": "Other",
+          "text": "try { $proc.Dispose() } catch { }"
         },
         {
           "repo": "Main",
@@ -4265,55 +4314,6 @@
           "line": 59,
           "role": "Test",
           "text": "Assert.AreEqual(\"proc.task-1.r2.tool-call.37\", position);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 74,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.task-1\", ProcessKeys.StreamPositionKey(\"task-1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 88,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.task.r2.step37\", out var container, out var round, out var kind, out var ordinal),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 95,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.a.b.r1.step1\", out var dotted, out _, out _, out _));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 98,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.step\", out _, out _, out _, out _), \"legacy 序数缺失\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 99,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.rX.step1\", out _, out _, out _, out _), \"legacy 轮次非数字（不猜）\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 105,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.a.b.c.r12.generic.9\", out var container, out var round, out var kind, out var ordinal),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 113,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.noroundstep\", out var singleKey, out _, out _, out _),"
         }
       ]
     },
@@ -4665,35 +4665,35 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/LayoutAnalysis/DataOrganizer.cs",
-          "line": 47,
+          "line": 49,
           "role": "Code",
           "text": "if (relations.Any())"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/LayoutAnalysis/RelationCalculator.cs",
-          "line": 25,
+          "line": 26,
           "role": "Code",
           "text": "relations.Add(rel);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/LayoutAnalysis/RelationCalculator.cs",
-          "line": 130,
+          "line": 134,
           "role": "Code",
           "text": "relations.Add(new HierarchyRelation"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/LayoutAnalysis/RelationCalculator.cs",
-          "line": 157,
+          "line": 161,
           "role": "Code",
           "text": "relations.Add(new SemanticRelation"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/LayoutAnalysis/RelationCalculator.cs",
-          "line": 174,
+          "line": 178,
           "role": "Code",
           "text": "relations.Add(new SemanticRelation"
         },
@@ -10882,9 +10882,9 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/frame-kinds.json",
-          "line": 15,
+          "line": 181,
           "role": "Declaration",
-          "text": "{ \"kind\": \"tool-call\",         \"class\": \"tool\",       \"presentation\": \"process\",           \"ordinal\": \"arrival\", \"anchor\": \"never\",     \"archive\": true,  \"views\": [\"task\"], \"fold\": \"attach\", \"subject\""
+          "text": "\"kind\": \"tool-call\","
         },
         {
           "repo": "Projects",
@@ -11819,11 +11819,11 @@
     "hitCount": 1661.0,
     "byRole": {
       "Gate": 42,
-      "Test": 197,
+      "Test": 190,
       "Declaration": 104,
       "Code": 345,
       "Doc": 884,
-      "Other": 89
+      "Other": 96
     },
     "truncatedFacts": [
       "key.proc",
@@ -11832,7 +11832,7 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 477
+        "lines": 484
       },
       {
         "repo": "Projects",

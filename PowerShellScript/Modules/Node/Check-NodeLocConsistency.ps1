@@ -73,7 +73,7 @@ Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateBaseline.psm1') -For
 $g = Import-GateBaseline -Name NodeLocConsistency
 $ReadScopeBaseline = [int]$g.ReadScope.Value
 $singleSourceFile  = 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\NodeKeys.cs'
-$declarationFile   = 'Projects\Plug\Agent\Config\nodes\placement.ushar'
+$declarationFile   = 'Projects\Plug\Agent\Config\nodes\foundation\placement.ushar'
 
 $excludePattern = '\\(obj|bin|BuildOutput|_deprecated)\\'
 $scanRoots = @('Frame\CsharpPrj', 'Projects')

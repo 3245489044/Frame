@@ -8,7 +8,7 @@
 
       D1 派生面对账（FAIL）：
          - instances\nodes.json 的 placements[] ≡ 各域声明 placements[].id 并集（缺/多即红）
-         - Config\nodes\placement.ushar 的 [Space] LocPlacement 位置行 与 [Matrix] LocToPlacement 行 ≡ 并集（下划线形）
+         - Config\nodes\foundation\placement.ushar 的 [Space] LocPlacement 位置行 与 [Matrix] LocToPlacement 行 ≡ 并集（下划线形）
       D2 散弹点棘轮（WARN，报告模式起步；方案 §8 回退口径）：per-domain 形态计数只减不增
          - AgentRuntimeSlotKeys.Node<X>Framework / AgentNodeSpec.<X>SubPath / AgentNodeCarriers.Create<X>
          基线在册：Frame\PowerShellScript\Baselines\Node\DomainWireSingleSource.psd1
@@ -43,7 +43,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 
 $nodesDir      = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
 $instancesFile = Join-Path $Root 'Projects\Plug\Agent\Config\instances\nodes.json'
-$placementFile = Join-Path $nodesDir 'placement.ushar'
+$placementFile = Join-Path $nodesDir 'foundation\placement.ushar'
 $baselineFile  = Join-Path $Root 'Frame\PowerShellScript\Baselines\Node\DomainWireSingleSource.psd1'
 $agentSrcDir   = Join-Path $Root 'Projects\Plug\Agent\src'
 
@@ -66,7 +66,7 @@ if (-not (Test-Path -LiteralPath $nodesDir)) {
 
 $union = [System.Collections.Generic.List[string]]::new()
 # 声明真源 = Config\nodes\*.ushar 的 [Domain] → placements → id=（U9：JSON 面已退役）
-foreach ($file in (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File | Sort-Object Name)) {
+foreach ($file in (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File -Recurse | Sort-Object Name)) {
     $inPlacements = $false
     $placementsIndent = -1
     foreach ($raw in (Get-Content -LiteralPath $file.FullName)) {
@@ -91,7 +91,7 @@ if ($union.Count -eq 0) {
     exit 1
 }
 
-Write-Host ("  声明真源: {0} 域 / 位置并集 {1} 项" -f (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File).Count, $union.Count) -ForegroundColor Gray
+Write-Host ("  声明真源: {0} 域 / 位置并集 {1} 项" -f (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File -Recurse).Count, $union.Count) -ForegroundColor Gray
 
 function ConvertTo-WireId([string]$id) { return ($id -replace '-', '_').ToLowerInvariant() }
 

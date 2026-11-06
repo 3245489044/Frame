@@ -44,7 +44,7 @@ Write-GateHeader '工作流↔节点域对应守卫（NodeFlowDomainMatch：uses
 
 # [Domain] 登记集（唯一权威 = Config/nodes/*.ushar）
 $domains = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-foreach ($f in @(Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File -ErrorAction SilentlyContinue)) {
+foreach ($f in @(Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File -Recurse -ErrorAction SilentlyContinue)) {
     foreach ($m in [regex]::Matches((Get-Content -LiteralPath $f.FullName -Raw), '(?m)^\s*\[Domain\]\s+(?<n>[A-Za-z0-9_\-]+)')) {
         [void]$domains.Add($m.Groups['n'].Value)
     }
@@ -77,7 +77,9 @@ function Get-FlowDomainTokens {
 $totalTokens = 0
 $checkedFiles = 0
 foreach ($file in $domainMatchFiles) {
-    $path = Join-Path $workflowsDir $file
+    $path = Get-ChildItem -LiteralPath $workflowsDir -Recurse -Filter $file -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\_deprecated\\' } |
+        Select-Object -First 1 -ExpandProperty FullName
     if (-not (Test-Path -LiteralPath $path)) {
         $violations.Add("U4 声明面缺失：$file")
         continue

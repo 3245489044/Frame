@@ -8,7 +8,7 @@
     位置**不手写声明**（手写即双真源 P22），而由 `loc` 反解派生；反解表本身是声明（`[Matrix]`）。
 
     扫描面：
-      Projects\Plug\Agent\Config\nodes\placement.ushar   （声明面：Loc 词表 / LocPlacement 键空间 / LocToPlacement 反解表）
+      Projects\Plug\Agent\Config\nodes\foundation\placement.ushar   （声明面：Loc 词表 / LocPlacement 键空间 / LocToPlacement 反解表）
       Projects\Plug\Agent\Config\nodes\*.json           （位置 id 单源：各域 placements[].id）
       Projects\Plug\Agent\Config\instances\nodes.json   （实例引用面：placements[]）
 
@@ -52,7 +52,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 }
 
-$declarationFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\placement.ushar'
+$declarationFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\foundation\placement.ushar'
 $nodesDir        = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
 $instanceFile    = Join-Path $Root 'Projects\Plug\Agent\Config\instances\nodes.json'
 $cliExe          = Join-Path $Root 'Frame\Usharp\BuildOutput\Debug\Usharp.Cli.exe'
@@ -289,7 +289,7 @@ if ($violations.Count -eq 0) {
 
 Write-Host "[FAIL] 节点位置反解守卫命中 $($violations.Count) 处：" -ForegroundColor Yellow
 foreach ($item in $violations) { Write-Host "  - $item" -ForegroundColor Yellow }
-Write-Host "  修复口径：位置 id 单源 = Config\nodes\*.json；声明面 = Config\nodes\placement.ushar；" -ForegroundColor Gray
+Write-Host "  修复口径：位置 id 单源 = Config\nodes\foundation\placement.ushar；" -ForegroundColor Gray
 Write-Host "            位置不得在 C#/JSON 手写声明（U12 §13；手写即双真源 P22）。" -ForegroundColor Gray
 
 if ($Check) { exit 1 }

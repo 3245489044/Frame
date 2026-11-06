@@ -1,6 +1,6 @@
 param(
     [string]$Source = 'Projects\Plug\Agent\Config\keyspaces\agent.keyspace.json',
-    [string]$Destination = 'Projects\Plug\Agent\Config\keyspaces\agent.keyspace.ushar'
+    [string]$Destination = 'Projects\Plug\Agent\Config\keyspaces\agent\agent.keyspace.ushar'
 )
 
 $ErrorActionPreference = 'Stop'

@@ -5,10 +5,10 @@
 
 .DESCRIPTION
     沿《节点域全量工作流化（声明驱动）总体方案》§5 W1：归属边（task↔node / history→task / session→node /
-    task→sub-task）的「边类型事实」只住 `Config\nodes\reference.ushar`（[Ref] edge= 段）；代码只算不记（写侧按声明白名单准入）。
+    task→sub-task）的「边类型事实」只住 `Config\nodes\foundation\reference.ushar`（[Ref] edge= 段）；代码只算不记（写侧按声明白名单准入）。
 
     扫描面：
-      Projects\Plug\Agent\Config\nodes\reference.ushar            （声明面：边类型集 + 逐条 [Ref]；F4/D1 单文件承载）
+      Projects\Plug\Agent\Config\nodes\foundation\reference.ushar            （声明面：边类型集 + 逐条 [Ref]；F4/D1 单文件承载）
       Frame\CsharpPrj\...\Abstractions\ReferenceTypes.cs            （边类型常量唯一字面量源，A1）
       Frame\CsharpPrj\...\Core\ReferenceGrounding.cs             （写边唯一 owner 实测）
 
@@ -55,7 +55,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 }
 
 # ---------------- 基线（只减不增；变更须给出理由并同步本表） ----------------
-$declarationFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\reference.ushar'
+$declarationFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\foundation\reference.ushar'
 # 边类型常量**唯一字面量源**（B1 收口 2026-09-30 后字面量上移至框架 L3 语义层）：
 #   `UniversalWorkflowFramework.Reference.Models.ReferenceEdgeTypes` 承载字面量；
 #   `Operation.DataStoreDriven.Abstractions.ReferenceTypes` / `CrossDbReferenceTypes` / `WorkflowReferenceTypes` /
@@ -321,7 +321,7 @@ if ($violations.Count -eq 0) {
 Write-Host ""
 foreach ($item in $violations) { Write-Host "  $item" -ForegroundColor Yellow }
 Write-Host ""
-Write-Host "  修复口径：归属边真相 = Config\nodes\reference.ushar（[Ref] + edge=）；" -ForegroundColor Gray
+Write-Host "  修复口径：归属边真相 = Config\nodes\foundation\reference.ushar（[Ref] + edge=）；" -ForegroundColor Gray
 Write-Host "            代码只算不记；未声明边类型 ⇒ 拒写 + 可见化（禁静默建边）。" -ForegroundColor Gray
 Write-Host ""
 Write-Host "[FAIL] 节点层级引用声明守卫：$($violations.Count) 处违规" -ForegroundColor Red

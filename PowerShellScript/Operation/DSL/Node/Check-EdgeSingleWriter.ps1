@@ -107,8 +107,8 @@ function Test-EdgeMap($map, $ensures, $hierarchyEdges, [string]$root) {
     return $problems
 }
 
-$ensures = Read-RelationEnsures (Join-Path $Root 'Projects\Plug\Agent\Config\relations\relation-ops.ushar')
-$hierarchyEdges = Read-HierarchyEdges (Join-Path $Root 'Projects\Plug\Agent\Config\nodes\reference.ushar')
+$ensures = Read-RelationEnsures (Join-Path $Root 'Projects\Plug\Agent\Config\relations\core\relation-ops.ushar')
+$hierarchyEdges = Read-HierarchyEdges (Join-Path $Root 'Projects\Plug\Agent\Config\nodes\foundation\reference.ushar')
 
 if ($ensures.Count -eq 0) { Write-Host '[EdgeSingleWriter] relation-ops.ushar 无 ensure 声明（判据不可判定）' -ForegroundColor Red; if ($Check) { exit 1 }; exit 0 }
 if ($hierarchyEdges.Count -eq 0) { Write-Host '[EdgeSingleWriter] reference.ushar 无 HierarchyRef 边集（判据不可判定）' -ForegroundColor Red; if ($Check) { exit 1 }; exit 0 }

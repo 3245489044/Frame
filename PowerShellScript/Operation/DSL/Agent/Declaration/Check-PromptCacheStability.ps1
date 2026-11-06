@@ -94,7 +94,7 @@ $segmentFile = Join-Path $Root 'Projects\Plug\Agent\Config\prompt\prompt-segment
 $seedFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Contract\Prompts\SessionSeedContract.cs'
 $preflightFile = Join-Path $Root 'Frame\CsharpPrj\Operation\HierarchyMethod\Nodes\Execution\PromptPreflight.cs'
 $surfaceFile = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Projection\PromptSurfaceResolver.cs'
-$workflowFile = Join-Path $Root 'Projects\Plug\Agent\Config\workflows\agent-loop.ushar'
+$workflowFile = Join-Path $Root 'Projects\Plug\Agent\Config\workflows\session\agent-loop.ushar'
 $baselineDir = Join-Path $Root 'Data\Tests\prompt-golden'
 
 function Read-Text([string]$path) { if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Raw } else { '' } }

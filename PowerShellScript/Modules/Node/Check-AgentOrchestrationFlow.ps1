@@ -467,7 +467,7 @@ foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $Root 'Projects\Plug\Agen
         $executorNames += $m.Groups[1].Value
     }
 }
-foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $Root 'Projects\Plug\Agent\Config\workflows') -Filter 'session-*.ushar' -File -ErrorAction SilentlyContinue)) {
+foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $Root 'Projects\Plug\Agent\Config\workflows') -Filter 'session-*.ushar' -File -Recurse -ErrorAction SilentlyContinue)) {
     foreach ($m in [regex]::Matches((Get-Content -LiteralPath $file.FullName -Raw), '\[Node\]\s*(?<id>[A-Za-z_][A-Za-z0-9_]*)\s*:(?<attrs>[^\r\n]*)')) {
         $attrs = $m.Groups['attrs'].Value
         if ($attrs -notmatch 'kind=external') { continue }

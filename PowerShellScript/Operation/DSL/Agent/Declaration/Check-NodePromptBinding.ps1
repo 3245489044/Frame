@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     判据：
-      G1 模板槽 ⊆ PromptSlot 词表（Config\workflows\prompt-compose.ushar 的 [Space] PromptSlot）
+      G1 模板槽 ⊆ PromptSlot 词表（Config\workflows\session\prompt-compose.ushar 的 [Space] PromptSlot）
       G2 声明面 node:// 引用的 domain ∈ Config\nodes\*.ushar 已声明域
       G3 组装实现禁 SQL 旁路（SELECT / Sqlite / ExecuteReader）
       G4 新代码禁直接使用 legacy ContextNodeKind（extractor adapter 豁免）

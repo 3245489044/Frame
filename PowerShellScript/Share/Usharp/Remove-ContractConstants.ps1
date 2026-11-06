@@ -10,7 +10,7 @@
     -DryRun 只报告改动清单（0 写）；-Apply 才写盘。禁由本器推导成员名（一律读声明面）。
 
 .PARAMETER DeclFile
-    [Const] 声明面（缺省 = Projects\Plug\Agent\Config\keyspaces\contract-consts.ushar）。
+    [Const] 声明面（缺省 = Projects\Plug\Agent\Config\keyspaces\contract\contract-consts.ushar）。
 
 .PARAMETER SourceRoot
     源码根（缺省 = Projects\Plug\Agent\src\Agent.Contract）。
@@ -20,7 +20,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$DeclFile = 'Projects\Plug\Agent\Config\keyspaces\contract-consts.ushar',
+    [string]$DeclFile = 'Projects\Plug\Agent\Config\keyspaces\contract\contract-consts.ushar',
     [string]$SourceRoot = 'Projects\Plug\Agent\src\Agent.Contract',
     [switch]$Apply
 )

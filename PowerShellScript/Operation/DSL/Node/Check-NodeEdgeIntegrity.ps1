@@ -54,7 +54,7 @@ function Test-EdgeAssertion([string]$groundingText) {
     return $null
 }
 
-$roundAttribution = Read-Text 'Projects\Plug\Agent\Config\workflows\round-attribution.ushar'
+$roundAttribution = Read-Text 'Projects\Plug\Agent\Config\workflows\attribution\round-attribution.ushar'
 $reason = Test-LinkNodesInports $roundAttribution
 if ($reason) { $violations.Add("C1 $reason") } elseif ($ShowDetail) { $details.Add('C1 link_nodes inports=node_refs OK') }
 

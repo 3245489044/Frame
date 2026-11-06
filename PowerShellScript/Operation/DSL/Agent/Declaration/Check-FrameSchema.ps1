@@ -41,7 +41,7 @@ function Add-Violation([string]$Id, [string]$Msg) { $script:violations.Add("$Id 
 
 $schemaPath      = Join-Path $root 'Projects\Plug\Agent\Config\nodes\frame-kinds.json'
 $presentationPath= Join-Path $root 'Projects\Plug\Agent\Config\nodes\presentation.json'
-$gatherPath      = Join-Path $root 'Projects\Plug\Agent\Config\nodes\node-gather.ushar'
+$gatherPath      = Join-Path $root 'Projects\Plug\Agent\Config\nodes\gather\node-gather.ushar'
 $kindsCsPath     = Join-Path $root 'Projects\Plug\Agent\src\Agent.Contract\NodeDomain\RecognizedKinds.cs'
 
 $allowedClass  = @('message', 'text', 'tool', 'step', 'telemetry', 'terminal', 'accounting', 'notice')

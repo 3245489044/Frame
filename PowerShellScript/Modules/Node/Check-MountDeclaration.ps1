@@ -7,7 +7,7 @@
     判据（设计单 §9.1 Check-MountDeclaration 的当前可判定子集）：
 
       D1  `MountBindingCatalog.DefaultBindings()` 中每个 `RelationOperation:` 必须在
-          `Config\relations\relation-ops.ushar` 的 `[Relation]` 声明中存在。
+          `Config\relations\core\relation-ops.ushar` 的 `[Relation]` 声明中存在。
       D2  每个 `intent=ensure` 的写 operation 至少被一个 Mount 绑定（禁未绑定写入口）。
       D3  绑定字段词表：Stage/Family/Posture 只能是设计单闭集。
       D4  负对照：合成悬空 relation id 必须被同一判据命中。
@@ -32,8 +32,8 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
-$relationFile = Join-Path $Root 'Projects\Plug\Agent\Config\relations\relation-ops.ushar'
-$mountFile = Join-Path $Root 'Projects\Plug\Agent\Config\relations\mounts.ushar'
+$relationFile = Join-Path $Root 'Projects\Plug\Agent\Config\relations\core\relation-ops.ushar'
+$mountFile = Join-Path $Root 'Projects\Plug\Agent\Config\relations\mounts\mounts.ushar'
 $catalogFile = Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\UniversalReference\Relations\Mounting\MountBindingCatalog.cs'
 
 Write-Host ''

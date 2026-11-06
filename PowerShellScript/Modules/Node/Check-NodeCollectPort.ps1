@@ -150,7 +150,7 @@ if (-not (Test-Path -LiteralPath $workflowsDir)) {
     exit 0
 }
 
-$files = @(Get-ChildItem -LiteralPath $workflowsDir -Filter '*.ushar' -File | Sort-Object Name)
+$files = @(Get-ChildItem -LiteralPath $workflowsDir -Filter '*.ushar' -File -Recurse | Sort-Object Name)
 $declarations = [System.Collections.Generic.List[object]]::new()
 foreach ($f in $files) {
     foreach ($d in (Get-NodeDeclarations -Path $f.FullName)) { $declarations.Add($d) }
@@ -170,7 +170,7 @@ foreach ($decl in $collectDecls) {
     }
 }
 if ($collectDecls.Count -lt $CollectDeclarationBaseline) {
-    $pending.Add("[C4] 正对照基线待建立：声明面收集端口声明数 $($collectDecls.Count) < 基线 $CollectDeclarationBaseline —— 待 Config\workflows\context-projection.ushar 落地（inports=nodes.* + fn=context_project）")
+    $pending.Add("[C4] 正对照基线待建立：声明面收集端口声明数 $($collectDecls.Count) < 基线 $CollectDeclarationBaseline —— 待 Config\workflows\context\context-projection.ushar 落地（inports=nodes.* + fn=context_project）")
 }
 
 # ---------------- C5 负对照（同一判据函数对合成违规必须命中） ----------------

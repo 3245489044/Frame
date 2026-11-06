@@ -4,7 +4,7 @@
     关系计划守卫（RelationPlan）—— 声明面单一真源与归属边写意图的机器判据。
 
 .DESCRIPTION
-    E1 声明面存在：Config/relations/relation-ops.ushar 可读且含 [Relation]。
+    E1 声明面存在：Config\relations\core\relation-ops.ushar 可读且含 [Relation]。
     E2 词表对账：[Relation].edge ⊆ reference.ushar 的 [Edge]。
     E3 归属边恰一 ensure：每条归属边恰有一个 intent=ensure 的 operation。
     E4 层级对账：hierarchy.ushar 的 contains= 边 ⊆ [Relation].edge。
@@ -112,8 +112,8 @@ function Test-RelationSet($relations, $edgeNames, $containsEdges) {
     return $problems
 }
 
-$relationText = Read-Text 'Projects\Plug\Agent\Config\relations\relation-ops.ushar'
-$referenceText = Read-Text 'Projects\Plug\Agent\Config\nodes\reference.ushar'
+$relationText = Read-Text 'Projects\Plug\Agent\Config\relations\core\relation-ops.ushar'
+$referenceText = Read-Text 'Projects\Plug\Agent\Config\nodes\foundation\reference.ushar'
 $hierarchyText = Read-Text 'Projects\Plug\Agent\Config\model\hierarchy\hierarchy.ushar'
 
 if ([string]::IsNullOrWhiteSpace($relationText)) { $violations.Add('E1 relation-ops.ushar 缺失') }

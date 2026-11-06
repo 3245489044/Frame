@@ -51,7 +51,7 @@ Write-GateHeader '节点聚拢通用框架门禁（G1–G3：声明闭合 / 零�
 $declFiles = @(Get-ChildItem -Path $agentNodesDir -Filter 'node-gather.ushar' -File -ErrorAction SilentlyContinue)
 if ($declFiles.Count -lt 1)
 {
-    $violations.Add("G1 正对照失效：未找到 Config\nodes\node-gather.ushar（聚拢声明真源缺失 / 扫描面失效）")
+    $violations.Add("G1 正对照失效：未找到 Config\nodes\gather\node-gather.ushar（聚拢声明真源缺失 / 扫描面失效）")
 }
 
 # ---------------- G2 零领域（框架层 Gather 纯净性） ----------------

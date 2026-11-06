@@ -39,11 +39,11 @@ $violations = New-Object System.Collections.Generic.List[string]
 function Add-Violation([string]$Id, [string]$Msg) { $script:violations.Add("$Id $Msg") }
 function Read-Text([string]$Path) { if (Test-Path -LiteralPath $Path) { return (Get-Content -LiteralPath $Path -Raw) } return '' }
 
-$nodeFile = Join-Path $agentRoot 'Config\nodes\signal.ushar'
+$nodeFile = Join-Path $agentRoot 'Config\nodes\observability\signal.ushar'
 $ackFile = Join-Path $agentRoot 'Config\decisions\signal-ack.ushar'
 $progressFile = Join-Path $agentRoot 'Config\decisions\signal-progress.ushar'
 $sourceFile = Join-Path $agentRoot 'Config\decisions\signal-source.ushar'
-$flowFile = Join-Path $agentRoot 'Config\workflows\signal-intake.ushar'
+$flowFile = Join-Path $agentRoot 'Config\workflows\context\signal-intake.ushar'
 $stateFile = Join-Path $agentRoot 'src\Agent.Contract\Signal\SignalState.cs'
 $namesFile = Join-Path $agentRoot 'src\Agent.Contract\WorkflowFunction\Names\WorkflowFunctionNames.Signal.cs'
 

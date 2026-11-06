@@ -7,7 +7,7 @@
     判据（-Check 时违规 → 退出码 1）：
       U1 兼容面零残留（FAIL）：Operation\DataStoreDriven\**\*.cs 禁 [IndexJson] / KvJsonTable / KvDocumentTable / ExtractScalar
       U2 纯三列模板（FAIL）：KvUsharpTable.SchemaColumns 列名恰 = {Id,NodeKey,Doc}
-      U3 表声明纯三列（FAIL）：Config\nodes\tables.ushar 每个 [Table] 块列名恰 = {Id,NodeKey,Doc}
+      U3 表声明纯三列（FAIL）：Config\nodes\foundation\tables.ushar 每个 [Table] 块列名恰 = {Id,NodeKey,Doc}
       U4 规范形单源（FAIL）：记录头渲染字面 "[Record] " 唯一定义于 UsharpRecordDecl；UsharpDocumentCodec 委托 ToCanonical
       U5 存储层零 Usharp.* 依赖（V9 · FAIL）：Operation\DataStoreDriven\**\*.cs 无 'using Usharp.'
       U6 正/负对照（FAIL）：扫描面非空 + 各判据正则能捕获合成样本（防假绿）
@@ -46,7 +46,7 @@ $dsdDir     = Join-Path $Root 'Frame\CsharpPrj\Operation\DataStoreDriven'
 $usharpDir  = Join-Path $Root 'Frame\Usharp\src'
 $kvUsharp   = Join-Path $dsdDir 'Sqlite\KvUsharpTable.cs'
 $docCodec   = Join-Path $usharpDir 'Usharp.Adapters.Declarations\UsharpDocumentCodec.cs'
-$tablesFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\tables.ushar'
+$tablesFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\foundation\tables.ushar'
 
 $excludeRx    = '\\(obj|bin|BuildOutput|_deprecated|backups)\\'
 $violations   = [System.Collections.Generic.List[string]]::new()

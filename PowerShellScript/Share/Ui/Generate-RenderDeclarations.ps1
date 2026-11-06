@@ -5,7 +5,7 @@
 .DESCRIPTION
     真源（构建期，唯一手写面）：
       Config\gather\gather-views.ushar   → Config\gather\gather-views.generated.json
-      Config\nodes\fields.ushar          → Config\nodes\fields.generated.json
+      Config\nodes\gather\fields.ushar          → Config\nodes\fields.generated.json
       Config\ui\ui.ushar                 → Config\ui\ui.generated.json（token/slot/skin/part/carrier）
     派生投影（无独立手写真源）：
       ui_part_*                          → Config\ui\surface-map.generated.json

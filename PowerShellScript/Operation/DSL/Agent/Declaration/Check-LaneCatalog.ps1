@@ -71,7 +71,10 @@ function Test-Declarations {
         if ($lane.ContainsKey('workflow') -and -not [string]::IsNullOrWhiteSpace($lane['workflow'])) {
             $wf = $lane['workflow']
             if (-not $wf.EndsWith('.ushar')) { $wf += '.ushar' }
-            if (-not (Test-Path (Join-Path $repoRoot "Projects\Plug\Agent\Config\workflows\$wf"))) {
+            $hit = Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Projects\Plug\Agent\Config\workflows') -Recurse -Filter $wf -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -notmatch '\\_deprecated\\' } |
+                Select-Object -First 1
+            if (-not $hit) {
                 $errors.Add("L3 车道 '$id' workflow 文件缺失：$wf")
             }
             if ($lane.ContainsKey('accept_runtime_plan') -and $lane['accept_runtime_plan'] -eq 'true') {

@@ -15,7 +15,7 @@
     源码根（缺省 = Projects\Plug\Agent\src\Agent.Contract）。
 
 .PARAMETER OutFile
-    输出 .ushar 路径（缺省 = Projects\Plug\Agent\Config\keyspaces\contract-consts.ushar）。
+    输出 .ushar 路径（缺省 = Projects\Plug\Agent\Config\keyspaces\contract\contract-consts.ushar）。
 
 .PARAMETER ResidualFile
     residual 清单路径（缺省 = 与 OutFile 同目录 contract-consts.residual.txt）。
@@ -30,7 +30,7 @@
 [CmdletBinding()]
 param(
     [string]$SourceRoot = 'Projects\Plug\Agent\src\Agent.Contract',
-    [string]$OutFile = 'Projects\Plug\Agent\Config\keyspaces\contract-consts.ushar',
+    [string]$OutFile = 'Projects\Plug\Agent\Config\keyspaces\contract\contract-consts.ushar',
     [string]$ResidualFile = '',
     [switch]$Check,
     [switch]$Force

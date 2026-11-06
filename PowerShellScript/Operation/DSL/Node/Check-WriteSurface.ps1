@@ -90,7 +90,7 @@ else {
     $entries = @($manifest.Entries)
 }
 
-$declared = Get-DeclaredOperations (Read-RelativeText 'Projects\Plug\Agent\Config\relations\relation-ops.ushar')
+$declared = Get-DeclaredOperations (Read-RelativeText 'Projects\Plug\Agent\Config\relations\core\relation-ops.ushar')
 if ($declared.Count -eq 0) { $violations.Add('C1 relation-ops.ushar 缺失或无 [Relation] 声明') }
 
 $baselinePath = Join-Path $Root $baselineRelative

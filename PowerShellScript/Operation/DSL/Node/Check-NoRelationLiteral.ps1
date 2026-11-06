@@ -83,7 +83,7 @@ function Find-LiteralHits([string]$root, [string[]]$edges, [string[]]$roots, [st
     return $hits
 }
 
-$edges = @(Read-RefEdges (Join-Path $Root 'Projects\Plug\Agent\Config\nodes\reference.ushar')) + $extraEdges
+$edges = @(Read-RefEdges (Join-Path $Root 'Projects\Plug\Agent\Config\nodes\foundation\reference.ushar')) + $extraEdges
 $edges = @($edges | Sort-Object -Unique)
 
 if ($edges.Count -eq 0) {

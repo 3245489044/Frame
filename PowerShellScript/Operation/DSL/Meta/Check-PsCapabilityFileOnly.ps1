@@ -22,15 +22,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# ---- 仓库根 ----
+# ---- 仓库根（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯 ----
 $repoRoot = $PSScriptRoot
-while ($repoRoot -and $repoRoot -ne (Split-Path $repoRoot -Parent)) {
-    if ((Test-Path (Join-Path $repoRoot 'Frame')) -and (Test-Path (Join-Path $repoRoot 'Projects'))) { break }
-    $repoRoot = Split-Path $repoRoot -Parent
-}
+while ($repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $repoRoot 'Projects'))) { $repoRoot = Split-Path -Parent $repoRoot }
+if (-not $repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$repoRoot = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 
 $violations = [System.Collections.Generic.List[string]]::new()
-$capDir = Join-Path $repoRoot 'Frame\PowerShellScript\BasicMethod\Capability'
+$capDir = Join-Path (Get-MappedPath -Key 'PowerShellScript') 'BasicMethod\Capability'
 
 if (-not (Test-Path -LiteralPath $capDir)) {
     Write-Host "VIOLATION: 能力库目录不存在：$capDir" -ForegroundColor Red

@@ -28,7 +28,7 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 }
 
 $violations = [System.Collections.Generic.List[string]]::new()
-$gatherFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\node-gather.ushar'
+$gatherFile = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\gather\node-gather.ushar'
 $nodeDir = Join-Path $Root 'Frame\CsharpPrj\Modules\Data\Node'
 $resolverFile = Join-Path $nodeDir 'Read\NodeKeySetResolver.cs'
 $projectionFile = Join-Path $nodeDir 'Projection\NodeReadProjection.cs'

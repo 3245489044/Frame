@@ -21,9 +21,15 @@ param([switch]$Check)
 
 $ErrorActionPreference = 'Stop'
 
-$root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
-$impl = Join-Path $root 'Frame\PowerShellScript\Share\Solution\Test-ProjectReferences.ps1'
-$baselinePath = Join-Path $root 'Frame\PowerShellScript\Baselines\Meta\ProjectReferences.psd1'
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects'))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
+
+$impl = Join-Path (Get-MappedPath -Key 'PowerShellScript') 'Share\Solution\Test-ProjectReferences.ps1'
+$baselinePath = Join-Path (Get-MappedPath -Key 'Baselines') 'Meta\ProjectReferences.psd1'
 
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor Cyan
@@ -40,7 +46,7 @@ if (-not (Test-Path -LiteralPath $baselinePath)) {
 }
 
 # P3 正对照：解析面必须真的枚举到工程（否则「0 违规」不代表健康）
-Import-Module (Join-Path $root 'Frame\PowerShellScript\Share\Solution\ModulePaths.Common.psm1') -Force
+Import-Module (Join-Path (Get-MappedPath -Key 'PowerShellScript') 'Share\Solution\ModulePaths.Common.psm1') -Force
 $scan = @(Get-ReferenceScanProjects -FrameRoot (Get-WorkflowFrameRoot) -Roots @('Frame', 'Projects'))
 $baseline = Import-PowerShellDataFile -LiteralPath $baselinePath
 $minScan = [int]$baseline.ScanProjects.Value

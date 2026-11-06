@@ -10,17 +10,10 @@
         DueWhen = ''
     }
 
-    # 迁移期根级声明（Batch 2 完成后必须清空；清空即根级只剩控制面）。
+    # 迁移期根级声明（Batch 2 完成后已清空；根级只剩控制面）。
     MigrationRootFiles = @{
-        Value = @(
-            'aggregates.ushar', 'collaboration.ushar', 'context-geometry.ushar',
-            'conversation-canon.ushar', 'conversation-graph.ushar', 'graph.ushar',
-            'hierarchy.ushar', 'history-loop.ushar', 'history-modes.ushar', 'lanes.ushar',
-            'messaging.ushar', 'orchestration-ops.ushar', 'prompt-profiles.ushar',
-            'prompt-segments.ushar', 'resource-hierarchy.ushar', 'session-facts.ushar',
-            'skills.ushar', 'subagents.ushar', 'tool-face.ushar'
-        )
+        Value = @()
         Origin = 'Debt'
-        DueWhen = 'Batch 2 根级分类完成后清空（根级仅控制面）'
+        DueWhen = ''
     }
 }

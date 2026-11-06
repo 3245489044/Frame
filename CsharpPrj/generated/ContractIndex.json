@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-06T05:41:10.0218028Z",
+  "builtAt": "2026-11-06T05:45:22.9325392Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -285,10 +285,10 @@
       "kind": "KeyFamily",
       "pattern": "#R",
       "note": "事实 id 前缀",
-      "total": 130,
+      "total": 124,
       "truncated": false,
       "byRole": {
-        "Gate": 8,
+        "Gate": 2,
         "Test": 43,
         "Declaration": 0,
         "Code": 22,
@@ -498,55 +498,6 @@
           "line": 11,
           "role": "Gate",
           "text": "K1 键族字面量单源：键族前缀/分隔符字面量（\"#R\" / \"proc.\" / \"cline.session.\" / \".round.\" /"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Presentation/Check-ReadModelOnly.ps1",
-          "line": 1,
-          "role": "Gate",
-          "text": "#Requires -Version 7.0"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-FactStandard.ps1",
-          "line": 12,
-          "role": "Gate",
-          "text": "生产源码的**代码行**不得出现 \"#R\" / \"@\" 轮键拼接串（禁新增键拼接点）。"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-FactStandard.ps1",
-          "line": 117,
-          "role": "Gate",
-          "text": "if ($line -match '\"#R\"' -or $line -match '\"@(\\d|\\{)')"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-FactStandard.ps1",
-          "line": 125,
-          "role": "Gate",
-          "text": "$newSamples     = @('default#R1', 'default#R6/cline_execute#1', 'default#R1/cline_execute#1/2/call_00_FJLmIZn')"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-FactStandard.ps1",
-          "line": 126,
-          "role": "Gate",
-          "text": "$retiredSamples = @('default@1', 'default#1#1', 'defaultR1', 'conv_1790222300189_vu045ho', 'default#R0')"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-FactStandard.ps1",
-          "line": 127,
-          "role": "Gate",
-          "text": "$anyPattern   = '^[A-Za-z0-9_.\\-]+#R[1-9][0-9]*(?:\\/[A-Za-z0-9_.\\-]+#[1-9][0-9]*(?:\\/[1-9][0-9]*\\/[A-Za-z0-9_.\\-]+)?)?$'"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-SessionDuplication.ps1",
-          "line": 131,
-          "role": "Gate",
-          "text": "[pscustomobject]@{ Id = 'A3i'; Title = '轮次键字面量·#R（D3；唯一生成器 FactIds.Round）'; Pattern = '\"#R\"'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-1'; Kind = 'search' }"
         },
         {
           "repo": "Frame",
@@ -1179,6 +1130,13 @@
           "text": "CollectionAssert.AreEqual(new[] { \"default#R10\", \"default#R2\", \"default#R1\" },"
         },
         {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Agent/Presentation/Check-ReadModelOnly.ps1",
+          "line": 1,
+          "role": "Gate",
+          "text": "#Requires -Version 7.0"
+        },
+        {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/Runtime/AgentInstance.cs",
           "line": 36,
@@ -1507,8 +1465,8 @@
       "total": 400,
       "truncated": true,
       "byRole": {
-        "Gate": 4,
-        "Test": 34,
+        "Gate": 3,
+        "Test": 35,
         "Declaration": 1,
         "Code": 18,
         "Doc": 261,
@@ -2105,22 +2063,15 @@
         },
         {
           "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-SingleWriter.ps1",
-          "line": 218,
+          "file": "PowerShellScript/Operation/DSL/Agent/Contract/Check-AgentProcessSurface.ps1",
+          "line": 4,
           "role": "Gate",
-          "text": "$hNeg = @(Get-KeyMultiRowCoords -Key 'proc.{container}.r{round}.{kind}.{ordinal}')"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-SingleWriter.ps1",
-          "line": 219,
-          "role": "Gate",
-          "text": "$hPos = @(Get-KeyMultiRowCoords -Key 'proc.{container}')"
+          "text": "#   [P1] 过程键族字面量 \"proc.\" 只允许出现在 Agent.Contract\\NodeDomain\\ProcessKeys.cs（键文法单源）；"
         },
         {
           "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/KeySpace/Check-KeyDeclSingleSource.ps1",
-          "line": 71,
+          "line": 75,
           "role": "Gate",
           "text": "if ('const string P = \"proc.\";' -notmatch $pattern) { $violations.Add('负对照失败：字面量样本未命中') }"
         },
@@ -4314,6 +4265,13 @@
           "line": 74,
           "role": "Test",
           "text": "Assert.AreEqual(\"proc.task-1\", ProcessKeys.StreamPositionKey(\"task-1\"));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 88,
+          "role": "Test",
+          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.task.r2.step37\", out var container, out var round, out var kind, out var ordinal),"
         }
       ]
     },
@@ -4322,10 +4280,10 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 176,
+      "total": 174,
       "truncated": false,
       "byRole": {
-        "Gate": 9,
+        "Gate": 7,
         "Test": 5,
         "Declaration": 9,
         "Code": 87,
@@ -4731,20 +4689,6 @@
           "line": 12,
           "role": "Gate",
           "text": "\"keymapping.\" / \"checkpoint.\" / \"relations.\"）只允许出现在「键文法单源白名单」文件内；"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-RelationGraphParity.ps1",
-          "line": 64,
-          "role": "Gate",
-          "text": "foreach ($name in $relations.Keys) {"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-RelationGraphParity.ps1",
-          "line": 86,
-          "role": "Gate",
-          "text": "if (-not $relations.Contains($operation)) {"
         },
         {
           "repo": "Frame",
@@ -5575,11 +5519,11 @@
       "total": 400,
       "truncated": true,
       "byRole": {
-        "Gate": 8,
+        "Gate": 3,
         "Test": 0,
         "Declaration": 11,
         "Code": 156,
-        "Doc": 222,
+        "Doc": 227,
         "Other": 3
       },
       "hits": [
@@ -6992,43 +6936,8 @@
         },
         {
           "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Runtime/Check-ReadFactCoverage.ps1",
-          "line": 54,
-          "role": "Gate",
-          "text": "if ($session.Count -eq 0) {"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-EndpointKeyConsistency.ps1",
-          "line": 266,
-          "role": "Gate",
-          "text": "if ((Get-SessionEndpointId 'session.session.session.x') -eq 'session.session.session.x') { $nc.Add('session 重复前缀未被判出') }"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-EndpointKeyConsistency.ps1",
-          "line": 267,
-          "role": "Gate",
-          "text": "if ((Get-SessionEndpointId 'session.history:242e') -ne 'session.history:242e') { $nc.Add('session 合法端点被误判') }"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-EndpointKeyConsistency.ps1",
-          "line": 269,
-          "role": "Gate",
-          "text": "if (-not [string]::IsNullOrEmpty((Get-SessionEndpointId 'session.'))) { $nc.Add('session 空身份未被判出') }"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Data/Check-SessionDuplication.ps1",
-          "line": 127,
-          "role": "Gate",
-          "text": "[pscustomobject]@{ Id = 'A3e'; Title = '键模板字面量·归档前缀（D4/A11）'; Pattern = '\"cline.session.\"'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 2; Target = 0; Batch = 'C-1'; Kind = 'search' }"
-        },
-        {
-          "repo": "Frame",
           "file": "PowerShellScript/Operation/DSL/KeySpace/Check-KeyOpsClosedSet.ps1",
-          "line": 118,
+          "line": 122,
           "role": "Gate",
           "text": "$probe2 = 'var q = $\"session.{session}.r{round}.\";'"
         },
@@ -8382,6 +8291,41 @@
           "line": 49,
           "role": "Doc",
           "text": "| `session-message` | `session.{container}.r{round}.msg.{seq}` | `session.{container}.r{round}.{kind}.{ordinal}` | ✅ | 该位置 **W4 退役**（D2）⇒ 本批键变更只为兼容期 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 62,
+          "role": "Doc",
+          "text": "| `segment-context` | `session.{container}.r{round}.seg{seq}` | `session.{container}.r{round}.{kind}.{ordinal}` | ✅ | W4 退役（D2） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
+          "line": 70,
+          "role": "Doc",
+          "text": "**可区分性复核**：`seg.{container}.r{round}.{kind}.{ordinal}` 与 `session.{container}.r{round}.{kind}.{ordinal}` 形状不同（首段字面量 `seg.` vs `session.`）⇒ `spec.template-indistinguishable` 不触发（`NodeSpecValidator.Vali"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
+          "line": 16,
+          "role": "Doc",
+          "text": "| **D3** | 合并后身份模板 | `{container}.r{round}.{kind}.{ordinal}`（对齐 `process.json` 现行形态） | 各位置族前缀：`session.` / `cline.` / `proc.` / `seg.` + `legacyTemplates` 兼容读 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
+          "line": 44,
+          "role": "Doc",
+          "text": "- **已落地**：`ProcessKeys.UnifiedIdentityKey`（四域身份单源）· `SessionMessageKeys` 文法升级（新形态 `session.{c}.r{r}.{kind}.{ordinal}` + 2 条 legacy 模板；legacy **沿用同一占位名 `ordinal`** ⇒ 新旧键共用同一 `orderKeys=[round,ordinal]`"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
+          "line": 53,
+          "role": "Doc",
+          "text": "- **旧行观察期口径**：**读侧前缀包容**（示范 = `AgentUiLibraryHistoryOps.NextMessageSeqAsync`：前缀收窄到 `session.{s}.r{r}.`，取**末段**数值 ⇒ 新旧形态同治）；`SessionMessageKeys` 的 legacy 模板供键反解容错"
         }
       ]
     },
@@ -8390,17 +8334,52 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 394,
-      "truncated": false,
+      "total": 400,
+      "truncated": true,
       "byRole": {
-        "Gate": 2,
+        "Gate": 12,
         "Test": 88,
         "Declaration": 61,
-        "Code": 19,
+        "Code": 15,
         "Doc": 223,
         "Other": 1
       },
       "hits": [
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentDefaultDispatch.ps1",
+          "line": 26,
+          "role": "Gate",
+          "text": "@{ Tag = 'tool-call'; Kind = 'tool-invoke' },"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentDefaultDispatch.ps1",
+          "line": 79,
+          "role": "Gate",
+          "text": "if ($text -match 'subagent-(tool-call|workflow|base|ps|usharp)') {"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentSpec.ps1",
+          "line": 210,
+          "role": "Gate",
+          "text": "kinds = @('unrecognized', 'tool-call')"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentSpec.ps1",
+          "line": 211,
+          "role": "Gate",
+          "text": "recognizers = @([pscustomobject]@{ match = [pscustomobject]@{ step = 1 }; kind = 'tool-call' })"
+        },
+        {
+          "repo": "Frame",
+          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentSpec.ps1",
+          "line": 214,
+          "role": "Gate",
+          "text": "$probeStepIssues = @(Get-AgentSpecIssues -AgentName 'probe' -Spec $probeStepKey -HasRoundShape $true -CanonText \"unrecognized → X`ntool-call → Y\")"
+        },
         {
           "repo": "Frame",
           "file": "PowerShellScript/Share/Index/Build-ContractIndex.ps1",
@@ -10496,6 +10475,41 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Agent/Declaration/Check-AgentDefaultDispatch.ps1",
+          "line": 26,
+          "role": "Gate",
+          "text": "@{ Tag = 'tool-call'; Kind = 'tool-invoke' },"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Agent/Declaration/Check-AgentDefaultDispatch.ps1",
+          "line": 79,
+          "role": "Gate",
+          "text": "if ($text -match 'subagent-(tool-call|workflow|base|ps|usharp)') {"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Agent/Declaration/Check-AgentSpec.ps1",
+          "line": 210,
+          "role": "Gate",
+          "text": "kinds = @('unrecognized', 'tool-call')"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Agent/Declaration/Check-AgentSpec.ps1",
+          "line": 211,
+          "role": "Gate",
+          "text": "recognizers = @([pscustomobject]@{ match = [pscustomobject]@{ step = 1 }; kind = 'tool-call' })"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Agent/Declaration/Check-AgentSpec.ps1",
+          "line": 214,
+          "role": "Gate",
+          "text": "$probeStepIssues = @(Get-AgentSpecIssues -AgentName 'probe' -Spec $probeStepKey -HasRoundShape $true -CanonText \"unrecognized → X`ntool-call → Y\")"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/UsharpTests/Usharp.Emit.Tests/Fixtures/baselines/observability.json",
           "line": 22,
           "role": "Test",
@@ -11130,34 +11144,6 @@
           "line": 18,
           "role": "Code",
           "text": "HistoryLoopCatalog.ReadDefaultTagCached(HistoryLoopCatalog.DefaultToolSubAgentKey, \"tool-call\");"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/ToolCall/ToolCallSubAgentTools.cs",
-          "line": 18,
-          "role": "Code",
-          "text": "public const string AgentTagName = \"tool-call\";"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/ToolCall/ToolCallSubAgentTools.cs",
-          "line": 29,
-          "role": "Code",
-          "text": "args => InvokeAsync(args, ct), Source: \"subagent-tool-call\"),"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/Workflow/Context/LegacyContextKinds.cs",
-          "line": 13,
-          "role": "Code",
-          "text": "public const string ToolCall = \"tool-call\";"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/Workflow/WorkflowNodeOwnership.cs",
-          "line": 30,
-          "role": "Code",
-          "text": "\"tool-call\" or \"tool-result\" => OwnerKind.ToolCallTask,"
         }
       ]
     },
@@ -11795,23 +11781,24 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1658.0,
+    "hitCount": 1656.0,
     "byRole": {
-      "Gate": 36,
-      "Test": 191,
+      "Gate": 32,
+      "Test": 192,
       "Declaration": 104,
-      "Code": 345,
-      "Doc": 886,
+      "Code": 341,
+      "Doc": 891,
       "Other": 96
     },
     "truncatedFacts": [
       "key.proc",
-      "key.session"
+      "key.session",
+      "kind.toolcall"
     ],
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 478
+        "lines": 468
       },
       {
         "repo": "Projects",
@@ -11819,7 +11806,7 @@
       },
       {
         "repo": "Main",
-        "lines": 1357
+        "lines": 1364
       }
     ]
   }

@@ -27,18 +27,22 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-Import-Module (Join-Path $PSScriptRoot 'TextOps.psm1') -Force -DisableNameChecking
-
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects'))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    $probe = $PSScriptRoot
-    while ($probe -and $probe -ne (Split-Path $probe -Parent)) {
-        if ((Test-Path (Join-Path $probe 'Projects')) -and (Test-Path (Join-Path $probe 'Frame'))) { break }
-        $probe = Split-Path $probe -Parent
-    }
-    $Root = $probe
+    $ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'KeyIdentity'
+    $Root = $ctx.Root
 }
 
-$configRoot = Join-Path $Root 'Projects\Plug\Agent\Config'
+# TextOps 贡献内核：优先取共享骨架 Share\Text（F2 前置项），未落地时回退到原 Meta 同目录实现
+$textOps = Join-Path (Get-MappedPath -Key 'PowerShellScript') 'Share\Text\TextOps.psm1'
+if (-not (Test-Path -LiteralPath $textOps)) { $textOps = Join-Path (Get-MappedPath -Key 'DSL') 'Meta\TextOps.psm1' }
+Import-Module $textOps -Force -DisableNameChecking
+
+$configRoot = Get-MappedPath -Key 'AgentConfig'
 $violations = [System.Collections.Generic.List[string]]::new()
 
 function Get-Fields {
@@ -46,7 +50,7 @@ function Get-Fields {
     return Get-DslFieldBag -Line $Line
 }
 
-Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\DeclarationBag.psm1') -Force
+Import-Module (Join-Path (Get-MappedPath -Key 'Baselines') 'DeclarationBag.psm1') -Force
 
 function Test-KeyIdentity {
     param([string[]]$Lines, [System.Collections.Generic.List[string]]$Sink)

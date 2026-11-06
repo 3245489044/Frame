@@ -21,6 +21,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+    <!-- 指纹原语单源：Share.ContextGeometry.ContentHash（BCL-only，零传递框架依赖）。 -->
+    <ProjectReference Include="$(Proj_Share_ContextGeometry)" />
   </ItemGroup>
 
 </Project>

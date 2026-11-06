@@ -23,6 +23,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Emit\Usharp.Emit.csproj" />
     <ProjectReference Include="$(Proj_Node)" />
+    <!-- 指纹原语单源：Share.ContextGeometry.ContentHash（BCL-only，零传递框架依赖）。 -->
+    <ProjectReference Include="$(Proj_Share_ContextGeometry)" />
   </ItemGroup>
 
 </Project>

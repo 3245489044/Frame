@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Text;
+using Share.ContextGeometry;
 using Usharp.Semantics;
 using Usharp.Syntax;
 
@@ -55,8 +55,8 @@ public sealed record AgentManifest(
         foreach (var p in profiles) sb.Append("P:").Append(p.Key).Append('|').Append(string.Join(",", p.Bands)).Append('|').Append(p.Base ? "1" : "0").Append(';');
         foreach (var f in faces) sb.Append("F:").Append(f.Face).Append('|').Append(f.Edge).Append('|').Append(f.Target).Append(';');
 
-        using var sha = SHA256.Create();
-        return Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(sb.ToString())));
+        // 摘要原语单源 = Share.ContextGeometry.ContentHash（禁本工程私拷 SHA256 拼接）。
+        return ContentHash.Sha256Hex(sb.ToString());
     }
 }
 

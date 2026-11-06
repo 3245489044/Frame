@@ -1,5 +1,4 @@
 using Strategy.Observability.Boundary;
-using Share.HierarchySupport;
 using Usharp.Syntax;
 
 namespace Usharp.Adapters.Observability;
@@ -34,22 +33,20 @@ public static class UsharpObsContractMapper
 
     /// <summary><c>[Obs] kind=scope</c> → 数据边界契约（会话级作用域键词汇表；<c>parent=</c> 只作闸A 判据，不进契约）。</summary>
     public static BoundaryContract Scope(UsharpObsDecl decl)
-    {
-        ArgumentNullException.ThrowIfNull(decl);
-        return BoundaryContract.Data(
-            ScopeKeyPrefix + decl.Name,
-            BoundaryDirection.Both,
-            scope: DataScope.Session);
-    }
+        => DataVocabulary(decl, ScopeKeyPrefix, DataScope.Session);
 
     /// <summary><c>[Obs] kind=entity</c> → 数据边界契约（轮级实体类型词汇表；<c>scope=</c> 只作闸A 判据，不进契约）。</summary>
     public static BoundaryContract Entity(UsharpObsDecl decl)
+        => DataVocabulary(decl, EntityKeyPrefix, DataScope.Round);
+
+    /// <summary>scope/entity 同一映射（仅前缀与作用域不同）。</summary>
+    private static BoundaryContract DataVocabulary(UsharpObsDecl decl, string prefix, DataScope scope)
     {
         ArgumentNullException.ThrowIfNull(decl);
         return BoundaryContract.Data(
-            EntityKeyPrefix + decl.Name,
+            prefix + decl.Name,
             BoundaryDirection.Both,
-            scope: DataScope.Round);
+            scope: scope);
     }
 
     /// <summary><c>[Flow] F step &lt;key&gt; emit=k1,k2</c> → 端口契约（<c>Emits</c> 即发射绑定）。</summary>

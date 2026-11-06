@@ -16,81 +16,81 @@
         @{ Value = 'Frame\PowerShellScript\Modules\Node\Check-NodePortPurity.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=3）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-AgentDataSeparation.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-AgentLayerBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-AgentStorageIsolation.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Boundary\Check-AgentLayerBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Boundary\Check-AgentStorageIsolation.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-CircuitSemantics.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=11）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-DomainResolveSingleEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-EffectiveModeSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-EntrySingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-HistoryAssemblySurface.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-LlmRoutingSurface.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ReadinessSingleEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Presentation\Check-RecordSingleTextForm.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-DomainResolveSingleEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-EffectiveModeSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-EntrySingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-HistoryAssemblySurface.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-LlmRoutingSurface.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-ReadinessSingleEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-RecordSingleTextForm.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-RefreshFrameworkBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-RowIdentityBareKey.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-RowIdentityBareKey.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-ScriptNoFixedSleep.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-SendDeclarationCoverage.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-TemplateAccessSingleEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-ToolCallConvergence.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-WriteCapabilitySinglePredicate.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-ConversationConversion.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-DataCenterGenericity.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=4）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-DataContracts.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-FactStandard.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-FrameworkActivation.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-SingleWriter.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-SqliteTablePolicySingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-TableConvergenceSingleEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-DeclarationEditSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-DeclarationReloadRegistry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=3）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-FuncCallSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-InitGuards.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-SendDeclarationCoverage.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-TemplateAccessSingleEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Contract\Check-ToolCallConvergence.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-WriteCapabilitySinglePredicate.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-ConversationConversion.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-DataCenterGenericity.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=4）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-DataContracts.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-FactStandard.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-FrameworkActivation.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-SingleWriter.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-SqliteTablePolicySingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-TableConvergenceSingleEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Declarations\Check-DeclarationEditSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Declarations\Check-DeclarationReloadRegistry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=3）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Declarations\Check-FuncCallSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Declarations\Check-InitGuards.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Environment\CentralTest\Tools\Gate\KeySpace\Check-KeySpaceCoverage.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-ContractRegistry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Meta\Check-ContractRegistry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-ExceptionGateway.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-FallbackInventory.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-GateBaselines.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-GateTaxonomy.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-OperationLayerIsolation.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-SemanticCentralization.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Meta\Check-SemanticCentralization.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Environment\CentralTest\Tools\Gate\Node\Check-DomainWireSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Environment\CentralTest\Tools\Gate\Node\Check-FreshnessFamilySingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Environment\CentralTest\Tools\Gate\Node\Check-StoreReadPortSingleTable.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Environment\CentralTest\Tools\Gate\Node\Check-TextClipSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-AnalysisDocGrounding.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Process\Check-AnalysisDocGrounding.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-BatchLineEndings.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-InvokeEntrypoints.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-TestDoubleParity.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Process\Check-InvokeEntrypoints.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Process\Check-TestDoubleParity.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecGeneratedBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=5）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecPortLedger.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecToolingContract.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时清零或转 Derived' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Usharp\Check-FsSinkEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时清零或转 Derived' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-JudgmentPoints.ps1'; Origin = 'Debt'; DueWhen = 'K9：改用 GateFileIndex 共享索引（MaxHits=2）；到期：K9 收尾时清零或转 Derived' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Process\Check-JudgmentPoints.ps1'; Origin = 'Debt'; DueWhen = 'K9：改用 GateFileIndex 共享索引（MaxHits=2）；到期：K9 收尾时清零或转 Derived' }
         # ===== 2026-10-25 补登记（R1 清册闭合：此前未在册的递归枚举 ⇒ 逐件可见化；MaxHits = 实测，只减不增）=====
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-ContextGeometryBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ContextGeometryConvergence.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Environment\CentralTest\Tools\Gate\KeySpace\Observability\Check-DispatchTraceSchema.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-IntentContract.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Declaration\Check-NodePromptBinding.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=3）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-PowerShellHostSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-PsSkillToolMap.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Observability\Check-RoundFailureEnvelope.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Contract\Check-IntentContract.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-NodePromptBinding.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=3）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-PowerShellHostSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Contract\Check-PsSkillToolMap.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Agent\Observability\Check-RoundFailureEnvelope.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-ShareMessagingBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-DataStoreDomainBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=3）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-GraphPathSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-ReadIdentitySingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-RenderLayerStoreFree.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Data\Check-StorageWriteEntries.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Declarations\Check-RuntimeMirror.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-DataStoreDomainBoundary.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=3）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-GraphPathSingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-ReadIdentitySingleSource.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-RenderLayerStoreFree.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Data\Check-StorageWriteEntries.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Declarations\Check-RuntimeMirror.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-PsCapabilityFileOnly.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-UiIncremental.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-UiSingleWrite.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-UiThreadAffinity.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-ZeroRetry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Environment\CentralTest\Tools\Gate\Node\Check-NodeEdgeIntegrity.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-OrchestrationKernel.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
-        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-SpecExempt.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Process\Check-OrchestrationKernel.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Environment\CentralTest\Tools\Gate\Process\Check-SpecExempt.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
     )
 }
 

@@ -1,5 +1,6 @@
 using Plate.DslMethod;
 using UniversalWorkflowFramework.Core.Models;
+using UniversalWorkflowFramework.Relations.Kernel;
 using UniversalWorkflowFramework.StorageFramework.Abstractions;
 using Usharp.Semantics;
 using Usharp.Syntax;
@@ -17,15 +18,6 @@ namespace Usharp.Adapters.UniversalReference;
 /// </summary>
 public sealed class UsharpReferenceStoreWriter
 {
-    /// <summary>流资源的资源类型（既有 UR 词汇表成员）。</summary>
-    public const string WorkflowResourceType = "workflow";
-
-    /// <summary>节点可执行体的资源类型（既有 UR 词汇表成员）。</summary>
-    public const string NodeResourceType = "node";
-
-    /// <summary>未登记端点的兜底资源类型（既有 UR 词汇表成员；避免丢边）。</summary>
-    public const string FallbackResourceType = "resource";
-
     private readonly IResourceReferenceStore _store;
 
     public UsharpReferenceStoreWriter(IResourceReferenceStore store, UsharpEdgeTypeMap? map = null)
@@ -83,11 +75,11 @@ public sealed class UsharpReferenceStoreWriter
                 foreach (var axis in space.Axes)
                     index.Add(axis.Name, space.SpaceId);
 
-            foreach (var flow in compilation.Flows) index.Add(flow.FlowId, WorkflowResourceType);
+            foreach (var flow in compilation.Flows) index.Add(flow.FlowId, RelationEndpoints.WorkflowType);
             foreach (var node in compilation.Declarations.Nodes)
             {
                 if (string.IsNullOrWhiteSpace(node.Name)) continue;
-                index.Add(node.Name, NodeResourceType);
+                index.Add(node.Name, RelationEndpoints.NodeType);
             }
 
             return index;
@@ -98,8 +90,8 @@ public sealed class UsharpReferenceStoreWriter
             if (token is not null && _byToken.TryGetValue(token, out var id)) return id;
 
             // 兜底端点被引用却从未登记 = 落库悬空 resource（E-11）：解析时同步登记。
-            var fallback = new ResourceIdentifier { ResourceType = FallbackResourceType, Id = token ?? string.Empty };
-            if (token is not null && _resourceKeys.Add(FallbackResourceType + "\u0000" + token))
+            var fallback = RelationEndpoints.Create(RelationEndpoints.ResourceType, token ?? string.Empty);
+            if (token is not null && _resourceKeys.Add(RelationEndpoints.KeyOf(fallback)))
                 _resources.Add(fallback);
             return fallback;
         }
@@ -108,8 +100,8 @@ public sealed class UsharpReferenceStoreWriter
         {
             // 资源登记按 (资源类型, Id) 去重（同名 token 可同时是坐标与节点 ⇒ 两条资源各登记一次）；
             // 端点解析仍取首个登记（与闸A「声明序首个」口径一致）。
-            var resource = new ResourceIdentifier { ResourceType = resourceType, Id = token };
-            if (_resourceKeys.Add(resourceType + "\u0000" + token)) _resources.Add(resource);
+            var resource = RelationEndpoints.Create(resourceType, token);
+            if (_resourceKeys.Add(RelationEndpoints.KeyOf(resource))) _resources.Add(resource);
             _byToken.TryAdd(token, resource);
         }
     }

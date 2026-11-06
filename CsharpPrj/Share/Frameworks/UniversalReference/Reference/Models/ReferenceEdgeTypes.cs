@@ -1,5 +1,7 @@
 #nullable enable
 
+using FrameworkAbstractions.Declarative;
+
 namespace UniversalWorkflowFramework.Reference.Models
 {
     /// <summary>
@@ -84,7 +86,7 @@ namespace UniversalWorkflowFramework.Reference.Models
                 Calls => ReferenceType.Uses,
                 NodeToNode => ReferenceType.Uses,
                 CrossDbLink => ReferenceType.Requires,
-                _ => Enum.TryParse<ReferenceType>(edgeType, ignoreCase: true, out var parsed)
+                _ => StrictParse.TryDefinedEnum<ReferenceType>(edgeType, out var parsed)
                     ? parsed
                     : ReferenceType.Other,
             };

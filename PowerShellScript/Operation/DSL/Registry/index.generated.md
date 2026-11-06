@@ -22,7 +22,7 @@
 | `AgentRuntimeSlots` | full | 0 | Runtime | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-AgentRuntimeSlots.ps1` |
 | `AgentRuntimeUIConfig` | full | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-AgentRuntimeUIConfig.ps1` |
 | `AgentSpec` | fast | 0 | Declaration | Closure | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-AgentSpec.ps1` |
-| `AgentStorageIsolation` | fast | 0 | Boundary | Boundary | `Environment\CentralTest\Tools\Gate\Usharp\Boundary\Check-AgentStorageIsolation.ps1` |
+| `AgentStorageIsolation` | fast | 0 | Boundary | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Boundary\Check-AgentStorageIsolation.ps1` |
 | `AnswerIdentity` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-AnswerIdentity.ps1` |
 | `CanonicalForm` | fast | 0 | Contract | Closure | `Environment\CentralTest\Tools\Gate\Agent\Contract\Check-CanonicalForm.ps1` |
 | `CanonReplay` | fast | 0 | Meta | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Meta\Check-CanonReplay.ps1` |
@@ -166,15 +166,15 @@
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
 | `ClinerulesReferences` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-ClinerulesReferences.ps1` |
-| `DeclaredFlowConsumers` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-DeclaredFlowConsumers.ps1` |
-| `EmptyReasonLiveness` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-EmptyReasonLiveness.ps1` |
-| `FactFieldCoverage` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-FactFieldCoverage.ps1` |
-| `FactProducerSingle` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-FactProducerSingle.ps1` |
-| `InitGuards` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-InitGuards.ps1` |
-| `LogMessages` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-LogMessages.ps1` |
-| `PortContextShapeEquality` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-PortContextShapeEquality.ps1` |
-| `RuntimeMirror` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-RuntimeMirror.ps1` |
-| `SyntheticVisible` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Declarations\Check-SyntheticVisible.ps1` |
+| `DeclaredFlowConsumers` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Declarations\Check-DeclaredFlowConsumers.ps1` |
+| `EmptyReasonLiveness` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Declarations\Check-EmptyReasonLiveness.ps1` |
+| `FactFieldCoverage` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Declarations\Check-FactFieldCoverage.ps1` |
+| `FactProducerSingle` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Declarations\Check-FactProducerSingle.ps1` |
+| `InitGuards` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Declarations\Check-InitGuards.ps1` |
+| `LogMessages` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Declarations\Check-LogMessages.ps1` |
+| `PortContextShapeEquality` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Declarations\Check-PortContextShapeEquality.ps1` |
+| `RuntimeMirror` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Declarations\Check-RuntimeMirror.ps1` |
+| `SyntheticVisible` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Declarations\Check-SyntheticVisible.ps1` |
 
 ## KeySpace（20 件）
 
@@ -310,7 +310,7 @@
 | `AnalysisDocGrounding` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-AnalysisDocGrounding.ps1` |
 | `BatchLineEndings` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchLineEndings.ps1` |
 | `BatchScope` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-BatchScope.ps1` |
-| `CallGovernance` | fast | 0 | CallGovernance | Boundary | `Frame\PowerShellScript\Operation\DSL\Tooling\Check-CallGovernance.ps1` |
+| `CallGovernance` | fast | 0 | CallGovernance | Boundary | `Environment\CentralTest\Tools\Gate\Process\Check-CallGovernance.ps1` |
 | `ContainerSemantics` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-ContainerSemantics.ps1` |
 | `DeclarationCapability` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-DeclarationCapability.ps1` |
 | `DimensionReduction` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-DimensionReduction.ps1` |

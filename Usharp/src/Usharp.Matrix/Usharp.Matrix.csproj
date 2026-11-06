@@ -9,7 +9,7 @@
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="矩阵只有一种：空间到自身的一步映射 —— 本层不定义新矩阵语义，只把声明装配为既有实例（ParameterMatrix / 转移表）" />
     <ModuleRule_Rule Include="闸A 唯一权威 = ParameterMatrix.Row 与 UsharpValidator；本层预检/归因不构成第二份判据" />
-    <ModuleRule_Rule Include="不引第三方：只引 Usharp.Semantics 与 Strategy.DecisionRules（后者闭包 = Map\DecisionEngine + Declarative + JsonMethod）" />
+    <ModuleRule_Rule Include="不引第三方：只引 Usharp.Semantics、Strategy.DecisionRules（后者闭包 = Map\DecisionEngine + Declarative + JsonMethod）与 Share.StateManagement（转移表查询核）" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -24,6 +24,8 @@
     <ProjectReference Include="$(Proj_DecisionRules)" />
     <!-- 判据读法（E1/U2b）：DecisionGraph 归既有 BasicMethod.Map.Declarative（零外部依赖），不新造裁决机制。 -->
     <ProjectReference Include="$(Proj_Declarative)" />
+    <!-- 声明转移表查询核已下沉通用层：DeclaredTransitionGate（Share.StateManagement，纯 BCL）。 -->
+    <ProjectReference Include="$(Proj_StateManagement)" />
   </ItemGroup>
 
 </Project>

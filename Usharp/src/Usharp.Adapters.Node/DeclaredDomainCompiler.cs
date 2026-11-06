@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
+using Share.ContextGeometry;
 using Usharp.Emit;
 using Usharp.Semantics;
 
@@ -159,7 +159,7 @@ public static class DeclaredDomainCompiler
                 .Append(info.LastWriteTimeUtc.Ticks).Append('\n');
         }
 
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
+        return ContentHash.Sha256Hex(builder.ToString());
     }
 
     private static string Key(
@@ -176,7 +176,6 @@ public static class DeclaredDomainCompiler
         }
 
         builder.Append("--domain--|").Append(text);
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()));
-        return Convert.ToHexString(hash);
+        return ContentHash.Sha256Hex(builder.ToString());
     }
 }

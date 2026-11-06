@@ -35,6 +35,8 @@
     <ProjectReference Include="$(Proj_JsonMethod)" />
     <!-- ★ 图处理通用能力：GraphProcessing 下沉通用图算法/去重/归一化/快照（UR → GraphProcessing → BasicMethod，禁止反向） -->
     <ProjectReference Include="$(Proj_GraphProcessing)" />
+    <!-- ★ 严格枚举名解析（StrictParse）：读写两端共用「只认名称」口径，禁 Enum.TryParse 数值旁路 -->
+    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
     <!-- PathManager 和 Logging 已整合到 BasicMethod.csproj -->
 
   </ItemGroup>

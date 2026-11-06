@@ -1,3 +1,4 @@
+using FrameworkAbstractions.Declarative;
 using UniversalWorkflowFramework.Reference.Models;
 using Usharp.Semantics;
 using Usharp.Syntax;
@@ -61,11 +62,11 @@ public sealed class UsharpEdgeTypeMap
     }
 
     /// <summary>
-    /// 词表解析：仅接受**名称**形式的 6 值 —— <c>Enum.IsDefined</c> 兜住数值旁路
-    /// （<c>ur=999</c> 不得借 <c>Enum.TryParse</c> 的数值解析绕过 US4003）。
+    /// 词表解析：仅接受**名称**形式 —— 复用 Share 既有 <see cref="StrictParse.TryDefinedEnum{TEnum}"/>，
+    /// 其纯数字拦截确保 <c>ur=0..5</c> 不得借 <c>Enum.TryParse</c> 的数值解析绕过 US4003。
     /// </summary>
     private static bool TryParseVocabulary(string value, out ReferenceType parsed)
-        => Enum.TryParse(value.Trim(), ignoreCase: true, out parsed) && Enum.IsDefined(parsed);
+        => StrictParse.TryDefinedEnum(value, out parsed);
 
     /// <summary>
     /// 映射表闸A：扫描全部 <c>[Edge]</c> 声明 —— <c>ur=</c> 非法 → US4003（Error）；

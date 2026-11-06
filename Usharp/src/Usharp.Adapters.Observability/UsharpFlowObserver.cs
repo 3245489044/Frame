@@ -20,7 +20,9 @@ public sealed class UsharpFlowObserver
 {
     private readonly string _scopeId;
     private readonly string _entityType;
-    private int _seq;
+
+    /// <summary>实体序号源（内核单一实现：同 scope+type 进程内单调递增，避免多实例各自从 1 起导致 EntityId 重复）。</summary>
+    private readonly EntityIdFactory _entities = new();
 
     /// <param name="scopeId">作用域键（对应 <c>[Obs] kind=scope</c> 声明）。</param>
     /// <param name="entityType">实体类型（须与事件契约的 <c>entity=</c> 一致）。</param>
@@ -42,7 +44,7 @@ public sealed class UsharpFlowObserver
         ArgumentNullException.ThrowIfNull(emits);
         if (emits.Count == 0) return null;
 
-        var entity = new EntityId(_scopeId, _entityType, Interlocked.Increment(ref _seq));
+        var entity = _entities.New(_scopeId, _entityType);
         var completion = emits.Count > 1 ? emits[1] : null;
         return Obs.Begin(entity, emits[0], completion);
     }

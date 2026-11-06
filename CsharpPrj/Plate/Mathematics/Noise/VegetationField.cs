@@ -280,10 +280,10 @@ public sealed class VegetationField
 
                 for (int y = low; y <= high; y++)
                 {
-                    int dy = originY + y - tree.CanopyCenterY;
+                    int dy = y - tree.CanopyCenterY;
                     float vertical = (dy * dy) / verticalSq;
                     if (horizontal + vertical <= 1f)
-                        parts[x + size * (y + size * z)] = 2;
+                        parts[x + size * ((y - originY) + size * z)] = 2;
                 }
             }
         }
@@ -326,7 +326,7 @@ public sealed class VegetationField
                 int high = Math.Min(y1, ground + maxTreeTopAboveGroundCm);
 
                 for (int y = low; y <= high; y++)
-                    parts[x + size * (y + size * z)] = 1;
+                    parts[x + size * ((y - originY) + size * z)] = 1;
             }
         }
     }

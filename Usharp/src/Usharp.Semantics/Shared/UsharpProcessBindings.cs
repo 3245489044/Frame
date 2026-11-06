@@ -1,3 +1,5 @@
+using Usharp.Syntax;
+
 namespace Usharp.Semantics;
 
 /// <summary>
@@ -6,6 +8,40 @@ namespace Usharp.Semantics;
 /// </summary>
 public static class UsharpProcessBindings
 {
+    /// <summary>
+    /// 本编译全部 <c>process=</c> 绑定（<c>[Matrix]</c> 与 <c>[Flow]</c> 合并，保声明序；<c>process=</c> 为空者不参与）。
+    /// <para>投影单源：发射面（schema 发射器）经此取绑定，不再各处复制 <c>Where/Select/Concat</c>。</para>
+    /// </summary>
+    /// <param name="compilation">编译结果。</param>
+    public static IReadOnlyList<(string? Layer, string? ProcessId)> BindingsOf(UsharpCompilation compilation)
+    {
+        ArgumentNullException.ThrowIfNull(compilation);
+        return BindingsOf(compilation.Matrices, compilation.Flows);
+    }
+
+    /// <summary>声明集合 → 全部 <c>process=</c> 绑定（保声明序）。</summary>
+    /// <param name="matrices">矩阵声明。</param>
+    /// <param name="flows">流声明。</param>
+    public static IReadOnlyList<(string? Layer, string? ProcessId)> BindingsOf(
+        IEnumerable<UsharpMatrixDecl> matrices, IEnumerable<UsharpFlowDecl> flows)
+    {
+        ArgumentNullException.ThrowIfNull(matrices);
+        ArgumentNullException.ThrowIfNull(flows);
+
+        var bindings = new List<(string? Layer, string? ProcessId)>();
+        foreach (var matrix in matrices)
+        {
+            if (matrix.ProcessId is not null) bindings.Add((matrix.OverSpaceId, matrix.ProcessId));
+        }
+
+        foreach (var flow in flows)
+        {
+            if (flow.ProcessId is not null) bindings.Add((flow.OverSpaceId, flow.ProcessId));
+        }
+
+        return bindings;
+    }
+
     /// <summary>
     /// 同层出现 ≥2 个 <c>process=</c> 声明者（**在场即声明**，空值亦计入 ⇒ 框架侧必静默覆盖）的层集（保序去重）。
     /// <paramref name="bindings"/> 的层 Id 为空白者不参与（其自身形状问题由闸A 单报）。

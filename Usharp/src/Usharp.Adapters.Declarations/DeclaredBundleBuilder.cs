@@ -154,20 +154,24 @@ public static class DeclaredBundleBuilder
         var manifest = BuildManifest(compilation, nodes, fingerprint);
         var roundSpec = BuildRoundSpec(compilation);
         var referenceSchema = SerializeReferenceSchema(UsharpReferenceSchemaEmitter.Emit(compilation));
-        var keySpaceJson = UsharpKeySpaceEmitter.Emit(
+        var keySpace = UsharpKeySpaceEmitter.Emit(
             compilation, DeclarationArtifactFingerprint.OfKeyspaces(closure.Sources), GeneratorVersion);
         var commandsJson = UsharpCommandEmitter.Emit(compilation);
+
+        var diagnostics = keySpace.Diagnostics.Count == 0
+            ? compilation.Diagnostics
+            : compilation.Diagnostics.Concat(keySpace.Diagnostics).ToList();
 
         return new DeclaredBundleArtifacts(
             JsonSerializer.Serialize(manifest, ManifestOptions),
             JsonSerializer.Serialize(roundSpec, ManifestOptions),
             referenceSchema,
-            keySpaceJson,
+            keySpace.Json ?? "null",
             commandsJson,
             fingerprint,
             compilation.Errors.Count,
             closure.Sources.Select(s => s.Path).ToList(),
-            compilation.Diagnostics);
+            diagnostics);
     }
 
     /// <summary>写出三份产物到目录（存在即覆盖；产物名 = 各 <c>FileName</c> 常量）。</summary>

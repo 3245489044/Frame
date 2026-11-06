@@ -85,6 +85,46 @@ function Write-GateHeader {
     Write-Host "============================================================" -ForegroundColor Cyan
 }
 
+# 退出码契约单源（D1）：0 通过 / 1 违规（-Check）/ 2 前置缺失或不可判定。
+# 域侧禁止散落魔数；前置缺失唯一出口 = Assert-GatePrerequisite。
+$script:GateExitPass = 0
+$script:GateExitViolation = 1
+$script:GateExitUndetermined = 2
+
+<#
+.SYNOPSIS
+    退出码契约（Pass=0 / Violation=1 / Undetermined=2）。
+#>
+function Get-GateExitCodePolicy {
+    return [pscustomobject]@{
+        Pass         = [int]$script:GateExitPass
+        Violation    = [int]$script:GateExitViolation
+        Undetermined = [int]$script:GateExitUndetermined
+    }
+}
+
+<#
+.SYNOPSIS
+    幂等导入 GateRuntime（重复调用为 no-op；仅 -Force 才重建）。
+.DESCRIPTION
+    动机：Meta/Declarations 44 件里出现 50 次 `Import-Module GateRuntime -Force`，
+    同一进程内反复重建模块（重设别名、重读 DirectoryMap）。
+    已加载且路径一致 ⇒ 直接返回现有模块；否则按本文件所在目录导入。
+    注意：**首次**导入仍需调用方定位本文件（`Get-GateRepoRoot`）；本函数用于消除后续重复导入。
+.PARAMETER Force
+    强制重建（会重置别名与退出码常量；一般不需要）。
+.OUTPUTS
+    [PSModuleInfo] 已加载的 GateRuntime 模块。
+#>
+function Import-GateRuntime {
+    param([switch]$Force)
+
+    $path = Join-Path $PSScriptRoot 'GateRuntime.psm1'
+    $existing = Get-Module -Name 'GateRuntime' -ErrorAction SilentlyContinue
+    if ($null -ne $existing -and -not $Force -and $existing.Path -eq $path) { return $existing }
+    return Import-Module $path -Force -DisableNameChecking -PassThru
+}
+
 <#
 .SYNOPSIS
     显性「未验证」裁决出口（SKIP 不许算绿）。
@@ -180,21 +220,63 @@ function Write-GateVerdict {
     基线表（键 → 冻结值）。
 .PARAMETER Label
     违规文案前缀（如「AgentFrameworkSingleSource」）。
+.PARAMETER BaselineError
+    基线加载/解析异常文案（非空 ⇒ 基线不可解析，判不可判定；禁止当作「未增长」放行）。
+.PARAMETER AsResult
+    返回结构化结果 `{Status; BaselineError; Violations; Counts; Baselines}`；
+    Status ∈ BaselineInvalid / NoIncrease / Increase。未指定时返回旧的 `List[string]`（兼容既有调用）。
+.OUTPUTS
+    默认 `List[string]` 违规清单；`-AsResult` 时返回结构化对象。
 #>
 function Test-BaselineNoIncrease {
     param(
-        [hashtable]$Counts,
-        [hashtable]$Baselines,
-        [string]$Label
+        [AllowNull()][hashtable]$Counts,
+        [AllowNull()][hashtable]$Baselines,
+        [string]$Label = '',
+        [string]$BaselineError = '',
+        [switch]$AsResult
     )
     $violations = [System.Collections.Generic.List[string]]::new()
-    foreach ($k in $Counts.Keys) {
-        if (-not $Baselines.ContainsKey($k)) {
-            $violations.Add("$Label 新增散落点：$k = $($Counts[$k])（基线表无此项 ⇒ 只减不增禁新增）")
-            continue
+
+    # 基线不可解析 ≠ 未增长：此前 Check-ZeroRetry 把解析异常吞成 fail-open，这里改为 fail-closed。
+    $baselineInvalid = ($null -eq $Baselines) -or (-not [string]::IsNullOrWhiteSpace($BaselineError))
+    if ($baselineInvalid) {
+        $reason = if (-not [string]::IsNullOrWhiteSpace($BaselineError)) { $BaselineError } else { '基线表为空（未加载）' }
+        $violations.Add("$Label 基线不可解析：$reason（不可判定，非通过）")
+        if ($AsResult) {
+            return [pscustomobject]@{
+                Status        = 'BaselineInvalid'
+                BaselineError = $reason
+                Violations    = $violations
+                Counts        = $Counts
+                Baselines     = $Baselines
+            }
         }
-        if ($Counts[$k] -gt $Baselines[$k]) {
-            $violations.Add("$Label 取值点新增：$k = $($Counts[$k]) > 基线 $($Baselines[$k])（只减不增）")
+        return $violations
+    }
+
+    $increased = $false
+    if ($null -ne $Counts) {
+        foreach ($k in $Counts.Keys) {
+            if (-not $Baselines.ContainsKey($k)) {
+                $violations.Add("$Label 新增散落点：$k = $($Counts[$k])（基线表无此项 ⇒ 只减不增禁新增）")
+                $increased = $true
+                continue
+            }
+            if ($Counts[$k] -gt $Baselines[$k]) {
+                $violations.Add("$Label 取值点新增：$k = $($Counts[$k]) > 基线 $($Baselines[$k])（只减不增）")
+                $increased = $true
+            }
+        }
+    }
+
+    if ($AsResult) {
+        return [pscustomobject]@{
+            Status        = if ($increased) { 'Increase' } else { 'NoIncrease' }
+            BaselineError = ''
+            Violations    = $violations
+            Counts        = $Counts
+            Baselines     = $Baselines
         }
     }
     return $violations
@@ -308,6 +390,9 @@ function New-GateContext {
     $repo = if (-not [string]::IsNullOrWhiteSpace($Root)) { $Root }
             elseif (-not [string]::IsNullOrWhiteSpace($ScriptRoot)) { Get-GateRepoRoot -ScriptRoot $ScriptRoot }
             else { Get-GateRepoRoot }
+    if (-not [string]::IsNullOrWhiteSpace([string]$repo)) {
+        $repo = ([string]$repo).TrimEnd([char[]]@('\', '/'))
+    }
     return [pscustomobject]@{
         Root            = $repo
         Check           = [bool]$Check
@@ -321,21 +406,112 @@ function New-GateContext {
 
 <#
 .SYNOPSIS
-    前置面断言：文件/目录缺失 ⇒ 统一 exit 2（不可判定 ≠ 通过）。
+    追加违规（文案单源：`[Id] Message`）。
 .DESCRIPTION
-    各门此前用 Write-Error/throw/裸 exit 2 三种写法，文案各异；本函数是唯一前置缺失出口。
+    动机：18 份域内 Add-Violation 各自捕获 `$script:violations`，无法跨模块写调用方作用域，
+    且存在两种拼写与三种消息前缀。本函数改为**显式传入清单**（`$ctx.Violations`），
+    前缀统一为 `[Id]`（Id 已自带方括号时不再重复包裹）。
+.PARAMETER Id
+    判据编号（如 'C1'、'F2'；可自带 `[C1]`）
+.PARAMETER Message
+    违规文案
+.PARAMETER Violations
+    违规清单（`New-GateContext` 提供的 `List[string]`）
+.EXAMPLE
+    Add-GateViolation 'C1' '缺少声明' -Violations $ctx.Violations
 #>
-function Assert-GatePrerequisite {
+function Add-GateViolation {
     param(
-        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true, Position = 0)][string]$Id,
+        [Parameter(Mandatory = $true, Position = 1)][AllowEmptyString()][string]$Message,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.Generic.List[string]]$Violations
+    )
+    $prefix = if ($Id -match '^\s*\[[^\]]+\]\s*$') { $Id.Trim() } else { '[' + $Id.Trim() + ']' }
+    $Violations.Add("$prefix $Message")
+}
+
+<#
+.SYNOPSIS
+    对象属性安全取数（StrictMode 安全；对象空/属性缺失 ⇒ $null）。
+.DESCRIPTION
+    收敛 4 份域内 Get-Prop；同时支持 PSCustomObject（JSON 产物）与 IDictionary（声明表）。
+.PARAMETER Object
+    目标对象（可为 $null）
+.PARAMETER Name
+    属性/键名
+#>
+function Get-GateJsonProperty {
+    param(
+        [Parameter(Position = 0)][AllowNull()]$Object,
+        [Parameter(Mandatory = $true, Position = 1)][string]$Name
+    )
+    if ($null -eq $Object) { return $null }
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) { return $Object[$Name] }
+        return $null
+    }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($null -eq $prop) { return $null }
+    return $prop.Value
+}
+
+<#
+.SYNOPSIS
+    前置面探测（不 exit）：文件/目录缺失清单。
+.DESCRIPTION
+    与 Assert-GatePrerequisite 同口径但不终止进程，供报告模式/编排分流使用，
+    使「前置缺失（2）」与「违规（1）」在调用方仍可区分。
+.OUTPUTS
+    { Ok; Label; Key; Missing }
+#>
+function Test-GatePrerequisite {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Path,
         [string]$Label = '前置面',
         [string]$Key = ''
     )
-    if (Test-Path -LiteralPath $Path) { return }
+    $missing = [System.Collections.Generic.List[string]]::new()
+    foreach ($p in @($Path)) {
+        if ([string]::IsNullOrWhiteSpace($p) -or -not (Test-Path -LiteralPath $p)) { $missing.Add([string]$p) }
+    }
+    return [pscustomobject]@{
+        Ok      = ($missing.Count -eq 0)
+        Label   = $Label
+        Key     = $Key
+        Missing = $missing.ToArray()
+    }
+}
+
+<#
+.SYNOPSIS
+    前置面断言：文件/目录缺失 ⇒ 统一 exit 2（不可判定 ≠ 通过）。
+.DESCRIPTION
+    各门此前用 Write-Error/throw/裸 exit 2 三种写法，文案各异；本函数是唯一前置缺失出口。
+    `Write-Error …; exit 2` 在 `$ErrorActionPreference='Stop'` 下会先终止，exit 2 不可达；
+    本函数只用 Write-Host + exit，保证退出码可达。
+.PARAMETER Path
+    前置文件/目录（可多值）
+.PARAMETER Throw
+    不终止进程，改为抛错（单元测试/外部编排捕获后自行归类）。
+#>
+function Assert-GatePrerequisite {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Path,
+        [string]$Label = '前置面',
+        [string]$Key = '',
+        [switch]$Throw
+    )
+    $probe = Test-GatePrerequisite -Path $Path -Label $Label -Key $Key
+    if ($probe.Ok) { return }
+
+    $detail = ($probe.Missing -join '；')
+    $message = "$Key 前置缺失：$Label = $detail（不可判定，非通过）"
+    if ($Throw) { throw $message }
+
     Write-Host ""
-    Write-Host "  [FAIL] $Key 前置缺失：$Label = $Path（不可判定，非通过）" -ForegroundColor Yellow
+    Write-Host "  [FAIL] $message" -ForegroundColor Yellow
     Write-Host ""
-    exit 2
+    exit $script:GateExitUndetermined
 }
 
 <#
@@ -351,11 +527,17 @@ function Assert-GatePrerequisite {
       Good      合法样本（Predicate 必须为 $false）
       Bad       违规样本（Predicate 必须为 $true）
     缺 Predicate 或缺任一对照样本 ⇒ 违规（"无自证不可采信"）。
+
+    文件 fixture（可选，`-FixtureRoot`）：
+      Good/Bad 若为含 `Path` + `Content` 的字典/对象，框架把 Content 写到 `<FixtureRoot>\<Path>`
+      （UTF-8，必要时建目录），并把目标**绝对路径**传给 Predicate；其余样本原样透传。
+      框架不删除已写文件（目录由调用方持有/清理）。
 #>
 function Assert-GateControls {
     param(
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$Cases,
-        [string]$Label = '判据自证'
+        [string]$Label = '判据自证',
+        [string]$FixtureRoot = ''
     )
     $issues = [System.Collections.Generic.List[string]]::new()
     if (@($Cases).Count -eq 0) {
@@ -376,6 +558,25 @@ function Assert-GateControls {
             if (@($c.PSObject.Properties.Name) -contains $n) { return $c.$n }
             return $null
         }
+        $resolveSample = {
+            param($Sample)
+            if ($null -eq $Sample -or [string]::IsNullOrWhiteSpace($FixtureRoot)) { return $Sample }
+            $sampleIsDict = $Sample -is [System.Collections.IDictionary]
+            $sampleHas = {
+                param($n)
+                if ($sampleIsDict) { return $Sample.Contains($n) }
+                return (@($Sample.PSObject.Properties.Name) -contains $n)
+            }
+            if (-not ((& $sampleHas 'Path') -and (& $sampleHas 'Content'))) { return $Sample }
+            $relative = if ($sampleIsDict) { [string]$Sample['Path'] } else { [string]$Sample.Path }
+            $content = if ($sampleIsDict) { [string]$Sample['Content'] } else { [string]$Sample.Content }
+            if ([string]::IsNullOrWhiteSpace($relative)) { return $Sample }
+            $target = if ([System.IO.Path]::IsPathRooted($relative)) { $relative } else { Join-Path $FixtureRoot $relative }
+            $dir = Split-Path -Parent $target
+            if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+            [System.IO.File]::WriteAllText($target, $content, [System.Text.Encoding]::UTF8)
+            return $target
+        }
 
         $id = if (& $hasMember 'Id') { [string](& $getMember 'Id') } else { '<未编号>' }
         $predicate = if (& $hasMember 'Predicate') { & $getMember 'Predicate' } else { $null }
@@ -392,18 +593,85 @@ function Assert-GateControls {
         }
         if ($hasGood) {
             $good = $false
-            try { $good = [bool](& $predicate (& $getMember 'Good')) } catch { $issues.Add("$Label [$id] 正对照执行异常：$($_.Exception.Message)"); continue }
+            try { $good = [bool](& $predicate (& $resolveSample (& $getMember 'Good'))) } catch { $issues.Add("$Label [$id] 正对照执行异常：$($_.Exception.Message)"); continue }
             if ($good) { $issues.Add("$Label [$id] 正对照失败：合法样本被判定为违规") }
         }
         if ($hasBad) {
             $bad = $true
-            try { $bad = [bool](& $predicate (& $getMember 'Bad')) } catch { $issues.Add("$Label [$id] 负对照执行异常：$($_.Exception.Message)"); continue }
+            try { $bad = [bool](& $predicate (& $resolveSample (& $getMember 'Bad'))) } catch { $issues.Add("$Label [$id] 负对照执行异常：$($_.Exception.Message)"); continue }
             if (-not $bad) { $issues.Add("$Label [$id] 负对照失败：违规样本未被捕获（判据空转）") }
         }
     }
     return $issues
 }
 
+
+<#
+.SYNOPSIS
+    仓库检索命中数（命中文件数）——4 份域内 Get-SearchFileCount 的统一上提。
+.DESCRIPTION
+    委托 `Frame\Invoke\Invoke-Frame.ps1 -Action search-repo -List`，解析「合计命中：N」，
+    兼容旧输出的「（N 命中）」尾注。
+    不可用（入口/仓根/宿主缺失、子进程非 0、无解析结果）⇒ **返回 -1**；
+    调用方必须把 -1 视为违规或不可判定，禁止当作 0。
+.PARAMETER Pattern
+    检索词/正则（配合 -Regex）
+.PARAMETER PathSpec
+    路径规格（透传 search-repo）
+.PARAMETER Repo
+    仓库根
+.PARAMETER Regex
+    以正则检索
+.PARAMETER Untracked
+    含未跟踪文件
+.PARAMETER SearchEntry
+    检索入口（默认 `<Repo>\Frame\Invoke\Invoke-Frame.ps1`）
+.PARAMETER ShellExe
+    宿主可执行文件（默认当前 $PSHOME 下的 pwsh，其次 powershell）
+.OUTPUTS
+    [int] 命中文件数；不可用 ⇒ -1
+#>
+function Get-GateSearchFileCount {
+    param(
+        [Parameter(Mandatory = $true, Position = 0)][string]$Pattern,
+        [Parameter(Mandatory = $true, Position = 1)][string]$PathSpec,
+        [Parameter(Mandatory = $true, Position = 2)][string]$Repo,
+        [switch]$Regex,
+        [switch]$Untracked,
+        [string]$SearchEntry = '',
+        [string]$ShellExe = ''
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Repo) -or -not (Test-Path -LiteralPath $Repo)) { return -1 }
+
+    $entry = if ([string]::IsNullOrWhiteSpace($SearchEntry)) { Join-Path $Repo 'Frame\Invoke\Invoke-Frame.ps1' } else { $SearchEntry }
+    if (-not (Test-Path -LiteralPath $entry)) { return -1 }
+
+    $shell = $ShellExe
+    if ([string]::IsNullOrWhiteSpace($shell)) {
+        foreach ($candidate in @((Join-Path $PSHOME 'pwsh.exe'), (Join-Path $PSHOME 'powershell.exe'))) {
+            if (Test-Path -LiteralPath $candidate) { $shell = $candidate; break }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($shell) -or -not (Test-Path -LiteralPath $shell)) { return -1 }
+
+    $cliArgs = @('-NoProfile', '-File', $entry, '-Action', 'search-repo',
+                 '-Pattern', $Pattern, '-PathSpec', $PathSpec, '-Repo', $Repo, '-List')
+    if ($Regex) { $cliArgs += '-Regex' }
+    if ($Untracked) { $cliArgs += '-Untracked' }
+
+    $raw = @(& $shell @cliArgs 2>&1 | ForEach-Object { "$_" })
+    $lastExit = Get-Variable -Name LASTEXITCODE -ErrorAction SilentlyContinue
+    if ($null -ne $lastExit -and [int]$lastExit.Value -ne 0) { return -1 }
+
+    foreach ($line in $raw) {
+        if ($line -match '合计命中：\s*(\d+)') { return [int]$Matches[1] }
+    }
+    foreach ($line in $raw) {
+        if ($line -match '（\s*(\d+)\s*命中）') { return [int]$Matches[1] }
+    }
+    return -1
+}
 
 # 源码扫描排除集（D5 单源）：obj / bin / BuildOutput / _deprecated 统一口径。
 # 此前 6 套写法（缺 BuildOutput、缺 _deprecated、加非捕获组、二次 Where 过滤）导致漂移。
@@ -432,6 +700,10 @@ function Get-GateUnrecognizedKind {
 <# 契约事实（A7）已归位到 GateFacts.psm1：Get-GateContractFacts（取数 + 过期断言单源）。 #>
 
 
+# 兼容别名：域侧既有调用名（18 份 Add-Violation / 4 份 Get-Prop）无需改名即可接管。
+New-Alias -Name Add-Violation -Value Add-GateViolation
+New-Alias -Name Get-Prop -Value Get-GateJsonProperty
+
 # 显式导出面（自有 API + 门禁面向的目录映射 API）：
 #   固定契约，禁依赖「默认全导出」的隐式面（防随导入件漂移）。
 Export-ModuleMember -Function @(
@@ -443,7 +715,13 @@ Export-ModuleMember -Function @(
     'Write-GateVerdict',
     'Test-BaselineNoIncrease',
     'New-GateContext',
+    'Get-GateExitCodePolicy',
+    'Import-GateRuntime',
+    'Test-GatePrerequisite',
     'Assert-GatePrerequisite',
+    'Add-GateViolation',
+    'Get-GateJsonProperty',
+    'Get-GateSearchFileCount',
     'Assert-GateControls',
     'Get-GateRegionKeyPattern',
     'Get-GateSourceExcludePattern',
@@ -463,5 +741,8 @@ Export-ModuleMember -Function @(
     'Get-GateScriptLeafName',
     'Resolve-GateScript',
     'Get-GateScriptCell'
+) -Alias @(
+    'Add-Violation',
+    'Get-Prop'
 )
 

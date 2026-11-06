@@ -59,7 +59,7 @@ public static class UsharpLocPlacementEmitter
             return new UsharpLocPlacementResult(null, diagnostics);
         }
 
-        if (!compilation.Spaces.TryGet(SpaceId, out var domainSpace))
+        if (!compilation.Spaces.TryGet(SpaceId, out _))
         {
             diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.LocPlacementNotProducible,
                 $"位置反解表不可产出：未找到 [Space] {SpaceId}（反解域键空间）",
@@ -76,13 +76,13 @@ public static class UsharpLocPlacementEmitter
         }
 
         var locs = locSpace.Axes.Select(a => a.Name).ToArray();
-        var domainCoords = new HashSet<string>(domainSpace.Axes.Select(a => a.Name), StringComparer.Ordinal);
 
         // loc → 位置 id 集（序 = 声明序；同一 loc 多行 = 该 loc 的多个落点）
         var map = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var row in matrix.Rows)
         {
-            if (!domainCoords.Contains(row.OutputKey))
+            // 行输出归属判据单源 = SpaceRegistry.HasCoordinate（与闸A US1003 同判据，禁自建坐标集）。
+            if (!compilation.Spaces.HasCoordinate(SpaceId, row.OutputKey, out _))
             {
                 diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.LocPlacementNotProducible,
                     $"位置反解表不可产出：行输出 '{row.OutputKey}' 不在 [Space] {SpaceId} 声明内（US1003 同族）",

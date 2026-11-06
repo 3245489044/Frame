@@ -19,7 +19,15 @@ public sealed record UsharpDiagnostic(
     int LineNumber)
 {
     public override string ToString()
-        => $"[{SourceFile}:{LineNumber}] {(Severity == UsharpSeverity.Error ? "error" : "warn")} {Code}: {Message}";
+    {
+        var severity = Severity switch
+        {
+            UsharpSeverity.Error => "error",
+            UsharpSeverity.Warning => "warn",
+            _ => "info",
+        };
+        return $"[{SourceFile}:{LineNumber}] {severity} {Code}: {Message}";
+    }
 
     public static UsharpDiagnostic Error(string code, string message, string file, int line)
         => new(UsharpSeverity.Error, code, message, file, line);
@@ -148,6 +156,7 @@ public static class UsharpCodes
 
     /// <summary>层次产出面域内判据：<c>contains=</c> 图形状非法 / 单根不成立 / 一层多处理器绑定 ⇒ **不产出**（不复读闸A 码）。</summary>
     public const string HierarchySchemaNotProducible = UsharpDiagnosticCatalog.HierarchySchemaNotProducible;
+    public const string HierarchySchemaAbsent = UsharpDiagnosticCatalog.HierarchySchemaAbsent;
 
     /// <summary>链尾重复连接（一条链尾至多接一个后继）：首个连接生效，后续 connects= 被忽略（可见化，不静默覆盖）。</summary>
     public const string ChainTailAlreadyLinked = UsharpDiagnosticCatalog.ChainTailAlreadyLinked;

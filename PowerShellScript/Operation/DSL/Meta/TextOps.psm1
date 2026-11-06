@@ -4,11 +4,13 @@
     DSL 文本面内核（「同语义多份实现」收敛点）。
 
 .DESCRIPTION
-    把 Operation\DSL 下反复出现的四类字符串操作收敛为一处实现：
+    把 Operation\DSL 下反复出现的字符串/文本操作收敛为一处实现：
       1) 字节流 SHA-256 十六进制指纹（原散落 4 份：小写 hex，去 '-' 分隔）
       2) 逗号清单分词（split ',' → Trim → 丢空项，原散落 11 处）
       3) 行尾注释剥离（注释标记至行尾整段删除，原散落 12 处；'//' 与 '#' 两种标记）
       4) 仓库相对路径（去根前缀 → TrimStart 两种分隔符 → 统一正斜杠，原散落 6 处）
+      5) 正则计数（原散落 15 份 Get-Count + 63 文件内联 [regex]::Matches）
+      6) 整文件读取（原散落 11 份 Read-Text，两种缺件语义）
 
     兼容口径：本模块只使用 Windows PowerShell 5.1 即有语法/类型
     （禁三元运算符、`??`、`-Parallel`、`[IO.Path]::GetRelativePath` 等 7.x/.NET Core 专属面）；
@@ -144,7 +146,93 @@ function Get-RepoRelativePath {
     return $relative -replace '\\', '/'
 }
 
-Export-ModuleMember -Function Get-Sha256Hex,
-                              ConvertFrom-CommaList,
-                              Remove-LineComment,
-                              Get-RepoRelativePath
+<#
+.SYNOPSIS
+    正则命中计数（大小写敏感，与 [regex]::Matches 原式一致）。
+.DESCRIPTION
+    等价于原表达式：([regex]::Matches($Text, $Pattern)).Count
+    $Text 为 $null 时按空串处理 → 0；$Pattern 为空 ⇒ 参数绑定失败（不静默返回 0）。
+.PARAMETER Text
+    待扫描文本（$null 视为空串）
+.PARAMETER Pattern
+    正则表达式（非法正则按其原失败形态抛出）
+.OUTPUTS
+    [int] 命中次数
+.EXAMPLE
+    Get-RegexCount -Text $src -Pattern '^\[Gather\]'
+#>
+function Get-RegexCount {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)]
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$Text,
+
+        [Parameter(Position = 1, Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Pattern
+    )
+    if ($null -eq $Text) { return 0 }
+    return [regex]::Matches($Text, $Pattern).Count
+}
+
+<#
+.SYNOPSIS
+    整文件读取（UTF-8 显式编码）。
+.DESCRIPTION
+    统一 11 份 Read-Text 的两种缺件语义：默认缺件返回 ''（兼容多数调用点），
+    `-Strict` 改为抛错（对齐「缺件即不可判定」的调用点）。
+    显式按 UTF-8 读取，消除 Windows PowerShell 5.1 `Get-Content` 默认编码（ANSI）与 7.x（UTF-8）的差异；
+    带 BOM 的文件由 ReadAllText 自动识别。
+.PARAMETER Path
+    文件绝对路径
+.PARAMETER Encoding
+    文本编码（默认 UTF8）
+.PARAMETER Strict
+    缺件即抛错（门禁前置缺失语义）
+.OUTPUTS
+    [string] 文件全文；非 -Strict 且缺件 ⇒ ''
+.EXAMPLE
+    Read-TextFile -Path $p -Strict
+#>
+function Read-TextFile {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$Path,
+
+        [ValidateSet('UTF8', 'Default', 'ASCII', 'Unicode', 'BigEndianUnicode', 'UTF32')]
+        [string]$Encoding = 'UTF8',
+
+        [switch]$Strict
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        if ($Strict) { throw "文本文件缺失：$Path" }
+        return ''
+    }
+
+    $enc = switch ($Encoding) {
+        'UTF8' { [System.Text.Encoding]::UTF8 }
+        'Default' { [System.Text.Encoding]::Default }
+        'ASCII' { [System.Text.Encoding]::ASCII }
+        'Unicode' { [System.Text.Encoding]::Unicode }
+        'BigEndianUnicode' { [System.Text.Encoding]::BigEndianUnicode }
+        'UTF32' { [System.Text.Encoding]::UTF32 }
+    }
+    return [System.IO.File]::ReadAllText($Path, $enc)
+}
+
+# 兼容别名：域侧既有调用名（15 份 Get-Count / 11 份 Read-Text）无需改名即可接管。
+New-Alias -Name Get-Count -Value Get-RegexCount
+New-Alias -Name Read-Text -Value Read-TextFile
+
+Export-ModuleMember -Function @(
+    'Get-Sha256Hex',
+    'ConvertFrom-CommaList',
+    'Remove-LineComment',
+    'Get-RepoRelativePath',
+    'Get-RegexCount',
+    'Read-TextFile'
+) -Alias @('Get-Count', 'Read-Text')

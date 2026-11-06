@@ -200,7 +200,7 @@ internal sealed class PortKindGateRule : IGateRule<UsharpGateModel>
             if (string.IsNullOrWhiteSpace(n.Kind)) continue;
             if (allowed.Contains(n.Kind!)) continue;
             sink.Report(ConversionDiagnostic.Error(AgentPortPack.CodeKindUnknown,
-                $"[Node] {n.Name}: kind='{n.Kind}' 不在已声明执行体类别空间（{string.Join("|", allowed.OrderBy(k => k, StringComparer.Ordinal))}）",
+                $"[Node] {n.Name}: kind='{n.Kind}' 不在已声明执行体类别空间（{string.Join("|", allowed.Items.OrderBy(k => k, StringComparer.Ordinal))}）",
                 new SourceSpan(n.SourceFile, n.LineNumber, 0)));
         }
     }

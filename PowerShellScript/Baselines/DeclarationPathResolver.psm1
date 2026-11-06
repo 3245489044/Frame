@@ -47,14 +47,18 @@ function Resolve-DeclarationFile {
     param(
         [Parameter(Mandatory = $true)][string]$Role,
         [Parameter(Mandatory = $true)][string]$Name,
-        [string]$ConfigRoot = ''
+        [string]$ConfigRoot = '',
+        [string]$Extension = '.ushar'
     )
     if ([string]::IsNullOrWhiteSpace($ConfigRoot)) { $ConfigRoot = Get-DeclarationConfigRoot }
     $layout = Get-DeclarationLayout -ConfigRoot $ConfigRoot
     $scope = $layout.roles | Where-Object { $_.role -eq $Role } | Select-Object -First 1
     if (-not $scope) { return $null }
 
-    $fileName = if ($Name -match '\.ushar$') { $Name } else { "$Name.ushar" }
+    # 名称已带扩展名 ⇒ 保留；否则补 -Extension（使 ui-regions.json / AgentRuntimeUI.json 等 JSON 声明可按 role 解析）。
+    if ([string]::IsNullOrWhiteSpace($Extension)) { $Extension = '.ushar' }
+    if (-not $Extension.StartsWith('.')) { $Extension = '.' + $Extension }
+    $fileName = if ($Name -match '\.[A-Za-z0-9]+$') { $Name } else { "$Name$Extension" }
     foreach ($dir in @($scope.dirs)) {
         $full = Join-Path $ConfigRoot $dir
         if (-not (Test-Path -LiteralPath $full)) { continue }
@@ -70,12 +74,13 @@ function Resolve-DeclarationFile {
 function Resolve-DeclarationFileAnyRole {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
-        [string]$ConfigRoot = ''
+        [string]$ConfigRoot = '',
+        [string]$Extension = '.ushar'
     )
     if ([string]::IsNullOrWhiteSpace($ConfigRoot)) { $ConfigRoot = Get-DeclarationConfigRoot }
     $layout = Get-DeclarationLayout -ConfigRoot $ConfigRoot
     foreach ($scope in @($layout.roles)) {
-        $hit = Resolve-DeclarationFile -Role $scope.role -Name $Name -ConfigRoot $ConfigRoot
+        $hit = Resolve-DeclarationFile -Role $scope.role -Name $Name -ConfigRoot $ConfigRoot -Extension $Extension
         if ($hit) { return $hit }
     }
     return $null

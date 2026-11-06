@@ -4,31 +4,47 @@ using Usharp.Syntax;
 
 namespace Usharp.Emit;
 
+/// <summary>
+/// 键空间发射产物：单载荷 JSON（不可产出 ⇒ <c>null</c>）+ 发射期诊断。
+/// <para>取代「多声明取首个 / 零声明 <c>id="(empty)"</c> 伪对象」的静默行为。</para>
+/// </summary>
+public sealed record UsharpKeySpaceResult(
+    string? Json,
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics);
+
 /// <summary><c>[KeySpace]</c> → 键空间声明 JSON（schema 与 Agent 侧 keyspace loader 同形）。</summary>
 public static class UsharpKeySpaceEmitter
 {
-    /// <summary>发射全部 <c>[KeySpace]</c>（多声明时取首个；缺失 ⇒ 空对象）。</summary>
+    /// <summary>发射本编译的 <c>[KeySpace]</c>（多声明 / 无声明 ⇒ 不产出 + 诊断可见化）。</summary>
     /// <param name="compilation">编译结果。</param>
     /// <param name="sourceFingerprint">源声明内容指纹（SHA256 小写 hex；构建期计算，运行期自证新鲜度）。</param>
     /// <param name="generatorVersion">生成器版本（产物↔生成器对的显式标记）。</param>
-    public static string Emit(
+    public static UsharpKeySpaceResult Emit(
         UsharpCompilation compilation, string? sourceFingerprint = null, string? generatorVersion = null)
     {
         ArgumentNullException.ThrowIfNull(compilation);
-        var space = compilation.KeySpaces.FirstOrDefault();
-        if (space is null)
+
+        var diagnostics = new List<UsharpDiagnostic>();
+        if (compilation.KeySpaces.Count == 0)
         {
-            var empty = new JsonObject
-            {
-                ["id"] = "(empty)",
-                ["domains"] = new JsonArray(),
-                ["families"] = new JsonArray(),
-                ["ports"] = new JsonArray(),
-                ["policies"] = new JsonObject(),
-            };
-            AddProvenance(empty, sourceFingerprint, generatorVersion);
-            return empty.ToJsonString();
+            diagnostics.Add(UsharpDiagnostic.Info(UsharpCodes.SingleFileNoKeySpace,
+                "[KeySpace] 未声明（本编译无可发射键空间）",
+                compilation.Documents.Count > 0 ? compilation.Documents[0].FilePath : ".",
+                1));
+            return new UsharpKeySpaceResult(null, diagnostics);
         }
+
+        if (compilation.KeySpaces.Count > 1)
+        {
+            var extra = compilation.KeySpaces[1];
+            diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.KeySpaceDuplicate,
+                $"[KeySpace] 多声明（{string.Join(", ", compilation.KeySpaces.Select(s => s.Id))}）："
+                + "一次发射只接受一个键空间（禁静默取首个）",
+                extra.SourceFile, extra.LineNumber));
+            return new UsharpKeySpaceResult(null, diagnostics);
+        }
+
+        var space = compilation.KeySpaces[0];
 
         var root = new JsonObject
         {
@@ -171,7 +187,7 @@ public static class UsharpKeySpaceEmitter
             root["derives"] = derives;
         }
 
-        return root.ToJsonString();
+        return new UsharpKeySpaceResult(root.ToJsonString(), diagnostics);
     }
 
     private static void AddProvenance(JsonObject root, string? sourceFingerprint, string? generatorVersion)

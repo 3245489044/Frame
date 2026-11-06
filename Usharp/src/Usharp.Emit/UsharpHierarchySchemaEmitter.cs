@@ -34,7 +34,15 @@ public static class UsharpHierarchySchemaEmitter
 
         var diagnostics = new List<UsharpDiagnostic>();
         var graph = UsharpHierarchyGraph.Build(compilation.Spaces);
-        if (graph is null) return new UsharpHierarchySchemaResult(null, null, diagnostics);
+        if (graph is null)
+        {
+            // 与「层图非法 ⇒ 不产出」区分：本分支 = 本编译无 contains= 声明（可见化，不静默）。
+            diagnostics.Add(UsharpDiagnostic.Info(UsharpCodes.HierarchySchemaAbsent,
+                "层次 schema：本编译无 [Space] contains= 声明（无层次面可产出）",
+                compilation.Documents.Count > 0 ? compilation.Documents[0].FilePath : ".",
+                1));
+            return new UsharpHierarchySchemaResult(null, null, diagnostics);
+        }
 
         var attribution = graph.DeclaredSpaces[0];
 
@@ -49,9 +57,8 @@ public static class UsharpHierarchySchemaEmitter
         }
 
         // ② 一层多处理器绑定 ⇒ 不产出（判定单源 = UsharpProcessBindings；静默择一属「错误状态下仍产出」）
-        var multiBound = UsharpProcessBindings.MultiBoundLayers(
-            compilation.Matrices.Where(m => m.ProcessId is not null).Select(m => (m.OverSpaceId, m.ProcessId))
-                .Concat(compilation.Flows.Where(f => f.ProcessId is not null).Select(f => (f.OverSpaceId, f.ProcessId))));
+        var bindings = UsharpProcessBindings.BindingsOf(compilation);
+        var multiBound = UsharpProcessBindings.MultiBoundLayers(bindings);
         if (multiBound.Count > 0)
         {
             diagnostics.Add(UsharpDiagnostic.Error(UsharpCodes.HierarchySchemaNotProducible,
@@ -71,10 +78,7 @@ public static class UsharpHierarchySchemaEmitter
         }
 
         var root = graph.Roots[0];
-        var processBindings = compilation.Matrices
-            .Where(m => m.ProcessId is not null).Select(m => (m.OverSpaceId, m.ProcessId))
-            .Concat(compilation.Flows.Where(f => f.ProcessId is not null).Select(f => (f.OverSpaceId, f.ProcessId)))
-            .ToList();
+        var processBindings = bindings;
 
         var levels = graph.LevelOrder(root).Select(levelId => new HierarchyLevelSpec(
             levelId,
@@ -85,14 +89,4 @@ public static class UsharpHierarchySchemaEmitter
         var schema = new HierarchySchema(root, levels);
         return new UsharpHierarchySchemaResult(schema, HierarchySchemaJson.Serialize(schema), diagnostics);
     }
-
-    /// <summary>
-    /// 层处理器 Id（<c>[Matrix]|[Flow] process=</c> 的绑定；一层至多一个声明者由 US1011 保证）。
-    /// <para>保留为薄转发：判定单源 = <see cref="UsharpProcessBindings.ProcessOf"/>（E-5）。</para>
-    /// </summary>
-    private static string? ProcessIdOf(UsharpCompilation compilation, string levelId)
-        => UsharpProcessBindings.ProcessOf(
-            compilation.Matrices.Where(m => m.ProcessId is not null).Select(m => (m.OverSpaceId, m.ProcessId))
-                .Concat(compilation.Flows.Where(f => f.ProcessId is not null).Select(f => (f.OverSpaceId, f.ProcessId))),
-            levelId);
 }

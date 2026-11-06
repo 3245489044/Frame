@@ -20,8 +20,9 @@ public abstract record UsharpEmitResultBase(
 
 /// <summary>单载荷发射产物记录（<c>Value</c> + 诊断；骨架构件的通用返回形态）。</summary>
 public sealed record UsharpEmitResult<T>(
-    T Value,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics);
+    T? Value,
+    IReadOnlyList<UsharpDiagnostic> Diagnostics) : UsharpEmitResultBase(Diagnostics)
+    where T : class;
 
 /// <summary>发射骨架：按 id 找单条声明 → 缺失即报码不产出（归因取给定装载面）。</summary>
 public static class UsharpEmit
@@ -37,7 +38,8 @@ public static class UsharpEmit
         string notProducibleCode,
         string message,
         string file,
-        System.Func<TDecl, TDoc> project)
+        System.Func<TDecl, TDoc> project,
+        int line = 1)
         where TDecl : class
         where TDoc : class
     {
@@ -48,9 +50,10 @@ public static class UsharpEmit
         var decl = source.FirstOrDefault(d => string.Equals(idOf(d), id, System.StringComparison.Ordinal));
         if (decl is null)
         {
-            return new UsharpEmitResult<TDoc>(null!, new[]
+            // 未命中 = 无产出：Value 显式 null（不再用 null! 掩盖契约）；归因由调用方给定（缺省文件首行）。
+            return new UsharpEmitResult<TDoc>(null, new[]
             {
-                UsharpDiagnostic.Error(notProducibleCode, message, file, 0),
+                UsharpDiagnostic.Error(notProducibleCode, message, file, line),
             });
         }
 

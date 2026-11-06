@@ -132,6 +132,9 @@ public static class UsharpDiagnosticCatalog
     public const string DomainSpecNotProducible = "US5008";
     public const string GatherSpecNotProducible = "US5009";
 
+    /// <summary>本编译无 <c>[Space] contains=</c> 声明：无层次面可产出（预期态，不判红）。</summary>
+    public const string HierarchySchemaAbsent = "US5010";
+
     // ── US6xxx 观测声明面 ───────────────────────────────────────────────
     public const string ObsEntityScopeUndefined = "US6001";
     public const string ObsEmitUndeclared = "US6002";
@@ -386,6 +389,8 @@ public static class UsharpDiagnosticCatalog
         E(RefEdgeNotProducible, "RefEdgeEmit", UsharpSeverity.Error, "归属边声明不可产出", "refId"),
         E(DomainSpecNotProducible, "DomainEmit", UsharpSeverity.Error, "节点域定义不可产出", "domainId"),
         E(GatherSpecNotProducible, "GatherEmit", UsharpSeverity.Error, "节点聚拢声明不可产出", "domainId"),
+        E(HierarchySchemaAbsent, "HierarchyEmit", UsharpSeverity.Info,
+            "本编译无 [Space] contains= 声明（无层次面可产出）", "file"),
 
         E(ObsEntityScopeUndefined, "Obs", UsharpSeverity.Error, "entity 的 scope 未声明", "obsId"),
         E(ObsEmitUndeclared, "Obs", UsharpSeverity.Error, "emit= 事件未声明", "flowId, key"),

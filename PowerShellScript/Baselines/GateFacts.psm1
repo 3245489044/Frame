@@ -212,12 +212,51 @@ function Get-GateContractFacts {
     return $facts
 }
 
+# 文本读取单源（缺件 → ''）：避免本文件再复制一份 Read-Text。
+# 注意：嵌套导入**不加 -Force**（-Force 会把调用方会话里已加载的同名模块卸载）。
+Import-Module (Join-Path $PSScriptRoot '..\Operation\DSL\Meta\TextOps.psm1') -DisableNameChecking
+
+<#
+.SYNOPSIS
+    声明中的 [Gather] 域清单（去重 + 排序，规范集合）。
+.DESCRIPTION
+    收敛 3 份域内 Get-GatherDomains（其中 2 份未排序，同一集合在比对时产生假差异）。
+    缺件 ⇒ @()（调用方自行决定“无声明”是否违规）；重复域 ⇒ 去重。
+.PARAMETER Path
+    声明文件路径（优先）
+.PARAMETER Text
+    声明文本（未给 Path 时使用）
+.OUTPUTS
+    [string[]] 升序去重的域清单
+#>
+function Get-GateGatherDomains {
+    param(
+        [Parameter(Position = 0)][string]$Path = '',
+        [AllowNull()][AllowEmptyString()][string]$Text = ''
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($Path)) {
+        if (-not (Test-Path -LiteralPath $Path)) { return @() }
+        $Text = Read-TextFile -Path $Path
+    }
+    if ($null -eq $Text -or $Text.Length -eq 0) { return @() }
+
+    $domains = [System.Collections.Generic.List[string]]::new()
+    foreach ($m in [regex]::Matches($Text, '(?m)^\[Gather\]\s+(\S+)')) {
+        if (-not $domains.Contains($m.Groups[1].Value)) { $domains.Add($m.Groups[1].Value) }
+    }
+    return , ([string[]]($domains | Sort-Object))
+}
+
+New-Alias -Name Get-GatherDomains -Value Get-GateGatherDomains
+
 Export-ModuleMember -Function @(
     'Invoke-GateFactTool',
     'Get-GateGatherIssues',
+    'Get-GateGatherDomains',
     'Get-GateKeyspaceFactsText',
     'Test-GateFactTextEqual',
     'Get-GateTransferFacts',
     'Get-GatePsRuntimeFacts',
     'Get-GateContractFacts'
-)
+) -Alias @('Get-GatherDomains')

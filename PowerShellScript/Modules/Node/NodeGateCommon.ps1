@@ -187,44 +187,6 @@ function Get-PatternCountInFiles {
 #   （禁第二基线根；命名唯一性由 `Check-GateBaselines.ps1` U8 强制）。
 
 # ---------------- 输出原语 ----------------
-
-function Write-GateHeader {
-    param([string]$Title)
-    Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Cyan
-    Write-Host "  $Title" -ForegroundColor Cyan
-    Write-Host "============================================================" -ForegroundColor Cyan
-}
-
-function Write-GateVerdict {
-    param([System.Collections.Generic.List[string]]$Violations, [switch]$Check, [string]$Key = 'AgentFrameworkSingleSource')
-    if ($Violations.Count -eq 0) {
-        Write-Host ""
-        Write-Host "  [PASS] $Key：0 违规" -ForegroundColor Green
-        Write-Host ""
-        exit 0
-    }
-    Write-Host ""
-    Write-Host "  违规明细（$($Violations.Count) 项）：" -ForegroundColor Yellow
-    foreach ($v in $Violations) { Write-Host "    - $v" -ForegroundColor Yellow }
-    Write-Host ""
-    if ($Check) { exit 1 }
-    exit 0
-}
-
-<# 基线核减判据（只减不增）：新增文件（不在基线表中）出现取值点即违规。 #>
-function Test-BaselineNoIncrease {
-    param([hashtable]$Counts, [hashtable]$Baselines, [string]$Label)
-    $violations = [System.Collections.Generic.List[string]]::new()
-    foreach ($k in $Counts.Keys) {
-        if (-not $Baselines.ContainsKey($k)) {
-            $violations.Add("$Label 新增散落点：$k = $($Counts[$k])（基线表无此项 ⇒ 只减不增禁新增）")
-            continue
-        }
-        if ($Counts[$k] -gt $Baselines[$k]) {
-            $violations.Add("$Label 取值点新增：$k = $($Counts[$k]) > 基线 $($Baselines[$k])（只减不增）")
-        }
-    }
-    return $violations
-}
+# Write-GateHeader / Write-GateVerdict / Test-BaselineNoIncrease 一律由 Baselines\GateRuntime.psm1 提供（单源）。
+# 本文件不再保留副本：框架修一次即全局生效，避免「副本永远旧」。
 

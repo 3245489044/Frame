@@ -15,12 +15,18 @@
 
     使用（门禁脚本头部）：
         Import-Module (Join-Path $PSScriptRoot '..\..\..\..\Baselines\GateFileIndex.psm1') -Force
-        $files = Get-GateFiles -Root $scanDir -Extension cs -Exclude '\\(obj|bin|BuildOutput)\\'
+        $files = Get-GateFiles -Root $scanDir -Extension cs
+        # -Exclude 缺省 = GateRuntime.Get-GateSourceExcludePattern（obj/bin/BuildOutput/_deprecated 单源）
+        # 需要包含构建产物时显式 -IncludeBuildOutput（或自行传 -Exclude）。
 
 .NOTES
     只用于**源文件**（ts/cs/ps1/...）；运行期数据（*.db*）、被 .gitignore 排除但仍需审计的生成物
     必须继续使用定向 `Get-ChildItem`，并登记到 GateFileIndex.psd1 的 Allowlist。
 #>
+
+# 排除集单源：默认 -Exclude 取自 GateRuntime（不复制第二个正则常量）。
+# 注意：嵌套导入**不加 -Force**（-Force 会把调用方会话里已加载的同名模块卸载）。
+Import-Module (Join-Path $PSScriptRoot 'GateRuntime.psm1') -DisableNameChecking
 
 $script:Cache = @{}
 $script:Stats = @{
@@ -156,17 +162,24 @@ function Get-GateFiles {
     .PARAMETER Extension
         扩展名（不带点；可多值）。空 = 不按扩展名过滤。
     .PARAMETER Exclude
-        绝对路径排除正则（反斜杠分隔；如 '\\(obj|bin|node_modules)\\'）。
+        绝对路径排除正则（反斜杠分隔）。缺省 = Get-GateSourceExcludePattern（D5 单源）；
+        显式传入时以调用方为准。
+    .PARAMETER IncludeBuildOutput
+        关闭缺省排除（含 obj/bin/BuildOutput/_deprecated）。显式 -Exclude 优先。
     #>
     param(
         [Parameter(Mandatory = $true)][string]$Root,
         [string[]]$Extension = @(),
         [string]$Exclude = '',
+        [switch]$IncludeBuildOutput,
         [switch]$Refresh,
         [switch]$NoCache
     )
 
     if (-not (Test-Path -LiteralPath $Root)) { return @() }
+    if ([string]::IsNullOrWhiteSpace($Exclude) -and -not $IncludeBuildOutput) {
+        $Exclude = Get-GateSourceExcludePattern
+    }
 
     $rootFull = [IO.Path]::GetFullPath($Root).TrimEnd('\')
     $extSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -266,6 +279,37 @@ function Find-GatePattern {
     return $hits
 }
 
+function Measure-GatePatternCount {
+    <#
+    .SYNOPSIS
+        命中计数（文件数 / 行数）——复用 Find-GatePattern，不做语义解释。
+    .DESCRIPTION
+        动机：6 份域内 Get-Count 直接 `[regex]::Matches` 全文件文本，无法区分「同一行多处」
+        与「多行命中」，也无法与 Find-GatePattern 的行级口径对齐。本函数统一返回两者。
+    .PARAMETER Files
+        待扫描文件绝对路径
+    .PARAMETER Pattern
+        行级正则
+    .PARAMETER SkipComments
+        跳过整行注释（透传 Find-GatePattern）
+    .OUTPUTS
+        { Count = 命中文件数; Hits = 命中行数; Files = 命中文件清单 }
+    #>
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$Files,
+        [Parameter(Mandatory = $true)][string]$Pattern,
+        [switch]$SkipComments
+    )
+
+    $hits = @(Find-GatePattern -Files $Files -Pattern $Pattern -SkipComments:$SkipComments)
+    $hitFiles = @($hits | ForEach-Object { $_.File } | Select-Object -Unique)
+    return [pscustomobject]@{
+        Count = $hitFiles.Count
+        Hits  = $hits.Count
+        Files = $hitFiles
+    }
+}
+
 function Export-GateFileIndexCache {
     <#
     .SYNOPSIS
@@ -289,11 +333,14 @@ function Export-GateFileIndexCache {
     $payload | ConvertTo-Json -Depth 4 -Compress | Set-Content -LiteralPath $Path -Encoding UTF8
 }
 
+New-Alias -Name Get-GatePatternCount -Value Measure-GatePatternCount
+
 Export-ModuleMember -Function @(
     'Resolve-GateWorktree',
     'Get-GateFiles',
     'Find-GatePattern',
+    'Measure-GatePatternCount',
     'Get-GateFileStats',
     'Clear-GateFileIndexCache',
     'Export-GateFileIndexCache'
-)
+) -Alias @('Get-GatePatternCount')

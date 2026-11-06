@@ -278,6 +278,7 @@ Cli / Bundle       ──► 取数与打包入口（build / lint / graph / matr
 | `US5007` | error | RefEdgeEmit：归属边声明不可产出 |
 | `US5008` | error | DomainEmit：节点域定义不可产出 |
 | `US5009` | error | GatherEmit：节点聚拢声明不可产出 |
+| `US5010` | info | HierarchyEmit：本编译无 `[Space] contains=` 声明（无层次面可产出） |
 | `US6001` | error | Obs：entity 的 scope 未声明 |
 | `US6002` | error | Obs：emit= 事件未声明 |
 | `US6003` | error | Obs：观测声明重复 |

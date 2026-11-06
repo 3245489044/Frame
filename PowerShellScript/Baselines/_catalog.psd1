@@ -127,7 +127,9 @@
         # ---- Role=Lib（原语代码；改动面大，固定留根，禁按域搬迁）----
         @{ File = 'GateBaseline.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateFileIndex.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
+        @{ File = 'GateParsing.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateRuntime.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
+        @{ File = 'GateStructureFacts.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'DeclarationPathResolver.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-ConfigPaths.ps1' }
 
         @{ File = 'GateFacts.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }

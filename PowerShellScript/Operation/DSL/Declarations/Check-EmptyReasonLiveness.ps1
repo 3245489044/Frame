@@ -18,28 +18,37 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects')))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    $ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'EmptyReasonLiveness'
+    $Root = $ctx.Root
 }
 
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
 # 受控码表已下沉 Modules\Foundations\PortContext（Share 侧仅留装配器）；判据载体随实现位置，禁指向旧路径。
-$specPath = Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\PortContext\PortContextSpec.cs'
+$framePrj = Join-Path (Get-MappedPath -Key 'Frame') 'CsharpPrj'
+$specPath = Join-Path $framePrj 'Modules\Foundations\PortContext\PortContextSpec.cs'
+$agentSrc = Get-MappedPath -Key 'AgentSrc'
 $producerPaths = @(
-    (Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\PortContext\PortContextAssembler.cs'),
-    (Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\PortContext\PortContextAssembler.Loaders.cs'),
-    (Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\PortContext\PortContextModel.cs'),
-    (Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\PortContext\PortContextPage.cs'),
-    (Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\PortContext\PortContextPorts.cs'),
-    (Join-Path $Root 'Frame\CsharpPrj\Modules\Foundations\PortContext\PortContextConsumers.cs'),
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\Session\PortContextAssembly.cs'),
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Launcher\Composition\Hosting\Session\PortContextAssembly.Adapters.cs')
+    (Join-Path $framePrj 'Share\Frameworks\PortContext\PortContextAssembler.cs'),
+    (Join-Path $framePrj 'Share\Frameworks\PortContext\PortContextAssembler.Loaders.cs'),
+    (Join-Path $framePrj 'Modules\Foundations\PortContext\PortContextModel.cs'),
+    (Join-Path $framePrj 'Modules\Foundations\PortContext\PortContextPage.cs'),
+    (Join-Path $framePrj 'Modules\Foundations\PortContext\PortContextPorts.cs'),
+    (Join-Path $framePrj 'Modules\Foundations\PortContext\PortContextConsumers.cs'),
+    (Join-Path $agentSrc 'Agent.Launcher\Composition\Hosting\Session\PortContextAssembly.cs'),
+    (Join-Path $agentSrc 'Agent.Launcher\Composition\Hosting\Session\PortContextAssembly.Adapters.cs')
 )
 $consumerPaths = @(
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs'),
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Session\Projection\History\HistoryTaskRuntimePromptProjector.cs'),
-    (Join-Path $Root 'Projects\Plug\Agent\src\Agent.Modules\Response\Runtime\HistorySessionSeedContributor.cs')
+    (Join-Path $agentSrc 'Agent.Ui\Core\Projection\HistoryBoardReadModelProjector.cs'),
+    (Join-Path $agentSrc 'Agent.Session\Projection\History\HistoryTaskRuntimePromptProjector.cs'),
+    (Join-Path $agentSrc 'Agent.Modules\Response\Runtime\HistorySessionSeedContributor.cs')
 )
 
 function Read-All([string[]]$paths) {

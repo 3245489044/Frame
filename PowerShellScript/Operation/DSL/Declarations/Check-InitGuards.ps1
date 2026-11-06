@@ -24,13 +24,20 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects')))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root))
 {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    $ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'InitGuards'
+    $Root = $ctx.Root
 }
 
 # 基线单源 = Baselines\Declarations\InitGuards.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
-Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
+Import-Module (Join-Path (Get-MappedPath -Key 'Baselines') 'GateBaseline.psm1') -Force
 $baseline = Import-GateBaseline -Name InitGuards
 
 $violations = [System.Collections.Generic.List[string]]::new()
@@ -42,9 +49,9 @@ Write-Host "============================================================" -Foreg
 
 # 扫描面 = Frame\CsharpPrj ∪ Projects\Plug\Agent\src（与 Check-FallbackInventory 同口径）
 $scanRoots = [System.Collections.Generic.List[string]]::new()
-$frameRoot = Join-Path $Root 'Frame\CsharpPrj'
+$frameRoot = Join-Path (Get-MappedPath -Key 'Frame') 'CsharpPrj'
 if (Test-Path -LiteralPath $frameRoot) { $scanRoots.Add($frameRoot) }
-$agentRoot = Join-Path $Root 'Projects\Plug\Agent\src'
+$agentRoot = Get-MappedPath -Key 'AgentSrc'
 if (Test-Path -LiteralPath $agentRoot) { $scanRoots.Add($agentRoot) }
 
 $allCs = @()

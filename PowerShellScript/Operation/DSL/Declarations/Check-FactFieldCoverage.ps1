@@ -20,8 +20,15 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects')))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    $ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -NegativeControl:$NegativeControl -Key 'FactFieldCoverage'
+    $Root = $ctx.Root
 }
 
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
@@ -78,14 +85,14 @@ function Test-Coverage([hashtable]$Products, $Faces, [string[]]$RequiredFacts) {
     return $violations
 }
 
-$graphPath = Join-Path $Root 'Projects\Plug\Agent\Config\model\graph\graph.ushar'
+$graphPath = Join-Path (Get-MappedPath -Key 'AgentConfig') 'model\graph\graph.ushar'
 $declared = Read-Graph $graphPath
 $required = @('empty_reason', 'synthetic', 'window_digest')
 $violations = Test-Coverage -Products $declared.Products -Faces $declared.Faces -RequiredFacts $required
 
 # FC4 数值同源（read-paths ↔ C# 常量）
-$readPaths = Join-Path $Root 'Projects\Plug\Agent\Config\nodes\read-paths.json'
-$specPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Session\Projection\History\HistoryPortContextSpec.cs'
+$readPaths = Join-Path (Get-MappedPath -Key 'AgentConfig') 'nodes\read-paths.json'
+$specPath = Join-Path (Get-MappedPath -Key 'AgentSrc') 'Agent.Session\Projection\History\HistoryPortContextSpec.cs'
 if ((Test-Path -LiteralPath $readPaths) -and (Test-Path -LiteralPath $specPath)) {
     $json = Get-Content -LiteralPath $readPaths -Raw | ConvertFrom-Json
     $context = $json.windowContext.taskContext

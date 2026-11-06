@@ -36,11 +36,11 @@
     "CentralTestGate": "Environment/CentralTest/Tools/Gate"
   },
   "gateDomains": {
-    "Meta": ["Environment/CentralTest/Tools/Gate/Meta", "Frame/PowerShellScript/Operation/DSL/Meta"],
-    "Agent": ["Environment/CentralTest/Tools/Gate/Agent", "Frame/PowerShellScript/Operation/DSL/Agent"],
+    "Meta": ["Environment/CentralTest/Tools/Gate/Meta", "Environment/CentralTest/Tools/Gate/Agent", "Frame/PowerShellScript/Operation/DSL/Meta"],
+    "Agent": ["Environment/CentralTest/Tools/Gate/Agent", "Environment/CentralTest/Tools/Gate/Usharp", "Environment/CentralTest/Tools/Gate/Meta", "Frame/PowerShellScript/Operation/DSL/Agent"],
     "Data": ["Environment/CentralTest/Tools/Gate/Data", "Frame/PowerShellScript/Operation/DSL/Data"],
     "Spec": ["Environment/CentralTest/Tools/Gate/Spec", "Environment/CentralTest/Tools/Gate", "Frame/PowerShellScript/Operation/DSL/Spec"],
-    "Process": ["Environment/CentralTest/Tools/Gate/Process", "Frame/PowerShellScript/Operation/DSL/Process"],
+    "Process": ["Environment/CentralTest/Tools/Gate/Process", "Environment/CentralTest/Tools/Gate/Agent", "Frame/PowerShellScript/Operation/DSL/Process"],
     "Usharp": ["Environment/CentralTest/Tools/Gate/Usharp", "Frame/PowerShellScript/Operation/DSL/Usharp"],
     "Declarations": ["Environment/CentralTest/Tools/Gate/Declarations", "Frame/PowerShellScript/Operation/DSL/Declarations"],
     "Node": ["Environment/CentralTest/Tools/Gate/Node", "Frame/PowerShellScript/Modules/Node", "Frame/PowerShellScript/Operation/DSL/Node"],

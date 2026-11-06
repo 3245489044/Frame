@@ -457,7 +457,7 @@
     }
 
     VmKernelReferenceBoundary = @{
-        Domain = 'Agent'
+        Domain = 'Process'
         Family = 'Boundary'
         Form   = 'Boundary'
         Args   = @{ Check = $true }
@@ -665,7 +665,7 @@
     }
 
     FallbackInventoryRate = @{
-        Domain = 'Meta'
+        Domain = 'Agent'
         Family = 'Meta'
         Form   = 'Ratchet'
         Args   = @{ Check = $true; NegativeControl = $true }
@@ -1021,7 +1021,7 @@
     DomainWireSingleSource = @{
         Domain = 'Node'
         Expect = 0
-        Note   = '节点域接入聚拢点守卫 D1–D3（R4/R5）：派生面（instances\nodes.json 的 placements[] + placement.ushar 的 LocPlacement/LocToPlacement 行）≡ 声明真源 Config\nodes\*.json 的位置并集（漂移即红，-Write 可生成）；散弹点棘轮（per-domain 槽键常量 / 声明路径常量 / 载体工厂方法，报告模式起步，基线 Baselines\Node\DomainWireSingleSource.psd1）；正对照（声明面 ≥ 基线位置数）+ 负对照（合成 per-domain 形态必被捕获）'
+        Note   = '节点域接入聚拢点守卫 D1–D3（R4/R5）：派生面（instances\nodes.json 的 placements[] + placement.ushar 的 LocPlacement/LocToPlacement 行）≡ 声明真源 Config\nodes\*.json 的位置并集（漂移即红；生成分支已拆到 Frame 侧产品生成器 New-NodePlacementDeclaration.ps1，迁入件只做只读对账）；散弹点棘轮（per-domain 槽键常量 / 声明路径常量 / 载体工厂方法，报告模式起步，基线 Baselines\Node\DomainWireSingleSource.psd1）；正对照（声明面 ≥ 基线位置数）+ 负对照（合成 per-domain 形态必被捕获）'
     }
     TextClipSingleSource = @{
         Domain = 'Node'
@@ -1215,7 +1215,7 @@
     }
 
     AgentStorageIsolation = @{
-        Domain = 'Usharp'
+        Domain = 'Agent'
         Family = 'Boundary'
         Form   = 'Boundary'
         Args   = @{}
@@ -2017,7 +2017,7 @@
     }
 
     ActionCatalogSingleSource = @{
-        Domain = 'Agent'
+        Domain = 'Process'
         Family = 'Contract'
         Form   = 'SingleSource'
         Args   = @{ Check = $true }
@@ -2057,7 +2057,7 @@
     }
 
     ScriptNoFixedSleep = @{
-        Domain = 'Agent'
+        Domain = 'Meta'
         Family = 'Meta'
         Form   = 'Ratchet'
         Args   = @{ Check = $true }

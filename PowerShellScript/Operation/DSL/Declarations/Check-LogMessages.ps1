@@ -63,16 +63,20 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects')))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$__psRoot = Get-MappedPath -Key 'PowerShellScript'
+
 # ---- 框架加载（owner-aware；经 PScriptManager\Framework 编译表解析，路径无关）----
-$__repo = $PSScriptRoot
-while ($__repo -and -not (Test-Path -LiteralPath (Join-Path $__repo '.git'))) { $__repo = Split-Path -Parent $__repo }
-if (-not $__repo) { throw '无法定位仓库根（.git）' }
-. (Join-Path $__repo 'PowerShellScript\PScriptManager\Framework\FrameworkRequires.ps1')
+. (Join-Path $__psRoot 'PScriptManager\Framework\FrameworkRequires.ps1')
 Import-FrameworkRequires -Name @('Get-ProjectRoot','Get-FileList','Get-MsgIdDynamicMatches','Get-MsgIdLiteralCallMatches','Get-MsgIdSourceIndex','Get-MsgIdKeyPrefixIndex','Test-MsgIdReferenced') -Owner @{ 'Get-ProjectRoot' = 'PowerShellScript/Modules/Core/ReadProjectConfig.ps1' }
 
 # FrameworkRequires 在函数作用域内 dot-source .ps1 文件，函数返回后不可见；
 # 直接在脚本作用域 dot-source ReadProjectConfig.ps1 以确保 Get-ProjectRoot 可用
-$__rpc = Join-Path $__repo 'PowerShellScript\Modules\Core\ReadProjectConfig.ps1'
+$__rpc = Join-Path $__psRoot 'Modules\Core\ReadProjectConfig.ps1'
 if (Test-Path -LiteralPath $__rpc) { . $__rpc }
 
 # ---- 仓库根定位 ----
@@ -322,7 +326,7 @@ Write-Host ("`n[Check-LogMessages] 定义文件 {0} 个，注册 msgId {1} 个�
 # 口径：增量即违规（新引入的动态 msgId / 未注册引用 / 孤儿声明必须当场可见，不得靠「降基线」通过）；
 #       低于基线只提示可收紧，不自动写（防静默放宽）。基线缺失/不可解析 ⇒ 仅报告不拦（不阻断新库首跑）。
 if ([string]::IsNullOrWhiteSpace($BaselinePath)) {
-    $BaselinePath = Join-Path $PSScriptRoot '..\Registry\LogMessagesBaseline.json'
+    $BaselinePath = Join-Path (Get-MappedPath -Key 'GateRegistry') 'LogMessagesBaseline.json'
 }
 $measured = [ordered]@{
     dynamic      = $dynamicFound.Count

@@ -34,6 +34,8 @@
     <Compile Remove="DslMethod\**\*.cs" />
     <Compile Remove="MarkdownViewer\**\*.cs" />
     <Compile Remove="HtmlViewer\**\*.cs" />
+    <!-- ★ Surface：容器契约独立工程（BCL-only，HtmlViewer/Share/Operation 共用），聚合经 ProjectReference 引用，须排除源码避免 CS0433 -->
+    <Compile Remove="Surface\**\*.cs" />
     <Compile Remove="HttpMethod\**\*.cs" />
     <Compile Remove="XmlMethod\**\*.cs" />
     <!-- ★ 同族独立子项目（Mathematics/RoslynMethod）：聚合项目经 ProjectReference 引用，须排除其源码避免类型在 Plate.dll 重复编译（CS0433） -->
@@ -60,6 +62,7 @@
     <ProjectReference Include="$(Proj_DslMethod)" />
     <ProjectReference Include="$(Proj_MarkdownViewer)" />
     <ProjectReference Include="$(Proj_HtmlViewer)" />
+    <ProjectReference Include="$(Proj_Plate_Surface)" />
     <ProjectReference Include="$(Proj_HttpMethod_Transport)" />
     <!-- ★ HttpMethod.Host（Kestrel 宿主）与 Transport 同族，聚合项目一并承载，供上层直接消费 -->
     <ProjectReference Include="$(Proj_HttpMethod_Host)" />

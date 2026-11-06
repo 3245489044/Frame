@@ -129,6 +129,7 @@
         @{ File = 'GateFileIndex.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateParsing.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateRuntime.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
+        @{ File = 'GateCallBinding.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateStructureFacts.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'DeclarationPathResolver.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-ConfigPaths.ps1' }
 

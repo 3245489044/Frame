@@ -101,5 +101,3 @@ public sealed class UiViewBlueprintCatalog
         }
     }
 }
-
-

@@ -36,12 +36,18 @@ $script:Stats = @{
     Ms        = 0
 }
 
-# 索引面：源文件 + 工程声明。刻意不含 .md/.json（多数门禁只扫源码；需要时显式加扩展名）。
+# 索引面：源文件 + 工程声明 + 声明/数据资产。
+# 刻意不含 .md（文档，非判据载体）；json / ushar 必须纳入：
+#   · ushar = 声明资产（`[Gather]/[Edge]/[Table]` 等），Check-DeclaredFlowConsumers 曾因索引缺此扩展而恒红；
+#   · json  = 数据资产（`*_log_messages.json`、`*.contracts.json`、`contracts.index.json`），Check-LogMessages / Check-RuntimeMirror / Check-ContractRegistry 依赖；
+#   · bat   = 构建/发布脚本（Runtime 镜像生成链），Check-RuntimeMirror 需按脚本内容对账。
+# 量级（2026-11-06 实测）：json 652 / ushar 330（四个工作树合计，已被 gitignore 剔除），对索引内存与枚举耗时可忽略。
 $script:IndexExtensions = @(
     'ts', 'tsx', 'mts', 'cts',
     'js', 'mjs', 'cjs',
     'cs', 'ps1', 'psm1', 'psd1',
-    'specs', 'csproj', 'props', 'targets', 'sln', 'slnx'
+    'specs', 'csproj', 'props', 'targets', 'sln', 'slnx',
+    'json', 'ushar', 'bat'
 )
 
 function Resolve-GateWorktree {
@@ -137,7 +143,8 @@ function Get-GateIndex {
         foreach ($r in @($ignoredText -split "`0" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
             try {
                 $abs = [IO.Path]::GetFullPath((Join-Path $Worktree $r)).Replace('/', '\')
-                if ($abs -match '\\(obj|bin|BuildOutput|node_modules|_deprecated|backups)\\') { continue }
+                # 与 Get-GateSourceExcludePattern 同源（禁第二份排除清单；含 Runtime\Payload 部署镜像）。
+                if ($abs -match (Get-GateSourceExcludePattern)) { continue }
                 if ($seen.Add($abs)) { $files.Add($abs) }
             } catch {
                 # 单条坏路径不阻断整体索引
@@ -192,6 +199,17 @@ function Get-GateFiles {
     $index = $null
     if ($worktree) {
         $index = Get-GateIndex -Worktree $worktree -Refresh:$Refresh -NoCache:$NoCache
+    }
+
+    # fail-closed：请求的扩展名不在索引面 ⇒ 回退递归枚举（否则索引过滤会静默返回 0）。
+    if ($null -ne $index -and $extSet.Count -gt 0) {
+        $indexed = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($e in $script:IndexExtensions) { [void]$indexed.Add($e) }
+        $missing = @($extSet | Where-Object { -not $indexed.Contains($_) })
+        if ($missing.Count -gt 0) {
+            Write-Warning ("[GateFileIndex] 索引未覆盖扩展名（{0}），本调用回退递归枚举：{1}" -f ($missing -join ','), $rootFull)
+            $index = $null
+        }
     }
 
     if ($null -eq $index) {
@@ -256,16 +274,28 @@ function Find-GatePattern {
         行级正则（[regex]::IsMatch）。
     .PARAMETER SkipComments
         跳过整行注释（`//`、`*`、`/*`、`#` 开头）；行尾注释不剥离（保持行文本原样）。
+    .PARAMETER Exclude
+        绝对路径排除正则（反斜杠分隔）。缺省 = Get-GateSourceExcludePattern（D5 单源，
+        含 obj/bin/BuildOutput/_deprecated/测试产物/`Runtime\Payload` 镜像）；显式传入时以调用方为准。
+    .PARAMETER IncludeBuildOutput
+        关闭缺省排除（要让镜像/构建产物进入统计时才用）。
     #>
     param(
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$Files,
         [Parameter(Mandatory = $true)][string]$Pattern,
-        [switch]$SkipComments
+        [switch]$SkipComments,
+        [string]$Exclude = '',
+        [switch]$IncludeBuildOutput
     )
+
+    if ([string]::IsNullOrWhiteSpace($Exclude) -and -not $IncludeBuildOutput) {
+        $Exclude = Get-GateSourceExcludePattern
+    }
 
     $hits = [System.Collections.Generic.List[object]]::new()
     foreach ($f in @($Files)) {
         if ([string]::IsNullOrWhiteSpace($f) -or -not (Test-Path -LiteralPath $f)) { continue }
+        if (-not [string]::IsNullOrWhiteSpace($Exclude) -and $f -match $Exclude) { continue }
         $lineNo = 0
         foreach ($line in [System.IO.File]::ReadAllLines($f)) {
             $lineNo++

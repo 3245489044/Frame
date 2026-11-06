@@ -398,15 +398,34 @@ foreach ($precondition in @($contract['Preconditions'])) {
     switch ([string]$precondition) {
         'none' { Write-LaunchTrace 'STEP' '[S5] 前置：none（跳过）' }
         'assembly-closure' {
-            $closureGate = Join-Path $repoRoot 'Frame\PowerShellScript\Operation\DSL\Meta\Check-AssemblyClosure.ps1'
-            if (-not (Test-Path -LiteralPath $closureGate)) {
-                Write-LaunchTrace 'ERROR' ('[S5] 装配闭包：fail 缺失断言件 ' + $closureGate)
-                Write-LaunchConsole ('[launch] exit 2：装配闭包断言件缺失 ' + $closureGate) 'Red'
+            # 门禁落点单源 = GateRuntime.Find-GateScript（委托 directory-map.json 的 gateDomains）；
+            # 禁在本脚本内联硬编码 DSL/Gate 物理路径——门禁搬迁后启动面必须自动跟随。
+            $gateRuntime = Join-Path $repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1'
+            $closureGate = ''
+            if (Test-Path -LiteralPath $gateRuntime) {
+                Import-Module $gateRuntime -Force -DisableNameChecking
+                try { $closureGate = [string](Find-GateScript -Name 'AssemblyClosure' -Domain 'Meta') } catch { $closureGate = '' }
+            }
+            else {
+                Write-LaunchTrace 'WARN' ('[S5] 装配闭包：门禁运行时缺失 ' + $gateRuntime)
+            }
+            Write-LaunchTrace 'EVIDENCE' ('[S5] 装配闭包：gate=' + $closureGate)
+            if ([string]::IsNullOrWhiteSpace($closureGate) -or -not (Test-Path -LiteralPath $closureGate)) {
+                Write-LaunchTrace 'ERROR' ('[S5] 装配闭包：fail 缺失断言件 ' + $closureGate + '（解析面 AssemblyClosure@Meta）')
+                Write-LaunchConsole '[launch] exit 2：装配闭包断言件缺失（解析面 AssemblyClosure@Meta 不可得）' 'Red'
                 Exit-Launch -Code 2
             }
             $sw = [System.Diagnostics.Stopwatch]::StartNew()
-            & $closureGate -Check
-            $closureRc = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+            # fail-closed：先置哨兵 -1，门禁「未 exit 就崩溃」不得被读成通过（0）
+            $LASTEXITCODE = -1
+            try { & $closureGate -Check }
+            catch {
+                $sw.Stop()
+                Write-LaunchTrace 'ERROR' ('[S5] 装配闭包：异常 ' + $_.Exception.Message)
+                Write-LaunchConsole ('[launch] exit 3：装配闭包判定不可得（' + $_.Exception.Message + '）') 'Red'
+                Exit-Launch -Code 3
+            }
+            $closureRc = if ($null -eq $LASTEXITCODE) { -1 } else { $LASTEXITCODE }
             $sw.Stop()
             Write-LaunchTrace 'STEP' ("[S5] 装配闭包：result={0} exit={1} took_ms={2}" -f $(if ($closureRc -eq 0) { 'ok' } else { 'fail' }), $closureRc, [int]$sw.Elapsed.TotalMilliseconds)
             if ($closureRc -ne 0) {

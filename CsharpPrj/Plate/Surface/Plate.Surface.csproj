@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>UiBackend</RootNamespace>
+    <AssemblyName>Plate.Surface</AssemblyName>
+    <Description>表面容器契约（BCL-only）：视图程序 / 容器 / 结构槽 / 状态迁移。零载体方言、零配置 I/O；由 HtmlViewer、Share、Operation 复用（Gen-3 Surface Fabric 的底层契约件）。</Description>
+  </PropertyGroup>
+
+</Project>

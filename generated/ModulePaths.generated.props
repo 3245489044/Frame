@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-06 12:29:57
+  生成时间: 2026-11-06 18:36:23
 -->
 <Project>
 
@@ -103,6 +103,7 @@
     <Mod_DslMethod>$(CsharpPrjDir)Plate\DslMethod\</Mod_DslMethod>
     <Mod_StructuralWalk>$(CsharpPrjDir)Plate\StructuralWalk\</Mod_StructuralWalk>
     <Mod_HtmlViewer>$(CsharpPrjDir)Plate\HtmlViewer\</Mod_HtmlViewer>
+    <Mod_Plate_Surface>$(CsharpPrjDir)Plate\Surface\</Mod_Plate_Surface>
     <Mod_HttpMethod_Host>$(CsharpPrjDir)Plate\HttpMethod\</Mod_HttpMethod_Host>
     <Mod_HttpMethod_Transport>$(CsharpPrjDir)Plate\HttpMethod\</Mod_HttpMethod_Transport>
     <Mod_JsonMethod>$(CsharpPrjDir)Plate\JsonMethod\</Mod_JsonMethod>
@@ -248,6 +249,7 @@
     <Proj_DslMethod>$(CsharpPrjDir)Plate\DslMethod\DslMethod.csproj</Proj_DslMethod>
     <Proj_StructuralWalk>$(CsharpPrjDir)Plate\StructuralWalk\StructuralWalk.csproj</Proj_StructuralWalk>
     <Proj_HtmlViewer>$(CsharpPrjDir)Plate\HtmlViewer\HtmlViewer.csproj</Proj_HtmlViewer>
+    <Proj_Plate_Surface>$(CsharpPrjDir)Plate\Surface\Plate.Surface.csproj</Proj_Plate_Surface>
     <Proj_HttpMethod_Host>$(CsharpPrjDir)Plate\HttpMethod\HttpMethod.Host.csproj</Proj_HttpMethod_Host>
     <Proj_HttpMethod_Transport>$(CsharpPrjDir)Plate\HttpMethod\HttpMethod.Transport.csproj</Proj_HttpMethod_Transport>
     <Proj_JsonMethod>$(CsharpPrjDir)Plate\JsonMethod\JsonMethod.csproj</Proj_JsonMethod>

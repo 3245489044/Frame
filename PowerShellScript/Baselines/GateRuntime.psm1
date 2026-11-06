@@ -182,9 +182,12 @@ function Initialize-GateModule {
       Baseline 棘轮基线（Mode=target/le；缺省 soft 目标比较的硬阈）
       Target   soft 目标（非 -Final 时：Actual > Target 且 ≤ Baseline ⇒ 待消除；-Final 时升为硬阈）
       Mode     eq | le | ge | target（缺省：有 Target/Baseline ⇒ target；有 Expected ⇒ eq；否则 le）
-      Kind     count | control | attest
+      Kind     count | control | attest | warn
                control = 正/负对照自证（Id/Predicate/Good/Bad），委托 Assert-GateControls；
-               attest 只可见化，不判失败
+               attest 只可见化，不判失败；
+               warn   求值照常（eq/le/ge/target 都判），判定不符进告警通道、不进违规；
+                      但「判别不可执行」类（缺 Actual/Measure、Actual=-1 缺证、缺 Expected/Baseline、
+                      缺 Baseline/Target、未知 Mode、判据面失效）仍进违规 —— fail-closed 不因降级告警而失守
       Batch    批次号（待消除/运行期文案）
       Pattern  检索词（Actual=-1 时回显）
 
@@ -205,12 +208,14 @@ function Initialize-GateModule {
     `Kind=control` 的文件型对照样本落盘目录（逐条可用 FixtureRoot 覆盖）。
 .PARAMETER Violations
     既有违规清单（`$ctx.Violations`）；本批违规追加进去。
+.PARAMETER Warnings
+    既有告警清单；`Kind=warn` 的判定不符项追加进去（与违规清单分账，不影响 Exit）。
 .PARAMETER Hint
     -Verdict 时传给 Write-GateVerdict 的修复口径。
 .PARAMETER Verdict
     本批结束后直接调用 Write-GateVerdict 并 exit（终止式；与旧门禁尾巴等价）。
 .OUTPUTS
-    { Key; Total; Search; Attest; Passed; Pending; Violations; ViolationCount; Exit }
+    { Key; Total; Search; Attest; Passed; Pending; Warnings; WarningCount; Violations; ViolationCount; Exit }
 #>
 function Invoke-GateCountChecks {
     [CmdletBinding()]
@@ -226,6 +231,7 @@ function Invoke-GateCountChecks {
         [switch]$NoHeader,
 
         [System.Collections.Generic.List[string]]$Violations,
+        [System.Collections.Generic.List[string]]$Warnings,
         [string]$Hint = '',
         [switch]$Verdict,
 
@@ -237,6 +243,7 @@ function Invoke-GateCountChecks {
     )
 
     $found = [System.Collections.Generic.List[string]]::new()
+    $warned = [System.Collections.Generic.List[string]]::new()
     $pending = [System.Collections.Generic.List[string]]::new()
     $attest = [System.Collections.Generic.List[string]]::new()
     $passed = 0
@@ -258,6 +265,13 @@ function Invoke-GateCountChecks {
         $kind = [string](Get-GateJsonProperty $c 'Kind')
         if ([string]::IsNullOrWhiteSpace($kind)) { $kind = 'count' }
         $batchText = if ([string]::IsNullOrWhiteSpace($batch)) { '' } else { "（批 $batch）" }
+
+        # Kind=warn：判定不符进告警通道；「判别不可执行」类仍留在 $found（fail-closed）。
+        # 注意用 if/else 语句赋值：空 List 走表达式赋值会被管道枚举成 $null。
+        $warnMode = ($kind -eq 'warn')
+        $findings = $null
+        # 注意：$Warnings 是参数（变量名大小写不敏感），本地清单必须另起名 $warned。
+        if ($warnMode) { $findings = $warned } else { $findings = $found }
 
         if ($kind -eq 'attest') {
             $attest.Add("$id $title$batchText")
@@ -348,8 +362,8 @@ function Invoke-GateCountChecks {
                 continue
             }
             if ($actual -ne $expected) {
-                $found.Add("$id $title：实测 $actual，期望 = $expected")
-                if ($Detail) { Write-Host ("  [超阈] {0,-4} {1,-46} {2,3} (期望 {3})" -f $id, $title, $actual, $expected) -ForegroundColor Yellow }
+                $findings.Add("$id $title：实测 $actual，期望 = $expected")
+                if ($Detail) { Write-Host ("  [{0}] {1,-4} {2,-46} {3,3} (期望 {4})" -f $(if ($warnMode) { '告警' } else { '超阈' }), $id, $title, $actual, $expected) -ForegroundColor $(if ($warnMode) { 'DarkYellow' } else { 'Yellow' }) }
                 continue
             }
             $passed++
@@ -361,8 +375,8 @@ function Invoke-GateCountChecks {
             }
             $ratchet = Test-BaselineNoIncrease -Counts @{ $id = $actual } -Baselines @{ $id = $expected } -Label "$label $id $title" -AsResult
             if ($ratchet.Status -eq 'Increase') {
-                foreach ($v in @($ratchet.Violations)) { $found.Add([string]$v) }
-                if ($Detail) { Write-Host ("  [超阈] {0,-4} {1,-46} {2,3} (基线 {3})" -f $id, $title, $actual, $expected) -ForegroundColor Yellow }
+                foreach ($v in @($ratchet.Violations)) { $findings.Add([string]$v) }
+                if ($Detail) { Write-Host ("  [{0}] {1,-4} {2,-46} {3,3} (基线 {4})" -f $(if ($warnMode) { '告警' } else { '超阈' }), $id, $title, $actual, $expected) -ForegroundColor $(if ($warnMode) { 'DarkYellow' } else { 'Yellow' }) }
                 continue
             }
             $passed++
@@ -373,8 +387,8 @@ function Invoke-GateCountChecks {
                 continue
             }
             if ($actual -lt $expected) {
-                $found.Add("$id $title：实测 $actual < 期望 $expected（下限不满足）")
-                if ($Detail) { Write-Host ("  [欠阈] {0,-4} {1,-46} {2,3} (期望 {3})" -f $id, $title, $actual, $expected) -ForegroundColor Yellow }
+                $findings.Add("$id $title：实测 $actual < 期望 $expected（下限不满足）")
+                if ($Detail) { Write-Host ("  [{0}] {1,-4} {2,-46} {3,3} (期望 {4})" -f $(if ($warnMode) { '告警' } else { '欠阈' }), $id, $title, $actual, $expected) -ForegroundColor $(if ($warnMode) { 'DarkYellow' } else { 'Yellow' }) }
                 continue
             }
             $passed++
@@ -395,8 +409,8 @@ function Invoke-GateCountChecks {
 
             if ($actual -gt $limit) {
                 $limitLabel = if ($Final -and $null -ne $target) { "目标 $target" } else { "基线 $baseline" }
-                $found.Add("$id $title：实测 $actual > $limitLabel$batchText —— 重复点新增/未收敛")
-                if ($Detail) { Write-Host ("  [超阈] {0,-4} {1,-46} {2,3}  ({3})" -f $id, $title, $actual, $limitLabel) -ForegroundColor Yellow }
+                $findings.Add("$id $title：实测 $actual > $limitLabel$batchText —— 重复点新增/未收敛")
+                if ($Detail) { Write-Host ("  [{0}] {1,-4} {2,-46} {3,3}  ({4})" -f $(if ($warnMode) { '告警' } else { '超阈' }), $id, $title, $actual, $limitLabel) -ForegroundColor $(if ($warnMode) { 'DarkYellow' } else { 'Yellow' }) }
                 continue
             }
             if (-not $Final -and $null -ne $target -and $actual -gt $target) {
@@ -417,8 +431,8 @@ function Invoke-GateCountChecks {
 
     $modeText = if ($Final) { '终态模式 (-Final)' } else { '基线模式（拦新增重复点）' }
     Write-Host ("[$label] 计数断言表 · $modeText")
-    Write-Host ("[$label] 断言 {0} 条（搜索 {1} / 对照 {2} / 运行期 {3}） | 通过 {4} | 待消除 {5} | 违规 {6}" -f `
-        $total, $search, $control, $attest.Count, $passed, $pending.Count, $found.Count)
+    Write-Host ("[$label] 断言 {0} 条（搜索 {1} / 对照 {2} / 运行期 {3}） | 通过 {4} | 待消除 {5} | 告警 {6} | 违规 {7}" -f `
+        $total, $search, $control, $attest.Count, $passed, $pending.Count, $warned.Count, $found.Count)
 
     if ($pending.Count -gt 0) {
         Write-Host "[$label] --- 待消除（基线已锁定，批完成后转 Target 判据） ---"
@@ -427,6 +441,10 @@ function Invoke-GateCountChecks {
     if ($attest.Count -gt 0) {
         Write-Host "[$label] --- 运行期判据（不判失败） ---"
         foreach ($a in $attest) { Write-Host "  - $a" }
+    }
+    if ($warned.Count -gt 0) {
+        Write-Host "[$label] 告警 $($warned.Count) 项（不进裁决，不阻断）："
+        foreach ($w in $warned) { Write-Host "  - $w" }
     }
     if ($found.Count -gt 0) {
         Write-Host "[$label] 违规 $($found.Count) 项："
@@ -441,6 +459,9 @@ function Invoke-GateCountChecks {
     if ($null -ne $Violations) {
         foreach ($v in $found) { $Violations.Add($v) }
     }
+    if ($null -ne $Warnings) {
+        foreach ($w in $warned) { $Warnings.Add($w) }
+    }
 
     $exit = 0
     if ($found.Count -gt 0 -and $Check) { $exit = 1 }
@@ -452,9 +473,119 @@ function Invoke-GateCountChecks {
         Attest         = $attest.Count
         Passed         = $passed
         Pending        = $pending
+        Warnings       = $warned
+        WarningCount   = $warned.Count
         Violations     = $found
         ViolationCount = $found.Count
         Exit           = $exit
+    }
+}
+
+<#
+.SYNOPSIS
+    规则表执行器（Ok 谓词逐条判定 + 统一违规文案）—— Presentation 规则表门的统一骨架。
+.DESCRIPTION
+    动机：Agent\Presentation 12 门各自复制「foreach 规则 → try/catch → 拼违规 → 打印 PASS/FAIL」循环，
+    异常口径（是否吞掉消息）、缺谓词处理、文案前缀各不相同。
+
+    规则对象（hashtable 或 pscustomobject）：
+      Id     规则编号（缺省 R1/R2…；违规文案前缀 `[Id]`）
+      Title  规则标题（Name 亦可；可为空 ⇒ 文案只留 `[Id]`）
+      Ok     判定脚本块（必须返回布尔；返回值按 [bool] 强制；抛异常 ⇒ 违规，不终止门禁）
+
+    判定顺序：逐条求值 `Ok`（异常即该条违规）→ 汇总 `Passed/Failed` → 返回结构化结果。
+    本函数**不 exit**：调用方把 `.Violations` 并入 `$ctx.Violations` 后交给 Write-GateVerdict。
+    正/负对照**不并入本表**：规则表断言对象是仓内事实，Good/Bad 是谓词自证；
+    谓词自证请用 `Assert-GateControls`（T7），计数断言请用 `Invoke-GateCountChecks`。
+.PARAMETER Rules
+    规则表（空表 ⇒ 违规「无规则不可采信」）。
+.PARAMETER Key
+    门名（打印前缀；缺省 GateRuleSet）。
+.PARAMETER Violations
+    既有违规清单（`$ctx.Violations`）；失败项追加进去。
+.PARAMETER Detail
+    逐条打印判定结果（默认打印）。
+.PARAMETER ShowException
+    异常信息随违规文案一并输出（缺省吞掉，与多数现有门一致）。
+.PARAMETER NoPrint
+    不打印逐条 PASS/FAIL（仅收集结果）。
+.OUTPUTS
+    { Key; Total; Passed; Failed; Violations; ViolationCount; Exit }
+#>
+function Invoke-GateRuleSet {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [AllowEmptyCollection()]
+        [object[]]$Rules,
+
+        [string]$Key = '',
+
+        [System.Collections.Generic.List[string]]$Violations,
+
+        [switch]$Detail,
+        [switch]$ShowException,
+        [switch]$NoPrint
+    )
+
+    $found = [System.Collections.Generic.List[string]]::new()
+    $label = if ([string]::IsNullOrWhiteSpace($Key)) { 'GateRuleSet' } else { $Key }
+    $total = 0
+    $passed = 0
+    $failed = 0
+
+    if (@($Rules).Count -eq 0) {
+        $found.Add("$label：无规则不可采信（规则表为空）")
+    }
+
+    foreach ($r in @($Rules)) {
+        if ($null -eq $r) { continue }
+        $total++
+        $id = [string](Get-GateJsonProperty $r 'Id')
+        if ([string]::IsNullOrWhiteSpace($id)) { $id = "R$total" }
+        $title = [string](Get-GateJsonProperty $r 'Title')
+        if ([string]::IsNullOrWhiteSpace($title)) { $title = [string](Get-GateJsonProperty $r 'Name') }
+        $text = if ([string]::IsNullOrWhiteSpace($title)) { "[$id]" } else { "[$id] $title" }
+
+        $ok = $false
+        $detailText = ''
+        $predicate = Get-GateJsonProperty $r 'Ok'
+        if ($predicate -isnot [scriptblock]) {
+            $detailText = '缺 Ok 谓词（规则不可执行）'
+        }
+        else {
+            try { $ok = [bool](& $predicate) }
+            catch {
+                $ok = $false
+                if ($ShowException) { $detailText = [string]$_.Exception.Message }
+            }
+        }
+
+        if ($ok) {
+            $passed++
+            if (-not $NoPrint) { Write-Host "  [PASS] $text" -ForegroundColor Green }
+            if ($Detail) { Write-Host ("         {0}" -f $text) -ForegroundColor DarkGray }
+        }
+        else {
+            $failed++
+            $msg = if ([string]::IsNullOrWhiteSpace($detailText)) { $text } else { "$text（$detailText）" }
+            $found.Add($msg)
+            if (-not $NoPrint) { Write-Host "  [FAIL] $msg" -ForegroundColor Red }
+        }
+    }
+
+    if ($null -ne $Violations) {
+        foreach ($v in $found) { $Violations.Add($v) }
+    }
+
+    return [pscustomobject]@{
+        Key            = $label
+        Total          = $total
+        Passed         = $passed
+        Failed         = $failed
+        Violations     = $found
+        ViolationCount = $found.Count
+        Exit           = if ($found.Count -gt 0) { [int]$script:GateExitViolation } else { [int]$script:GateExitPass }
     }
 }
 
@@ -995,6 +1126,8 @@ function Assert-GateControls {
 .DESCRIPTION
     委托 `Frame\Invoke\Invoke-Frame.ps1 -Action search-repo -List`，解析「合计命中：N」，
     兼容旧输出的「（N 命中）」尾注。
+    默认把 `Get-GateSourceExcludeGitPathSpec`（obj/bin/BuildOutput/_deprecated/测试产物/`Runtime\Payload` 镜像）
+    作为排除 pathspec 一并下发给 git grep（git grep 本身已不搜被忽略文件，这是二层防护）。
     不可用（入口/仓根/宿主缺失、子进程非 0、无解析结果）⇒ **返回 -1**；
     调用方必须把 -1 视为违规或不可判定，禁止当作 0。
 .PARAMETER Pattern
@@ -1007,6 +1140,8 @@ function Assert-GateControls {
     以正则检索
 .PARAMETER Untracked
     含未跟踪文件
+.PARAMETER IncludeBuildOutput
+    关闭缺省排除（仅统计「含镜像/构建产物」时才用；一般不应开启）
 .PARAMETER SearchEntry
     检索入口（默认 `<Repo>\Frame\Invoke\Invoke-Frame.ps1`）
 .PARAMETER ShellExe
@@ -1021,6 +1156,7 @@ function Get-GateSearchFileCount {
         [Parameter(Mandatory = $true, Position = 2)][string]$Repo,
         [switch]$Regex,
         [switch]$Untracked,
+        [switch]$IncludeBuildOutput,
         [string]$SearchEntry = '',
         [string]$ShellExe = ''
     )
@@ -1038,8 +1174,11 @@ function Get-GateSearchFileCount {
     }
     if ([string]::IsNullOrWhiteSpace($shell) -or -not (Test-Path -LiteralPath $shell)) { return -1 }
 
+    $pathSpecs = @($PathSpec)
+    if (-not $IncludeBuildOutput) { $pathSpecs += @(Get-GateSourceExcludeGitPathSpec) }
+
     $cliArgs = @('-NoProfile', '-File', $entry, '-Action', 'search-repo',
-                 '-Pattern', $Pattern, '-PathSpec', $PathSpec, '-Repo', $Repo, '-List')
+                 '-Pattern', $Pattern, '-PathSpec') + $pathSpecs + @('-Repo', $Repo, '-List')
     if ($Regex) { $cliArgs += '-Regex' }
     if ($Untracked) { $cliArgs += '-Untracked' }
 
@@ -1056,9 +1195,42 @@ function Get-GateSearchFileCount {
     return -1
 }
 
-# 源码扫描排除集（D5 单源）：obj / bin / BuildOutput / _deprecated 统一口径。
+# 源码扫描排除集（D5 单源）：obj / bin / BuildOutput / _deprecated / 测试与覆盖率产物 / 部署镜像。
 # 此前 6 套写法（缺 BuildOutput、缺 _deprecated、加非捕获组、二次 Where 过滤）导致漂移。
-$script:GateSourceExcludePattern = '\\(obj|bin|BuildOutput|_deprecated)\\'
+#
+# 排除依据（逐项可追溯，禁 `-Exclude *` 一把梭）：
+#   obj / bin / BuildOutput   → .gitignore L9-L11（编译产物；`**/bin/`、`**/obj/`）
+#   TestResults / coverage    → .gitignore L12-L13（测试/覆盖率产物）
+#   .VSCodeCounter            → .gitignore L20（VS Code 统计产物）
+#   Runtime\Payload           → .gitignore L22-L24（`/Runtime/` = Build-Distribution.bat 生成的部署镜像，
+#                                其 `Payload\PowerShellScript\` 是全仓源码的过期副本；曾混入棘轮计数）
+#   Runtime.staging           → .gitignore L25（同上的分阶段镜像目录）
+#   node_modules / backups    → 非 .gitignore（外部依赖 / 手工备份），属构建与运维产物，非源码
+#   _deprecated               → 仓内源码退役约定目录（保留原文便于追溯，但不入判据面）
+#
+# 刻意**不**排除的：
+#   \Runtime\（裸段）        → 会误伤 `Docs\design\Runtime` 等真实文档目录（.gitignore L23 注释明示只锚定根）
+#   \Data\（裸段）           → 会误伤真实源码目录 Data\；且 /Data/ 是运行期状态（db/日志），本就不在源码扩展面
+# 活代码 vs 镜像的判据：镜像路径必含 `Runtime\Payload\` 或 `Runtime.staging\`，且由 git 忽略（`git check-ignore` 命中）；
+# 同名源码只存在于 Frame\ / Projects\ / Environment\ 等工作树内，不在这两个段下。
+$script:GateSourceExcludeSegments = @('obj', 'bin', 'BuildOutput', '_deprecated', 'TestResults', 'coverage', '.VSCodeCounter', 'node_modules', 'backups')
+$script:GateSourceExcludeMirrors = @('Runtime\Payload', 'Runtime.staging')
+$script:GateSourceExcludePattern = '\\(' + (($script:GateSourceExcludeSegments | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')\\' +
+                                   '|\\(' + (($script:GateSourceExcludeMirrors | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')\\'
+# 同一排除集的 git pathspec 形态（供 git grep 面使用；与上面的正则始终保持同源）。
+$script:GateSourceExcludeGitPathSpec = @(
+    ':(exclude,glob)**/obj/**',
+    ':(exclude,glob)**/bin/**',
+    ':(exclude,glob)**/BuildOutput/**',
+    ':(exclude,glob)**/_deprecated/**',
+    ':(exclude,glob)**/TestResults/**',
+    ':(exclude,glob)**/coverage/**',
+    ':(exclude,glob)**/.VSCodeCounter/**',
+    ':(exclude,glob)**/node_modules/**',
+    ':(exclude,glob)**/backups/**',
+    ':(exclude)Runtime/Payload',
+    ':(exclude)Runtime.staging'
+)
 
 # 未识别 kind（A7 单源）：与 C# Agent.Contract.Api.RecognizedKinds.Unrecognized 同值；
 # 生成物事实可由 LedgerForge contract-facts 复核（constantsStale=false 时等价）。
@@ -1066,10 +1238,21 @@ $script:GateUnrecognizedKind = 'unrecognized'
 
 <#
 .SYNOPSIS
-    源码扫描排除集（D5 单源），供 Get-GateFiles -Exclude / Where-Object -notmatch 使用。
+    源码扫描排除集（D5 单源，绝对路径正则），供 Get-GateFiles -Exclude / Where-Object -notmatch 使用。
 #>
 function Get-GateSourceExcludePattern {
     return $script:GateSourceExcludePattern
+}
+
+<#
+.SYNOPSIS
+    源码扫描排除集（git pathspec 形态），供 git grep 面（Get-GateSearchFileCount）使用。
+.DESCRIPTION
+    与 Get-GateSourceExcludePattern 同一份排除清单（段列表 + 镜像列表），只是形态不同：
+    正则用于文件系统枚举，pathspec 用于 `git grep -- <pathspec...>`。
+#>
+function Get-GateSourceExcludeGitPathSpec {
+    return $script:GateSourceExcludeGitPathSpec
 }
 
 <#
@@ -1102,6 +1285,7 @@ Export-ModuleMember -Function @(
     'Import-GateRuntime',
     'Initialize-GateModule',
     'Invoke-GateCountChecks',
+    'Invoke-GateRuleSet',
     'Test-GatePrerequisite',
     'Assert-GatePrerequisite',
     'Add-GateViolation',
@@ -1110,6 +1294,7 @@ Export-ModuleMember -Function @(
     'Assert-GateControls',
     'Get-GateRegionKeyPattern',
     'Get-GateSourceExcludePattern',
+    'Get-GateSourceExcludeGitPathSpec',
     'Get-GateUnrecognizedKind',
     'Get-GateLedgerForge',
     'Compare-GateKeySet',

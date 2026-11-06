@@ -34,8 +34,14 @@ function Get-DeclarationLayout {
 
 function Test-DeclarationExcluded {
     param([string]$FullPath, [string]$Root, [object[]]$Exclude)
-    $relative = [IO.Path]::GetRelativePath($Root, $FullPath)
-    $segments = $relative.Split([IO.Path]::DirectorySeparatorChar)
+    # 5.1 兼容：[IO.Path]::GetRelativePath 是 .NET Core 专属，改为去根前缀（大小写不敏感）。
+    $rootFull = [IO.Path]::GetFullPath($Root).TrimEnd([char[]]@('\', '/'))
+    $fullFull = [IO.Path]::GetFullPath($FullPath)
+    $prefix = $rootFull + [IO.Path]::DirectorySeparatorChar
+    $relative = if ($fullFull.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $fullFull.Substring($prefix.Length)
+    } else { $fullFull }
+    $segments = $relative.Split([char[]]@('\', '/'))
     foreach ($ex in $Exclude) {
         if ([string]::IsNullOrWhiteSpace($ex)) { continue }
         if ($segments -contains $ex) { return $true }

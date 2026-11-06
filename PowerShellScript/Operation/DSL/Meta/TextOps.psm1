@@ -238,20 +238,32 @@ New-Alias -Name Read-Text -Value Read-TextFile
     行为：
       · 行注释（默认 '//'）从标记删到行尾（换行保留）；
       · 块注释（默认 '/*' … '*/'）跨行删除（块内换行保留，行号不漂移）；
-      · `"` / `'` 字面量内的标记不剥；支持 `\` 转义与 `""` / `''` 双写；
+      · `"` / `'` 字面量内的标记不剥；slash 支持 `\` 转义与 `""` / `''` 双写；
       · 块注释被删后以单空格占位（避免 `a/*x*/b` 粘连成 `ab`）。
 .PARAMETER Text
     源文本（$null 视为空串）
+.PARAMETER Language
+    注释语法维度（默认 slash，保持既有调用点行为不变）：
+      slash → `//` 行注释 + `/* */` 块注释；C#/TS/JS 面；`\` 转义；`""`/`''` 双写。
+      hash  → PowerShell：`#` 行注释 + PS 块注释；`#` 在 `'...'`/`"..."` 内不剥；
+              双引号串按反引号（`` ` ``）转义，单引号串无转义（仅 `''` 双写）；
+              here-string `@'...'@` / `@"..."@` 整块原样保留；`#requires` 与行首 `#!` 视为指令不剥。
+      bat   → `rem`（行首、词边界、忽略大小写）与 `::`（行首）行注释；无块注释、无字符串语义。
+      none  → 不剥任何注释（`.md`/`.sln` 等非代码文本的**唯一正确用法**）。
 .PARAMETER LineMarker
-    行注释标记（默认 '//'）
+    行注释标记（缺省按 Language 取；显式传入可覆盖，供过渡期自定义方言）。
 .PARAMETER BlockOpen
-    块注释开标记（默认 '/*'）
+    块注释开标记（缺省按 Language 取；bat/none 无块注释）。
 .PARAMETER BlockClose
-    块注释闭标记（默认 '*/'）
+    块注释闭标记（缺省按 Language 取）。
 .OUTPUTS
     [string] 去注释文本（行数与原文本一致）
 .EXAMPLE
-    Remove-CodeComments -Text $src
+    Remove-CodeComments -Text $cs                                             # slash（默认）
+.EXAMPLE
+    Remove-CodeComments -Text $ps1 -Language hash
+.EXAMPLE
+    Remove-CodeComments -Text $bat -Language bat
 #>
 function Remove-CodeComments {
     [CmdletBinding()]
@@ -261,18 +273,50 @@ function Remove-CodeComments {
         [AllowEmptyString()]
         [string]$Text,
 
-        [string]$LineMarker = '//',
-        [string]$BlockOpen = '/*',
-        [string]$BlockClose = '*/'
+        [ValidateSet('slash', 'hash', 'bat', 'none')]
+        [string]$Language = 'slash',
+
+        [string]$LineMarker = '',
+        [string]$BlockOpen = '',
+        [string]$BlockClose = ''
     )
 
     if ($null -eq $Text -or $Text.Length -eq 0) { return '' }
-    if ([string]::IsNullOrEmpty($LineMarker)) { $LineMarker = '//' }
-    if ([string]::IsNullOrEmpty($BlockOpen)) { $BlockOpen = '/*' }
-    if ([string]::IsNullOrEmpty($BlockClose)) { $BlockClose = '*/' }
+
+    # 语言维度 → 具体标记 + 转义/字面量规则（缺省按语言取，显式 -LineMarker/-Block* 优先）。
+    $backslashEscape = $false
+    $backtickEscape = $false
+    $hereStrings = $false
+    $batMode = $false
+    $exemptDirectives = $false
+    switch ($Language) {
+        'none' {
+            $LineMarker = ''; $BlockOpen = ''; $BlockClose = ''
+        }
+        'slash' {
+            if ([string]::IsNullOrEmpty($LineMarker)) { $LineMarker = '//' }
+            if ([string]::IsNullOrEmpty($BlockOpen)) { $BlockOpen = '/*' }
+            if ([string]::IsNullOrEmpty($BlockClose)) { $BlockClose = '*/' }
+            $backslashEscape = $true
+        }
+        'hash' {
+            if ([string]::IsNullOrEmpty($LineMarker)) { $LineMarker = '#' }
+            if ([string]::IsNullOrEmpty($BlockOpen)) { $BlockOpen = '<#' }
+            if ([string]::IsNullOrEmpty($BlockClose)) { $BlockClose = '#>' }
+            $backtickEscape = $true
+            $hereStrings = $true
+            $exemptDirectives = $true
+        }
+        'bat' {
+            if ([string]::IsNullOrEmpty($LineMarker)) { $LineMarker = 'rem' }
+            $BlockOpen = ''; $BlockClose = ''
+            $batMode = $true
+        }
+    }
 
     $sb = [System.Text.StringBuilder]::new()
-    $state = 'code'   # code | line | block | dq | sq
+    $state = 'code'      # code | line | block | dq | sq | heresq | heredq
+    $atLineStart = $true # 「本行至此只有空白」——bat rem/:: 与 hash #requires 的行首判定
     $i = 0
     while ($i -lt $Text.Length) {
         $ch = $Text[$i]
@@ -281,6 +325,8 @@ function Remove-CodeComments {
         if ($ch -eq "`r" -or $ch -eq "`n") {
             [void]$sb.Append($ch)
             if ($state -eq 'line') { $state = 'code' }
+            if ($state -eq 'code' -or $state -eq 'line' -or $state -eq 'heresq' -or $state -eq 'heredq') { $atLineStart = $true }
+            else { $atLineStart = $false }
             $i++
             continue
         }
@@ -299,8 +345,41 @@ function Remove-CodeComments {
                 continue
             }
 
+            'heresq' {
+                if ($atLineStart -and $Text.Substring($i).StartsWith("'@", [System.StringComparison]::Ordinal)) {
+                    [void]$sb.Append("'@")
+                    $i += 2
+                    $state = 'code'
+                    $atLineStart = $false
+                    continue
+                }
+                [void]$sb.Append($ch)
+                $atLineStart = $false
+                $i++
+                continue
+            }
+
+            'heredq' {
+                if ($atLineStart -and $Text.Substring($i).StartsWith('"@', [System.StringComparison]::Ordinal)) {
+                    [void]$sb.Append('"@')
+                    $i += 2
+                    $state = 'code'
+                    $atLineStart = $false
+                    continue
+                }
+                [void]$sb.Append($ch)
+                $atLineStart = $false
+                $i++
+                continue
+            }
+
             'dq' {
-                if ($ch -eq '\' -and ($i + 1) -lt $Text.Length) {
+                if ($backslashEscape -and $ch -eq '\' -and ($i + 1) -lt $Text.Length) {
+                    [void]$sb.Append($ch).Append($Text[$i + 1])
+                    $i += 2
+                    continue
+                }
+                if ($backtickEscape -and $ch -eq [char]96 -and ($i + 1) -lt $Text.Length) {
                     [void]$sb.Append($ch).Append($Text[$i + 1])
                     $i += 2
                     continue
@@ -322,7 +401,7 @@ function Remove-CodeComments {
             }
 
             'sq' {
-                if ($ch -eq '\' -and ($i + 1) -lt $Text.Length) {
+                if ($backslashEscape -and $ch -eq '\' -and ($i + 1) -lt $Text.Length) {
                     [void]$sb.Append($ch).Append($Text[$i + 1])
                     $i += 2
                     continue
@@ -344,19 +423,59 @@ function Remove-CodeComments {
             }
 
             default {
-                if ($ch -eq $BlockOpen[0] -and $Text.Substring($i).StartsWith($BlockOpen, [System.StringComparison]::Ordinal)) {
+                # bat：rem / :: 仅在行首（含前导空白）生效；行内的 rem/:: 是普通文本或标签。
+                if ($batMode -and $atLineStart) {
+                    $rest = $Text.Substring($i)
+                    if ([regex]::IsMatch($rest, '^rem\b', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase) -or
+                        $rest.StartsWith('::', [System.StringComparison]::Ordinal)) {
+                        $i++
+                        $state = 'line'
+                        continue
+                    }
+                }
+
+                # hash：here-string 起始（`@'` / `@"` 后必须紧跟换行）。
+                if ($hereStrings -and $ch -eq '@' -and ($i + 1) -lt $Text.Length) {
+                    $nx = $Text[$i + 1]
+                    if ($nx -eq "'" -or $nx -eq '"') {
+                        $after = if (($i + 2) -lt $Text.Length) { [string]$Text[$i + 2] } else { '' }
+                        if ($after -eq "`r" -or $after -eq "`n" -or $after -eq '') {
+                            [void]$sb.Append($ch).Append($nx)
+                            $state = if ($nx -eq "'") { 'heresq' } else { 'heredq' }
+                            $atLineStart = $false
+                            $i += 2
+                            continue
+                        }
+                    }
+                }
+
+                if (-not [string]::IsNullOrEmpty($BlockOpen) -and
+                    $ch -eq $BlockOpen[0] -and $Text.Substring($i).StartsWith($BlockOpen, [System.StringComparison]::Ordinal)) {
                     $i += $BlockOpen.Length
                     $state = 'block'
                     continue
                 }
-                if ($ch -eq $LineMarker[0] -and $Text.Substring($i).StartsWith($LineMarker, [System.StringComparison]::Ordinal)) {
+
+                if (-not $batMode -and -not [string]::IsNullOrEmpty($LineMarker) -and
+                    $ch -eq $LineMarker[0] -and $Text.Substring($i).StartsWith($LineMarker, [System.StringComparison]::Ordinal)) {
+                    # hash：`#requires` / 行首 `#!` 是 PowerShell 指令，不是注释；剥掉会让后续判据漏基线。
+                    if ($exemptDirectives -and $atLineStart -and
+                        ([regex]::IsMatch($Text.Substring($i), '^#requires\b', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase) -or
+                         [regex]::IsMatch($Text.Substring($i), '^#!', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase))) {
+                        [void]$sb.Append($ch)
+                        $atLineStart = $false
+                        $i++
+                        continue
+                    }
                     $i += $LineMarker.Length
                     $state = 'line'
                     continue
                 }
-                if ($ch -eq '"') { [void]$sb.Append($ch); $state = 'dq'; $i++; continue }
-                if ($ch -eq "'") { [void]$sb.Append($ch); $state = 'sq'; $i++; continue }
+
+                if ($ch -eq '"') { [void]$sb.Append($ch); $state = 'dq'; $atLineStart = $false; $i++; continue }
+                if ($ch -eq "'") { [void]$sb.Append($ch); $state = 'sq'; $atLineStart = $false; $i++; continue }
                 [void]$sb.Append($ch)
+                if (-not [char]::IsWhiteSpace($ch)) { $atLineStart = $false }
                 $i++
                 continue
             }
@@ -376,12 +495,24 @@ function Remove-CodeComments {
     默认 = 原 KeyGrammar 语义：块/行注释剥离、跳过空白行、Text 去首尾空白；
     额外提供 `-KeepComment`（保留注释）、`-KeepBlank`（保留空白行）、`-KeepIndent`（保留缩进）三个变体开关。
     返回对象同时带 `Line`（原属性）与 `Number`（与 Get-GateCodeLine 对齐），调用方二选一即可。
+
+    语言维度（-Language，默认 slash，保持既有调用点行为）：
+      · `.cs/.ts/.js` → slash（`//` `/* */`）；`.ps1/.psm1` → hash（`#` 行注释 + PS 块注释）；
+      · `.bat/.cmd` → bat（行首 `rem`/`::`）；`.md/.sln/.json` 等非代码文本 → none（不剥）。
+      **边界（必须遵守，否则造出假红）**：
+        1) hash 下 `#` 在 `'...'`/`"..."` 字面量内不算注释；双引号串反引号转义、单引号串仅 `''` 双写；
+        2) here-string `@'...'@` / `@"..."@` 整块原样保留（`#` 不剥），且必须`@'`后紧跟换行才认；
+        3) `#requires`（及行首 `#!`）是指令而非注释，保留；
+        4) `.md` 的 `#` 是标题、`.sln` 的 `#` 是工程注释标记但非 PS 注释 —— **一律用 none**；
+        5) bat 的 `rem`/`::` 仅行首（含前导空白）生效；行内 `::` 是标签可能性，不按注释处理。
 .PARAMETER Path
     文件路径（优先；UTF-8 显式读取；缺件 ⇒ 空结果）
 .PARAMETER Text
     裸文本（未给 Path/Lines 时使用）
 .PARAMETER Lines
     行数组（优先于 Path/Text；用于已读入内存的调用方）
+.PARAMETER Language
+    注释语法：slash（默认）/ hash / bat / none（见上）
 .PARAMETER KeepBlank
     保留空白行（默认跳过）
 .PARAMETER KeepComment
@@ -389,15 +520,17 @@ function Remove-CodeComments {
 .PARAMETER KeepIndent
     保留行首缩进（默认去首尾空白）
 .PARAMETER LineMarker
-    行注释标记（默认 '//'）
+    行注释标记（缺省按 Language 取）
 .PARAMETER BlockOpen
-    块注释开标记（默认 '/*'）
+    块注释开标记（缺省按 Language 取）
 .PARAMETER BlockClose
-    块注释闭标记（默认 '*/'）
+    块注释闭标记（缺省按 Language 取）
 .OUTPUTS
     [{ Line; Number; Text }] 行号（1 起）与行文本
 .EXAMPLE
     foreach ($code in (Get-CodeLines -Path $file.FullName)) { $code.Line; $code.Text }
+.EXAMPLE
+    Get-CodeLines -Path '.\x.ps1' -Language hash
 #>
 function Get-CodeLines {
     [CmdletBinding()]
@@ -411,13 +544,16 @@ function Get-CodeLines {
 
         [string[]]$Lines,
 
+        [ValidateSet('slash', 'hash', 'bat', 'none')]
+        [string]$Language = 'slash',
+
         [switch]$KeepBlank,
         [switch]$KeepComment,
         [switch]$KeepIndent,
 
-        [string]$LineMarker = '//',
-        [string]$BlockOpen = '/*',
-        [string]$BlockClose = '*/'
+        [string]$LineMarker = '',
+        [string]$BlockOpen = '',
+        [string]$BlockClose = ''
     )
 
     $source = $null
@@ -434,7 +570,7 @@ function Get-CodeLines {
     if ($null -eq $source) { return }
 
     if (-not $KeepComment) {
-        $source = Remove-CodeComments -Text $source -LineMarker $LineMarker -BlockOpen $BlockOpen -BlockClose $BlockClose
+        $source = Remove-CodeComments -Text $source -Language $Language -LineMarker $LineMarker -BlockOpen $BlockOpen -BlockClose $BlockClose
     }
 
     $number = 0

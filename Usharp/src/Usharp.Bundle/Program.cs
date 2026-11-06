@@ -112,6 +112,20 @@ var host = new ConsoleCommandHost(Usage)
         output.WriteLine($"ui-program: errors={emitted.Errors} fingerprint={emitted.Fingerprint}");
         return ConsoleCommandHost.ExitOk;
     }) { ErrorLabel = "ui-program" })
+    .Register(new CommandSpec("surface", "<configRoot> <outFile>", 2, (rest, output) =>
+    {
+        var emitted = DeclaredBundleBuilder.BuildSurfaceProgram(rest[0]);
+        if (emitted.Json is null)
+        {
+            Console.Error.WriteLine($"surface-program 不可产出：errors={emitted.Errors}");
+            WriteErrorDiagnostics(emitted.Diagnostics);
+            return ConsoleCommandHost.ExitFailed;
+        }
+
+        DeclaredBundleBuilder.WriteUiDeclaration(rest[1], emitted.Json);
+        output.WriteLine($"surface-program: errors={emitted.Errors} fingerprint={emitted.Fingerprint}");
+        return ConsoleCommandHost.ExitOk;
+    }) { ErrorLabel = "surface-program" })
     .Register(new CommandSpec("surfacemap", "<configRoot> <outFile>", 2, (rest, output) =>
     {
         var emitted = DeclaredBundleBuilder.BuildSurfaceMap(rest[0]);

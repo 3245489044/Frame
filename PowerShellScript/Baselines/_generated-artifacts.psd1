@@ -236,6 +236,18 @@
             Origin             = 'Derived'
             DueWhen            = ''
         }
+        @{
+            Name               = 'SurfaceProgram'
+            Artifact           = 'Projects\Plug\Agent\Config\ui\surface.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1'
+            GeneratorArgs      = @{ Target = 'surface'; OutFile = '{TEMP}' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'surface-v1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1 -Apply -Target surface'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
 
     )
 }

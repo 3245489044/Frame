@@ -95,6 +95,8 @@ $functionModuleMap = @{
     'Test-BaselineNoIncrease'     = 'Baselines/GateRuntime.psm1'
     'Write-GateHeader'            = 'Baselines/GateRuntime.psm1'
     'Write-GateVerdict'           = 'Baselines/GateRuntime.psm1'
+    'Get-GateBindingSignatureMap' = 'Baselines/GateCallBinding.psm1'
+    'Test-GateCallBinding'        = 'Baselines/GateCallBinding.psm1'
 
     # ===== Baselines =====
     'Get-FullRunTokenEnvVar'      = 'Baselines/VerifyScope.psm1'

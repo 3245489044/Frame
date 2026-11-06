@@ -222,6 +222,9 @@ Import-Module (Join-Path $PSScriptRoot '..\Operation\DSL\Meta\TextOps.psm1') -Di
 .DESCRIPTION
     收敛 3 份域内 Get-GatherDomains（其中 2 份未排序，同一集合在比对时产生假差异）。
     缺件 ⇒ @()（调用方自行决定“无声明”是否违规）；重复域 ⇒ 去重。
+    **不提供 `-Unique` 开关**：去重 + 排序就是本函数的唯一语义（重复 `[Gather]` 行属畸形声明，
+    若把「是否去重」暴露成参数，会暗示重复项有意义并把多重度污染带进集合比较；
+    重复行应由声明唯一性门按原行计数单独检测）。
 .PARAMETER Path
     声明文件路径（优先）
 .PARAMETER Text
@@ -245,7 +248,7 @@ function Get-GateGatherDomains {
     foreach ($m in [regex]::Matches($Text, '(?m)^\[Gather\]\s+(\S+)')) {
         if (-not $domains.Contains($m.Groups[1].Value)) { $domains.Add($m.Groups[1].Value) }
     }
-    return , ([string[]]($domains | Sort-Object))
+    return [string[]]($domains | Sort-Object)
 }
 
 New-Alias -Name Get-GatherDomains -Value Get-GateGatherDomains

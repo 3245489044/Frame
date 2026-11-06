@@ -7,6 +7,7 @@
       Config\gather\gather-views.ushar   → Config\gather\gather-views.generated.json
       Config\nodes\gather\fields.ushar          → Config\nodes\fields.generated.json
       Config\ui\ui.ushar                 → Config\ui\ui.generated.json（token/slot/skin/part/carrier）
+      Config\ui\surface.ushar            → Config\ui\surface.generated.json（容器/映射/视图）
     派生投影（无独立手写真源）：
       ui_part_*                          → Config\ui\surface-map.generated.json
     产物入 git；漂移门 = Check-GeneratedArtifactsDrift（哨兵 + 复算逐字比对）。
@@ -16,7 +17,7 @@
 param(
     [Parameter(ParameterSetName = 'Check')][switch]$Check,
     [Parameter(ParameterSetName = 'Apply')][switch]$Apply,
-    [ValidateSet('gatherviews', 'fields', 'surfacemap', 'uiprogram', 'all')][string]$Target = 'all',
+    [ValidateSet('gatherviews', 'fields', 'surfacemap', 'uiprogram', 'surface', 'all')][string]$Target = 'all',
     [string]$OutFile = ''
 )
 
@@ -30,10 +31,11 @@ $definitions = @(
     @{ Target = 'fields';      Kind = 'fields';      Out = (Join-Path $configRoot 'nodes\fields.generated.json') }
     @{ Target = 'surfacemap';  Kind = 'surfacemap';  Out = (Join-Path $configRoot 'ui\surface-map.generated.json') }
     @{ Target = 'uiprogram';   Kind = 'uiprogram';   Out = (Join-Path $configRoot 'ui\ui.generated.json') }
+    @{ Target = 'surface';     Kind = 'surface';     Out = (Join-Path $configRoot 'ui\surface.generated.json') }
 )
 
 if ($OutFile -and $Target -eq 'all') {
-    Write-Error '指定 -OutFile 时须同时指定 -Target gatherviews|fields|surfacemap（单产物复算口径）'
+    Write-Error '指定 -OutFile 时须同时指定 -Target gatherviews|fields|surfacemap|uiprogram|surface（单产物复算口径）'
     exit 2
 }
 

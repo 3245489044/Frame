@@ -1,4 +1,5 @@
 using Strategy.Observability.Boundary;
+using Share.HierarchySupport;
 using Usharp.Syntax;
 
 namespace Usharp.Adapters.Observability;

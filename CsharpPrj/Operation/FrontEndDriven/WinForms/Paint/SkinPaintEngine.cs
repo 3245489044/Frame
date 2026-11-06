@@ -15,6 +15,11 @@ namespace FrontEndDriven.WinForms.Paint;
 /// </summary>
 public static class SkinPaintEngine
 {
+    /// <summary>资源装载钩子（宿主注入；null ⇒ 贴图/贴画层显式跳过，禁静默纯色）。</summary>
+    public static Func<string, Image?>? AssetLoader { get; set; }
+
+    private static readonly Dictionary<string, Image?> AssetCache = new(StringComparer.Ordinal);
+
     /// <summary>绘制一次材质（背景）。</summary>
     public static IReadOnlyList<string> Paint(Graphics graphics, Rectangle bounds, ResolvedMaterial? material)
     {
@@ -105,8 +110,50 @@ public static class SkinPaintEngine
                 return true;
             }
 
+            // M6：贴图 / 贴画（资源缺失 ⇒ false ⇒ 进 Skipped，可见）
+            case "texture":
+            case "decal":
+            {
+                var asset = Param(layer, "asset");
+                if (asset.Length == 0) return false;
+                var image = LoadAsset(asset);
+                if (image is null) return false;
+
+                if (string.Equals(layer.Primitive, "decal", StringComparison.Ordinal))
+                {
+                    graphics.DrawImage(image, bounds);
+                    return true;
+                }
+
+                using var texture = new TextureBrush(image);
+                graphics.FillRectangle(texture, bounds);
+                return true;
+            }
+
             default:
                 return false;
+        }
+    }
+
+    /// <summary>资源装载（进程内缓存；装载失败 ⇒ null，由调用方记账）。</summary>
+    private static Image? LoadAsset(string asset)
+    {
+        lock (AssetCache)
+        {
+            if (AssetCache.TryGetValue(asset, out var cached)) return cached;
+            Image? image = null;
+            try
+            {
+                image = AssetLoader?.Invoke(asset);
+            }
+            catch (Exception)
+            {
+                // 装载异常 ⇒ 视为缺件（走 Skipped 可见路径，不抛给绘制线程）。
+                image = null;
+            }
+
+            AssetCache[asset] = image;
+            return image;
         }
     }
 

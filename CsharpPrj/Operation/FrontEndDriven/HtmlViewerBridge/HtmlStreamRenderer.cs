@@ -7,6 +7,7 @@ using Modules.Node.Frame;
 using Share.Conversation;
 using Share.Conversation.Presentation;
 using Share.Conversation.Rendering;
+using Share.Conversation.Rendering.Surface;
 using UiBackend.Html;
 
 namespace FrontEndDriven.HtmlViewerBridge;
@@ -80,69 +81,12 @@ public sealed class HtmlStreamRenderer : IConversationFragmentRenderer
             context?.RoundLabels,
             _options.EmptyText);
 
-        var fragments = new List<ConversationRenderFragment>(8);
-        foreach (var reason in Degradations(fold))
-        {
-            fragments.Add(new ConversationRenderFragment(
-                "degraded:" + reason, UiFragmentWriter.Fragment(Notices.Degraded(reason, projection))));
-        }
-
-        if (items is null || items.Count == 0)
-        {
-            fragments.Add(new ConversationRenderFragment("empty", UiFragmentWriter.Fragment(Notices.Empty(projection))));
-            return fragments;
-        }
-
-        // 通道/角色分流（单点谓词）：操作流 → 操作面板；其余 → 对话流。
-        IReadOnlyList<ConversationRenderItem> dialogue = items;
-        IReadOnlyList<ConversationRenderItem> operations = Array.Empty<ConversationRenderItem>();
-        if (_options.SplitOperationChannel)
-        {
-            var operationSplit = items.Where(projection.IsOperation).ToList();
-            if (operationSplit.Count > 0)
-            {
-                operations = operationSplit;
-                dialogue = items.Where(item => !projection.IsOperation(item)).ToList();
-            }
-        }
-
-        // 头提示层预抽取（与面序无关）：声明段交 HeadPrompt 面单独编排。
-        IReadOnlyList<ConversationRenderItem> head = Array.Empty<ConversationRenderItem>();
-        if (_options.HeadBandOrdering)
-        {
-            head = dialogue.Where(projection.IsPrompt).ToList();
-            if (head.Count > 0)
-                dialogue = dialogue.Where(item => !projection.IsPrompt(item)).ToList();
-        }
-
-        foreach (var renderSurface in _options.SurfaceOrder ?? RenderSurfaceCatalog.OrderOf(_regions))
-        {
-            switch (renderSurface)
-            {
-                case RenderSurface.HeadPrompt:
-                    if (head.Count > 0)
-                        fragments.Add(new ConversationRenderFragment(
-                            "head", UiFragmentWriter.Fragment(HeadBandProjector.Project(head, projection))));
-                    break;
-
-                case RenderSurface.Operation:
-                    if (operations.Count > 0)
-                        fragments.Add(new ConversationRenderFragment(
-                            "op", UiFragmentWriter.Fragment(OperationProjector.Project(operations, projection))));
-                    break;
-
-                case RenderSurface.Dialogue:
-                    var rounds = dialogue.GroupBy(item => item.Round).OrderBy(group => group.Key).ToList();
-                    var latestRound = rounds.Count > 0 ? rounds[^1].Key : 0;
-                    foreach (var round in rounds)
-                        fragments.Add(new ConversationRenderFragment(
-                            FragmentKeys.RoundSection(round.Key),
-                            UiFragmentWriter.Fragment(RoundSectionProjector.Project(round, latestRound, projection))));
-                    break;
-            }
-        }
-
-        return fragments;
+        // 段键与投影分离：划分唯一实现 = ConversationSectionPartitioner；开关只切投影器。
+        var sections = FrontEndDriven.HtmlViewerBridge.Surface.ConversationSectionPartitioner.Partition(
+            items, projection, Degradations(fold), _options, _regions);
+        var declarations = _options.UseSurfacePipeline ? _options.Surface : null;
+        return FrontEndDriven.HtmlViewerBridge.Surface.SurfaceFragmentPlanner.Plan(
+            sections, projection, declarations, context?.ViewKey);
     }
 }
 
@@ -179,6 +123,12 @@ public sealed record HtmlStreamRendererOptions
 
     /// <summary>折叠策略（宿主按视图声明注入；null ⇒ <see cref="FoldPolicy.Default"/>）。</summary>
     public FoldPolicy? Fold { get; init; }
+
+    /// <summary>表面管线开关（B2 一版回退开关）：true 且 <see cref="Surface"/> 非空 ⇒ RenderPlan 投影。</summary>
+    public bool UseSurfacePipeline { get; init; }
+
+    /// <summary>渲染声明闭包（宿主注入；null ⇒ 走旧字符串投影路径，零回归）。</summary>
+    public SurfaceDeclarations? Surface { get; init; }
 }
 
 

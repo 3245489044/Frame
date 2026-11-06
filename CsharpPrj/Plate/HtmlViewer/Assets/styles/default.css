@@ -1,25 +1,5 @@
-:root {
-    --bg: #ffffff;
-    --fg: #24292f;
-    --muted: #57606a;
-    --border: #d0d7de;
-    --user-bg: #dbe7ff;
-    --user-fg: #0b2a52;
-    --agent-bg: #f1f2f4;
-    --agent-fg: #1f2328;
-}
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg: #0d1117;
-        --fg: #e6edf3;
-        --muted: #8b949e;
-        --border: #30363d;
-        --user-bg: #1f3a5f;
-        --user-fg: #e6edf3;
-        --agent-bg: #21262d;
-        --agent-fg: #e6edf3;
-    }
-}
+/* token 值单源 = Config/ui/ui.ushar（经 SurfaceCssProjector 投影为 --bg/--fg/…）。
+   本文件只保留结构/选择器；禁止在此新增色值或尺寸值（门禁 SurfaceSourceSingle）。 */
 * { box-sizing: border-box; }
 body {
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
@@ -63,7 +43,7 @@ body {
 .fold-summary { font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
 .fold-summary::before { content: "▸ "; }
 details.fold-layer[open] > .fold-summary::before { content: "▾ "; }
-.block.error .block-body { background: #fbe3e3; color: #7a1f1f; }
+.block.error .block-body { background: var(--error-bg); color: var(--error-fg); }
 .block.system { align-items: center; }
 .block.system .block-body {
     background: transparent; color: var(--muted);
@@ -97,8 +77,8 @@ details.fold-layer[open] > .fold-summary::before { content: "▾ "; }
    避免「框架 DefaultCss ↔ 应用 theme」两份逐字复制漂移。 */
 
 /* ── 声明化呈现面（loc 反转）最小样式：模板只引用类，样式值不入 C# ── */
-.cost-badge { display:inline-block; margin-left:8px; padding:1px 6px; border-radius:999px; font-size:.86em; border:1px solid rgba(148,163,184,.45); background:rgba(20,184,166,.10); color:#0f766e; }
-.cost-badge.day { margin-left:6px; font-size:.82em; color:#475569; background:rgba(100,116,139,.10); border-color:rgba(148,163,184,.45); }
+.cost-badge { display:inline-block; margin-left:8px; padding:1px 6px; border-radius:999px; font-size:.86em; border:1px solid rgba(148,163,184,.45); background:rgba(20,184,166,.10); color:var(--accent); }
+.cost-badge.day { margin-left:6px; font-size:.82em; color:var(--muted); background:rgba(100,116,139,.10); border-color:rgba(148,163,184,.45); }
 .cost-view { font-size:13px; line-height:1.5; }
 .cost-head { margin:12px 0 6px; }
 .cost-table { border-collapse:collapse; width:100%; }

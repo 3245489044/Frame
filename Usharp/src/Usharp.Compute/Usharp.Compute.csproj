@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Usharp.Compute</RootNamespace>
+    <AssemblyName>Usharp.Compute</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Usharp.Syntax\Usharp.Syntax.csproj" />
+    <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+  </ItemGroup>
+</Project>

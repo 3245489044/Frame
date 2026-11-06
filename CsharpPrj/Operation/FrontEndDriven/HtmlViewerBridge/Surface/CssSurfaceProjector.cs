@@ -59,8 +59,9 @@ public static class CssSurfaceProjector
                 var declarations = new List<KeyValuePair<string, string>>();
                 foreach (var layer in material.Layers)
                 {
-                    foreach (var pair in LayersToCss(layer)) declarations.Add(pair);
-                    if (!IsProjectable(layer.Primitive)) skipped.Add(layer.Primitive + ":" + layer.Role);
+                    var projected = LayersToCss(layer).ToList();
+                    if (projected.Count == 0) skipped.Add(layer.Primitive + ":" + layer.Role);
+                    else foreach (var pair in projected) declarations.Add(pair);
                 }
 
                 builder.Rule("." + className, declarations);
@@ -70,10 +71,7 @@ public static class CssSurfaceProjector
         return new SurfaceStyleSheet(builder.Build(), skipped.Distinct(StringComparer.Ordinal).ToArray());
     }
 
-    /// <summary>图元是否已由 CSS 方言覆盖。</summary>
-    private static bool IsProjectable(string primitive)
-        => primitive is "fill" or "gradient" or "stroke" or "shadow" or "innerShadow" or "backdrop" or "specular";
-
+    /// <summary>图元是否已由 CSS 方言覆盖（noise/mask 未接：留可见 Skipped）。</summary>
     private static IEnumerable<KeyValuePair<string, string>> LayersToCss(ResolvedLayer layer)
     {
         var value = layer.Params.TryGetValue("value", out var v) ? v : string.Empty;
@@ -101,7 +99,45 @@ public static class CssSurfaceProjector
             case "specular":
                 yield return Pair("background-image", $"linear-gradient({Deg(layer)}deg, transparent 40%, {value} 50%, transparent 60%)");
                 break;
+            // M6：贴图 / 贴画（资源缺失 ⇒ 无 asset ⇒ 空投影 ⇒ 进 Skipped，禁静默纯色）
+            case "texture":
+            {
+                var asset = Asset(layer);
+                if (asset.Length == 0) break;
+                yield return Pair("background-image", $"url(\"{asset}\")");
+                yield return Pair("background-repeat", Param(layer, "repeat", "repeat"));
+                if (layer.Params.TryGetValue("anchor", out var anchor) && anchor.Length > 0)
+                    yield return Pair("background-position", anchor);
+                foreach (var pair in NineSlice(layer, asset)) yield return pair;
+                break;
+            }
+            case "decal":
+            {
+                var asset = Asset(layer);
+                if (asset.Length == 0) break;
+                yield return Pair("background-image", $"url(\"{asset}\")");
+                yield return Pair("background-repeat", "no-repeat");
+                yield return Pair("background-position", Param(layer, "anchor", "center"));
+                yield return Pair("background-size", Param(layer, "size", "contain"));
+                foreach (var pair in NineSlice(layer, asset)) yield return pair;
+                break;
+            }
         }
+    }
+
+    private static string Asset(ResolvedLayer layer)
+        => layer.Params.TryGetValue("asset", out var asset) ? asset : string.Empty;
+
+    private static string Param(ResolvedLayer layer, string name, string fallback)
+        => layer.Params.TryGetValue(name, out var value) && value.Length > 0 ? value : fallback;
+
+    /// <summary>九宫格（slice 非空才产出 border-image 三元组）。</summary>
+    private static IEnumerable<KeyValuePair<string, string>> NineSlice(ResolvedLayer layer, string asset)
+    {
+        if (!layer.Params.TryGetValue("slice", out var slice) || slice.Length == 0) yield break;
+        yield return Pair("border-image-source", $"url(\"{asset}\")");
+        yield return Pair("border-image-slice", slice + " fill");
+        yield return Pair("border-image-repeat", Param(layer, "repeat", "stretch"));
     }
 
     private static KeyValuePair<string, string> Pair(string property, string value) => new(property, value);

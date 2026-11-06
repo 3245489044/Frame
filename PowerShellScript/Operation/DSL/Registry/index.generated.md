@@ -1,11 +1,11 @@
-﻿# 门禁索引（生成产物，禁手改）
+# 门禁索引（生成产物，禁手改）
 
 > 由 `Operation\DSL\Tooling\Build-GateIndex.ps1` 从 `Operation\DSL\Registry\GateManifests.psd1` 的 `Domain` / `Family` / `Form` 字段编译生成。
 > 新增/改域/改名后重跑生成器（幂等）；守卫 = `Operation\DSL\Meta\Check-GateTaxonomy.ps1`。
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（109 件）
+## Agent（113 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -91,7 +91,11 @@
 | `SignalDeclaration` | fast | 0 | Declaration | Closure | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-SignalDeclaration.ps1` |
 | `SignalTraceSchema` | fast | 0 | Observability | Closure | `Environment\CentralTest\Tools\Gate\Agent\Observability\Check-SignalTraceSchema.ps1` |
 | `SurfaceAssets` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-SurfaceAssets.ps1` |
+| `SurfaceCoverage` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-SurfaceCoverage.ps1` |
+| `SurfaceMappingCoverage` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-SurfaceMappingCoverage.ps1` |
+| `SurfaceParity` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-SurfaceParity.ps1` |
 | `SurfaceProgram` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-SurfaceProgram.ps1` |
+| `SurfaceSourceSingle` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-SurfaceSourceSingle.ps1` |
 | `TaskConcurrencySemantics` | fast | 0 | Runtime | Closure | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-TaskConcurrencySemantics.ps1` |
 | `TaskHistorySingleEntry` | fast | 0 | Runtime | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-TaskHistorySingleEntry.ps1` |
 | `TemplateAccessSingleEntry` | fast | 0 | Runtime | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-TemplateAccessSingleEntry.ps1` |

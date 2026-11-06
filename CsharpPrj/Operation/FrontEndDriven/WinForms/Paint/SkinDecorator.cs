@@ -25,35 +25,66 @@ public static class SkinDecorator
 
     private static readonly ConditionalWeakTable<Control, SkinState> States = new();
 
-    /// <summary>按描述符挂载/更新绘制（幂等；未启用或不支持 ⇒ 跳过）。</summary>
+    /// <summary>按描述符挂载/更新绘制（幂等；未启用/无材质/不支持 ⇒ 卸除，禁残留旧绘制）。</summary>
     public static void Attach(Control? control, ControlDescriptor descriptor)
     {
-        if (!Enabled || control is null || descriptor.SkinRefs is null || descriptor.SkinRefs.Count == 0) return;
+        if (control is null) return;
+        if (!Enabled)
+        {
+            Detach(control);
+            return;
+        }
 
-        var material = FirstMaterial(descriptor.SkinRefs);
-        if (material is null) return;
+        var material = descriptor.SkinRefs is { Count: > 0 } refs ? FirstMaterial(refs) : null;
+        if (material is null)
+        {
+            Detach(control);
+            return;
+        }
+
+        // 只对「背景由父绘制」的容器类控件启用；其余控件自绘内容，挂 Paint 只会白耗缓存（可见记账）。
+        if (!SupportsOwnerDraw(control))
+        {
+            Detach(control);
+            FrontEndDrivenLog.Log("SkinDecorator_unsupported", new { type = control.GetType().Name, material = material.MaterialId });
+            return;
+        }
 
         var state = States.GetValue(control, static _ => new SkinState());
+        var key = MaterialKey(material);
+        if (string.Equals(state.MaterialKey, key, StringComparison.Ordinal))
+        {
+            return; // 同材质：不重挂、不重绘
+        }
+
         state.Material = material;
+        state.MaterialKey = key;
         if (state.Handler is null)
         {
-            state.Handler = (_, e) => PaintControl(control, state, e);
+            var target = control;
+            state.Handler = (_, e) => PaintControl(target, state, e);
             control.Paint += state.Handler;
-            control.Disposed += (_, _) => Detach(control);
+            control.Disposed += (_, _) => Detach(target);
         }
 
         control.Invalidate();
     }
 
-    /// <summary>卸除绘制（控件复用时调用；幂等）。</summary>
+    /// <summary>卸除绘制（控件复用/材质消失/开关关闭；幂等）。</summary>
     public static void Detach(Control? control)
     {
         if (control is null || !States.TryGetValue(control, out var state)) return;
         if (state.Handler is not null) control.Paint -= state.Handler;
         state.Handler = null;
         state.Cache = null;
+        state.Material = null;
+        state.MaterialKey = null;
         States.Remove(control);
     }
+
+    /// <summary>是否支持 owner-draw（容器/文本承载类；其余控件自绘内容）。</summary>
+    private static bool SupportsOwnerDraw(Control control)
+        => control is Panel or FlowLayoutPanel or TableLayoutPanel or UserControl or GroupBox or Label;
 
     private static void PaintControl(Control control, SkinState state, PaintEventArgs e)
     {
@@ -99,9 +130,14 @@ public static class SkinDecorator
         return $"{material.MaterialId}:{material.FallbackUsed}:{layers}:{bounds.Width}x{bounds.Height}@dpi{dpi}";
     }
 
+    /// <summary>材质指纹（不含尺寸/DPI：尺寸与 DPI 已进渲染缓存键）。</summary>
+    private static string MaterialKey(ResolvedMaterial material)
+        => material.MaterialId + "|" + (material.FallbackUsed ?? string.Empty) + "|" + material.Layers.Count;
+
     private sealed class SkinState
     {
         internal ResolvedMaterial? Material { get; set; }
+        internal string? MaterialKey { get; set; }
         internal PaintEventHandler? Handler { get; set; }
         internal Bitmap? Cache { get; set; }
         internal string? CacheKey { get; set; }

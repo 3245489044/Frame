@@ -521,6 +521,46 @@
         Expect = 0
     }
 
+    SurfaceCoverage = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '视图/容器/区域闭合：owner=view / role·slot·write 齐全 / 映射存在 / 容器列入所属视图 / region∈ui-regions kind / 每 kind 有容器引用；负对照脏映射必红'
+    }
+
+    SurfaceMappingCoverage = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '映射/载体/槽位闭合：每映射 html.tag·winforms.control·text 键齐全 / 每容器载体有结构 / 每 slot 至少一个 bind≠none 且 prop 非空；负对照删 tag 必红'
+    }
+
+    SurfaceParity = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '载体能力闭合：每图元每载体 caps 三态齐全 / 每被层引用图元至少一载体 supported / profile 材质层可落地 / unsupported 载体仍有结构；负对照全 unsupported 必红'
+    }
+
+    SurfaceSourceSingle = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '表面源码零具体值：Surface/Skin/Paint/Capability 面不得出现 hex 色值与 \d+px 字面量（声明面与生成物豁免）；负对照合成 #ffffff 必红'
+    }
+
     SurfaceProgram = @{
         Domain = 'Agent'
         Family = 'Presentation'

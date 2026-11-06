@@ -24,9 +24,15 @@ internal static class RoundSectionProjector
         IGrouping<int, ConversationRenderItem> group,
         int latestRound,
         ConversationProjectionContext context)
+        => Project(group.Key, new List<ConversationRenderItem>(group), latestRound, context);
+
+    /// <summary>单轮段节点（轮号 + 已分组项；与段计划共用同一实现，禁两份段键逻辑）。</summary>
+    public static IReadOnlyList<UiNode> Project(
+        int round,
+        IReadOnlyList<ConversationRenderItem> items,
+        int latestRound,
+        ConversationProjectionContext context)
     {
-        var round = group.Key;
-        var items = new List<ConversationRenderItem>(group);
         var templates = context.Surface.Templates;
         var roundFoldKey = context.Surface.KeyOf(TemplateRegions.RoundFold);
         var open = context.Fold.IsOpen(round, latestRound);

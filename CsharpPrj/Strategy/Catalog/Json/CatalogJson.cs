@@ -55,30 +55,39 @@ public static partial class CatalogJson
     public const string OpSearchAll = "searchAll";
     public const string OpStats = "stats";
 
-    /// <summary>按 op 分发（未识别 op → 错误信封 + 可用 op 清单）。</summary>
+    /// <summary>按 op 分发（大小写不敏感；未识别 op → 错误信封 + 可用 op 清单）。</summary>
     public static string Dispatch(CatalogQueryService service, CatalogQuery? query)
     {
         ArgumentNullException.ThrowIfNull(service);
         var op = query?.Op?.Trim();
         try
         {
-            return op?.ToLowerInvariant() switch
-            {
-                OpSources or "" or null => Sources(service),
-                OpIndex => Index(service, query!.SourceId),
-                OpList => List(service, query!.SourceId, query.AxisId, query.Value),
-                OpDescribe => Describe(service, query!.SourceId, query.Key),
-                OpSearch => Search(service, query!.SourceId, query.Query, query.Limit),
-                OpSearchAll => SearchAll(service, query!.Query, query.Limit),
-                OpStats => Stats(service, query!.SourceId),
-                _ => Error(op!, $"未知 op '{op}'；可用: {OpSources}/{OpIndex}/{OpList}/{OpDescribe}/{OpSearch}/{OpSearchAll}/{OpStats}"),
-            };
+            // 大小写不敏感匹配：常量是驼峰（"searchAll"），入参可能是任意大小写，禁止先归一后再做序敏感比较。
+            if (string.IsNullOrEmpty(op) || IsOp(op, OpSources)) return Sources(service);
+            if (IsOp(op, OpIndex)) return Index(service, query!.SourceId);
+            if (IsOp(op, OpList)) return List(service, query!.SourceId, query.AxisId, query.Value);
+            if (IsOp(op, OpDescribe)) return Describe(service, query!.SourceId, query.Key);
+            if (IsOp(op, OpSearch)) return Search(service, query!.SourceId, query.Query, query.Limit);
+            if (IsOp(op, OpSearchAll)) return SearchAll(service, query!.Query, query.Limit);
+            if (IsOp(op, OpStats)) return Stats(service, query!.SourceId);
+
+            return Error(op!, $"未知 op '{op}'；可用: {OpSources}/{OpIndex}/{OpList}/{OpDescribe}/{OpSearch}/{OpSearchAll}/{OpStats}", service);
         }
-        catch (CatalogException ex)
+        catch (OperationCanceledException)
         {
-            return Error(op ?? "(null)", ex.Message);
+            throw; // 取消不是查询失败：不伪装成 status:error
+        }
+        catch (Exception ex)
+        {
+            return Error(op ?? "(null)", MessageOf(ex), service);
         }
     }
+
+    private static bool IsOp(string op, string expected)
+        => string.Equals(op, expected, StringComparison.OrdinalIgnoreCase);
+
+    private static string MessageOf(Exception ex)
+        => ex is CatalogException ? ex.Message : $"{ex.GetType().Name}: {ex.Message}";
 
     /// <summary>有哪些目录可查（最外层索引）。</summary>
     public static string Sources(CatalogQueryService service)
@@ -130,6 +139,7 @@ public static partial class CatalogJson
             axis = list.AxisId,
             axisDisplay = list.AxisDisplay,
             value = list.Value,
+            display = list.Display,
             count = list.Count,
             items = list.Items.Select(ProjectItem),
         });

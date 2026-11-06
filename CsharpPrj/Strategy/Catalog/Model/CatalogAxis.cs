@@ -16,11 +16,11 @@ namespace Strategy.Catalog.Model;
 public sealed record CatalogAxis(string Id, string Display, bool CaseSensitive = false)
 {
     /// <summary>轴显示名（空则回退 Id，统一空值兜底入口）。</summary>
-    public string EffectiveDisplay => string.IsNullOrWhiteSpace(Display) ? Id : Display;
+    public string EffectiveDisplay => CatalogText.Or(Display, Id);
 
     /// <summary>按名构造（常用轴；显示名与 Id 相同）。</summary>
     public static CatalogAxis Of(string id, string? display = null, bool caseSensitive = false)
-        => new(id, string.IsNullOrWhiteSpace(display) ? id : display!, caseSensitive);
+        => new(id, CatalogText.Or(display, id), caseSensitive);
 }
 
 /// <summary>
@@ -32,7 +32,7 @@ public sealed record CatalogAxis(string Id, string Display, bool CaseSensitive =
 public sealed record CatalogAxisValue(string AxisId, string Value, string? Display = null)
 {
     /// <summary>取值显示名（空则回退 Value）。</summary>
-    public string EffectiveDisplay => string.IsNullOrWhiteSpace(Display) ? Value : Display!;
+    public string EffectiveDisplay => CatalogText.Or(Display, Value);
 
     /// <summary>按名构造。</summary>
     public static CatalogAxisValue Of(string axisId, string value, string? display = null) => new(axisId, value, display);
@@ -90,4 +90,14 @@ public static class CatalogAxes
         }
         return list;
     }
+}
+
+/// <summary>
+/// 显示名兜底（**单一实现**）—— 「空 / 全空白则回退」全工程只此一处，各模型 / 源不得再抄变体。
+/// </summary>
+internal static class CatalogText
+{
+    /// <summary>取 <paramref name="value"/>；为空或全空白时回退 <paramref name="fallback"/>。</summary>
+    public static string Or(string? value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value!;
 }

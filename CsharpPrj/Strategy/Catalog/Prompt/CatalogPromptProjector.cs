@@ -45,7 +45,7 @@ public static class CatalogPromptProjector
         ArgumentNullException.ThrowIfNull(queryService);
         var list = queryService.List(sourceId, axisId, value);
         var sb = new StringBuilder();
-        sb.Append(list.SourceId).Append('/').Append(list.AxisDisplay).Append(' ').Append(list.Value)
+        sb.Append(list.SourceId).Append('/').Append(list.AxisDisplay).Append(' ').Append(list.Display)
           .Append('（').Append(list.Count).Append(" 条）");
 
         var shown = 0;

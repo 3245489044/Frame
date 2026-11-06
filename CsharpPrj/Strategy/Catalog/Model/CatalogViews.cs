@@ -45,7 +45,7 @@ public sealed record CatalogIndex(
 
     /// <summary>空索引（源未装配/无条目；避免调用方判空）。</summary>
     public static CatalogIndex Empty(string sourceId, string? display = null)
-        => new(sourceId, string.IsNullOrWhiteSpace(display) ? sourceId : display!,
+        => new(sourceId, CatalogText.Or(display, sourceId),
             0, Array.Empty<CatalogAxis>(), Array.Empty<CatalogItem>(), Array.Empty<CatalogGroupRow>());
 }
 

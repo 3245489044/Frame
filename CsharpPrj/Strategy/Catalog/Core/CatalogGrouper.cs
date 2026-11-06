@@ -66,7 +66,8 @@ public static partial class CatalogGrouper
             .ToList();
 
         var v = value ?? string.Empty;
-        return new CatalogList(source.SourceId, axis.Id, axis.EffectiveDisplay, v, v, items);
+        return new CatalogList(source.SourceId, axis.Id, axis.EffectiveDisplay, v,
+            GroupValueDisplay(items, axis, v), items);
     }
 
     /// <summary>单轴目录行（按计数降序 → 取值序）。</summary>
@@ -86,7 +87,7 @@ public static partial class CatalogGrouper
         var detail = source.Describe(key!);
         return detail is null
             ? null
-            : detail with { Display = string.IsNullOrWhiteSpace(detail.Display) ? key! : detail.Display };
+            : detail with { Display = CatalogText.Or(detail.Display, key!) };
     }
 
     /// <summary>未命中引导：给出"最像"的候选键（前缀命中优先，其次包含命中），不静默返空。</summary>

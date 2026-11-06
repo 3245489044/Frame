@@ -28,28 +28,25 @@ public sealed record CatalogItem(
     IReadOnlyList<string>? Tags = null)
 {
     /// <summary>显示名（空则回退 <see cref="Key"/>，统一空值兜底入口）。</summary>
-    public string EffectiveDisplay => string.IsNullOrWhiteSpace(Display) ? Key : Display!;
+    public string EffectiveDisplay => CatalogText.Or(Display, Key);
 
-    /// <summary>取指定轴的取值；未挂载返回 null（大小写不敏感）。</summary>
-    public string? ValueOf(string axisId)
+    /// <summary>
+    /// 取指定轴的取值对象；未挂载返回 null（轴 Id 大小写不敏感）。
+    /// <para>轴值查找的**单一实现**：取值与显示名都从这里派生，避免两份遍历各改各的判据。</para>
+    /// </summary>
+    public CatalogAxisValue? AxisValueOf(string axisId)
     {
         if (string.IsNullOrWhiteSpace(axisId)) return null;
         foreach (var axis in Axes ?? Array.Empty<CatalogAxisValue>())
         {
             if (axis is null) continue;
-            if (string.Equals(axis.AxisId, axisId, StringComparison.OrdinalIgnoreCase)) return axis.Value;
+            if (string.Equals(axis.AxisId, axisId, StringComparison.OrdinalIgnoreCase)) return axis;
         }
         return null;
     }
 
-    /// <summary>条目是否命中指定轴的取值（大小写不敏感；空取值 = 不命中）。</summary>
-    public bool OnAxis(string axisId, string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return false;
-        var mine = ValueOf(axisId);
-        return !string.IsNullOrWhiteSpace(mine)
-               && string.Equals(mine, value, StringComparison.OrdinalIgnoreCase);
-    }
+    /// <summary>取指定轴的取值；未挂载返回 null（大小写不敏感）。</summary>
+    public string? ValueOf(string axisId) => AxisValueOf(axisId)?.Value;
 }
 
 /// <summary>
@@ -91,5 +88,5 @@ public sealed record CatalogDetail(
 
     /// <summary>按名构造（字段集便捷）。</summary>
     public static CatalogDetail Of(string key, string? display, IEnumerable<CatalogField>? fields, string? summary = null, string? invokeRef = null)
-        => new(key, string.IsNullOrWhiteSpace(display) ? key : display!, fields?.ToList() ?? (IReadOnlyList<CatalogField>)Array.Empty<CatalogField>(), summary, invokeRef);
+        => new(key, CatalogText.Or(display, key), fields?.ToList() ?? (IReadOnlyList<CatalogField>)Array.Empty<CatalogField>(), summary, invokeRef);
 }

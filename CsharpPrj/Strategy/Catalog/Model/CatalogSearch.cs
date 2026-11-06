@@ -71,7 +71,7 @@ public sealed record CatalogStats(
 
     /// <summary>空统计（源未装配；避免调用方判空）。</summary>
     public static CatalogStats Empty(string sourceId, string? display = null)
-        => new(sourceId, string.IsNullOrWhiteSpace(display) ? sourceId : display!,
+        => new(sourceId, CatalogText.Or(display, sourceId),
             0, 0, Array.Empty<CatalogAxisCount>(), Array.Empty<CatalogGroupRow>());
 }
 

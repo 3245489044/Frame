@@ -29,7 +29,7 @@ public sealed class DelegateCatalogSource : ICatalogSource
         Func<string, CatalogDetail?>? describe = null)
     {
         SourceId = sourceId ?? throw new ArgumentNullException(nameof(sourceId));
-        Display = string.IsNullOrWhiteSpace(display) ? sourceId : display;
+        Display = CatalogText.Or(display, sourceId);
         Axes = axes ?? Array.Empty<CatalogAxis>();
         _enumerate = enumerate ?? throw new ArgumentNullException(nameof(enumerate));
         _describe = describe;
@@ -101,13 +101,7 @@ public static class ListCatalogSource
         IEnumerable<(string Key, string? Summary)> items,
         string axisId = PrefixAxisId,
         string axisDisplay = PrefixAxisDisplay)
-        => new DelegateCatalogSource(sourceId, display,
-            new[] { CatalogAxis.Of(axisId, axisDisplay) },
-            () => (items ?? Enumerable.Empty<(string, string?)>())
-                .Where(i => !string.IsNullOrWhiteSpace(i.Key))
-                .Select(i => new CatalogItem(i.Key, i.Key,
-                    new[] { CatalogAxes.PrefixValue(i.Key, axisId) }, i.Summary))
-                .ToList());
+        => ByPrefix(sourceId, display, () => items, axisId, axisDisplay);
 
     /// <summary>按「相对路径首段（文件夹）」建轴：键 = 相对路径，显示名可另给。</summary>
     public static ICatalogSource ByFolder(
@@ -116,14 +110,7 @@ public static class ListCatalogSource
         IEnumerable<(string RelativePath, string? Display, string? Summary)> items,
         string axisId = FolderAxisId,
         string axisDisplay = FolderAxisDisplay)
-        => new DelegateCatalogSource(sourceId, display,
-            new[] { CatalogAxis.Of(axisId, axisDisplay) },
-            () => (items ?? Enumerable.Empty<(string, string?, string?)>())
-                .Where(i => !string.IsNullOrWhiteSpace(i.RelativePath))
-                .Select(i => new CatalogItem(i.RelativePath,
-                    string.IsNullOrWhiteSpace(i.Display) ? i.RelativePath : i.Display!,
-                    new[] { CatalogAxes.FolderValue(i.RelativePath, axisId) }, i.Summary))
-                .ToList());
+        => ByFolder(sourceId, display, () => items, axisId, axisDisplay);
 
     /// <summary>
     /// 按「首个下划线前缀」建轴（**委托版**）—— 条目集**每次查询现取**。
@@ -138,13 +125,10 @@ public static class ListCatalogSource
         Func<IEnumerable<(string Key, string? Summary)>> itemsProvider,
         string axisId = PrefixAxisId,
         string axisDisplay = PrefixAxisDisplay)
-        => new DelegateCatalogSource(sourceId, display,
-            new[] { CatalogAxis.Of(axisId, axisDisplay) },
-            () => (itemsProvider() ?? Enumerable.Empty<(string, string?)>())
-                .Where(i => !string.IsNullOrWhiteSpace(i.Key))
-                .Select(i => new CatalogItem(i.Key, i.Key,
-                    new[] { CatalogAxes.PrefixValue(i.Key, axisId) }, i.Summary))
-                .ToList());
+        => Create(sourceId, display, axisId, axisDisplay, itemsProvider,
+            i => i.Key,
+            i => new CatalogItem(i.Key, i.Key,
+                new[] { CatalogAxes.PrefixValue(i.Key, axisId) }, i.Summary));
 
     /// <summary>按「相对路径首段（文件夹）」建轴（**委托版**）—— 条目集每次查询现取（可变目录树必用）。</summary>
     public static ICatalogSource ByFolder(
@@ -153,12 +137,24 @@ public static class ListCatalogSource
         Func<IEnumerable<(string RelativePath, string? Display, string? Summary)>> itemsProvider,
         string axisId = FolderAxisId,
         string axisDisplay = FolderAxisDisplay)
+        => Create(sourceId, display, axisId, axisDisplay, itemsProvider,
+            i => i.RelativePath,
+            i => new CatalogItem(i.RelativePath, CatalogText.Or(i.Display, i.RelativePath),
+                new[] { CatalogAxes.FolderValue(i.RelativePath, axisId) }, i.Summary));
+
+    /// <summary>四个公开工厂的唯一核心：过滤空键 → 投影条目 → 物化（轴值派生由各自的投影函数决定）。</summary>
+    private static ICatalogSource Create<T>(
+        string sourceId,
+        string display,
+        string axisId,
+        string axisDisplay,
+        Func<IEnumerable<T>> itemsProvider,
+        Func<T, string?> keyOf,
+        Func<T, CatalogItem> project)
         => new DelegateCatalogSource(sourceId, display,
             new[] { CatalogAxis.Of(axisId, axisDisplay) },
-            () => (itemsProvider() ?? Enumerable.Empty<(string, string?, string?)>())
-                .Where(i => !string.IsNullOrWhiteSpace(i.RelativePath))
-                .Select(i => new CatalogItem(i.RelativePath,
-                    string.IsNullOrWhiteSpace(i.Display) ? i.RelativePath : i.Display!,
-                    new[] { CatalogAxes.FolderValue(i.RelativePath, axisId) }, i.Summary))
+            () => (itemsProvider() ?? Enumerable.Empty<T>())
+                .Where(i => !string.IsNullOrWhiteSpace(keyOf(i)))
+                .Select(project)
                 .ToList());
 }

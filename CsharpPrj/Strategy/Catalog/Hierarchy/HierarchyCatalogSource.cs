@@ -46,7 +46,7 @@ public sealed class HierarchyCatalogSource : ICatalogSource
     public HierarchyCatalogSource(string sourceId, string display, HierarchySchema schema, string? axisId = null)
     {
         SourceId = string.IsNullOrWhiteSpace(sourceId) ? throw new ArgumentException("目录源 Id 不可为空。", nameof(sourceId)) : sourceId;
-        Display = string.IsNullOrWhiteSpace(display) ? sourceId : display;
+        Display = CatalogText.Or(display, sourceId);
         Schema = schema ?? throw new ArgumentNullException(nameof(schema));
         AxisId = string.IsNullOrWhiteSpace(axisId) ? LevelAxisId : axisId!;
         _topology = new SchemaTopology(schema);
@@ -70,9 +70,12 @@ public sealed class HierarchyCatalogSource : ICatalogSource
 
     /// <summary>便捷构造（目录源 Id 缺省派生自 schema 根层）。</summary>
     public static HierarchyCatalogSource For(HierarchySchema schema, string? sourceId = null, string? display = null)
-        => new(sourceId ?? $"hierarchy:{schema?.RootLevelId ?? "root"}",
-               display ?? $"{schema?.RootLevelId ?? "root"} 层次",
-               schema!);
+    {
+        var root = schema?.RootLevelId ?? "root";
+        return new(sourceId ?? $"hierarchy:{root}",
+                   CatalogText.Or(display, $"{root} 层次"),
+                   schema!);
+    }
 
     /// <inheritdoc />
     public IReadOnlyList<CatalogItem> Enumerate()

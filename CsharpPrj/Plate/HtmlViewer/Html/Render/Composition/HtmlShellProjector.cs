@@ -230,7 +230,10 @@ public static class HtmlShellProjector
             var html = slots.TryGetValue(key, out var slotHtml)
                 ? slotHtml
                 : contents.TryGetValue(container.Key, out var contentHtml) ? contentHtml : string.Empty;
-            composed[container.Key] = Wrap(container.Key, html);
+            // 无结构标记 ⇒ 保持旧契约（纯内容片段）；有标记 ⇒ 只对已声明容器包裹（零回归）。
+            composed[container.Key] = markup is not null && markup.ContainsKey(container.Key)
+                ? Wrap(container.Key, html)
+                : html;
         }
 
         return composed;

@@ -20,6 +20,48 @@
        全量离线校验（四类检查 + 例外 + 孤儿 + 反向引用报告）：
          Frame\PowerShellScript\Share\Solution\Test-ProjectReferences.ps1 -Check
        ============================================================ -->
+
+  <!-- ============================================================
+       Constraint Wall（墙侧）编译期规则：声明包出口（CW-01 的工程图半边）
+
+       声明包 = Plate\TConfig（TConfig 契约/配置模型/DTO，D 面）。
+       编译期只判**项目引用图**：D 不得 ProjectReference Operation / Strategy。
+       源码级 using/限定名判定由门禁 CF-W-01-DeclarationNoImplRef 承担（词法面）。
+       这样把「新增依赖」拦在编译期，而不在离线门禁里事后追。
+
+       属性：
+         ConstraintWall_Enforce  error|warn|off，默认 error
+       ============================================================ -->
+  <PropertyGroup>
+    <ConstraintWall_Enforce Condition="'$(ConstraintWall_Enforce)' == ''">error</ConstraintWall_Enforce>
+    <_CW_DeclarationRoot>$([System.String]::Copy('$(MSBuildThisFileDirectory)Plate\TConfig').ToLowerInvariant())</_CW_DeclarationRoot>
+  </PropertyGroup>
+
+  <Target Name="EnforceDeclarationWall" BeforeTargets="ResolveProjectReferences"
+          Condition="'$(ConstraintWall_Enforce)' != 'off'
+                     And '@(ProjectReference)' != ''
+                     And $([System.String]::Copy('$(MSBuildProjectDirectory)').ToLowerInvariant().StartsWith('$(_CW_DeclarationRoot)'))">
+
+    <ItemGroup>
+      <_CW_Violation Remove="@(_CW_Violation)" />
+      <_CW_Violation Include="@(ProjectReference)"
+          Condition="$([System.String]::Copy('%(ProjectReference.FullPath)').ToLowerInvariant().StartsWith('$(_LB_OperationRoot)'))
+                  Or $([System.String]::Copy('%(ProjectReference.FullPath)').ToLowerInvariant().StartsWith('$(_LB_StrategyRoot)'))" />
+    </ItemGroup>
+
+    <Error Condition="'@(_CW_Violation)' != '' And '$(ConstraintWall_Enforce)' == 'error'"
+           Code="CW0001"
+           Text="[ConstraintWall] $(MSBuildProjectName) 声明包（D）不得引用实现层：@(_CW_Violation->'&quot;%(Filename)&quot;', ', ')。D 只允许 Protocol/BasicMethod/Modules/Plate；需要实现能力时经端口接口由 C 面注入。" />
+
+    <Warning Condition="'@(_CW_Violation)' != '' And '$(ConstraintWall_Enforce)' == 'warn'"
+             Code="CW0001"
+             Text="[ConstraintWall] (warn) $(MSBuildProjectName) 声明包（D）引用实现层：@(_CW_Violation->'&quot;%(Filename)&quot;', ', ')。" />
+
+    <Message Condition="'@(_CW_Violation)' == '' And '$(LayerBarrier_Verbose)' == 'true'"
+             Importance="high"
+             Text="[ConstraintWall] $(MSBuildProjectName) 声明包出口合规。" />
+  </Target>
+
   <PropertyGroup>
     <LayerBarrier_Enforce Condition="'$(LayerBarrier_Enforce)' == ''">error</LayerBarrier_Enforce>
     <!-- 路径判定统一转小写，避免 Windows 路径大小写不一致导致守卫静默失效（fail-open） -->

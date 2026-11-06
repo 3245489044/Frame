@@ -1,4 +1,4 @@
-@{
+﻿@{
     KeyDomainStrict = @{
         Domain = 'KeySpace'
         Args   = @{ Check = $true; NegativeControl = $true }
@@ -1344,6 +1344,23 @@
         Note   = '测试构建通用框架守卫 T1–T4：输出拓扑单源（测试工程禁本地 OutputPath）/ 产品面单源（禁 Reference 直连权威目录与 CopyProductClosure）/ 兼容入口薄转发 / 保留策略（published ≤1、无 dmp）；负对照合成 OutputPath 必红'
     }
 
+    # ===== 测试布局对齐（TestLayout · 文件级投影）=====
+    TestFileOwned = @{
+        Domain = 'TestLayout'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'FA2 测试侧可达性：载体文件（测试特性/命名）必须投影到 ≥1 源码文件（L1 词干 / L2 声明类型 / L3 covers）；新增即红，存量棘轮（_TestLayoutReachability.psd1）；Exempt 车道不参与；不要求 1:1'
+    }
+
+    TestSourceReachable = @{
+        Domain = 'TestLayout'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'FA3 源码侧可达性：可测源码文件应被 ≥1 测试投影（生成/纯接口/纯枚举自动豁免）；新增即红，存量棘轮；不承诺「每个 .cs 都有 XxxTests.cs」（禁诱导空测试）'
+    }
+
     PsCapabilityFileOnly = @{
         Domain = 'Meta'
         Args   = @{ Check = $true }
@@ -2578,6 +2595,63 @@
         Tier   = 'fast'
         Expect = 0
         Note   = '配置路径防回潮 P1–P4：C# 消费代码禁 @"Config\..." 与 Path.Combine("Config",...)；Agent 模块 PS 禁 Join-Path Config 硬编码；债务棘轮只降不升（Baselines\Meta\ConfigPaths.psd1）；正负对照'
+    }
+
+    # ── Constraint 域：约束墙（Wall）侧 CF-W-*（Docs\analysis\2026\11\11.6\constraint-framework）──
+    'CF-W-01-DeclarationNoImplRef' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = 'D 声明面 *.cs 的 using/限定名（去注释）'
+        Note    = 'CW-01 声明包不依赖实现：D 不得 using 实现命名空间；基线棘轮 Baselines\Constraint\CF-W-01-DeclarationNoImplRef.psd1；正负对照'
+    }
+
+    'CF-W-02-DeclarationSurfaceClosed' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = 'D 声明面 *.cs 的显式禁型 token（去注释）'
+        Note    = 'CW-02 声明面禁型闭合（显式子集：平台/实现/object/Delegate/dynamic）；基线棘轮 Baselines\Constraint\CF-W-02-DeclarationSurfaceClosed.psd1；完整闭合标 attest；正负对照'
+    }
+
+    'CF-W-03-ImplNoMutableConfigRef' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '核心目录 *.cs 的显式配置类型声明（去注释）'
+        Note    = 'CW-03 核心目录零可变配置引用：字段/参数/局部/属性显式类型命中；基线棘轮 Baselines\Constraint\CF-W-03-ImplNoMutableConfigRef.psd1；正负对照'
+    }
+
+    'CF-W-05-NoConfigConstruction' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '实现侧 *.cs 的 new/Deserialize<MutableConfigType>（去注释）'
+        Note    = 'CW-05 实现侧零配置构造：显式 new/反序列化命中；基线棘轮 Baselines\Constraint\CF-W-05-NoConfigConstruction.psd1；目标态归零；正负对照'
+    }
+
+    'CF-W-07-PlatformTypeQuarantine' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '实现侧 *.cs 的路径白名单 × 平台类型 token'
+        Note    = 'CW-07 平台类型隔离：WinForms/HtmlHosting/Viewer 边界外禁平台类型；基线棘轮 Baselines\Constraint\CF-W-07-PlatformTypeQuarantine.psd1；正负对照'
+    }
+
+    'CF-W-08-NoAmbientLookup' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '实现侧 *.cs 的 AppServiceProvider.Resolve / NodePortContractRegistry 明确调用点'
+        Note    = 'CW-08 零环境查找（明确调用点面）：.Shared/.Instance 泛化面标 attest；基线棘轮 Baselines\Constraint\CF-W-08-NoAmbientLookup.psd1；正负对照'
+    }
+
+    'CF-W-09-NoStaticMutableState' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '实现侧 *.cs 的 static 字段/自动属性声明头（去注释）'
+        Note    = 'CW-09 零静态可变状态：static 非 readonly/const 字段与可变静态属性；基线棘轮 Baselines\Constraint\CF-W-09-NoStaticMutableState.psd1；正负对照'
     }
 
 }

@@ -46,7 +46,9 @@
     "Node": ["Environment/CentralTest/Tools/Gate/Node", "Frame/PowerShellScript/Modules/Node", "Frame/PowerShellScript/Operation/DSL/Node"],
     "Parsing": ["Environment/CentralTest/Tools/Gate/Parsing", "Frame/PowerShellScript/Modules/Parsing"],
     "KeySpace": ["Environment/CentralTest/Tools/Gate/KeySpace", "Frame/PowerShellScript/Operation/DSL/KeySpace"],
-    "Build": ["Environment/CentralTest/Tools/Gate/Build", "Projects/BuildFramework"]
+    "Build": ["Environment/CentralTest/Tools/Gate/Build", "Projects/BuildFramework"],
+    "TestLayout": ["Environment/CentralTest/Tools/Gate/TestLayout"],
+    "Constraint": ["Environment/CentralTest/Tools/Gate/Constraint"]
   },
   "scriptNameOverrides": {
     "PrjBridgeDecoupling": "Check-BridgeDecoupling.ps1",

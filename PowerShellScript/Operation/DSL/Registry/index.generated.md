@@ -1,4 +1,4 @@
-# 门禁索引（生成产物，禁手改）
+﻿# 门禁索引（生成产物，禁手改）
 
 > 由 `Operation\DSL\Tooling\Build-GateIndex.ps1` 从 `Operation\DSL\Registry\GateManifests.psd1` 的 `Domain` / `Family` / `Form` 字段编译生成。
 > 新增/改域/改名后重跑生成器（幂等）；守卫 = `Operation\DSL\Meta\Check-GateTaxonomy.ps1`。
@@ -128,6 +128,18 @@
 | `BuildFrameworkModules` | full | 0 | — | — | `Projects\BuildFramework\Gates\Check-BuildFrameworkModules.ps1` |
 | `BuildTargetMap` | full | 0 | — | — | `Projects\BuildFramework\Gates\Check-BuildTargetMap.ps1` |
 | `DistributionIncrement` | full | 0 | — | — | `Projects\BuildFramework\Gates\Check-DistributionIncrement.ps1` |
+
+## Constraint（7 件）
+
+| Gate | Tier | Expect | Family | Form | 脚本 |
+|---|---|---|---|---|---|
+| `CF-W-01-DeclarationNoImplRef` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-01-DeclarationNoImplRef.ps1` |
+| `CF-W-02-DeclarationSurfaceClosed` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-02-DeclarationSurfaceClosed.ps1` |
+| `CF-W-03-ImplNoMutableConfigRef` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-03-ImplNoMutableConfigRef.ps1` |
+| `CF-W-05-NoConfigConstruction` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-05-NoConfigConstruction.ps1` |
+| `CF-W-07-PlatformTypeQuarantine` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-07-PlatformTypeQuarantine.ps1` |
+| `CF-W-08-NoAmbientLookup` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-08-NoAmbientLookup.ps1` |
+| `CF-W-09-NoStaticMutableState` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-09-NoStaticMutableState.ps1` |
 
 ## Data（29 件）
 
@@ -345,6 +357,13 @@
 | `SpecOnly` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Test-SpecOnlyGate.ps1` |
 | `SpecPortLedger` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecPortLedger.ps1` |
 | `SpecToolingContract` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecToolingContract.ps1` |
+
+## TestLayout（2 件）
+
+| Gate | Tier | Expect | Family | Form | 脚本 |
+|---|---|---|---|---|---|
+| `TestFileOwned` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestFileOwned.ps1` |
+| `TestSourceReachable` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestSourceReachable.ps1` |
 
 ## Usharp（7 件）
 

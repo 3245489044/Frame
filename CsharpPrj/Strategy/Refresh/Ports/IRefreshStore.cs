@@ -28,9 +28,25 @@ namespace Strategy.Refresh.Ports
         /// <summary>读取该槽的反馈状态（未观测 ⇒ <see cref="SlotRefreshState.Empty"/>）。</summary>
         SlotRefreshState GetState(string slotKey);
 
-        /// <summary>记录一次刷新结论（推进 / 重置连续无进展与退避）。</summary>
+        /// <summary>
+        /// 记录一次刷新结论（推进 / 重置连续无进展与退避）。
+        /// <para><b>不变量</b>：指纹与 baseline 只能由 <see cref="Commit"/> 在同一把锁内一次原子推进；
+        /// 本方法不得覆写 <c>last[slotKey]</c>（Skipped / Stale / Failed / 未送达的指纹不构成「已落地」）。</para>
+        /// </summary>
         void RecordOutcome(
             string slotKey,
+            RefreshOutcome outcome,
+            string fingerprint,
+            string? progressToken,
+            DateTimeOffset at);
+
+        /// <summary>
+        /// 带版本的刷新结论记录（推荐）：早于 baseline 或早于已记录版本的乱序结论应被丢弃，
+        /// 保证并发 / 在飞合并下反馈状态不被旧尝试拉回。
+        /// </summary>
+        void RecordOutcome(
+            string slotKey,
+            long version,
             RefreshOutcome outcome,
             string fingerprint,
             string? progressToken,

@@ -4,7 +4,8 @@ namespace Strategy.Refresh.Ports
 {
     /// <summary>
     /// 刷新源（L1 契约，通用）：宿主 / UI 侧声明一个"变化会引发刷新"的来源（如任务池状态、数据表、兜底轮询）。
-    /// <para>统一由 <see cref="RefreshScheduler"/> 登记与管理——节拍 / 去重 / 单飞 / 重试 / 优先级全部在框架侧，
+    /// <para>登记与生命周期统一由 <see cref="Strategy.Refresh.Core.RefreshRegistry"/> 管理（唯一真源），变化事件直连
+    /// <see cref="Strategy.Refresh.Core.RefreshScheduler"/> 标脏——节拍 / 去重 / 单飞 / 重试 / 优先级全部在框架侧，
     /// 源只需上报变更范围（scope 键；null/空白 = 全量）与优先级，**不再各自维护节拍与去重**。</para>
     /// </summary>
     public interface IRefreshSource

@@ -102,7 +102,11 @@ namespace Strategy.Refresh.Core
             lock (_gate) { _pollTimer?.Dispose(); _pollTimer = null; }
         }
 
-        /// <summary>登记刷新源（幂等；换实例即替换并停旧源）。返回 true = 实际登记。</summary>
+        /// <summary>
+        /// 直连事件接线（按实例幂等）：把源的变化转发为 <see cref="MarkDirty(string?, RefreshPriority)"/>。
+        /// <para><b>不是登记真源</b>：生产入口统一走 <see cref="RefreshRegistry"/>（登记 / 换实例替换 / 停旧源 / 退订全在那里）；
+        /// 本方法仅保留给直连调度器与测试，不再参与登记语义。</para>
+        /// </summary>
         public bool RegisterSource(IRefreshSource source)
         {
             ArgumentNullException.ThrowIfNull(source);
@@ -117,7 +121,7 @@ namespace Strategy.Refresh.Core
             return true;
         }
 
-        /// <summary>注销刷新源（按实例；幂等）。返回 true = 实际移除。</summary>
+        /// <summary>解除直连事件接线（按实例；幂等）。返回 true = 实际移除。</summary>
         public bool UnregisterSource(IRefreshSource source)
         {
             if (source is null) return false;
@@ -236,7 +240,9 @@ namespace Strategy.Refresh.Core
 
                 if (!ok)
                 {
-                    // 失败不置回：仅记录（下一 tick 由定时器/事件自然触发；失败驱动 ≠ 时间驱动）。
+                    // 未送达必置回（at-least-once，与 PushOnceAsync 同语义）：
+                    // Change / Fallback 按本拍范围重标脏；Heartbeat 因 _nextDue 未推进而下一拍自然重试。
+                    RequeueOnFailure(trigger, scopes);
                     ReportDiagnostics(trigger, scopes);
                     return;
                 }
@@ -249,6 +255,30 @@ namespace Strategy.Refresh.Core
             finally
             {
                 Interlocked.Exchange(ref _ticking, 0);
+            }
+        }
+
+        /// <summary>
+        /// 未送达置回：只恢复本拍被清空的 dirty 标记，不重置退避 / 熔断历史（那是 MarkDirty 的语义，不是失败的语义）。
+        /// <para>Heartbeat 车道无需恢复：<see cref="ScheduleNext"/> 只在成功时推进 <c>_nextDue</c>，失败后下一拍仍到期。</para>
+        /// </summary>
+        private void RequeueOnFailure(RefreshTrigger trigger, IReadOnlyCollection<string>? scopes)
+        {
+            lock (_gate)
+            {
+                switch (trigger)
+                {
+                    case RefreshTrigger.Change:
+                        if (scopes is null) _dirtyAll = true;
+                        else foreach (var key in scopes) _dirtyKeys.Add(key);
+                        break;
+                    case RefreshTrigger.Fallback:
+                        if (scopes is null) _lowAll = true;
+                        else foreach (var key in scopes) _lowKeys.Add(key);
+                        break;
+                    default:
+                        break;
+                }
             }
         }
 

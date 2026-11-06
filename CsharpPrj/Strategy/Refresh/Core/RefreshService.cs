@@ -64,9 +64,13 @@ namespace Strategy.Refresh.Core
                         noChange = d.ConsecutiveNoChange,
                     }),
                 timerFactory: ToTimerFactory(clock));
+
+            // P0-4：登记面单一真源 —— 源清单只存在 Registry，变化事件由 Registry 直连调度器标脏，
+            // 调度器不再保存第二份「已登记源」。
+            Registry = new RefreshRegistry((scope, priority) => _scheduler.MarkDirty(scope, priority));
         }
 
-        public RefreshRegistry Registry { get; } = new();
+        public RefreshRegistry Registry { get; }
 
         public IRefreshStore Store => _store;
 
@@ -85,23 +89,20 @@ namespace Strategy.Refresh.Core
 
         public bool RegisterSource(RefreshDescriptor descriptor, IRefreshSource source)
         {
+            // 登记 / 换实例停旧源 / 事件接线全部由 Registry 单源完成；运行中登记 ⇒ 立即启动新源。
             var added = Registry.RegisterSource(descriptor, source);
-            if (added && IsRunning) _scheduler.RegisterSource(source);
+            if (added && IsRunning) source.Start();
             return added;
         }
 
-        public bool UnregisterSource(IRefreshSource source)
-        {
-            _scheduler.UnregisterSource(source);
-            return Registry.UnregisterSource(source);
-        }
+        public bool UnregisterSource(IRefreshSource source) => Registry.UnregisterSource(source);
 
         public bool RegisterRenderer(IRefreshRenderer renderer) => Registry.RegisterRenderer(renderer);
 
-        /// <summary>绑定：起表 + 启动已登记源。</summary>
+        /// <summary>绑定：起表 + 启动已登记源（源清单唯一来自 Registry）。</summary>
         public void Attach()
         {
-            foreach (var source in Registry.Sources()) _scheduler.RegisterSource(source);
+            foreach (var source in Registry.Sources()) source.Start();
             _scheduler.Start();
         }
 
@@ -160,7 +161,8 @@ namespace Strategy.Refresh.Core
                 var versionState = _store.GetState(slot);
                 if (baseVersion == versionState.LastDeliveredVersion)
                 {
-                    _store.RecordOutcome(slot, RefreshOutcome.Unchanged, versionState.LastFingerprint, null, started);
+                    _store.RecordOutcome(slot, versionState.LastDeliveredVersion, RefreshOutcome.Unchanged,
+                        versionState.LastFingerprint, null, started);
                     // P0-3：版本相同早退同样留轨迹（reason 受控三值之一）。
                     _diagnostics?.Invoke("刷新轨迹", new
                     {
@@ -195,7 +197,7 @@ namespace Strategy.Refresh.Core
             catch (Exception ex)
             {
                 TraceException(slot, trigger, ex);
-                _store.RecordOutcome(slot, RefreshOutcome.Failed, string.Empty, null, _options.UtcNow());
+                _store.RecordOutcome(slot, version, RefreshOutcome.Failed, string.Empty, null, _options.UtcNow());
                 return Result(slot, version, trigger, RefreshOutcome.Failed, AcceptDecision.Apply,
                     false, false, false, string.Empty, started, null, ex);
             }
@@ -203,7 +205,7 @@ namespace Strategy.Refresh.Core
             if (artifact is null)
             {
                 TraceException(slot, trigger, null);
-                _store.RecordOutcome(slot, RefreshOutcome.Failed, string.Empty, null, _options.UtcNow());
+                _store.RecordOutcome(slot, version, RefreshOutcome.Failed, string.Empty, null, _options.UtcNow());
                 return Result(slot, version, trigger, RefreshOutcome.Failed, AcceptDecision.Apply,
                     false, false, false, string.Empty, started, null,
                     new InvalidOperationException("渲染器返回 null 产物"));
@@ -213,7 +215,7 @@ namespace Strategy.Refresh.Core
             if (fingerprint.Length == 0)
             {
                 TraceException(slot, trigger, null);
-                _store.RecordOutcome(slot, RefreshOutcome.Failed, string.Empty, artifact.ProgressToken, _options.UtcNow());
+                _store.RecordOutcome(slot, version, RefreshOutcome.Failed, string.Empty, artifact.ProgressToken, _options.UtcNow());
                 return Result(slot, version, trigger, RefreshOutcome.Failed, AcceptDecision.Apply,
                     false, false, false, string.Empty, started, null,
                     new InvalidOperationException("渲染产物指纹为空（按 Failed 处理）"));
@@ -221,7 +223,7 @@ namespace Strategy.Refresh.Core
 
             if (artifact.Outcome != RefreshOutcome.Changed || artifact.Payload is null)
             {
-                _store.RecordOutcome(slot, artifact.Outcome, fingerprint, artifact.ProgressToken, _options.UtcNow());
+                _store.RecordOutcome(slot, version, artifact.Outcome, fingerprint, artifact.ProgressToken, _options.UtcNow());
                 return Result(slot, version, trigger, artifact.Outcome, AcceptDecision.Apply,
                     false, false, false, fingerprint, started, artifact.Payload, null);
             }
@@ -238,7 +240,7 @@ namespace Strategy.Refresh.Core
             catch (Exception ex)
             {
                 TraceException(slot, trigger, ex);
-                _store.RecordOutcome(slot, RefreshOutcome.Failed, fingerprint, artifact.ProgressToken, _options.UtcNow());
+                _store.RecordOutcome(slot, version, RefreshOutcome.Failed, fingerprint, artifact.ProgressToken, _options.UtcNow());
                 return Result(slot, version, trigger, RefreshOutcome.Failed, AcceptDecision.Apply,
                     false, false, false, fingerprint, started, artifact.Payload, ex);
             }
@@ -246,8 +248,8 @@ namespace Strategy.Refresh.Core
             var outcome = MapOutcome(arbitration);
             if (arbitration.Delivery.Delivered && !arbitration.Delivery.ContentChanged)
                 Interlocked.Increment(ref _unchangedDeliveries);
-            if (!arbitration.Merged)
-                _store.RecordOutcome(slot, outcome, fingerprint, artifact.ProgressToken, _options.UtcNow());
+            // 合并不再跳过记录：每个调用方都用自己的版本记录自己的结论（版本守卫防乱序回写）。
+            _store.RecordOutcome(slot, version, outcome, fingerprint, artifact.ProgressToken, _options.UtcNow());
 
             return Result(slot, version, trigger, outcome, arbitration.Decision,
                 arbitration.Delivery.Delivered, arbitration.Delivery.ContentChanged, arbitration.Merged,
@@ -298,7 +300,7 @@ namespace Strategy.Refresh.Core
 
         public void Dispose()
         {
-            foreach (var source in Registry.Sources()) _scheduler.UnregisterSource(source);
+            foreach (var source in Registry.Sources()) Registry.UnregisterSource(source);
             _scheduler.Dispose();
         }
     }

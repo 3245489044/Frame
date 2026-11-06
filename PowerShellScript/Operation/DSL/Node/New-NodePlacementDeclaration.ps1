@@ -24,11 +24,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
+# 门禁自举（跨进程一行；根定位/运行时装载单源；禁固定深度上溯）
+$repoRoot = & (Join-Path ([regex]::Match($PSScriptRoot, '^(.+?)\\(?:Frame|Projects|Environment)\\').Groups[1].Value) 'Frame\PowerShellScript\Baselines\Initialize-GateModule.ps1')
+# 共享解析（只读）：wire-id 归一 + 声明并集；本脚本仍只写派生面
+Import-Module (Join-Path $repoRoot 'Frame\PowerShellScript\Modules\Node\NodePlacementSurface.psm1') -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
-}
+if ([string]::IsNullOrWhiteSpace($Root)) { $Root = $repoRoot }
 
 $nodesDir      = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
 $instancesFile = Join-Path $Root 'Projects\Plug\Agent\Config\instances\nodes.json'
@@ -40,26 +41,7 @@ if (-not (Test-Path -LiteralPath $nodesDir)) {
 }
 
 # ── 采集：声明并集（唯一真源） ────────────────────────────────────────────────
-$union = [System.Collections.Generic.List[string]]::new()
-foreach ($file in (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File -Recurse | Sort-Object Name)) {
-    $inPlacements = $false
-    $placementsIndent = -1
-    foreach ($raw in (Get-Content -LiteralPath $file.FullName)) {
-        $line = (Remove-LineComment -Text $raw -Marker '#').TrimEnd()
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        $indent = $line.Length - $line.TrimStart().Length
-        $trim = $line.Trim()
-        if ($trim.StartsWith('[')) { $inPlacements = $false; continue }
-        if ($trim -match '^placements$') { $inPlacements = $true; $placementsIndent = $indent; continue }
-        if ($inPlacements -and $indent -le $placementsIndent) { $inPlacements = $false }
-        if (-not $inPlacements) { continue }
-        $m = [regex]::Match($trim, '^id\s*=\s*(?<id>[^\s|]+)')
-        if ($m.Success) {
-            $id = $m.Groups['id'].Value
-            if (-not $union.Contains($id)) { $union.Add($id) }
-        }
-    }
-}
+$union = @(Get-NodePlacementUnion -Root $nodesDir)
 
 if ($union.Count -eq 0) {
     Write-Host '  [失败] 声明面位置并集为空（判据无标的，禁假绿）' -ForegroundColor Red
@@ -68,9 +50,7 @@ if ($union.Count -eq 0) {
 
 Write-Host ("  声明真源: {0} 域 / 位置并集 {1} 项" -f (Get-ChildItem -LiteralPath $nodesDir -Filter '*.ushar' -File -Recurse).Count, $union.Count) -ForegroundColor Gray
 
-function ConvertTo-WireId([string]$id) { return ($id -replace '-', '_').ToLowerInvariant() }
-
-$expectedWire = @($union | ForEach-Object { ConvertTo-WireId $_ } | Sort-Object)
+$expectedWire = @($union | ForEach-Object { Get-NodePlacementWireId -Id $_ } | Sort-Object)
 
 if ($ShowDetail) {
     Write-Host ("  [明细] 声明并集: $($union -join ', ')" ) -ForegroundColor DarkGray

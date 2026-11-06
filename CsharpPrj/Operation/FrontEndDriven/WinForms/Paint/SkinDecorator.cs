@@ -35,7 +35,10 @@ public static class SkinDecorator
             return;
         }
 
-        var material = descriptor.SkinRefs is { Count: > 0 } refs ? FirstMaterial(refs) : null;
+        var material = descriptor.SkinRefs is { Count: > 0 }
+            ? SelectMaterial(descriptor.SkinRefs)
+            : SelectMaterial(SkinMaterialCatalog.For(descriptor.Id) ?? SkinMaterialCatalog.For(descriptor.Name))
+              ?? SkinMaterialCatalog.Global;
         if (material is null)
         {
             Detach(control);
@@ -57,10 +60,28 @@ public static class SkinDecorator
             return; // 同材质：不重挂、不重绘
         }
 
+        // 解析期问题可见化（回退/不支持/模拟；禁静默）。
+        if (descriptor.Issues is { Count: > 0 } issues)
+        {
+            FrontEndDrivenLog.Log("SkinDecorator_issues", new
+            {
+                type = control.GetType().Name,
+                material = material.MaterialId,
+                issues = string.Join(";", issues.Take(4).Select(issue => issue.Code + ":" + issue.Detail)),
+            });
+        }
+
         state.Material = material;
         state.MaterialKey = key;
         if (state.Handler is null)
         {
+            // 首挂：双缓冲失败只记账不抛（绘制仍正确，仅闪烁风险，禁静默）。
+            if (!SkinDoubleBuffer.TryEnable(control, out var doubleBufferReason) && doubleBufferReason is not null)
+            {
+                FrontEndDrivenLog.Log("SkinDecorator_doublebuffer_unavailable",
+                    new { type = control.GetType().Name, reason = doubleBufferReason });
+            }
+
             var target = control;
             state.Handler = (_, e) => PaintControl(target, state, e);
             control.Paint += state.Handler;
@@ -68,6 +89,16 @@ public static class SkinDecorator
         }
 
         control.Invalidate();
+    }
+
+    /// <summary>关闭 owner-draw 并卸除全部已挂绘制（开关关闭 ⇒ 回到纯属性着色，零残留）。</summary>
+    public static void Disable()
+    {
+        Enabled = false;
+        // 先快照：Detach 会从 States 中移除条目，直接枚举会破坏表。
+        var attached = new List<Control>();
+        foreach (var pair in States) attached.Add(pair.Key);
+        foreach (var control in attached) Detach(control);
     }
 
     /// <summary>卸除绘制（控件复用/材质消失/开关关闭；幂等）。</summary>
@@ -120,8 +151,18 @@ public static class SkinDecorator
         return bitmap;
     }
 
-    private static ResolvedMaterial? FirstMaterial(IReadOnlyDictionary<string, ResolvedMaterial> materials)
-        => materials.Values.FirstOrDefault();
+    /// <summary>槽优先选择：<c>*_surface</c>（背景槽）→ 其余按声明序（禁以枚举顺序当语义）。</summary>
+    private static ResolvedMaterial? SelectMaterial(IReadOnlyDictionary<string, ResolvedMaterial>? materials)
+    {
+        if (materials is not { Count: > 0 }) return null;
+
+        foreach (var pair in materials)
+        {
+            if (pair.Key.EndsWith("_surface", StringComparison.Ordinal)) return pair.Value;
+        }
+
+        return materials.Values.FirstOrDefault();
+    }
 
     private static string CacheKey(ResolvedMaterial material, Rectangle bounds, int dpi)
     {

@@ -1401,6 +1401,38 @@
         Note   = 'FA3 源码侧可达性：可测源码文件应被 ≥1 测试投影（生成/纯接口/纯枚举自动豁免）；新增即红，存量棘轮；不承诺「每个 .cs 都有 XxxTests.cs」（禁诱导空测试）'
     }
 
+    TestIncrementGuard = @{
+        Domain = 'TestLayout'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'TA6 增量守卫：只看 .csproj 增/改名（D 不判）；测试工程须 ProjectMap 命中 ∨ Exempt 车道 ∨ Obligation 豁免，源码工程须有测试投影 ∨ 豁免；git 增量取不到 ⇒ 不可判定即红（fail-closed）'
+    }
+
+    TestPathMirror = @{
+        Domain = 'TestLayout'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'FA1 路径镜像：Strict/SpecOnly 测试工程须可被 L0 规则定位 ∨ 命名变体 ∨ 辅助工程；集合棘轮（_TestLayoutStructure.psd1 的 PathMirrorUnmapped.Allowed），集合外新增即红、只减不增'
+    }
+
+    TestNamingVariant = @{
+        Domain = 'TestLayout'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'FA5 命名变体预算：Strict/SpecOnly 测试工程目录叶/工程名须 `.Tests`/`.SpecTests` 结尾 ∨ 命中已登记变体；变体命中数 ≤ Budget（预算缺失即红），未登记形态即红'
+    }
+
+    TestLayoutDebt = @{
+        Domain = 'TestLayout'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'TD1 债务到期巡检：扫描 reachability/structure 基线事实行 + 账本 Overrides/NamingVariants 的 DueWhen；到期未清即红，无日期 ⇒ attest（不可判定，不伪装为通过）'
+    }
+
     PsCapabilityFileOnly = @{
         Domain = 'Meta'
         Args   = @{ Check = $true }
@@ -2662,6 +2694,14 @@
         Note    = 'CW-03 核心目录零可变配置引用：字段/参数/局部/属性显式类型命中；基线棘轮 Baselines\Constraint\CF-W-03-ImplNoMutableConfigRef.psd1；正负对照'
     }
 
+    'CF-W-04-NoConfigMutation' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '实现侧 *.cs 的 `<配置接收段>.<成员> <赋值类 op>`（去注释；配置段子集）'
+        Note    = 'CW-04 实现侧零配置写（可静态确认的接收段子集）；binding.Set/Merge/反射回填仍 attest；基线棘轮 Baselines\Constraint\CF-W-04-NoConfigMutation.psd1；正负对照'
+    }
+
     'CF-W-05-NoConfigConstruction' = @{
         Domain  = 'Constraint'
         Args    = @{ Check = $true }
@@ -2692,6 +2732,38 @@
         Expect  = 0
         Carrier = '实现侧 *.cs 的 static 字段/自动属性声明头（去注释）'
         Note    = 'CW-09 零静态可变状态：static 非 readonly/const 字段与可变静态属性；基线棘轮 Baselines\Constraint\CF-W-09-NoStaticMutableState.psd1；正负对照'
+    }
+
+    'CF-W-10-NoZombieConfigField' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '声明面配置字段 × 实现侧读索引（ConstraintFieldIndex，去注释；唯一名可判子集）'
+        Note    = 'CW-10 配置字段无僵尸：可判子集（唯一名）零读取字段进 ZooBaseline；同名冲突/运行期消费仍 attest；基线棘轮 Baselines\Constraint\CF-W-10-NoZombieConfigField.psd1；正负对照'
+    }
+
+    'CF-W-11-ConfigDefaultSingleSource' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '实现侧 *.cs 的 `<配置接收段>.<字段> ?? <literal>`（去注释）'
+        Note    = 'CW-11 配置缺省单源（可静态确认子集）：就地字面量兜底 = 第二真源；缺省模板静态表仍 attest；基线棘轮 Baselines\Constraint\CF-W-11-ConfigDefaultSingleSource.psd1；正负对照'
+    }
+
+    'CF-W-12-SemanticReadClassified' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '字段分级表 × 实现侧语义字段读取点（ConstraintFieldIndex，去注释）'
+        Note    = 'CW-12 语义/呈现分级：分级表↔声明面互证；语义读取只允许 Adapter 白名单（本轮为空）；基线棘轮 Baselines\Constraint\CF-W-12-SemanticReadClassified.psd1；正负对照'
+    }
+
+    'CF-W-13-SnapshotOnly' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '实现侧 *.cs 对 MutableConfigTypes 的裸持有（字段/参数/泛型实参，去注释）'
+        Note    = 'CW-13 配置只以 ConfigSnapshot<T> 持有（可静态确认的显式类型子集）；var/接口推断与深拷贝不可变仍 attest；基线棘轮 Baselines\Constraint\CF-W-13-SnapshotOnly.psd1；正负对照'
     }
 
 }

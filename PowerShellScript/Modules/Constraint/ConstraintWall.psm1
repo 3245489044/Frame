@@ -3,6 +3,19 @@
 # 依赖既有框架：Get-CodeLines（TextOps.psm1）做行级枚举并剥离注释；不在本件重造文本扫描。
 
 $script:CatalogCache = @{}
+$script:RuleRegexCache = @{}
+
+function Get-ConstraintWallCachedRegex
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Key,
+        [Parameter(Mandatory = $true)][string]$Pattern
+    )
+    if ($script:RuleRegexCache.ContainsKey($Key)) { return $script:RuleRegexCache[$Key] }
+    $rx = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::Compiled)
+    $script:RuleRegexCache[$Key] = $rx
+    return $rx
+}
 
 function Get-ConstraintWallCatalog
 {
@@ -72,10 +85,13 @@ function Get-ConstraintWallScanFiles
         'W01-ImplRef' { $catalog.DeclarationDirs }
         'W02-SurfaceDeny' { $catalog.DeclarationDirs }
         'W03-MutableConfigDecl' { $catalog.CoreDirs }
+        'W04-ConfigMutation' { $catalog.ImplScopeDirs }
         'W05-ConfigConstruction' { $catalog.ImplScopeDirs }
         'W07-PlatformType' { $catalog.ImplScopeDirs }
         'W08-AmbientLookup' { $catalog.ImplScopeDirs }
         'W09-StaticMutableField' { $catalog.ImplScopeDirs }
+        'W11-ConfigDefaultFallback' { $catalog.ImplScopeDirs }
+        'W13-SnapshotOnly' { $catalog.ImplScopeDirs }
         default { throw "ConstraintWall: 未登记规则 '$Rule'" }
     }
 
@@ -101,7 +117,30 @@ function Get-ConstraintWallScanFiles
         }
     }
 
+    $declarationFree = $Rule -in @('W04-ConfigMutation', 'W11-ConfigDefaultFallback', 'W13-SnapshotOnly')
+    if ($declarationFree)
+    {
+        # 声明面（TConfig/Models 等）本身就是可变配置模型的定义处，不参与「实现侧持有/写/缺省」判定。
+        $files = @($files | Where-Object {
+                -not (Test-ConstraintWallInDeclarationDir -Catalog $catalog -RelativePath (ConvertTo-ConstraintWallRelative -Root $Root -Path $_))
+            })
+    }
+
     return @($files | Sort-Object -Unique)
+}
+
+function Test-ConstraintWallInDeclarationDir
+{
+    param(
+        [Parameter(Mandatory = $true)]$Catalog,
+        [Parameter(Mandatory = $true)][string]$RelativePath
+    )
+    foreach ($dir in @($Catalog.DeclarationDirs))
+    {
+        $prefix = $dir.TrimEnd('/', '\') + '/'
+        if ($RelativePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+    }
+    return $false
 }
 
 function Test-ConstraintWallInPlatformDir
@@ -248,6 +287,92 @@ function Test-ConstraintWallLine
             if ($name -in @('static', 'readonly', 'volatile', 'new', 'public', 'private', 'protected', 'internal', 'unsafe', 'extern')) { return $false }
             return $true
         }
+
+        'W04-ConfigMutation'
+        {
+            # C 侧组合根白名单：合法装载/组合不判。
+            foreach ($d in @($Catalog.ComposeWriteWhitelistDirs))
+            {
+                $prefix = $d.TrimEnd('/', '\') + '/'
+                if ($RelativePath -ne '' -and $RelativePath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { return $false }
+            }
+
+            # 构造 + 对象初始化由 W05 管；本规则只判「已持有配置上的写」。
+            if ([regex]::IsMatch($Text, '\bnew\s+[A-Za-z_]')) { return $false }
+
+            foreach ($seg in @($Catalog.ConfigWriteReceiverSegments))
+            {
+                # `<seg>.<member> <op>`：op 必须是赋值类，且排除 `==` / `=>`。
+                $rx = Get-ConstraintWallCachedRegex -Key ('W04:' + $seg) -Pattern ('(?<![A-Za-z0-9_])' + [regex]::Escape($seg) + '\s*\.\s*[A-Za-z_]\w*\s*(?<op>=(?![=>])|\+=|-=|\*=|/=|%=|&=|\|=|\^=|<<=|>>=|\?\?=)')
+                if ($rx.IsMatch($Text)) { return $true }
+            }
+            return $false
+        }
+
+        'W11-ConfigDefaultFallback'
+        {
+            # 缺省值必须回到声明面（模板/工厂）单源；就地 `?? <literal>` 是第二真源。
+            $names = @($Catalog.ConfigFieldNames)
+            if ($names.Count -eq 0)
+            {
+                throw 'W11-ConfigDefaultFallback: 缺 ConfigFieldNames（字段索引未接入 ⇒ 不可判定，拒绝空转通过）'
+            }
+            $alt = ($names | Sort-Object -Unique | ForEach-Object { [regex]::Escape($_) }) -join '|'
+            $segs = @($Catalog.ConfigWriteReceiverSegments) | ForEach-Object { [regex]::Escape($_) }
+            if ($segs.Count -eq 0) { throw 'W11-ConfigDefaultFallback: 缺 ConfigWriteReceiverSegments（接收段未登记 ⇒ 不可判定）' }
+            $rx = Get-ConstraintWallCachedRegex -Key 'W11-match' -Pattern ('(?<![A-Za-z0-9_])(?:' + ($segs -join '|') + ')\s*\.\s*(?<f>[A-Za-z_]\w*)\s*\?\?\s*(?:true|false|null|-?[0-9]+(?:\.[0-9]+)?|"[^"]*"|''[^'']*'')')
+            $setKey = 'W11set:' + $alt
+            if (-not $script:RuleRegexCache.ContainsKey($setKey))
+            {
+                $set = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+                foreach ($n in $names) { [void]$set.Add($n) }
+                $script:RuleRegexCache[$setKey] = $set
+            }
+            $fieldSet = $script:RuleRegexCache[$setKey]
+            foreach ($m in $rx.Matches($Text))
+            {
+                if ($fieldSet.Contains($m.Groups['f'].Value)) { return $true }
+            }
+            return $false
+        }
+
+        'W13-SnapshotOnly'
+        {
+            # 标的形态 `ConfigSnapshot<T>` 本身不是违规；只判 T 的裸持有。
+            $spans = @([regex]::Matches($Text, 'ConfigSnapshot\s*<[^<>]*>') | ForEach-Object {
+                    [pscustomobject]@{ Start = $_.Index; End = $_.Index + $_.Length }
+                })
+
+            foreach ($type in @($Catalog.MutableConfigTypes))
+            {
+                $t = [regex]::Escape($type)
+                $rxDecl = Get-ConstraintWallCachedRegex -Key ('W13-decl:' + $type) -Pattern ('(?<![A-Za-z0-9_.])' + $t + '\s*(?:<[^>]*>)?\s*[?]?\s*(?:\[\s*\])?\s+[A-Za-z_][A-Za-z0-9_]*\s*(?=[=;,){])')
+                foreach ($m in $rxDecl.Matches($Text))
+                {
+                    $insideSnapshot = $false
+                    foreach ($s in $spans)
+                    {
+                        if ($m.Index -ge $s.Start -and $m.Index -lt $s.End) { $insideSnapshot = $true; break }
+                    }
+                    if ($insideSnapshot) { continue }
+                    $before = $Text.Substring(0, $m.Index)
+                    if ($before -match 'new\s+$') { continue }   # 构造由 W05 管
+                    return $true
+                }
+                # 作为裸泛型实参持有（List<NodeConfig> 等）；`ConfigSnapshot<T>` 已在 spans 内排除。
+                $rxGeneric = Get-ConstraintWallCachedRegex -Key ('W13-generic:' + $type) -Pattern ('<\s*' + $t + '\s*>')
+                foreach ($m in $rxGeneric.Matches($Text))
+                {
+                    $insideSnapshot = $false
+                    foreach ($s in $spans)
+                    {
+                        if ($m.Index -ge $s.Start -and $m.Index -lt $s.End) { $insideSnapshot = $true; break }
+                    }
+                    if (-not $insideSnapshot) { return $true }
+                }
+            }
+            return $false
+        }
     }
 
     throw "ConstraintWall: 未登记规则 '$Rule'"
@@ -258,11 +383,12 @@ function Get-ConstraintWallHits
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$Root,
-        [Parameter(Mandatory = $true)][string]$Rule
+        [Parameter(Mandatory = $true)][string]$Rule,
+        [hashtable]$Catalog
     )
 
     Import-ConstraintWallTextOps -Root $Root
-    $catalog = Get-ConstraintWallCatalog -Root $Root
+    if ($null -eq $Catalog) { $Catalog = Get-ConstraintWallCatalog -Root $Root }
     $files = Get-ConstraintWallScanFiles -Root $Root -Rule $Rule
 
     $includeUsing = $Rule -in @('W01-ImplRef', 'W07-PlatformType')
@@ -278,7 +404,7 @@ function Get-ConstraintWallHits
             $trim = $text.Trim()
             if ($trim.StartsWith('namespace ')) { continue }
             if (-not $includeUsing -and $trim.StartsWith('using ')) { continue }
-            if (Test-ConstraintWallLine -Catalog $catalog -Rule $Rule -Text $text -RelativePath $rel)
+            if (Test-ConstraintWallLine -Catalog $Catalog -Rule $Rule -Text $text -RelativePath $rel)
             {
                 $hits.Add([pscustomobject]@{
                         Rule = $Rule

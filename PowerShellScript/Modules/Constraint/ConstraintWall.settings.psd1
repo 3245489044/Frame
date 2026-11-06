@@ -103,6 +103,28 @@
         'NodePortContractRegistry\.Shared'
     )
 
+    # CW-04：可静态确认的「配置写」接收段子集。
+    # 只收配置容器/配置类型专属的接收段（basicConfig / funcPipelineConfig 等），
+    # 不收泛化的 `config` / `node`（同名跨类型会假阳）。未覆盖的写点（binding.Set、Merge）继续 attest。
+    ConfigWriteReceiverSegments = @(
+        'basicConfig'
+        'getStrConfig'
+        'funcPipelineConfig'
+        'addNodeConfig'
+        'nextNodeConfig'
+        'controlConfig'
+        'viewConfig'
+        'uiConfig'
+        'formConfig'
+        'eventConfig'
+    )
+
+    # CW-04 的组合根（C）白名单：这些目录内的配置写属合法组合/装载。本轮为空 = 存量写点全部计入棘轮。
+    ComposeWriteWhitelistDirs = @()
+
+    # CW-12 的 Adapter 白名单：语义字段读取只允许出现在这些目录。本轮为空 = 存量语义读取全部计入棘轮。
+    SemanticReadAllowedDirs = @()
+
     # 排除目录：生成物/历史退役/测试夹具不参与实现侧扫描。
     ExcludePathSegments = @(
         '/obj/'

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using Share.Conversation.Rendering.Surface;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -15,10 +16,37 @@ namespace FrontEndDriven.WinForms.Paint;
 /// </summary>
 public static class SkinPaintEngine
 {
-    /// <summary>资源装载钩子（宿主注入；null ⇒ 贴图/贴画层显式跳过，禁静默纯色）。</summary>
-    public static Func<string, Image?>? AssetLoader { get; set; }
+    private static Func<string, Image?>? _assetLoader;
+
+    /// <summary>资源装载钩子（宿主注入；null ⇒ 按 <see cref="AssetRoot"/> 从磁盘装载，仍缺件则显式跳过，禁静默纯色）。</summary>
+    public static Func<string, Image?>? AssetLoader
+    {
+        get => _assetLoader;
+        set
+        {
+            _assetLoader = value;
+            ClearAssetCache();
+        }
+    }
+
+    /// <summary>资源根目录（宿主注入；null ⇒ 不装载，贴图层进 Skipped）。</summary>
+    public static string? AssetRoot { get; private set; }
 
     private static readonly Dictionary<string, Image?> AssetCache = new(StringComparer.Ordinal);
+
+    /// <summary>配置资源根（单一入口；变更即失效缓存，防旧根别名串味）。</summary>
+    /// <param name="root">资源根绝对路径（空 ⇒ 关闭磁盘装载）。</param>
+    public static void ConfigureAssetRoot(string? root)
+    {
+        AssetRoot = string.IsNullOrWhiteSpace(root) ? null : root;
+        ClearAssetCache();
+    }
+
+    /// <summary>清空资源缓存（换根/换装载器/换肤时调用）。</summary>
+    public static void ClearAssetCache()
+    {
+        lock (AssetCache) AssetCache.Clear();
+    }
 
     /// <summary>绘制一次材质（背景）。</summary>
     public static IReadOnlyList<string> Paint(Graphics graphics, Rectangle bounds, ResolvedMaterial? material)
@@ -119,7 +147,16 @@ public static class SkinPaintEngine
                 var image = LoadAsset(asset);
                 if (image is null) return false;
 
-                if (string.Equals(layer.Primitive, "decal", StringComparison.Ordinal))
+                // 九宫格：slice>0 ⇒ 四角不拉伸（边框/卡片贴图的主用法）；否则整图平铺/拉伸。
+                var slice = IntParam(layer, "slice", 0);
+                if (slice > 0)
+                {
+                    DrawNineSlice(graphics, image, bounds, slice);
+                    return true;
+                }
+
+                if (string.Equals(layer.Primitive, "decal", StringComparison.Ordinal)
+                    || string.Equals(Param(layer, "repeat"), "no-repeat", StringComparison.Ordinal))
                 {
                     graphics.DrawImage(image, bounds);
                     return true;
@@ -141,19 +178,75 @@ public static class SkinPaintEngine
         lock (AssetCache)
         {
             if (AssetCache.TryGetValue(asset, out var cached)) return cached;
-            Image? image = null;
-            try
-            {
-                image = AssetLoader?.Invoke(asset);
-            }
-            catch (Exception)
-            {
-                // 装载异常 ⇒ 视为缺件（走 Skipped 可见路径，不抛给绘制线程）。
-                image = null;
-            }
-
+            var image = _assetLoader is not null ? InvokeLoader(_assetLoader, asset) : LoadFromRoot(asset);
             AssetCache[asset] = image;
             return image;
+        }
+    }
+
+    private static Image? InvokeLoader(Func<string, Image?> loader, string asset)
+    {
+        try
+        {
+            return loader(asset);
+        }
+        catch (Exception)
+        {
+            // 装载异常 ⇒ 视为缺件（走 Skipped 可见路径，不抛给绘制线程）。
+            return null;
+        }
+    }
+
+    /// <summary>按资源根从磁盘装载（相对路径；绝对路径拒绝；缺件 ⇒ null）。</summary>
+    private static Image? LoadFromRoot(string asset)
+    {
+        var root = AssetRoot;
+        if (string.IsNullOrWhiteSpace(root) || string.IsNullOrWhiteSpace(asset)) return null;
+        if (Path.IsPathRooted(asset)) return null;
+
+        try
+        {
+            var path = Path.GetFullPath(Path.Combine(root, asset.Replace('/', Path.DirectorySeparatorChar)));
+            return File.Exists(path) ? Image.FromFile(path) : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>九宫格绘制：四角与四边按源切片缩放，中心拉伸（slice 夹到半边长内）。</summary>
+    private static void DrawNineSlice(Graphics graphics, Image image, Rectangle bounds, int slice)
+    {
+        var width = image.Width;
+        var height = image.Height;
+        var cut = Math.Min(slice, Math.Min(width, height) / 2);
+        if (cut <= 0)
+        {
+            graphics.DrawImage(image, bounds);
+            return;
+        }
+
+        var sourceX = new[] { 0, cut, width - cut };
+        var sourceW = new[] { cut, width - cut * 2, cut };
+        var sourceY = new[] { 0, cut, height - cut };
+        var sourceH = new[] { cut, height - cut * 2, cut };
+        var targetX = new[] { bounds.X, bounds.X + cut, bounds.Right - cut };
+        var targetY = new[] { bounds.Y, bounds.Y + cut, bounds.Bottom - cut };
+        var targetW = new[] { cut, Math.Max(1, bounds.Width - cut * 2), cut };
+        var targetH = new[] { cut, Math.Max(1, bounds.Height - cut * 2), cut };
+
+        for (var row = 0; row < 3; row++)
+        {
+            for (var column = 0; column < 3; column++)
+            {
+                if (sourceW[column] <= 0 || sourceH[row] <= 0) continue;
+                graphics.DrawImage(
+                    image,
+                    new Rectangle(targetX[column], targetY[row], targetW[column], targetH[row]),
+                    new Rectangle(sourceX[column], sourceY[row], sourceW[column], sourceH[row]),
+                    GraphicsUnit.Pixel);
+            }
         }
     }
 

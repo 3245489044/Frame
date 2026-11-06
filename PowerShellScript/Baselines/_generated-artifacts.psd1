@@ -238,7 +238,7 @@
         }
         @{
             Name               = 'SurfaceProgram'
-            Artifact           = 'Projects\Plug\Agent\Config\ui\surface.generated.json'
+            Artifact           = 'Config\ui\surface.generated.json'
             Generator          = 'Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1'
             GeneratorArgs      = @{ Target = 'surface'; OutFile = '{TEMP}' }
             Kind               = 'Json'

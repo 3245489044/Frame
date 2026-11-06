@@ -25,13 +25,15 @@ $ErrorActionPreference = 'Stop'
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
 $configRoot = Join-Path $root 'Projects\Plug\Agent\Config'
+# 共享外观声明根（仓库根 Config\ui）：surface.ushar / appearance.ushar 为跨产品真源，产物同落此处。
+$sharedConfigRoot = Join-Path $root 'Config'
 
 $definitions = @(
-    @{ Target = 'gatherviews'; Kind = 'gatherviews'; Out = (Join-Path $configRoot 'gather\gather-views.generated.json') }
-    @{ Target = 'fields';      Kind = 'fields';      Out = (Join-Path $configRoot 'nodes\fields.generated.json') }
-    @{ Target = 'surfacemap';  Kind = 'surfacemap';  Out = (Join-Path $configRoot 'ui\surface-map.generated.json') }
-    @{ Target = 'uiprogram';   Kind = 'uiprogram';   Out = (Join-Path $configRoot 'ui\ui.generated.json') }
-    @{ Target = 'surface';     Kind = 'surface';     Out = (Join-Path $configRoot 'ui\surface.generated.json') }
+    @{ Target = 'gatherviews'; Kind = 'gatherviews'; Root = $configRoot; Out = (Join-Path $configRoot 'gather\gather-views.generated.json') }
+    @{ Target = 'fields';      Kind = 'fields';      Root = $configRoot; Out = (Join-Path $configRoot 'nodes\fields.generated.json') }
+    @{ Target = 'surfacemap';  Kind = 'surfacemap';  Root = $configRoot; Out = (Join-Path $configRoot 'ui\surface-map.generated.json') }
+    @{ Target = 'uiprogram';   Kind = 'uiprogram';   Root = $configRoot; Out = (Join-Path $configRoot 'ui\ui.generated.json') }
+    @{ Target = 'surface';     Kind = 'surface';     Root = $sharedConfigRoot; Out = (Join-Path $sharedConfigRoot 'ui\surface.generated.json') }
 )
 
 if ($OutFile -and $Target -eq 'all') {
@@ -56,7 +58,7 @@ foreach ($definition in $selected) {
     $destination = if ($OutFile) { $OutFile } else { $definition.Out }
     $tempFile = Join-Path ([System.IO.Path]::GetTempPath()) ($definition.Target + '-' + [Guid]::NewGuid().ToString('N') + '.json')
     try {
-        & dotnet $toolDll $definition.Kind $configRoot $tempFile
+        & dotnet $toolDll $definition.Kind $definition.Root $tempFile
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $tempFile)) {
             Write-Error "$($definition.Target) 声明编译失败（声明缺项/形态非法，明细见上）"
             exit 1

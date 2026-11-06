@@ -41,6 +41,7 @@ public static class UsharpSurfaceProgramEmitter
     public const string CarrierPrefix = "surface_carrier_";
     public const string StatePrefix = "surface_state_";
     public const string AssetPrefix = "surface_asset_";
+    public const string SettingPrefix = "surface_setting_";
 
     /// <summary>容器写模式受控词。</summary>
     public static readonly IReadOnlySet<string> WriteModes =
@@ -67,6 +68,7 @@ public static class UsharpSurfaceProgramEmitter
         var profiles = new JsonObject();
         var carriers = new JsonObject();
         var assets = new JsonObject();
+        var settings = new JsonObject();
 
         foreach (var record in compilation.Records)
         {
@@ -87,6 +89,11 @@ public static class UsharpSurfaceProgramEmitter
                     ["kind"] = kind,
                     ["carriers"] = Carriers(record.Body),
                 };
+            }
+            else if (record.RecordId.StartsWith(SettingPrefix, StringComparison.Ordinal))
+            {
+                var name = UsharpRecordJson.Str(record.Body, "name", record.RecordId[SettingPrefix.Length..]);
+                settings[name] = UsharpRecordJson.Str(record.Body, "value", string.Empty);
             }
             else if (record.RecordId.StartsWith(ContainerPrefix, StringComparison.Ordinal))
             {
@@ -321,6 +328,12 @@ public static class UsharpSurfaceProgramEmitter
             }
         }
 
+        if (settings["active_profile"]?.GetValue<string>() is { Length: > 0 } activeProfile
+            && !profiles.ContainsKey(activeProfile))
+        {
+            diagnostics.Add(Error(file, $"active_profile='{activeProfile}' 未在 profiles 声明（禁悬空默认档）"));
+        }
+
         foreach (var pair in carriers)
         {
             foreach (var cap in ((JsonObject)pair.Value!)["caps"]!.AsObject())
@@ -355,6 +368,7 @@ public static class UsharpSurfaceProgramEmitter
                 ["profiles"] = profiles,
                 ["carriers"] = carriers,
                 ["assets"] = assets,
+                ["settings"] = settings,
             },
         };
 

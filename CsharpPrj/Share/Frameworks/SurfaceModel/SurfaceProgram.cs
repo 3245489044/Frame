@@ -67,6 +67,9 @@ public sealed class SurfaceProgram
     /// <summary>载体（id → 规格）。</summary>
     public IReadOnlyDictionary<string, SurfaceCarrierSpec> Carriers => Declaration.Carriers;
 
+    /// <summary>默认外观档（声明 <c>surface_setting_active_profile</c>；未声明 ⇒ 空）。</summary>
+    public string ActiveProfile => Declaration.ActiveProfile;
+
     /// <summary>载体 → 图元 → 声明词（能力矩阵唯一输入）。</summary>
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> CarrierCapabilities => _carrierCaps.Value;
 

@@ -32,6 +32,8 @@ public sealed class SurfaceProgramDeclaration
         new Dictionary<string, SurfaceMaterialSpec>(StringComparer.Ordinal),
         new Dictionary<string, SurfaceProfileSpec>(StringComparer.Ordinal),
         new Dictionary<string, SurfaceCarrierSpec>(StringComparer.Ordinal),
+        new Dictionary<string, SurfaceAssetSpec>(StringComparer.Ordinal),
+        new Dictionary<string, string>(StringComparer.Ordinal),
         declared: false);
 
     private SurfaceProgramDeclaration(
@@ -46,6 +48,8 @@ public sealed class SurfaceProgramDeclaration
         IReadOnlyDictionary<string, SurfaceMaterialSpec> materials,
         IReadOnlyDictionary<string, SurfaceProfileSpec> profiles,
         IReadOnlyDictionary<string, SurfaceCarrierSpec> carriers,
+        IReadOnlyDictionary<string, SurfaceAssetSpec> assets,
+        IReadOnlyDictionary<string, string> settings,
         bool declared)
     {
         Schema = schema;
@@ -59,6 +63,8 @@ public sealed class SurfaceProgramDeclaration
         Materials = materials;
         Profiles = profiles;
         Carriers = carriers;
+        Assets = assets;
+        Settings = settings;
         IsDeclared = declared;
     }
 
@@ -97,6 +103,16 @@ public sealed class SurfaceProgramDeclaration
 
     /// <summary>载体能力（id → 规格）。</summary>
     public IReadOnlyDictionary<string, SurfaceCarrierSpec> Carriers { get; }
+
+    /// <summary>资源（id → 规格；层 <c>params.asset</c> 引用 id，解析期换成 <c>src</c>）。</summary>
+    public IReadOnlyDictionary<string, SurfaceAssetSpec> Assets { get; }
+
+    /// <summary>表面设置（name → value；<c>active_profile</c> 为默认外观档，声明式、可运行期覆盖）。</summary>
+    public IReadOnlyDictionary<string, string> Settings { get; }
+
+    /// <summary>默认外观档（未声明 ⇒ 空字符串；解析方不得硬编码替代）。</summary>
+    public string ActiveProfile
+        => Settings.TryGetValue("active_profile", out var value) ? value : string.Empty;
 
     /// <summary>取容器（未声明 ⇒ null）。</summary>
     /// <param name="view">视图键。</param>
@@ -193,6 +209,8 @@ public sealed class SurfaceProgramDeclaration
         var materials = new Dictionary<string, SurfaceMaterialSpec>(StringComparer.Ordinal);
         var profiles = new Dictionary<string, SurfaceProfileSpec>(StringComparer.Ordinal);
         var carriers = new Dictionary<string, SurfaceCarrierSpec>(StringComparer.Ordinal);
+        var assets = new Dictionary<string, SurfaceAssetSpec>(StringComparer.Ordinal);
+        IReadOnlyDictionary<string, string> settings = new Dictionary<string, string>(StringComparer.Ordinal);
 
         if (root.TryGetProperty("appearance", out var appearance) && appearance.ValueKind == JsonValueKind.Object)
         {
@@ -241,11 +259,28 @@ public sealed class SurfaceProgramDeclaration
                         entry.Name, Str(entry.Value, "dialect"), StrMap(entry.Value, "caps"));
                 }
             }
+
+            if (appearance.TryGetProperty("assets", out var assetsElement) && assetsElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var entry in assetsElement.EnumerateObject())
+                {
+                    if (entry.Value.ValueKind != JsonValueKind.Object) continue;
+                    assets[entry.Name] = new SurfaceAssetSpec(
+                        entry.Name,
+                        Str(entry.Value, "kind"),
+                        Str(entry.Value, "src"),
+                        Str(entry.Value, "slice"),
+                        Str(entry.Value, "repeat"),
+                        Str(entry.Value, "anchor"));
+                }
+            }
+
+            settings = StrMap(appearance, "settings");
         }
 
         return new SurfaceProgramDeclaration(
             SchemaName, Str(root, "fingerprint"), views, containers, mappings,
-            primitives, states, layers, materials, profiles, carriers,
+            primitives, states, layers, materials, profiles, carriers, assets, settings,
             declared: containers.Count > 0);
     }
 

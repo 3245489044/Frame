@@ -244,6 +244,24 @@ public static class SurfaceResolver
             var parameters = new Dictionary<string, string>(layer.Params.Count, StringComparer.Ordinal);
             foreach (var pair in layer.Params)
             {
+                // 资源 id → 载体无关相对路径（**单一转换点**）：未声明 ⇒ 保留 id 并可见化，
+                // 资源缺失由下游 Skipped / SurfaceAssets 门禁呈现（禁静默空白）。
+                if (string.Equals(pair.Key, "asset", StringComparison.Ordinal))
+                {
+                    if (!program.Assets.TryGetValue(pair.Value, out var asset))
+                    {
+                        issues.Add(new SurfaceIssue("asset-unknown", material.Name + ":" + layer.Name + ":" + pair.Value));
+                        parameters[pair.Key] = pair.Value;
+                        continue;
+                    }
+
+                    parameters[pair.Key] = asset.Src;
+                    if (!layer.Params.ContainsKey("slice") && asset.Slice.Length > 0) parameters["slice"] = asset.Slice;
+                    if (!layer.Params.ContainsKey("repeat") && asset.Repeat.Length > 0) parameters["repeat"] = asset.Repeat;
+                    if (!layer.Params.ContainsKey("anchor") && asset.Anchor.Length > 0) parameters["anchor"] = asset.Anchor;
+                    continue;
+                }
+
                 parameters[pair.Key] = tokens.TryGetValue(pair.Value, out var value) ? value : pair.Value;
             }
 

@@ -91,3 +91,14 @@ public sealed record SurfaceCarrierSpec(
     public string Capability(string primitive)
         => primitive is not null && Caps.TryGetValue(primitive, out var state) ? state : "unsupported";
 }
+
+/// <summary>资源声明（载体无关相对路径；九宫格/填充语义由载体投影器解释）。</summary>
+/// <param name="Id">资源 id（层 <c>params.asset</c> 引用它）。</param>
+/// <param name="Kind">资源种类（texture/decal）。</param>
+/// <param name="Src">载体无关相对路径（禁绝对路径）。</param>
+/// <param name="Slice">九宫格切片宽度（空/0 = 不平铺九宫格）。</param>
+/// <param name="Repeat">平铺方式（repeat/no-repeat）。</param>
+/// <param name="Anchor">锚点（background-position 语义）。</param>
+public sealed record SurfaceAssetSpec(
+    string Id, string Kind, string Src, string Slice, string Repeat, string Anchor);
+

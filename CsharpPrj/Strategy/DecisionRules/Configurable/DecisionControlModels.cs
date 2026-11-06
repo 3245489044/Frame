@@ -65,8 +65,15 @@ namespace Strategy.DecisionRules.Configurable
         /// <summary>决策点键（与 IDecisionControlSource.Get 的一致身份；如 agent.loop.eval）。</summary>
         public string? DecisionPoint { get; set; }
 
-        /// <summary>规格版本：控制器按版本缓存已构筑 DAG，版本变才重建（动态演算 + 增量不改的依据复用）。</summary>
+        /// <summary>规格版本（手工元数据，参与缺省指纹计算）：控制器按<b>内容指纹</b>缓存已构筑 DAG，内容变才重建。</summary>
         public int Version { get; set; } = 1;
+
+        /// <summary>
+        /// 内容指纹（可选，由供给源提供）：非空即作为控制器缓存失效依据；null/空 = 控制器对规格中
+        /// 全部影响求值的内容做规范化 SHA256。约定：提供时必须随内容变化——仅手工递增 <see cref="Version"/>
+        /// 而内容未变不得视为失效；反之内容已变而 <see cref="Version"/> 未变，控制器仍必须重建。
+        /// </summary>
+        public string? Fingerprint { get; set; }
 
         /// <summary>证据轴注册表（I+E+O 全覆盖；I/E 为输入轴，O 为输出轴）。</summary>
         public List<DecisionControlAxis>? Evidence { get; set; }
@@ -107,12 +114,13 @@ namespace Strategy.DecisionRules.Configurable
     /// <summary>控制器一次求值结果。</summary>
     public sealed class DecisionControlResult
     {
+        /// <summary>是否<b>至少一层产出标签</b>（真实命中）；false = 本次求值没有任何层命中，调用方应回退代码矩阵/原值。</summary>
         public bool Matched { get; init; }
         /// <summary>各层产出（拓扑序）。</summary>
         public IReadOnlyList<DecisionLayerOutcome> Layers { get; init; } = System.Array.Empty<DecisionLayerOutcome>();
         /// <summary>经 OutputMap 解析出的通用动作/终态标签；无则 null。</summary>
         public string? Action { get; init; }
-        /// <summary>兜底是否生效（无命中/未注册匹配）。</summary>
+        /// <summary>是否应走兜底：无任何层产出标签（或规格未注册/依据缺失）时为 true，表示调用方应回退代码矩阵/原值。</summary>
         public bool Fallback { get; init; }
 
         public string? LabelOf(string layerName)

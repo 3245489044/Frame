@@ -55,6 +55,10 @@ namespace BasicMethod.Declarative.Graph
         private readonly Dictionary<string, string?> _cachedLabel = new();
         private readonly Dictionary<string, string> _cachedFingerprint = new();
 
+        // 增量缓存互斥：图实例可能被多会话/多线程共享（如静态决策图），缓存读写与吸收传播必须整体原子。
+        // 锁粒度 = 图实例（非全局），只串行化同一张图的求值。
+        private readonly object _sync = new();
+
         /// <summary>层集合（可乱序；内部按依赖自动拓扑）。依赖 = 某层规则引用另一层输出轴词元。</summary>
         public DecisionGraph(IEnumerable<DecisionLayer> layers)
         {
@@ -106,6 +110,11 @@ namespace BasicMethod.Declarative.Graph
 
         /// <summary>对一批事实（输入证据词元）求值一次，返回各层产出 + 短路/复用标注。</summary>
         public DecisionRun Compute(IEnumerable<SemanticTerm> facts)
+        {
+            lock (_sync) return ComputeCore(facts);
+        }
+
+        private DecisionRun ComputeCore(IEnumerable<SemanticTerm> facts)
         {
             var active = new HashSet<SemanticTerm>(facts ?? Enumerable.Empty<SemanticTerm>());
             var entries = new List<DecisionRunEntry>(_order.Count);

@@ -33,7 +33,10 @@ namespace Strategy.DecisionRules.Configurable
             _reloadOnChange = reloadOnChange;
         }
 
-        public string? SourceName => "file:" + string.Join(",", _cache.Keys);
+        public string? SourceName
+        {
+            get { lock (_lock) return "file:" + string.Join(",", _cache.Keys); }
+        }
 
         /// <summary>取当前生效 Spec：文件缺失/加载失败保留旧版（LoadedOnce 时）；从未加载成功返回 null（门面兜底）。</summary>
         public DecisionControlSpec? Get(string decisionPoint)

@@ -1,7 +1,6 @@
-using System.Text.Json;
-using Share.Frameworks.Billing;
+﻿using System.Text.Json;
 
-namespace Share.Frameworks.Llm.Usage;
+namespace Operation.StatisticalDriven.Usage;
 
 /// <summary>Anthropic：input_tokens / output_tokens / cache_read_input_tokens / cache_creation_input_tokens。</summary>
 /// <remarks>input_tokens 不含缓存读取/创建部分（InputIncludesCached = false）。</remarks>

@@ -1,4 +1,4 @@
-using Share.Frameworks.Billing;
+﻿using Share.Frameworks.Billing;
 using Strategy.Observability.Envelope;
 using Strategy.Observability.Query;
 

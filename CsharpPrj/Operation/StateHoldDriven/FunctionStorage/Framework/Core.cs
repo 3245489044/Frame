@@ -15,6 +15,9 @@ namespace FunctionStorage.Core
 
     public class FunctionExecutionContext : TConfig.IExecutionContext
     {
+        // E-17：ExecutionId 必须在实例生命周期内稳定（原实现每次访问都生成新 Guid，关联/审计无法闭环）。
+        private readonly string _executionId = Guid.NewGuid().ToString("N");
+
         public string? CurrentCommand { get; set; }
 
         public IParsedCommand? ParsedCommand { get; set; }
@@ -32,7 +35,7 @@ namespace FunctionStorage.Core
         public IDictionary<string, object?> SharedData { get; } = new ConcurrentDictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
 
 
-        string TConfig.IExecutionContext.ExecutionId => Guid.NewGuid().ToString("N");
+        string TConfig.IExecutionContext.ExecutionId => _executionId;
 
         string TConfig.IExecutionContext.WorkflowId
             => SharedData.TryGetValue("__WorkflowId", out var v) && v is string s ? s : string.Empty;

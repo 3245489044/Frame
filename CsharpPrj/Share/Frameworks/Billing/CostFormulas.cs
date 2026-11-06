@@ -1,4 +1,4 @@
-namespace Share.Frameworks.Billing;
+﻿namespace Operation.StatisticalDriven.Pricing;
 
 /// <summary>
 /// 纯成本公式（可单测，无 I/O）。对应设计文档第 7 章。

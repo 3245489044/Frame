@@ -1,6 +1,6 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 
-namespace Share.Frameworks.Billing;
+namespace Operation.StatisticalDriven.Pricing;
 
 /// <summary>
 /// 定价表：按 (provider, model) 解析 <see cref="ModelPricing"/>，未命中回落 <see cref="Default"/>。

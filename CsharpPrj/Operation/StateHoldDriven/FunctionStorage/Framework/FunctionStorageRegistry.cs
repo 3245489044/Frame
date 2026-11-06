@@ -21,7 +21,9 @@ namespace FunctionStorage
         {
             get
             {
-                var reg = Share.Registry.RegistryCoordinator.Registry;
+                var reg = Share.Registry.RegistryCoordinator.Registry
+                          ?? throw new InvalidOperationException(
+                              "RegistryCoordinator 尚未初始化（Registry 为 null）。请先调用 Initialize。");
                 if (reg is ITrConfigRegistry funcReg)
                     return funcReg;
                 throw new InvalidCastException(
@@ -66,7 +68,8 @@ namespace FunctionStorage
 
             FsLog.Log("FunctionStorageRegistry_Register_unit", new {
                 Name = unit.Name,
-                TotalCount = Registry.GetRegisteredNames().Count()
+                // 只报本层 unit 数，避免每次注册都遍历全量注册名（O(n)）。
+                TotalCount = _functionUnits?.Count ?? 0
             });
         }
 

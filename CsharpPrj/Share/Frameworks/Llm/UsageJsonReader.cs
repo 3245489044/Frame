@@ -1,7 +1,7 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 
-namespace Share.Frameworks.Llm.Usage;
+namespace Operation.StatisticalDriven.Usage;
 
 /// <summary>usage JSON 读取辅助：大小写不敏感、缺键/类型不符回退 0（映射表见设计文档 5.1）。</summary>
 internal static class UsageJsonReader

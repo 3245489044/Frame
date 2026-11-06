@@ -1,4 +1,4 @@
-namespace Share.Frameworks.Billing;
+﻿namespace Operation.StatisticalDriven.Usage;
 
 /// <summary>
 /// 多供应商 usage 统一标准化字段（设计文档 5.1：input/output/cached/cache_write/total）。

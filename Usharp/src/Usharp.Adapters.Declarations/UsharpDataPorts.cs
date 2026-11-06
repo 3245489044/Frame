@@ -110,5 +110,5 @@ public static class UsharpDataPorts
     /// <summary>声明入库闭环：磁盘 <c>.ushar</c> 导入配置库并返回运行期唯一声明源（库优先、磁盘回退）。</summary>
     public static Task<IDeclarationStore> DeclarationStoreAsync(
         IConfigStore configStore, string? diskRoot, CancellationToken ct = default)
-        => DeclarationStoreBootstrap.BuildAndImportAsync(configStore, diskRoot, ct);
+        => DeclarationStoreBootstrap.BuildAndImportAsync(configStore, diskRoot, ct: ct);
 }

@@ -1,7 +1,6 @@
-using System.Text.Json;
-using Share.Frameworks.Billing;
+﻿using System.Text.Json;
 
-namespace Share.Frameworks.Llm.Usage;
+namespace Operation.StatisticalDriven.Usage;
 
 /// <summary>Gemini：prompt_token_count / candidates_token_count / cached_content_token_count。</summary>
 /// <remarks>prompt_token_count 含 cached_content_token_count（InputIncludesCached = true）。</remarks>

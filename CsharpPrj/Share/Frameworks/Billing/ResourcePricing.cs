@@ -1,4 +1,4 @@
-﻿namespace Share.Frameworks.Billing;
+﻿namespace Operation.StatisticalDriven.Pricing;
 
 /// <summary>
 /// 计算资源单价（设计文档 7.3）。缺省全为 0 = 默认不计计算资源成本；

@@ -1,7 +1,6 @@
-using System.Text.Json;
-using Share.Frameworks.Billing;
+﻿using System.Text.Json;
 
-namespace Share.Frameworks.Llm.Usage;
+namespace Operation.StatisticalDriven.Usage;
 
 /// <summary>OpenAI：prompt_tokens / completion_tokens / prompt_tokens_details.cached_tokens。</summary>
 /// <remarks>prompt_tokens 含 cached_tokens（InputIncludesCached = true）；无缓存写入计费。</remarks>

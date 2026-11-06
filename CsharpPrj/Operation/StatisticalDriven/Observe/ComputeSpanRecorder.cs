@@ -1,4 +1,4 @@
-using Operation.StatisticalDriven.Pricing;
+﻿using Operation.StatisticalDriven.Pricing;
 using Operation.StatisticalDriven.Process;
 using Share.Frameworks.Billing;
 using Strategy.Observability.Bus;

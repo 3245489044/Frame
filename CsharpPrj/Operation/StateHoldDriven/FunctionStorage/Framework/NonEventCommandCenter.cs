@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows.Forms;
 using CommandFramework.Parsing;
 using FunctionStorage.Abstractions;
+using Share.Frameworks.Process;
 using AbstractionsINonEventCommandRegistry = CommandFramework.Abstractions.INonEventCommandRegistry;
 using AbstractionsIExecutionContext = TConfig.IExecutionContext;
 using CoreNonEventCommandRegistry = FunctionStorage.Core.NonEventCommandRegistry;

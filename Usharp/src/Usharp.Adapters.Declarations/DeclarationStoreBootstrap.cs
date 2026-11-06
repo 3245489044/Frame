@@ -21,14 +21,18 @@ public static class DeclarationStoreBootstrap
     public const string Prefix = "usharp/";
 
     /// <summary>构建后端声明库并把磁盘 <c>.ushar</c> 导入库；<paramref name="diskRoot"/> 缺/不存在 ⇒ 仅返回空库。</summary>
+    /// <param name="configStore">配置存储后端。</param>
+    /// <param name="diskRoot">磁盘声明根（配置根）。</param>
+    /// <param name="logicalNameOf">逻辑名投影（布局化命名；null ⇒ 根相对路径）。</param>
+    /// <param name="ct">取消令牌。</param>
     public static async Task<IDeclarationStore> BuildAndImportAsync(
-        IConfigStore configStore, string? diskRoot, CancellationToken ct = default)
+        IConfigStore configStore, string? diskRoot, Func<string, string?>? logicalNameOf = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(configStore);
         var store = new BackendDeclarationStore(new ConfigDeclarationBackend(configStore), Prefix);
         if (string.IsNullOrWhiteSpace(diskRoot) || !Directory.Exists(diskRoot)) return store;
 
-        var disk = new FileDeclarationStore(diskRoot);
+        var disk = new FileDeclarationStore(diskRoot, logicalNameOf);
         foreach (var entry in await disk.ListAsync(ct).ConfigureAwait(false))
         {
             ct.ThrowIfCancellationRequested();

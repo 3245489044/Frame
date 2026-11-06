@@ -15,11 +15,15 @@ namespace Usharp.Semantics;
 public sealed class FileDeclarationStore : IDeclarationStore
 {
     private readonly string _root;
+    private readonly Func<string, string?>? _logicalNameOf;
 
     /// <param name="root">根目录（不存在 ⇒ <see cref="ListAsync"/> 返回空集，不禁抛）。</param>
-    public FileDeclarationStore(string root)
+    /// <param name="logicalNameOf">逻辑名投影（物理路径 → 逻辑名；null ⇒ 根相对路径去扩展名）。
+    /// 供布局化命名（<c>&lt;role&gt;/&lt;basename&gt;</c>）注入：模块子目录不改变声明库键。</param>
+    public FileDeclarationStore(string root, Func<string, string?>? logicalNameOf = null)
     {
         _root = root ?? throw new ArgumentNullException(nameof(root));
+        _logicalNameOf = logicalNameOf;
     }
 
     /// <summary>根目录（诊断用）。</summary>
@@ -34,7 +38,7 @@ public sealed class FileDeclarationStore : IDeclarationStore
         var entries = Directory
             .EnumerateFiles(_root, "*" + UsharpSourceLoader.Extension, SearchOption.AllDirectories)
             .OrderBy(path => path, StringComparer.Ordinal)
-            .Select(path => new DeclarationEntry(ToLogicalName(path), File.ReadAllText(path), null, path))
+            .Select(path => new DeclarationEntry(LogicalNameOf(path), File.ReadAllText(path), null, path))
             .ToList();
 
         return Task.FromResult<IReadOnlyList<DeclarationEntry>>(entries);
@@ -46,10 +50,23 @@ public sealed class FileDeclarationStore : IDeclarationStore
         ct.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(logicalName)) return Task.FromResult<DeclarationEntry?>(null);
 
-        var path = ToPhysicalPath(logicalName);
-        if (!File.Exists(path)) return Task.FromResult<DeclarationEntry?>(null);
+        // 布局化命名（role/basename）不可逆：按逻辑名扫描命中（单次目录枚举，声明面规模有限）。
+        if (_logicalNameOf is not null)
+        {
+            var normalized = UsharpSourceLoader.NormalizeLogicalName(logicalName);
+            foreach (var path in Directory.EnumerateFiles(_root, "*" + UsharpSourceLoader.Extension, SearchOption.AllDirectories))
+            {
+                if (!string.Equals(LogicalNameOf(path), normalized, StringComparison.OrdinalIgnoreCase)) continue;
+                return Task.FromResult<DeclarationEntry?>(
+                    new DeclarationEntry(normalized, File.ReadAllText(path), null, path));
+            }
+            return Task.FromResult<DeclarationEntry?>(null);
+        }
 
-        var entry = new DeclarationEntry(UsharpSourceLoader.NormalizeLogicalName(logicalName), File.ReadAllText(path), null, path);
+        var pathByRelative = ToPhysicalPath(logicalName);
+        if (!File.Exists(pathByRelative)) return Task.FromResult<DeclarationEntry?>(null);
+
+        var entry = new DeclarationEntry(UsharpSourceLoader.NormalizeLogicalName(logicalName), File.ReadAllText(pathByRelative), null, pathByRelative);
         return Task.FromResult<DeclarationEntry?>(entry);
     }
 
@@ -57,7 +74,16 @@ public sealed class FileDeclarationStore : IDeclarationStore
     public Task<bool> ExistsAsync(string logicalName, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        return Task.FromResult(!string.IsNullOrWhiteSpace(logicalName) && File.Exists(ToPhysicalPath(logicalName)));
+        if (string.IsNullOrWhiteSpace(logicalName)) return Task.FromResult(false);
+        if (_logicalNameOf is null) return Task.FromResult(File.Exists(ToPhysicalPath(logicalName)));
+
+        var normalized = UsharpSourceLoader.NormalizeLogicalName(logicalName);
+        foreach (var path in Directory.EnumerateFiles(_root, "*" + UsharpSourceLoader.Extension, SearchOption.AllDirectories))
+        {
+            if (string.Equals(LogicalNameOf(path), normalized, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult(true);
+        }
+        return Task.FromResult(false);
     }
 
     /// <inheritdoc />
@@ -67,12 +93,34 @@ public sealed class FileDeclarationStore : IDeclarationStore
         ct.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(entry.LogicalName)) return Task.CompletedTask;
 
+        // 已有声明：写回其真实物理位置（布局化命名下逻辑名不再等于相对路径）。
+        if (!string.IsNullOrWhiteSpace(entry.SourcePath) && File.Exists(entry.SourcePath))
+        {
+            File.WriteAllText(entry.SourcePath!, entry.Text);
+            return Task.CompletedTask;
+        }
+
+        if (_logicalNameOf is not null)
+        {
+            var normalized = UsharpSourceLoader.NormalizeLogicalName(entry.LogicalName);
+            foreach (var existing in Directory.EnumerateFiles(_root, "*" + UsharpSourceLoader.Extension, SearchOption.AllDirectories))
+            {
+                if (!string.Equals(LogicalNameOf(existing), normalized, StringComparison.OrdinalIgnoreCase)) continue;
+                File.WriteAllText(existing, entry.Text);
+                return Task.CompletedTask;
+            }
+        }
+
         var path = ToPhysicalPath(entry.LogicalName);
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
         File.WriteAllText(path, entry.Text);
         return Task.CompletedTask;
     }
+
+    /// <summary>物理路径 → 逻辑名（布局投影优先；缺省 = 根相对、<c>/</c> 归一、去扩展名）。</summary>
+    private string LogicalNameOf(string physicalPath)
+        => _logicalNameOf?.Invoke(physicalPath) ?? ToLogicalName(physicalPath);
 
     /// <summary>物理路径 → 逻辑名（根相对、<c>/</c> 归一、去扩展名）。</summary>
     private string ToLogicalName(string physicalPath)

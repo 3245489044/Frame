@@ -1,4 +1,4 @@
-namespace Share.Frameworks.Billing;
+﻿namespace Operation.StatisticalDriven.Pricing;
 
 /// <summary>
 /// LLM 模型定价（设计文档 7.2 / 4.x pricing）。单价以十进制保真金额。

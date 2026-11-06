@@ -116,9 +116,16 @@ public static class DeclaredBundleBuilder
     /// <summary>从配置根构建（<c>Config</c> 闭包；目录缺失即空集，不兜底内容）。</summary>
     /// <param name="configRoot">配置根目录（含 <c>nodes</c> / <c>workflows</c> / <c>keyspaces</c> / <c>commands</c> / <c>state</c> / <c>relations</c>）。</param>
     public static DeclaredBundleArtifacts Build(string configRoot)
+        => Build(configRoot, DeclarationLayout.FromRoot(configRoot));
+
+    /// <summary>从配置根 + 显式布局构建（数据驱动角色范围；模块化目录不改代码）。</summary>
+    /// <param name="configRoot">配置根目录。</param>
+    /// <param name="layout">声明面布局（闭包组成/命名策略）。</param>
+    public static DeclaredBundleArtifacts Build(string configRoot, DeclarationLayout layout)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Bundle(configRoot));
+        ArgumentNullException.ThrowIfNull(layout);
+        var closure = DeclarationClosures.Resolve(layout.Spec("core", configRoot));
         return BuildCore(closure, configRoot);
     }
 
@@ -127,7 +134,7 @@ public static class DeclaredBundleBuilder
     public static IReadOnlyList<(string Path, string Text)> LoadConfigDocuments(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        return DeclarationClosures.Resolve(DeclarationClosureSpec.Bundle(configRoot))
+        return DeclarationClosures.Resolve(DeclarationLayout.FromRoot(configRoot).Spec("core", configRoot))
             .Sources.Select(s => (s.Path, s.Text))
             .ToList();
     }
@@ -198,7 +205,7 @@ public static class DeclaredBundleBuilder
         BuildUiDeclaration(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Ui(configRoot));
+        var closure = DeclarationClosures.Resolve(DeclarationLayout.FromRoot(configRoot).Spec("ui", configRoot));
         var compilation = UsharpCompilationHost.Shared.Resolve(closure);
         var emitted = Usharp.Emit.UsharpUiDeclarationEmitter.Emit(compilation);
         var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
@@ -230,7 +237,7 @@ public static class DeclaredBundleBuilder
         BuildGatherViews(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Gather(configRoot));
+        var closure = DeclarationClosures.Resolve(DeclarationLayout.FromRoot(configRoot).Spec("gather", configRoot));
         var compilation = UsharpCompilationHost.Shared.Resolve(closure);
         var emitted = UsharpGatherViewSpecEmitter.Emit(compilation);
         var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
@@ -243,7 +250,7 @@ public static class DeclaredBundleBuilder
         BuildFieldVocabulary(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Bundle(configRoot));
+        var closure = DeclarationClosures.Resolve(DeclarationLayout.FromRoot(configRoot).Spec("core", configRoot));
         var compilation = UsharpCompilationHost.Shared.Resolve(closure);
         var emitted = UsharpFieldVocabularyEmitter.Emit(compilation);
         var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
@@ -256,7 +263,7 @@ public static class DeclaredBundleBuilder
         BuildSurfaceMap(string configRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
-        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Ui(configRoot));
+        var closure = DeclarationClosures.Resolve(DeclarationLayout.FromRoot(configRoot).Spec("ui", configRoot));
         var compilation = UsharpCompilationHost.Shared.Resolve(closure);
         var emitted = UsharpSurfaceMapEmitter.Emit(compilation);
         var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);

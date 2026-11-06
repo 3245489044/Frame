@@ -274,7 +274,7 @@ namespace FunctionStorage.Core
 
     public class SideloadRetryPolicy
     {
-        private readonly Core.RetryPolicy _inner;
+        private readonly Share.StateManagement.RetryPolicy _inner;
 
         public int MaxRetries
         {
@@ -296,7 +296,7 @@ namespace FunctionStorage.Core
 
         public SideloadRetryPolicy()
         {
-            _inner = new Core.RetryPolicy
+            _inner = new Share.StateManagement.RetryPolicy
             {
                 MaxRetries = 3,
                 BaseDelayMs = 500,

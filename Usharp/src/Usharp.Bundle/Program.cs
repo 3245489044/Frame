@@ -200,7 +200,10 @@ var outDir = args[1];
 
 try
 {
-    var artifacts = DeclaredBundleBuilder.Build(configRoot);
+    var layout = Usharp.Semantics.DeclarationLayout.FromRoot(configRoot, out var layoutDiagnostics);
+    foreach (var diagnostic in layoutDiagnostics) Console.Error.WriteLine("  layout: " + diagnostic);
+
+    var artifacts = DeclaredBundleBuilder.Build(configRoot, layout);
     DeclaredBundleBuilder.WriteTo(outDir, artifacts);
 
     Console.WriteLine(

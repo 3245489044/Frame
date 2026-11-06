@@ -1,4 +1,4 @@
-namespace Share.Frameworks.Billing;
+﻿namespace Operation.StatisticalDriven.Pricing;
 
 /// <summary>
 /// 一次成本投影的结果分解。金额统一 <see cref="decimal"/> 保真；量纲为设计文档示例（token / 秒 / 字节）。

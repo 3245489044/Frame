@@ -59,6 +59,8 @@
     <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
     <ProjectReference Include="$(Proj_Pipeline)" />
     <ProjectReference Include="$(Proj_Regulation)" />
+    <!-- 子进程执行编排（Share.Frameworks.Process）：RunSystemCommand 双流/超时杀树单源 -->
+    <ProjectReference Include="$(Proj_Share_Process)" />
     <ProjectReference Include="$(Proj_ParameterResolver)" />
     <ProjectReference Include="$(Proj_TConfig)" />
     <ProjectReference Include="$(Proj_BackEndDriven)" />

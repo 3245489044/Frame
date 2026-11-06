@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
+using FrameworkAbstractions.Serialization;
 using Plate.DslMethod.Usharp;
 
 namespace Usharp.Emit;
@@ -42,12 +43,7 @@ internal static class UsharpRecordJson
     internal static UsharpList? List(UsharpRecord record, string name)
         => record.TryGet(name, out var v) && v is UsharpList items ? items : null;
 
-    internal static JsonArray Array(IReadOnlyList<string> values)
-    {
-        var array = new JsonArray();
-        foreach (var value in values) array.Add(value);
-        return array;
-    }
+    internal static JsonArray Array(IReadOnlyList<string> values) => JsonCollections.Array(values);
 
     internal static JsonObject Props(UsharpRecord record)
     {

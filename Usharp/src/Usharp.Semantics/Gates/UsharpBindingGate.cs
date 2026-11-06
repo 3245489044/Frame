@@ -9,7 +9,7 @@ namespace Usharp.Semantics;
 /// <summary>
 /// 规则 ⑥：控制流绑定段词法问题（<c>in=</c>/<c>out=</c>/<c>routes=</c>）。
 /// <para>
-/// 词法内核 = <see cref="UsharpFieldBag"/>（经声明的 <c>BindingIssues</c> 透出）：
+/// 词法内核 = <see cref="Modules.Parsing.Keys.StrictKeyValueArguments"/>（经声明的 <c>BindingIssues</c> 透出）：
 /// 重复键 → <c>US1019</c>；坏段（无 <c>=</c> / 空键 / 空值）→ <c>US0019</c> ——
 /// 不再由本规则手写第二套 <c>IndexOf('=')</c> 解析（R-7 补丁守卫随之删除）。
 /// </para>

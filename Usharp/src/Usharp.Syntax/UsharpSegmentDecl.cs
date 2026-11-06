@@ -71,7 +71,5 @@ public sealed record UsharpSegmentDecl(
         => int.TryParse(value?.Trim(), out var n) ? n : fallback;
 
     private static IReadOnlyList<string> SplitList(string? value)
-        => string.IsNullOrWhiteSpace(value)
-            ? Array.Empty<string>()
-            : value.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        => UsharpLineReader.SplitList(value, ',', ' ');
 }

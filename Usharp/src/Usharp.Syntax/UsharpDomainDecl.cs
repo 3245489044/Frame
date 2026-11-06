@@ -256,7 +256,7 @@ public sealed record UsharpDomainDecl(
     {
         name = string.Empty;
         value = string.Empty;
-        var bag = UsharpFieldBag.Parse(new[] { line }, skip: 0, comparer: StringComparer.Ordinal);
+        var bag = StrictKeyValueArguments.Parse(new[] { line }, skip: 0, comparer: StringComparer.Ordinal);
         if (bag.Fields.Count == 0) return false;
 
         var pair = bag.Fields.First();

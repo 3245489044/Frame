@@ -8,7 +8,7 @@ public sealed record UsharpMatrixRow(string OutputKey, string Expression, IReadO
     /// <summary>从缩进行 `outKey = expr` 解析（首个 `=` 切分；输出键剥离 next-state 后缀 `'`）。</summary>
     public static UsharpMatrixRow? Parse(string line)
     {
-        var bag = UsharpFieldBag.Parse(new[] { line }, skip: 0, comparer: StringComparer.Ordinal);
+        var bag = StrictKeyValueArguments.Parse(new[] { line }, skip: 0, comparer: StringComparer.Ordinal);
         if (bag.Fields.Count == 0) return null;
 
         var pair = bag.Fields.First();

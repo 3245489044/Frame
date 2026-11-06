@@ -185,7 +185,7 @@ public sealed record UsharpKeySpaceDecl(
 
             if (UsharpLineReader.TryHead(head, "derived", out var derivedRef))
             {
-                var bag = UsharpFieldBag.Parse(new[] { derivedRef }, skip: 0, comparer: StringComparer.Ordinal);
+                var bag = StrictKeyValueArguments.Parse(new[] { derivedRef }, skip: 0, comparer: StringComparer.Ordinal);
                 if (bag.Fields.Count == 0) { unparsed.Add(line); continue; }
 
                 var derivedPair = bag.Fields.First();
@@ -249,9 +249,7 @@ public sealed record UsharpKeySpaceDecl(
     }
 
     private static bool? ParseOptionalBool(string? value)
-        => string.IsNullOrWhiteSpace(value)
-            ? null
-            : string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+        => UsharpLineReader.TryBool(value, UsharpBoolLexicon.NumericYes, out var parsed) ? parsed : null;
 
     private sealed class FamilyBuilder
     {

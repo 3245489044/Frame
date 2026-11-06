@@ -60,7 +60,7 @@ public sealed record UsharpRuleDecl(
             if (line.Length == 0) continue;
 
             // 无 `=` ⇒ 自由条件行（简单形态，如规则集 action 行）；有 `=` ⇒ 路径项（when/then/require 子树）。
-            var bag = UsharpFieldBag.Parse(new[] { line }, skip: 0, comparer: StringComparer.Ordinal);
+            var bag = StrictKeyValueArguments.Parse(new[] { line }, skip: 0, comparer: StringComparer.Ordinal);
             if (bag.Fields.Count == 0)
             {
                 // 无 `=` ⇒ 条件行；空键（`=x`）⇒ 坏段（与旧口径一致：不静默当条件）。

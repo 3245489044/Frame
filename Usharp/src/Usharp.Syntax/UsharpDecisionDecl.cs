@@ -180,10 +180,10 @@ public sealed record UsharpDecisionDecl(
 
         id = segments[0].Trim().TrimStart('=').Trim();
 
-        var bag = UsharpFieldBag.Parse(segments, skip: 1);
+        var bag = StrictKeyValueArguments.Parse(segments, skip: 1);
         foreach (var pair in bag.Fields) fields[pair.Key] = pair.Value;
 
-        // 散文段/坏段 ⇒ 整行不可解析（不静默丢弃；与 UsharpFieldBag 同口径）。
+        // 散文段/坏段 ⇒ 整行不可解析（不静默丢弃；与 StrictKeyValueArguments 同口径）。
         return bag.Unparsed.Count == 0;
     }
 

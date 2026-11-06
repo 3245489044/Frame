@@ -1,11 +1,9 @@
 using System;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
+using FrameworkAbstractions.Converters;
 using Plate.DslMethod.Usharp;
 using Usharp.Semantics;
 using Usharp.Syntax;
@@ -22,82 +20,15 @@ namespace Usharp.Adapters.Declarations;
 /// </summary>
 public static class UsharpValueMapper
 {
-    // ===== 成员计划缓存（每类型编译一次的委托；运行时零逐次反射调用）=====
+    // ===== 成员计划缓存（通用反射绑定下沉 Share；本工程只提供「忽略标记」过滤 + 回填深度语义）=====
 
-    private static readonly ConcurrentDictionary<Type, TypePlan> Plans = new();
-
-    private sealed class TypePlan
-    {
-        public ConstructorInfo? Ctor;
-        public ParameterInfo[]? CtorParams;
-        public MemberPlan[] Members = Array.Empty<MemberPlan>();
-        public readonly Dictionary<string, MemberPlan> ByName = new(StringComparer.OrdinalIgnoreCase);
-    }
-
-    private sealed class MemberPlan
-    {
-        public string Name = string.Empty;
-        public Type Type = typeof(object);
-        public PropertyInfo? Property;
-        public Func<object, object?>? Get;
-        public Action<object, object?>? Set;
-    }
+    private static readonly ReflectionPlanCache Plans = new(
+        static prop => !prop.IsDefined(typeof(UsharpIgnoreAttribute), inherit: false));
 
     /// <summary>只读对象递归回填的最大深度（防异常模型引入环）。</summary>
     private const int MaxPopulateDepth = 8;
 
-    private static TypePlan GetPlan(Type type) => Plans.GetOrAdd(type, BuildPlan);
-
-    /// <summary>构建类型计划：属性 getter/setter 编译为委托（Expression.Lambda.Compile），并缓存。</summary>
-    private static TypePlan BuildPlan(Type type)
-    {
-        var plan = new TypePlan
-        {
-            Ctor = type.GetConstructor(BindingFlags.Public | BindingFlags.Instance, binder: null, Type.EmptyTypes, modifiers: null),
-        };
-
-        // 位置记录（record 主构造，无参构造）：取参数最多的公共构造，按参数名从记录字段绑定。
-        if (plan.Ctor is null)
-        {
-            var ctor = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
-                .OrderByDescending(c => c.GetParameters().Length)
-                .FirstOrDefault(c => c.GetParameters().Length > 0);
-            if (ctor is not null) { plan.Ctor = ctor; plan.CtorParams = ctor.GetParameters(); }
-        }
-
-        var members = new List<MemberPlan>();
-        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-        {
-            if (prop.GetIndexParameters().Length != 0) continue;
-            // 持久化单载体（B3a）：运行时镜像字段不进入 USharp 读写面，由权威字段在读取末尾回填。
-            if (prop.IsDefined(typeof(UsharpIgnoreAttribute), inherit: false)) continue;
-
-            var mp = new MemberPlan { Name = prop.Name, Type = prop.PropertyType, Property = prop };
-
-            if (prop.GetGetMethod(nonPublic: false) is not null)
-            {
-                var o = Expression.Parameter(typeof(object), "o");
-                var body = Expression.Convert(Expression.Property(Expression.Convert(o, type), prop), typeof(object));
-                mp.Get = Expression.Lambda<Func<object, object?>>(body, o).Compile();
-            }
-
-            if (prop.GetSetMethod(nonPublic: false) is not null)
-            {
-                var o = Expression.Parameter(typeof(object), "o");
-                var v = Expression.Parameter(typeof(object), "v");
-                var assign = Expression.Assign(
-                    Expression.Property(Expression.Convert(o, type), prop),
-                    Expression.Convert(v, prop.PropertyType));
-                mp.Set = Expression.Lambda<Action<object, object?>>(assign, o, v).Compile();
-            }
-
-            members.Add(mp);
-            plan.ByName[prop.Name] = mp;
-        }
-
-        plan.Members = members.ToArray();
-        return plan;
-    }
+    private static ReflectionBindingPlan GetPlan(Type type) => Plans.Get(type);
 
     /// <summary>任意 CLR 对象 → USharp 数据值。</summary>
     public static UsharpValue ToValue(object? value)
@@ -370,7 +301,7 @@ public static class UsharpValueMapper
     /// <para>旧实现只做 ①，导致「只读集合/组合对象」在 USharp round-trip 后丢失（UI 显示执行体 Unknown 的根因）。</para>
     /// </summary>
     private static void ApplyMember(
-        object instance, MemberPlan member, UsharpValue value, int depth,
+        object instance, ReflectionBindingPlan.Member member, UsharpValue value, int depth,
         List<UsharpFailure>? failures, string path)
     {
         var setterFailed = false;

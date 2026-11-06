@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using Modules.Parsing.Keys;
 using Operation.DataStoreDriven.Abstractions;
 using Plate.DslMethod.Usharp;
 using Usharp.Syntax;
@@ -167,7 +168,7 @@ public sealed class UsharpDocumentCodec : IDocumentCodec
         if (sep >= 0)
         {
             var parts = rest[(sep + 1)..].Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var bag = UsharpFieldBag.Parse(parts, skip: 0, comparer: StringComparer.Ordinal);
+            var bag = StrictKeyValueArguments.Parse(parts, skip: 0, comparer: StringComparer.Ordinal);
             if (bag.Fields.TryGetValue(UsharpLanguage.FieldTable, out var tableValue)) table = UsharpLanguage.NullIfEmpty(tableValue);
             if (bag.Fields.TryGetValue(UsharpLanguage.FieldKey, out var keyValue)) key = UsharpLanguage.NullIfEmpty(keyValue);
         }

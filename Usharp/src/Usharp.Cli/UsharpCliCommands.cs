@@ -1,5 +1,6 @@
 using Plate.DslMethod;
 using Plate.DslMethod.Schema;
+using Share.HostAssembly.Commands;
 using Usharp.Matrix;
 using Usharp.Semantics;
 
@@ -13,9 +14,9 @@ namespace Usharp.Cli;
 /// </summary>
 public static class UsharpCliCommands
 {
-    public const int ExitOk = 0;
-    public const int ExitFailed = 1;
-    public const int ExitUsage = 2;
+    public const int ExitOk = ConsoleCommandHost.ExitOk;
+    public const int ExitFailed = ConsoleCommandHost.ExitFailed;
+    public const int ExitUsage = ConsoleCommandHost.ExitUsage;
 
     /// <summary>用法文本（单一真源：--help 与用法错误共用）。</summary>
     public const string Usage = """
@@ -31,37 +32,29 @@ public static class UsharpCliCommands
         """;
 
     /// <summary>命令入口。</summary>
+    /// <remarks>
+    /// 子命令路由 / 位置参数个数 / 用法回显 / 退出码 / 异常边界统一由
+    /// <see cref="ConsoleCommandHost"/> 承载；本方法只做命令注册与后端注入。
+    /// </remarks>
     public static int Run(
         IReadOnlyList<string> args, TextWriter output,
         IUsharpGraphBackend? backend = null, IUsharpObservabilityBackend? obsBackend = null)
     {
         ArgumentNullException.ThrowIfNull(output);
 
-        if (args is null || args.Count == 0)
-        {
-            output.WriteLine(Usage);
-            return ExitUsage;
-        }
+        var host = new ConsoleCommandHost(Usage)
+            .Register(new CommandSpec("build", "<file|dir>", 1, (rest, writer) => Build(rest[0], writer)) { MaxArgs = 1 })
+            .Register(new CommandSpec("matrix", "<file|dir>", 1, (rest, writer) => Matrix(rest[0], writer)) { MaxArgs = 1 })
+            .Register(new CommandSpec("lint", "<file|dir>", 1, (rest, writer) => Lint(rest[0], writer, backend)) { MaxArgs = 1 })
+            .Register(new CommandSpec("graph", "<file|dir> [--reachable <n>] [--path <a> <b>]", 0,
+                (rest, writer) => RunGraph(rest, writer, backend)))
+            .Register(new CommandSpec("obs", "<file|dir>", 1, (rest, writer) => Obs(rest[0], writer, obsBackend)) { MaxArgs = 1 })
+            .Register(new CommandSpec("relation-plan", "<file|dir>", 1, (rest, writer) => RelationPlan(rest[0], writer)) { MaxArgs = 1 })
+            .Register(new CommandSpec("verify", "<file|dir> | --suite <dir>", 0,
+                (rest, writer) => RunVerify(rest, writer)));
 
-        var command = args[0];
-        if (command is "--help" or "-h" or "help")
-        {
-            output.WriteLine(Usage);
-            return ExitOk;
-        }
-
-        var rest = args.Skip(1).ToList();
-        return command switch
-        {
-            "build" => RunWithPath(rest, output, Build),
-            "matrix" => RunWithPath(rest, output, Matrix),
-            "lint" => RunWithPath(rest, output, (path, writer) => Lint(path, writer, backend)),
-            "graph" => RunGraph(rest, output, backend),
-            "obs" => RunWithPath(rest, output, (path, writer) => Obs(path, writer, obsBackend)),
-            "relation-plan" => RunWithPath(rest, output, RelationPlan),
-            "verify" => RunVerify(rest, output),
-            _ => Unknown(command, output),
-        };
+        // 单流：本工具的历史协议把用法回显写标准输出（测试只看 writer），故 error 与 output 同流。
+        return host.Run(args, output, output);
     }
 
     /// <summary>编译取数：规模快照 + 诊断报表（有 error → 退出码 1）。</summary>
@@ -361,17 +354,6 @@ public static class UsharpCliCommands
     private static int Finish(UsharpCompilation compilation, int sectionErrors)
         => compilation.HasErrors || sectionErrors > 0 ? ExitFailed : ExitOk;
 
-    private static int RunWithPath(IReadOnlyList<string> args, TextWriter output, Func<string, TextWriter, int> action)
-    {
-        if (args.Count != 1 || string.IsNullOrWhiteSpace(args[0]))
-        {
-            output.WriteLine("用法错误：该命令需要且仅需要一个 <file|dir> 参数。");
-            output.WriteLine(Usage);
-            return ExitUsage;
-        }
-        return action(args[0], output);
-    }
-
     private static int RunGraph(IReadOnlyList<string> args, TextWriter output, IUsharpGraphBackend? backend)
     {
         if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
@@ -401,13 +383,6 @@ public static class UsharpCliCommands
         }
 
         return Graph(args[0], output, backend, reachable, from, to);
-    }
-
-    private static int Unknown(string command, TextWriter output)
-    {
-        output.WriteLine($"未知命令：{command}");
-        output.WriteLine(Usage);
-        return ExitUsage;
     }
 
     /// <summary>

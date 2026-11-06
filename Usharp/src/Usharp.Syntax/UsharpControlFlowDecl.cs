@@ -160,14 +160,14 @@ public sealed record UsharpGuardDecl(
 internal static class UsharpControlFlowFields
 {
     /// <summary>
-    /// 解析 <c>k=v;…</c> 字段：**保留坏段与重复键**（词法内核 = <see cref="UsharpFieldBag"/>）。
+    /// 解析 <c>k=v;…</c> 字段：**保留坏段与重复键**（词法内核 = <see cref="StrictKeyValueArguments"/>）。
     /// </summary>
     /// <param name="field">字段原文（<c>in=</c>/<c>out=</c>/<c>routes=</c>）。</param>
     /// <param name="fieldName">字段名（问题归因用）。</param>
     public static (IReadOnlyDictionary<string, string> Map, IReadOnlyList<UsharpControlFlowBindingIssue> Issues)
         Parse(string? field, string fieldName)
     {
-        var bag = UsharpFieldBag.Parse(
+        var bag = StrictKeyValueArguments.Parse(
             UsharpLanguage.SplitSegments(field), skip: 0, comparer: StringComparer.Ordinal);
 
         var map = new Dictionary<string, string>(StringComparer.Ordinal);

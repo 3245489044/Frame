@@ -49,7 +49,7 @@ public sealed record UsharpEntityDecl(
             parsed.Get("scope"),
             parsed.Get("container"),
             parsed.Get("cardinality"),
-            string.Equals(parsed.Get("terminal"), "true", StringComparison.OrdinalIgnoreCase),
+            UsharpLineReader.TryBool(parsed.Get("terminal"), UsharpBoolLexicon.NumericYes, out var terminal) && terminal,
             parsed.Get("role"),
             parsed.Get("authority"),
             parsed.Get("family"),
@@ -86,8 +86,7 @@ public sealed record UsharpKeyLexiconDecl(
 
         var raw = parsed.Get("values");
         if (raw.Length == 0) raw = parsed.Body;
-        var values = raw
-            .Split(new[] { ',', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        var values = UsharpLineReader.SplitList(raw, ',', '|')
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
@@ -167,7 +166,7 @@ public sealed record UsharpIdentityPolicyDecl(
             parsed.Id,
             parsed.Get("entity"),
             parsed.Get("cardinality"),
-            string.Equals(parsed.Get("terminal"), "true", StringComparison.OrdinalIgnoreCase),
+            UsharpLineReader.TryBool(parsed.Get("terminal"), UsharpBoolLexicon.NumericYes, out var terminal) && terminal,
             parsed.Get("writer"),
             parsed.Get("on_unresolvable"),
             d.SourceFile,
@@ -262,7 +261,7 @@ internal readonly struct UsharpIdentitySyntax
         var id = (colon >= 0 ? head[..colon] : head).Trim();
         var body = (colon >= 0 ? head[(colon + 1)..] : string.Empty).Trim();
 
-        var bag = UsharpFieldBag.Parse(segments, skip: 1, comparer: StringComparer.OrdinalIgnoreCase);
+        var bag = StrictKeyValueArguments.Parse(segments, skip: 1, comparer: StringComparer.OrdinalIgnoreCase);
         var fields = new Dictionary<string, string>(bag.Fields, StringComparer.OrdinalIgnoreCase);
 
         return new UsharpIdentitySyntax(id, body, fields, bag.Unparsed, bag.DuplicateKeys);

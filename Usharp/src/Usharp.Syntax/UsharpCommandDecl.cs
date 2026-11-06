@@ -63,9 +63,13 @@ public sealed record UsharpCommandDecl(
                 var family = UsharpLineReader.Get(fields, "family") ?? string.Empty;
                 var surface = UsharpLineReader.Get(fields, "surface") ?? "Storage";
                 if (name.Length == 0 || family.Length == 0) { unparsed.Add(line); continue; }
+                var required = UsharpLineReader.TryBool(
+                    UsharpLineReader.Get(fields, "required"), UsharpBoolLexicon.NumericYes, out var parsedRequired)
+                    ? parsedRequired
+                    : true;
                 keys.Add(new UsharpCommandKeyDecl(
                     action, op, name, family, surface,
-                    !string.Equals(UsharpLineReader.Get(fields, "required"), "false", StringComparison.OrdinalIgnoreCase),
+                    required,
                     UsharpLineReader.SplitList(UsharpLineReader.Get(fields, "chain"))));
                 continue;
             }

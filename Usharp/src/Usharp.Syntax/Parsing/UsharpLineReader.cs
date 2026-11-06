@@ -47,9 +47,8 @@ public enum UsharpBoolLexicon
 /// </summary>
 public static class UsharpLineReader
 {
-    /// <summary>空白即 null（否则去空白）。</summary>
-    public static string? NullIfEmpty(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    /// <summary>空白即 null（否则去空白；归一单源 = <see cref="KeyText.Normalize"/>）。</summary>
+    public static string? NullIfEmpty(string? value) => KeyText.Normalize(value);
 
     /// <summary>按分隔符切段（去空段、逐段去空白）；默认 <c>|</c>。</summary>
     public static IReadOnlyList<string> SplitParts(string line, char separator = '|')

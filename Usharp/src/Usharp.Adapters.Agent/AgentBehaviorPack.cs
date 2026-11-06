@@ -5,6 +5,7 @@ using Plate.DslMethod;
 using Plate.DslMethod.Model;
 using Share.LogicComposition.Conversion.Models;
 using Share.LogicComposition.Conversion.Validation;
+using Share.LogicComposition.Conversion.Vocabulary;
 using Usharp.Semantics;
 using Usharp.Syntax;
 
@@ -73,10 +74,10 @@ internal sealed class BehaviorFacetProvider : IUsharpFacetProvider
 /// <summary>US7005：<c>[Rule] action=</c> 须 ∈ 已声明 <c>[Node]</c> / 动作注册表（未注入 ⇒ 仍按 [Node] 判）。</summary>
 internal sealed class BehaviorActionGateRule : IGateRule<UsharpGateModel>
 {
-    private readonly HashSet<string> _knownActions;
+    private readonly OrderedWhitelist _knownActions;
 
     public BehaviorActionGateRule(IReadOnlyCollection<string> knownActions)
-        => _knownActions = new HashSet<string>(knownActions, StringComparer.Ordinal);
+        => _knownActions = new OrderedWhitelist(knownActions);
 
     public string Name => "agent.behavior.action";
 

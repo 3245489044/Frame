@@ -5,6 +5,7 @@ using Plate.DslMethod;
 using Plate.DslMethod.Model;
 using Share.LogicComposition.Conversion.Models;
 using Share.LogicComposition.Conversion.Validation;
+using Share.LogicComposition.Conversion.Vocabulary;
 using Usharp.Semantics;
 
 namespace Usharp.Adapters.Agent;
@@ -63,16 +64,16 @@ internal sealed class ToolFaceFacetProvider : IUsharpFacetProvider
 /// <summary>US7004：<c>edge=hosts</c> 的轨 id 须 ∈ 轨实现注册表（未注入 ⇒ 不判定）。</summary>
 internal sealed class ToolFaceTrackGateRule : IGateRule<UsharpGateModel>
 {
-    private readonly HashSet<string> _knownTracks;
+    private readonly OrderedWhitelist _knownTracks;
 
     public ToolFaceTrackGateRule(IReadOnlyCollection<string> knownTracks)
-        => _knownTracks = new HashSet<string>(knownTracks.Select(Normalize), StringComparer.Ordinal);
+        => _knownTracks = new OrderedWhitelist(knownTracks.Select(Normalize));
 
     public string Name => "agent.tool.track";
 
     public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
     {
-        if (_knownTracks.Count == 0) return;
+        if (_knownTracks.Items.Count == 0) return;
         if (!model.TryGetFacet<IReadOnlyList<AgentToolFaceEdge>>(out var edges)) return;
 
         foreach (var e in edges)

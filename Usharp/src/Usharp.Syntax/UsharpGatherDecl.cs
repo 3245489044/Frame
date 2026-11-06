@@ -341,7 +341,7 @@ public sealed record UsharpGatherDecl(
         name = string.Empty;
         kinds = Array.Empty<string>();
 
-        var bag = UsharpFieldBag.Parse(new[] { value }, skip: 0, comparer: StringComparer.Ordinal);
+        var bag = StrictKeyValueArguments.Parse(new[] { value }, skip: 0, comparer: StringComparer.Ordinal);
         if (bag.Fields.Count == 0) return false;
 
         var pair = bag.Fields.First();
@@ -363,7 +363,7 @@ public sealed record UsharpGatherDecl(
         var kind = segments[0].Trim();
         if (kind.Length == 0) return false;
 
-        var bag = UsharpFieldBag.Parse(segments, skip: 1);
+        var bag = StrictKeyValueArguments.Parse(segments, skip: 1);
         foreach (var bad in bag.Unparsed) unparsed.Add(bad);
 
         var fields = bag.Fields

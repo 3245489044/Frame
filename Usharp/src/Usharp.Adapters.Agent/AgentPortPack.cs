@@ -4,6 +4,7 @@ using System.Linq;
 using Plate.DslMethod;
 using Share.LogicComposition.Conversion.Models;
 using Share.LogicComposition.Conversion.Validation;
+using Share.LogicComposition.Conversion.Vocabulary;
 using Usharp.Semantics;
 using Usharp.Syntax;
 
@@ -69,16 +70,16 @@ public sealed class AgentPortPack : UsharpDomainPackSpec
 /// <summary>US7604：<c>[Node] fn=</c> 须 ∈ 函数注册表（未注入 ⇒ 不判定）。</summary>
 internal sealed class PortFnGateRule : IGateRule<UsharpGateModel>
 {
-    private readonly HashSet<string> _knownFunctions;
+    private readonly OrderedWhitelist _knownFunctions;
 
     public PortFnGateRule(IReadOnlyCollection<string> knownFunctions)
-        => _knownFunctions = new HashSet<string>(knownFunctions, StringComparer.Ordinal);
+        => _knownFunctions = new OrderedWhitelist(knownFunctions);
 
     public string Name => "agent.port.fn";
 
     public void Check(UsharpGateModel model, IConversionDiagnosticSink sink)
     {
-        if (_knownFunctions.Count == 0) return;
+        if (_knownFunctions.Items.Count == 0) return;
         if (!model.TryGetFacet<IReadOnlyList<AgentPortNode>>(out var nodes)) return;
 
         foreach (var n in nodes)
@@ -188,9 +189,11 @@ internal sealed class PortKindGateRule : IGateRule<UsharpGateModel>
     {
         if (!model.TryGetFacet<IReadOnlyList<AgentPortNode>>(out var nodes)) return;
 
-        var allowed = new HashSet<string>(BuiltinKinds, StringComparer.Ordinal);
-        if (model.Spaces.TryGet(AgentPortPack.ExecutorKindSpaceId, out var space))
-            foreach (var axis in space.Axes) allowed.Add(axis.Name);
+        var allowed = new OrderedWhitelist(
+            BuiltinKinds,
+            model.Spaces.TryGet(AgentPortPack.ExecutorKindSpaceId, out var space)
+                ? space.Axes.Select(axis => axis.Name)
+                : null);
 
         foreach (var n in nodes)
         {

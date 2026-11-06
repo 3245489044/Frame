@@ -30,7 +30,7 @@ public static class UsharpDeclarationBody
         ArgumentNullException.ThrowIfNull(headerParts);
 
         var effective = comparer ?? StringComparer.OrdinalIgnoreCase;
-        var bag = UsharpFieldBag.Parse(headerParts, skip, effective);
+        var bag = StrictKeyValueArguments.Parse(headerParts, skip, effective);
         var fields = new Dictionary<string, string>(bag.Fields, effective);
         var unparsed = new List<string>(bag.Unparsed);
 

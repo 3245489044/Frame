@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Share.JsonPayload;
 
 namespace Usharp.Bundle;
 
@@ -28,25 +29,19 @@ public static class KeySpaceFactsNormalizer
         {
             foreach (var family in familyNodes.EnumerateArray())
             {
-                var id = ReadString(family, "id");
+                var id = PayloadAccessor.Str(family, "id") ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(id)) continue;
 
-                var derived = new List<string>();
-                if (family.TryGetProperty("derivedPrefixes", out var prefixes) && prefixes.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var prefix in prefixes.EnumerateArray())
-                    {
-                        if (prefix.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(prefix.GetString()))
-                        {
-                            derived.Add(prefix.GetString()!);
-                        }
-                    }
-                }
+                // 取值单一实现（Share.JsonPayload.PayloadAccessor）：非字符串元素由访问器过滤，
+                // 此处仅保留既有空白过滤口径（derivedPrefixes 不收纳空白项）。
+                var derived = (PayloadAccessor.Strings(family, "derivedPrefixes") ?? [])
+                    .Where(prefix => !string.IsNullOrWhiteSpace(prefix))
+                    .ToList();
 
                 families.Add(new FamilyFacts(
                     id,
-                    ReadString(family, "template"),
-                    ReadString(family, "businessKeyTemplate"),
+                    PayloadAccessor.Str(family, "template") ?? string.Empty,
+                    PayloadAccessor.Str(family, "businessKeyTemplate") ?? string.Empty,
                     derived));
             }
         }
@@ -56,9 +51,9 @@ public static class KeySpaceFactsNormalizer
         {
             foreach (var port in portNodes.EnumerateArray())
             {
-                var name = ReadString(port, "name");
+                var name = PayloadAccessor.Str(port, "name") ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(name)) continue;
-                ports.Add(new PortFacts(name, ReadString(port, "direction")));
+                ports.Add(new PortFacts(name, PayloadAccessor.Str(port, "direction") ?? string.Empty));
             }
         }
 
@@ -82,16 +77,6 @@ public static class KeySpaceFactsNormalizer
         }
 
         return JsonSerializer.Serialize(new KeySpaceFacts(families, canonicalPorts), Options);
-    }
-
-    private static string ReadString(JsonElement node, string property)
-    {
-        if (!node.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.String)
-        {
-            return string.Empty;
-        }
-
-        return value.GetString() ?? string.Empty;
     }
 
     private sealed record FamilyFacts(string Id, string Template, string BusinessKeyTemplate, IReadOnlyList<string> DerivedPrefixes);

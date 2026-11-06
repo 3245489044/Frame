@@ -22,6 +22,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Emit\Usharp.Emit.csproj" />
+    <!-- 装载器/编译产物直接使用（Usharp.Emit 传递已含，显式声明防依赖方向脆弱）。 -->
+    <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
+    <!-- 有界缓存单源 = Modules.Compute.Formula.BoundedCache。 -->
+    <ProjectReference Include="$(Proj_Compute)" />
     <ProjectReference Include="$(Proj_Node)" />
     <!-- 指纹原语单源：Share.ContextGeometry.ContentHash（BCL-only，零传递框架依赖）。 -->
     <ProjectReference Include="$(Proj_Share_ContextGeometry)" />

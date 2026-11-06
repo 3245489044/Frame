@@ -35,7 +35,7 @@ public sealed class UsharpDeclarationReferenceIndexPort : IReferenceIndexPort
         UsharpLanguage.FieldScope,
     };
 
-    private readonly Dictionary<string, List<string>> _reverse = new(StringComparer.Ordinal);
+    private readonly NodeReferenceIndex _index;
 
     /// <param name="compilation">声明面编译产物（<c>hierarchy-refs.ushar</c> 等）。</param>
     public UsharpDeclarationReferenceIndexPort(UsharpCompilation compilation)
@@ -44,13 +44,14 @@ public sealed class UsharpDeclarationReferenceIndexPort : IReferenceIndexPort
 
         var refs = compilation.Refs;
         ReferenceFields = DeriveFields(refs);
+        _index = new NodeReferenceIndex(ReferenceFields);
 
         foreach (var reference in refs)
         {
             var location = $"{reference.SourceFile}:{reference.LineNumber}";
-            Index(reference.Key, location);
-            Index(reference.Source, location);
-            Index(reference.Target, location);
+            _index.Add(reference.Key, location);
+            _index.Add(reference.Source, location);
+            _index.Add(reference.Target, location);
         }
     }
 
@@ -58,11 +59,10 @@ public sealed class UsharpDeclarationReferenceIndexPort : IReferenceIndexPort
     public IReadOnlyList<string> ReferenceFields { get; }
 
     /// <summary>已建立反向索引的键（诊断用；字典序）。</summary>
-    public IReadOnlyList<string> IndexedKeys => _reverse.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
+    public IReadOnlyList<string> IndexedKeys => _index.IndexedKeys;
 
     /// <inheritdoc />
-    public IReadOnlyList<string> ReverseReferences(string key) =>
-        _reverse.TryGetValue(key, out var list) ? list.ToArray() : Array.Empty<string>();
+    public IReadOnlyList<string> ReverseReferences(string key) => _index.ReverseReferences(key);
 
     /// <summary>字段面派生：本编译实际 populate 的已注册字段（序 = <see cref="RefFieldVocabulary"/>）。</summary>
     private static IReadOnlyList<string> DeriveFields(IReadOnlyList<UsharpRefDecl> refs)
@@ -80,23 +80,5 @@ public sealed class UsharpDeclarationReferenceIndexPort : IReferenceIndexPort
         }
 
         return RefFieldVocabulary.Where(used.Contains).ToArray();
-    }
-
-    private void Index(string? key, string location)
-    {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            return;
-        }
-
-        if (!_reverse.TryGetValue(key, out var list))
-        {
-            _reverse[key] = list = new List<string>();
-        }
-
-        if (!list.Contains(location, StringComparer.Ordinal))
-        {
-            list.Add(location);
-        }
     }
 }

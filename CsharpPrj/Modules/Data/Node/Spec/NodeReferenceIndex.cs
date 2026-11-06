@@ -27,6 +27,25 @@ public sealed class NodeReferenceIndex : IReferenceIndexPort
     public bool IsReferenceField(string propertyName) =>
         ReferenceFields.Contains(propertyName, StringComparer.Ordinal);
 
+    /// <summary>登记一条「键 → 归因位置」反向引用（空键忽略；重复位置去重）。</summary>
+    public void Add(string? key, string location)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return;
+        }
+
+        if (!_reverse.TryGetValue(key, out var list))
+        {
+            _reverse[key] = list = new List<string>();
+        }
+
+        if (!list.Contains(location, StringComparer.Ordinal))
+        {
+            list.Add(location);
+        }
+    }
+
     /// <summary>装载声明文档并建立反向索引（解析失败的文档产诊断，不静默跳过）。</summary>
     public void Load(IReadOnlyList<SpecDocument> documents)
     {
@@ -58,17 +77,7 @@ public sealed class NodeReferenceIndex : IReferenceIndexPort
                     return;
                 }
 
-                if (!_reverse.TryGetValue(referenced, out var list))
-                {
-                    list = new List<string>();
-                    _reverse[referenced] = list;
-                }
-
-                var location = $"{document.Name}:{path}";
-                if (!list.Contains(location, StringComparer.Ordinal))
-                {
-                    list.Add(location);
-                }
+                Add(referenced, $"{document.Name}:{path}");
             });
         }
     }

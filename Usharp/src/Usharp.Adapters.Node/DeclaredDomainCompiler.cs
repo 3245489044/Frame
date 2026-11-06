@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Modules.Compute.Formula;
 using Share.ContextGeometry;
 using Usharp.Emit;
 using Usharp.Semantics;
@@ -35,10 +36,9 @@ public sealed record DomainCompileOutcome(
 /// </summary>
 public static class DeclaredDomainCompiler
 {
-    private static readonly object Gate = new();
-    private static readonly Dictionary<string, DomainCompileOutcome> Cache = new(StringComparer.Ordinal);
-    private static readonly Dictionary<string, (string Fingerprint, IReadOnlyList<(string Path, string Text)> Docs)> ContextCache =
-        new(StringComparer.Ordinal);
+    // 有界缓存单源 = Modules.Compute.Formula.BoundedCache（容量软上限 + FIFO；禁本工程私建静态字典）。
+    private static readonly BoundedCache<string, DomainCompileOutcome> Cache = new(128);
+    private static readonly BoundedCache<string, (string Fingerprint, IReadOnlyList<(string Path, string Text)> Docs)> ContextCache = new(64);
 
     /// <summary>编译单个域声明；命中缓存时 <see cref="DomainCompileOutcome.CacheHit"/> = true。</summary>
     /// <param name="domainPath">域声明文件绝对路径。</param>
@@ -58,12 +58,9 @@ public static class DeclaredDomainCompiler
         var text = File.ReadAllText(domainPath);
         var key = Key(domainPath, text, profile, context);
 
-        lock (Gate)
+        if (Cache.TryGet(key, out var hit) && hit is not null)
         {
-            if (Cache.TryGetValue(key, out var hit) && hit is not null)
-            {
-                return hit with { CacheHit = true };
-            }
+            return hit with { CacheHit = true };
         }
 
         var documents = new List<(string Path, string Text)>(context.Count + 1);
@@ -95,23 +92,16 @@ public static class DeclaredDomainCompiler
         return Store(key, new DomainCompileOutcome(emitted.Json, diagnostics, false, "ok"));
     }
 
-    /// <summary>清空缓存（测试 / 声明变更后重载）。</summary>
+    /// <summary>清空缓存（声明重载经 <c>DeclarationReloadRegistry</c> 单点调用）。</summary>
     public static void Reset()
     {
-        lock (Gate)
-        {
-            Cache.Clear();
-            ContextCache.Clear();
-        }
+        Cache.Clear();
+        ContextCache.Clear();
     }
 
     private static DomainCompileOutcome Store(string key, DomainCompileOutcome outcome)
     {
-        lock (Gate)
-        {
-            Cache[key] = outcome;
-        }
-
+        Cache.Set(key, outcome);
         return outcome;
     }
 
@@ -124,25 +114,18 @@ public static class DeclaredDomainCompiler
 
         // 长驻宿主：目录内容（文件集/长度/最后写时间）变化即失效，禁以目录键永久命中旧上下文。
         var fingerprint = Fingerprint(directory);
-        lock (Gate)
+        if (ContextCache.TryGet(directory, out var cached)
+            && string.Equals(cached.Fingerprint, fingerprint, StringComparison.Ordinal))
         {
-            if (ContextCache.TryGetValue(directory, out var cached)
-                && string.Equals(cached.Fingerprint, fingerprint, StringComparison.Ordinal))
-            {
-                return cached.Docs;
-            }
+            return cached.Docs;
         }
 
-        var docs = Directory
-            .EnumerateFiles(directory, "*.ushar", SearchOption.TopDirectoryOnly)
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .Select(path => (Path: path, Text: File.ReadAllText(path)))
+        // 装载样板收敛到 UsharpSourceLoader（族内唯一实现：顶层 *.ushar + 路径序）。
+        var docs = UsharpSourceLoader.FromDirectories(new[] { directory })
+            .Select(static source => (Path: source.Path, Text: source.Text))
             .ToArray();
 
-        lock (Gate)
-        {
-            ContextCache[directory] = (fingerprint, docs);
-        }
+        ContextCache.Set(directory, (fingerprint, docs));
 
         return docs;
     }

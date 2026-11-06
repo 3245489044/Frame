@@ -4,6 +4,7 @@ using System.Linq;
 using Plate.DslMethod;
 using Share.LogicComposition.Conversion.Models;
 using Share.LogicComposition.Conversion.Validation;
+using Share.LogicComposition.Conversion.Vocabulary;
 using Usharp.Semantics;
 
 namespace Usharp.Adapters.Agent;
@@ -83,11 +84,10 @@ internal sealed class ProfileBandGateRule : IGateRule<UsharpGateModel>
         if (!model.TryGetFacet<IReadOnlyList<UsharpProfileDecl>>(out var profiles)) return;
         if (!model.TryGetFacet<IReadOnlyList<UsharpSkillDecl>>(out var skills)) skills = Array.Empty<UsharpSkillDecl>();
 
-        var declared = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var s in skills)
-            if (!string.IsNullOrWhiteSpace(s.Dsl)) declared.Add(s.Dsl!);
-        foreach (var b in _knownBands) declared.Add(b);
-        if (declared.Count == 0) return;
+        var declared = new OrderedWhitelist(
+            skills.Where(s => !string.IsNullOrWhiteSpace(s.Dsl)).Select(s => s.Dsl!),
+            _knownBands);
+        if (declared.Items.Count == 0) return;
 
         foreach (var p in profiles)
             foreach (var band in p.Bands)

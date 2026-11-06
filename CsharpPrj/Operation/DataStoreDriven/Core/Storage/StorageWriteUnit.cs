@@ -9,21 +9,19 @@ namespace Operation.DataStoreDriven.Core;
 /// 跨库写单元（双库唯一写序：<b>先 SQL 后图</b>，禁反向；删除的最终动作除外——见方案 §7.3）。
 /// <para>
 /// 语义：<see cref="Sql"/> 为权威实体写（可含同库多语句/事务）；<see cref="Graph"/> 为派生索引写（幂等），
-/// 失败入 Outbox 由对账/重放补齐；<see cref="CompensateGraph"/> 缺省由调用方不提供（= 不补偿，交重放）。
+/// 失败入 Outbox 由对账/重放补齐（不提供图侧回滚；回滚统一交重放，见 F3.3）。
 /// </para>
 /// </summary>
 /// <param name="Name">单元名（可见化/审计用，如 <c>task.enqueue</c>）。</param>
 /// <param name="IdempotencyKey">重放幂等键（如 <c>task:&lt;key&gt;:enqueue:v1</c>）。</param>
 /// <param name="Sql">权威实体写。</param>
 /// <param name="Graph">派生关系写（可空 = 无图侧动作）。</param>
-/// <param name="CompensateGraph">可选图侧回滚。</param>
 /// <param name="PayloadJson">重放所需最小描述（入 Outbox；缺省空）。</param>
 public sealed record StorageWriteUnit(
     string Name,
     string IdempotencyKey,
     Func<CancellationToken, Task> Sql,
     Func<CancellationToken, Task>? Graph = null,
-    Func<CancellationToken, Task>? CompensateGraph = null,
     string PayloadJson = "");
 
 /// <summary>

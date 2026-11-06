@@ -82,6 +82,17 @@ namespace Common.PlaceholderFramework.Integrated.Handlers
                 : messageId;
     }
 
+    /// <summary>
+    /// 事实出口门面（Share A-3）：为「注入 sink」类诊断（如存储一致性事件）提供统一落盘实现，
+    /// 组合根可将 <c>StorageConsistencyEvents.Sink</c> 接到本出口，避免各工程再写一份 sink。
+    /// </summary>
+    public static class FactSink
+    {
+        /// <summary>创建 (事件名, 负载) 出口委托。</summary>
+        public static Action<string, object?> Create(string moduleName, string keyPrefix)
+            => (eventName, payload) => ModuleLog.LogWithFallback(moduleName, keyPrefix, eventName, payload);
+    }
+
     /// <summary>绑定模块名/KeyPrefix 的日志通道（无状态、线程安全；Initialize 需在启动期调用一次）。</summary>
     public sealed class ModuleLogChannel
     {

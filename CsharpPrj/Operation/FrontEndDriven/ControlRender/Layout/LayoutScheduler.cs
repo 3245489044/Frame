@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FrontEndDriven.Diagnostics;
@@ -98,6 +99,10 @@ public sealed class LayoutScheduler
         if (Interlocked.Exchange(ref _draining, 1) == 1)
             return;
 
+        // F4.5：风暴 scope 已被 TryConsumeIfLatest 出队；不能再「只 break 不登记」直接丢弃。
+        // 记入本 pass 集合，drain 返回后重新登记，交给尾部预算逻辑决定 重试/终态隔离（不静默丢任务）。
+        var stormed = new List<string>();
+
         try
         {
             _convergence.BeginPass();
@@ -108,12 +113,14 @@ public sealed class LayoutScheduler
                     // 重排风暴护栏：单次 Drain 内同一 scope 连续重排超过阈值 → 记告警并终止本 pass 剩余遍历，
                     // 避免 `_work` 内对同一 scope 反复 Schedule 造成 ScheduleDrain 重入无限风暴。
                     // （正常路径下一 scope 的 reflow 不会无界重排自身；此处仅护栏，不吞正确任务——
-                    //  风暴 scope 已被 DrainAllAsync 经 TryConsumeIfLatest 出队且未执行 _work，不会被再次入队。）
+                    //  风暴 scope 已被 DrainAllAsync 经 TryConsumeIfLatest 出队且未执行 _work，
+                    //  本 pass 结束后会重新登记，由预算逻辑重试或终态隔离。）
                     if (!_convergence.TrackExecution(scope))
                     {
+                        stormed.Add(scope);
                         FrontEndDrivenLog.Log("LayoutScheduler_reflow_storm",
                             new { scope, consecutive = _convergence.ConsecutiveCount });
-                        return Task.FromResult(false); // = 原 `break`：终止本 pass 剩余遍历，交由外层 while 重新判定
+                        return Task.FromResult(false); // = 原 `break`：终止本 pass 剩余遍历
                     }
 
                     try
@@ -132,6 +139,14 @@ public sealed class LayoutScheduler
         {
             // 消费阶段结束即释放守卫，使预算逻辑尾部的 ScheduleDrain（同步路径）可正常再入。
             Interlocked.Exchange(ref _draining, 0);
+        }
+
+        // F4.5：被风暴中断的 scope 重新入队（未被 _work 执行过，不存在重复执行），
+        // 由下方预算判定收敛：仍在预算内 → 重试；超出 → Abandoned 并通知收敛机隔离。
+        foreach (var scope in stormed)
+        {
+            if (_pending.Count < QueueDrainPolicy.MaxPassesPerDrain * 8)
+                _pending.Register(scope, scope);
         }
 
         if (_pending.Count == 0)

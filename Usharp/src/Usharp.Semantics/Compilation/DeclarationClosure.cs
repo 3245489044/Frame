@@ -48,6 +48,16 @@ public sealed record DeclarationClosureSpec(
     /// </summary>
     public static DeclarationClosureSpec Ui(string root) => new(
         root, new[] { "ui" }, Array.Empty<string>());
+
+    /// <summary>
+    /// 聚拢视图声明闭包（仅 <c>gather</c> 子目录）。
+    /// <para>
+    /// 独立于 <see cref="Bundle"/> / <see cref="Ui"/>：聚拢视图（Stage/Need/Produce）不进入共享 manifest
+    /// 也不是 UI 视图，闭包隔离保证「改聚拢声明不动 UI 指纹、也不动 manifest 指纹」。
+    /// </para>
+    /// </summary>
+    public static DeclarationClosureSpec Gather(string root) => new(
+        root, new[] { "gather" }, Array.Empty<string>());
 }
 
 /// <summary>

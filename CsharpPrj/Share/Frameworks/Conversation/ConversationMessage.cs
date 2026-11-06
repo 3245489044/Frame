@@ -38,4 +38,5 @@ public sealed record ConversationMessage(
     IReadOnlyList<string>? Targets = null,
     bool? Terminal = null,
     bool? Archived = null,
-    string? Presentation = null);
+    string? Presentation = null,
+    IReadOnlyDictionary<string, string>? Fields = null);

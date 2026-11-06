@@ -58,6 +58,7 @@
     <ProjectReference Include="$(Proj_UniversalMiddleware)" />
     <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
     <ProjectReference Include="$(Proj_Pipeline)" />
+    <ProjectReference Include="$(Proj_Regulation)" />
     <ProjectReference Include="$(Proj_ParameterResolver)" />
     <ProjectReference Include="$(Proj_TConfig)" />
     <ProjectReference Include="$(Proj_BackEndDriven)" />

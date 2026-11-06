@@ -221,6 +221,48 @@ public static class DeclaredBundleBuilder
         return (emitted.Json, errors, emitted.Diagnostics);
     }
 
+    /// <summary>
+    /// 由 <c>Config\gather</c> 专用闭包构建聚拢视图声明（gather-spec-v1）。
+    /// <para>错误 &gt; 0 ⇒ <c>Json = null</c>（不产出；失败姿态由调用方/门禁裁决）。</para>
+    /// </summary>
+    /// <param name="configRoot">配置根（含 <c>gather</c> 子目录）。</param>
+    public static (string? Json, int Errors, IReadOnlyList<UsharpDiagnostic> Diagnostics)
+        BuildGatherViews(string configRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
+        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Gather(configRoot));
+        var compilation = UsharpCompilationHost.Shared.Resolve(closure);
+        var emitted = UsharpGatherViewSpecEmitter.Emit(compilation);
+        var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
+        return (emitted.Json, errors, emitted.Diagnostics);
+    }
+
+    /// <summary>由 <c>Config\nodes</c> 闭包构建字段词表（field-vocabulary-v1）。</summary>
+    /// <param name="configRoot">配置根（含 <c>nodes</c> 子目录）。</param>
+    public static (string? Json, int Errors, IReadOnlyList<UsharpDiagnostic> Diagnostics)
+        BuildFieldVocabulary(string configRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
+        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Bundle(configRoot));
+        var compilation = UsharpCompilationHost.Shared.Resolve(closure);
+        var emitted = UsharpFieldVocabularyEmitter.Emit(compilation);
+        var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
+        return (emitted.Json, errors, emitted.Diagnostics);
+    }
+
+    /// <summary>由 <c>Config\ui</c> 闭包构建载体映射（surface-map-v1）。</summary>
+    /// <param name="configRoot">配置根（含 <c>ui</c> 子目录）。</param>
+    public static (string? Json, int Errors, IReadOnlyList<UsharpDiagnostic> Diagnostics)
+        BuildSurfaceMap(string configRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
+        var closure = DeclarationClosures.Resolve(DeclarationClosureSpec.Ui(configRoot));
+        var compilation = UsharpCompilationHost.Shared.Resolve(closure);
+        var emitted = UsharpSurfaceMapEmitter.Emit(compilation);
+        var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
+        return (emitted.Json, errors, emitted.Diagnostics);
+    }
+
     /// <summary>写出 UI 声明产物（UTF-8 无 BOM；目录不存在则创建）。</summary>
     /// <param name="outputFile">产物文件路径。</param>
     /// <param name="json">产物 JSON。</param>

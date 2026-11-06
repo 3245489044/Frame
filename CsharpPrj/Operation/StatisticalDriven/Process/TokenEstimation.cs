@@ -8,5 +8,5 @@ public static class TokenEstimation
 {
     /// <summary>估算输出 Token 数：字节 → 字符（<paramref name="bytesPerChar"/>）→ token（ContextEstimator.CharsPerToken）。</summary>
     public static long FromBytes(long outputBytes, double bytesPerChar = ContextEstimator.DefaultBytesPerChar)
-        => ContextEstimator.EstimateFromBytes(outputBytes, bytesPerChar).TokenEstimate;
+        => ContextEstimator.EstimateFromBytes(outputBytes, bytesPerChar).Tokens ?? 0;
 }

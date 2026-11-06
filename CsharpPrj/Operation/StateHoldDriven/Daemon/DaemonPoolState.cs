@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Linq;
+using Modules.Regulation;
 using Modules.Threading;
 using Operation.StateBlock.Diagnostics;
 using Share.StateManagement.Pooling;
@@ -46,8 +47,7 @@ public sealed class DaemonPoolState : IDisposable
         DateTime StartedAtUtc,
         DateTime LastActivityUtc,
         string? LastError,
-        WorkerLifecycleState State,
-        int TimeoutCount = 0);
+        WorkerLifecycleState State);
 
     private readonly DaemonPoolOptions _options;
     private readonly string _poolTag;
@@ -57,8 +57,10 @@ public sealed class DaemonPoolState : IDisposable
     private readonly ConcurrentDictionary<string, IWorkerHost> _hosts = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, WorkerRuntime> _runtime = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _stderrTail = new(StringComparer.Ordinal);
-    // 基建故障（挂起/被杀）计数：按 workerId 累计，跨补位/重启保留（健康上报用）。
-    private readonly ConcurrentDictionary<string, int> _timeoutCounts = new(StringComparer.Ordinal);
+    // 基建故障（挂起/被杀）计数：跨补位/重启保留（Module 能力 CumulativeFaultCounter；只显式重置，不随观测进展自动清零）。
+    private readonly CumulativeFaultCounter _faults = new();
+    // 补位互斥：同一 worker 的并发 Respawn 串行化（E-4：避免重复代次递增/重复 spawn）。
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _respawnGates = new(StringComparer.Ordinal);
     // worker 代次（= 进程实例序号）：每次 spawn/重生 +1，初值 1；跨补位保留不随 _runtime 清理。
     // 承载点 = B0-4 裁决 ⓐ（租约/代次守卫的唯一判据来源）。
     private readonly ConcurrentDictionary<string, int> _generations = new(StringComparer.Ordinal);
@@ -275,14 +277,38 @@ public sealed class DaemonPoolState : IDisposable
         StateBlockLog.StepDebug(_poolTag, "Start_Done", new { running = GetWorkerIds(), ready = ReadyWorkerCount });
     }
 
-    /// <summary>补位/重启单个 daemon（被 kill/挂起后）。</summary>
+    /// <summary>补位/重启单个 daemon（被 kill/挂起后）。同一 worker 的并发补位经信号量串行化（E-4）。</summary>
     public async Task RespawnAsync(string workerId, CancellationToken ct)
     {
-        StateBlockLog.Respawn(_poolTag, workerId);
-        if (_hosts.TryRemove(workerId, out var old)) old.Dispose();
-        _runtime.TryRemove(workerId, out _); // 新 worker 未就绪，需重新预热
-        _stderrTail.TryRemove(workerId, out _); // 清旧 stderr，避免归因串脏
-        await SpawnWorkerAsync(workerId, ct).ConfigureAwait(false); // SpawnWorkerAsync 内部 SetPid 已置 Running，无需再 MarkRunning（R7）
+        var gate = _respawnGates.GetOrAdd(workerId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            StateBlockLog.Respawn(_poolTag, workerId);
+            if (_hosts.TryRemove(workerId, out var old)) old.Dispose();
+            _runtime.TryRemove(workerId, out _); // 新 worker 未就绪，需重新预热
+            _stderrTail.TryRemove(workerId, out _); // 清旧 stderr，避免归因串脏
+            await SpawnWorkerAsync(workerId, ct).ConfigureAwait(false); // SpawnWorkerAsync 内部 SetPid 已置 Running，无需再 MarkRunning（R7）
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    /// <summary>就绪预算耗尽/取消时清理：只杀非 InFlight 的 daemon（在飞请求不被误杀）；池可再次 StartAsync 重建。</summary>
+    public void KillIdleDaemons()
+    {
+        foreach (var id in _hosts.Keys.ToList())
+        {
+            if (_runtime.TryGetValue(id, out var r) && r.State == WorkerLifecycleState.InFlight)
+                continue; // 在飞：交给请求生命周期收束，不在此误杀
+
+            if (_hosts.TryRemove(id, out var h)) h.Dispose(); // Dispose 杀整棵进程树
+            _runtime.TryRemove(id, out _);
+            _stderrTail.TryRemove(id, out _);
+        }
+        _started = _runtime.IsEmpty ? false : _started;
     }
 
     /// <summary>就绪预算耗尽/取消时清理：杀掉全部 daemon 进程树并清状态，避免孤儿进程残留；池可再次 StartAsync 重建。</summary>
@@ -294,7 +320,6 @@ public sealed class DaemonPoolState : IDisposable
         }
         _runtime.Clear();
         _stderrTail.Clear();
-        _timeoutCounts.Clear();
         _started = false;
     }
 
@@ -325,9 +350,27 @@ public sealed class DaemonPoolState : IDisposable
         // 结构帧（如 type:"node"）：透传 per-call 帧通道（K2：识别产物；无监听器即丢弃）。
         host.Frame += resp => OnFrame(workerId, resp);
 
-        await host.StartAsync(ct).ConfigureAwait(false);
-        _hosts[workerId] = host;
+        // E-10：先订阅 Exited 再登记/启动，避免“启动后瞬退”在订阅前丢失 → 池误把死进程当 Running。
         host.Exited += () => OnHostExited(workerId);
+        _hosts[workerId] = host;
+
+        try
+        {
+            await host.StartAsync(ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            _hosts.TryRemove(workerId, out _);
+            host.Dispose();
+            throw;
+        }
+
+        if (host.ProcessHandle.IsExited)
+        {
+            // 启动即退出：保持 Dead，不再置 Running/Pid，避免 IllegalTransition 或假就绪。
+            OnHostExited(workerId);
+            return;
+        }
 
         SetPid(workerId, host.ProcessHandle.Id);
         // Start_Spawn 逐 worker 细节由 Start_Spawned 汇总承载（poolSize+workers），此处不再单独记录。
@@ -361,7 +404,8 @@ public sealed class DaemonPoolState : IDisposable
     {
         StateBlockLog.WorkerExited(_poolTag, workerId);
         _hosts.TryRemove(workerId, out _);
-        TransitionTo(workerId, WorkerLifecycleState.Dead);
+        // E-25：退出回调与主动 Dispose 并发时可能已是 Dead；TryTransitionTo 对 Dead→Dead 幂等成功，不抛非法迁移。
+        TryTransitionTo(workerId, WorkerLifecycleState.Dead);
     }
 
     // ---- 状态字典辅助（状态迁移仅经 TransitionTo 迁移表校验） ----
@@ -402,11 +446,11 @@ public sealed class DaemonPoolState : IDisposable
 
     /// <summary>记录一次基建故障（挂起/被杀）：按 workerId 累计，跨补位/重启保留，供健康上报。</summary>
     public void NoteTimeout(string workerId)
-        => _timeoutCounts.AddOrUpdate(workerId, 1, (_, c) => c + 1);
+        => _faults.Increment(workerId);
 
     /// <summary>该 worker 累计基建故障次数（健康上报）。</summary>
     public int GetTimeoutCount(string workerId)
-        => _timeoutCounts.TryGetValue(workerId, out var c) ? c : 0;
+        => (int)_faults.Get(workerId);
 
     private void MarkDead(string workerId, string? error)
     {
@@ -452,9 +496,20 @@ public sealed class DaemonPoolState : IDisposable
     {
         if (!_runtime.TryGetValue(workerId, out var current))
             return;
-        var updated = apply(current);
-        if (_runtime.TryUpdate(workerId, updated, current))
-            WorkerStateChanged?.Invoke(ToInfo(updated));
+
+        // E-3：CAS 失败必须重试；旧实现遇并发迁移时静默丢弃本次更新（健康状态可能永久滞后）。
+        while (true)
+        {
+            var updated = apply(current);
+            if (_runtime.TryUpdate(workerId, updated, current))
+            {
+                WorkerStateChanged?.Invoke(ToInfo(updated));
+                return;
+            }
+
+            if (!_runtime.TryGetValue(workerId, out current))
+                return; // 已被移除
+        }
     }
 
     private WorkerStateInfo ToInfo(WorkerRuntime r)
@@ -479,7 +534,7 @@ public sealed class DaemonPoolState : IDisposable
         }
         _requestTracker.Dispose();
         _runtime.Clear();
-        _timeoutCounts.Clear();
+        _faults.ResetAll();
     }
 }
 

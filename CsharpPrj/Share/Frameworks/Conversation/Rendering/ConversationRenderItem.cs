@@ -22,6 +22,7 @@ public sealed record ConversationRenderItem(
     IReadOnlyList<string>? Targets = null,
     bool? Terminal = null,
     bool? Archived = null,
-    string? Presentation = null);
+    string? Presentation = null,
+    IReadOnlyDictionary<string, string>? Fields = null);
 
 

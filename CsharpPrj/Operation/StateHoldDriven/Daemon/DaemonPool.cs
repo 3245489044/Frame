@@ -24,6 +24,7 @@ public sealed class DaemonPool : IDisposable
     private readonly object _readyLock = new();
     private readonly CancellationTokenSource _poolCts = new();
     private Task<int>? _warmupTask;
+    private bool _disposed;
     private string? _lastWarmupError; // 自旋吞错归因：上一轮 warmup 的基底异常（预算耗尽时一并带出）
     private readonly object _busyLock = new();
     private readonly HashSet<string> _busy = new(StringComparer.Ordinal);
@@ -157,7 +158,12 @@ public sealed class DaemonPool : IDisposable
         {
             while (true)
             {
-                if (_state.ReadyWorkerCount > 0)
+                // M-1：轮询/预算统一走 Modules.Threading.AsyncConditionWaiter（内含 TimeBudget，支持取消）。
+                if (await AsyncConditionWaiter.WaitUntilAsync(
+                        () => _state.ReadyWorkerCount > 0,
+                        TimeSpan.FromMilliseconds(300),
+                        _clock,
+                        token).ConfigureAwait(false))
                 {
                     StateBlockLog.PoolReady(_poolTag, _state.ReadyWorkerCount, (_clock.UtcNow - started).TotalSeconds);
                     return _state.ReadyWorkerCount;
@@ -171,12 +177,11 @@ public sealed class DaemonPool : IDisposable
                         _lastWarmupError = warmup.Exception.GetBaseException().Message;
                     warmup = TriggerWarmup(timeBudget); // 上一轮预热失败/中断 → 清缓存重建重试
                 }
-                await Task.Delay(300, token).ConfigureAwait(false);
             }
 
             // 预算耗尽路径（ready==0 → 明确归因；先快照后清理，保留每 worker 状态/阶段供归因，避免 InformationMonotonicity 违例）
             var workers = DescribeWorkers();       // S3：KillAllDaemons 清空 _runtime 前先快照
-            KillAllWorkers();                      // 后清理：清占用标记 + 杀进程树，避免泄漏孤儿进程与脏 busy 残留
+            KillIdleWorkers();                     // 后清理：只杀非 InFlight，避免误杀在飞请求
             StateBlockLog.ReadyTimeoutCleanup(_poolTag, _state.ReadyWorkerCount, workers);
             throw new InvalidOperationException(
                 $"daemon 池未在预算 {effective.TotalSeconds:0}s 内就绪（{_state.ReadyWorkerCount} ready，实际耗时 {(_clock.UtcNow - started).TotalSeconds:0}s）。" +
@@ -190,7 +195,7 @@ public sealed class DaemonPool : IDisposable
             if (_state.ReadyWorkerCount > 0) return _state.ReadyWorkerCount;
             var elapsed = (_clock.UtcNow - started).TotalSeconds;
             var workers = DescribeWorkers();       // S3：先快照后清理
-            KillAllWorkers();
+            KillIdleWorkers();
             StateBlockLog.ReadyTimeoutCleanup(_poolTag, _state.ReadyWorkerCount, workers);
             // 归因修正：外部取消优先于预算耗尽，不再笼统报"预算 Ns"。
             if (ct.IsCancellationRequested)
@@ -358,7 +363,7 @@ public sealed class DaemonPool : IDisposable
         var requestEntered = _clock.UtcNow;
         var terminalLogged = false;
         var dispatchStarted = requestEntered;
-        var deadline = DateTimeOffset.UtcNow + (absoluteTimeout ?? _options.AbsoluteTimeout);
+        var deadline = _clock.UtcNow + (absoluteTimeout ?? _options.AbsoluteTimeout);
 
         // 预算单一时钟：就绪等待计入预算，不再吞掉整个请求预算后冷启动叠加
         var readyBudget = Remaining(deadline);
@@ -388,6 +393,10 @@ public sealed class DaemonPool : IDisposable
                     continue;
                 }
                 requestId = _state.RequestTracker.Assign(picked);
+                // E-1：槽位等待/选路可能耗时，派发前必须用同一时钟重算剩余预算，不能沿用旧 remaining。
+                remaining = Remaining(deadline);
+                if (remaining <= TimeSpan.Zero)
+                    throw new TimeoutException("daemon 请求预算耗尽（等待空闲 worker 后）");
                 // per-call 阶段帧监听器：注册给本次调用选中的 worker（finally 注销，含重试换 worker）。
                 if (onStage is not null) _state.SetStageListener(picked, onStage);
                 // per-call 结构帧监听器（finally 注销，与阶段帧同生命周期）。
@@ -432,18 +441,17 @@ public sealed class DaemonPool : IDisposable
                 {
                     StateBlockLog.SendCancelled(_poolTag, requestId, picked, cmd, result.Error);
                     terminalLogged = true;
-                    _state.MarkFree(picked);             // 归还占用
-                    await EvictWorkerAsync(picked, ct).ConfigureAwait(false); // 被 kill → 驱逐补位，避免选中死 worker
+                    // E-6：取消不归还占用（worker 已被 kill），且补位用池令牌，不受调用方取消影响。
+                    await EvictWorkerAsync(picked, _poolCts.Token).ConfigureAwait(false);
                     throw new OperationCanceledException(result.Error ?? "操作被取消");
                 }
                 if (IsHangPhase(result.EndPhase))
                 {
                     // 基建故障（挂起/被杀）→ 补位后直接失败：禁止无证据整轮重发（AX-ZR NoInternalRetry）。
                     _state.NoteTimeout(picked);           // 累计基建故障（跨补位保留）
-                    StateBlockLog.SendRetry(_poolTag, requestId, picked, cmd, attempt + 1, result.Error,
-                        _state.GetLastStage(picked), _state.GetStderrTail(picked));
+                    // D-1：此处不是“执行重试”，SendRetry 会误导日志语义；保留 NoteTimeout 作为唯一信号。
                     terminalLogged = true;
-                    await EvictWorkerAsync(picked, ct).ConfigureAwait(false);
+                    await EvictWorkerAsync(picked, _poolCts.Token).ConfigureAwait(false);
 
                     throw new DaemonPoolException(cmd,
                         $"基建故障（{result.EndPhase}）且禁止重发（无续跑证据）；"
@@ -481,7 +489,7 @@ public sealed class DaemonPool : IDisposable
         throw new DaemonPoolException(cmd, "ENV_NO_WORKER: 选路多次失败（worker 全忙/死亡），禁止无界重选。");
     }
 
-    private static TimeSpan Remaining(DateTimeOffset deadline) => deadline - DateTimeOffset.UtcNow;
+    private TimeSpan Remaining(DateTimeOffset deadline) => deadline - _clock.UtcNow;
 
     /// <summary>AEF 结束阶段是否属「挂起/超时」类基建故障（统一错误分类谓词，warmup 与请求共用）。</summary>
     private static bool IsHangPhase(AsyncOpPhase phase)
@@ -509,8 +517,9 @@ public sealed class DaemonPool : IDisposable
                 }
             }
 
-            if (_state.ReadyWorkerCount == 0)
-                throw new InvalidOperationException("daemon 池无可用已就绪 worker（预热失败或全部补位中）。");
+            // E-5：池内有 worker 但暂时无 Ready 时不得立即抛错（正在补位/预热中），应等到 deadline。
+            if (_state.GetWorkerIds().Count == 0)
+                throw new DaemonPoolInfrastructureException("daemon 池无 worker（预热未开始或已全部终止）。");
             if (Remaining(deadline) <= TimeSpan.Zero)
                 throw new TimeoutException("daemon 池选路预算耗尽（无空闲 worker）。");
             if (!waited)
@@ -530,7 +539,14 @@ public sealed class DaemonPool : IDisposable
         catch (Exception ex) { StateBlockLog.RespawnFailed(_poolTag, workerId, ex.Message); /* 补位失败：下轮选路跳过 */ }
     }
 
-    /// <summary>就绪预算耗尽/取消清理：清占用标记 + 杀全部 daemon 进程树（避免孤儿进程与脏 busy 残留）。</summary>
+    /// <summary>就绪预算耗尽/取消清理：只清理非 InFlight worker（不误杀在飞请求）。</summary>
+    private void KillIdleWorkers()
+    {
+        lock (_busyLock) _busy.Clear();
+        _state.KillIdleDaemons();
+    }
+
+    /// <summary>强清理：杀全部 daemon 进程树（仅在池销毁路径使用）。</summary>
     private void KillAllWorkers()
     {
         lock (_busyLock) _busy.Clear();
@@ -539,8 +555,14 @@ public sealed class DaemonPool : IDisposable
 
     public void Dispose()
     {
+        // E-9：Dispose 幂等；先取消再等预热收束，避免半成品进程/补位任务在释放后继续写状态。
+        if (_disposed) return;
+        _disposed = true;
         StateBlockLog.PoolDispose(_poolTag);
         _poolCts.Cancel();
+        try { _warmupTask?.Wait(TimeSpan.FromSeconds(5)); }
+        catch (AggregateException) { /* 预热异常由请求路径归因，Dispose 不再抛出 */ }
+
         _scheduler.Dispose();
         _slotGate.Dispose();
         _state.Dispose();

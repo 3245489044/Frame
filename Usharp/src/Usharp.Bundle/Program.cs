@@ -117,6 +117,78 @@ if (args.Length >= 3 && string.Equals(args[0], "ui", StringComparison.OrdinalIgn
     }
 }
 
+if (args.Length >= 3 && string.Equals(args[0], "gatherviews", StringComparison.OrdinalIgnoreCase))
+{
+    var gatherConfigRoot = args[1];
+    var gatherOutFile = args[2];
+    try
+    {
+        var emitted = DeclaredBundleBuilder.BuildGatherViews(gatherConfigRoot);
+        if (emitted.Json is null)
+        {
+            Console.Error.WriteLine($"gather-views 不可产出：errors={emitted.Errors}");
+            return 1;
+        }
+
+        DeclaredBundleBuilder.WriteUiDeclaration(gatherOutFile, emitted.Json);
+        Console.WriteLine($"gather-views: errors={emitted.Errors}");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"gather-views 失败: {ex.Message}");
+        return 2;
+    }
+}
+
+if (args.Length >= 3 && string.Equals(args[0], "fields", StringComparison.OrdinalIgnoreCase))
+{
+    var fieldsConfigRoot = args[1];
+    var fieldsOutFile = args[2];
+    try
+    {
+        var emitted = DeclaredBundleBuilder.BuildFieldVocabulary(fieldsConfigRoot);
+        if (emitted.Json is null)
+        {
+            Console.Error.WriteLine($"field-vocabulary 不可产出：errors={emitted.Errors}");
+            return 1;
+        }
+
+        DeclaredBundleBuilder.WriteUiDeclaration(fieldsOutFile, emitted.Json);
+        Console.WriteLine($"field-vocabulary: errors={emitted.Errors}");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"field-vocabulary 失败: {ex.Message}");
+        return 2;
+    }
+}
+
+if (args.Length >= 3 && string.Equals(args[0], "surfacemap", StringComparison.OrdinalIgnoreCase))
+{
+    var mapConfigRoot = args[1];
+    var mapOutFile = args[2];
+    try
+    {
+        var emitted = DeclaredBundleBuilder.BuildSurfaceMap(mapConfigRoot);
+        if (emitted.Json is null)
+        {
+            Console.Error.WriteLine($"surface-map 不可产出：errors={emitted.Errors}");
+            return 1;
+        }
+
+        DeclaredBundleBuilder.WriteUiDeclaration(mapOutFile, emitted.Json);
+        Console.WriteLine($"surface-map: errors={emitted.Errors}");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"surface-map 失败: {ex.Message}");
+        return 2;
+    }
+}
+
 if (args.Length < 2)
 {
     Console.Error.WriteLine("用法: Usharp.Bundle <configRoot> <outDir>");

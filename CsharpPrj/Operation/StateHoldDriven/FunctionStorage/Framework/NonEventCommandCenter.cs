@@ -42,14 +42,15 @@ namespace FunctionStorage
                 registry.Register("sleep", ctx =>
                 {
                     var target = GetTarget(ctx);
-                    if (int.TryParse(target, out var ms))
+                    // E-13：拒绝负值/超大等待（Thread.Sleep 负值会抛；无上限会挂死命令线程）。
+                    if (int.TryParse(target, out var ms) && ms is > 0 and <= 10_000)
                     {
                         Thread.Sleep(ms);
                         SetStageSuccess(ctx, "sleep");
                     }
                     else
                     {
-                        SetStageFailure(ctx, "sleep", $"sleep: 无效的毫秒数 '{target}'");
+                        SetStageFailure(ctx, "sleep", $"sleep: 毫秒数须在 1..10000 之间，实际 '{target}'");
                     }
                 }, CommandFramework.Abstractions.CommandCriticality.Important, "等待（毫秒）");
 
@@ -508,23 +509,21 @@ internal static class ExecDelegateHelper
     {
         try
         {
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
+            // E-14/E-15：执行编排统一走 Share.Frameworks.Process（双流并行读，避免 ReadToEnd 顺序死锁；
+            // 超时经 IProcessHandle 杀整棵进程树，不再依赖 WaitForExit 忽略返回值）。
+            var result = ProcessRunner.RunAsync(
+                new ProcessRunSpec
                 {
                     FileName = "cmd.exe",
                     Arguments = $"/c {command}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            process.WaitForExit(30000);
-            return (process.ExitCode, output + (string.IsNullOrEmpty(error) ? "" : $"\nSTDERR: {error}"));
+                    TimeoutMs = 30_000,
+                    SampleIntervalMs = 250,
+                }).GetAwaiter().GetResult();
+
+            var output = result.StandardOutput
+                         + (string.IsNullOrEmpty(result.StandardError) ? "" : $"\nSTDERR: {result.StandardError}")
+                         + (result.TimedOut ? "\n[超时] 已终止进程树" : "");
+            return (result.ExitCode, output);
         }
         catch (Exception ex)
         {

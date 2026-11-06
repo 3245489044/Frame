@@ -188,5 +188,42 @@
             DueWhen            = ''
         }
 
+        @{
+            Name               = 'GatherViews'
+            Artifact           = 'Projects\Plug\Agent\Config\gather\gather-views.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1'
+            GeneratorArgs      = @{ Target = 'gatherviews'; OutFile = '{TEMP}' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'gather-spec-v1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1 -Apply'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
+            Name               = 'FieldVocabulary'
+            Artifact           = 'Projects\Plug\Agent\Config\nodes\fields.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1'
+            GeneratorArgs      = @{ Target = 'fields'; OutFile = '{TEMP}' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'field-vocabulary-v1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1 -Apply'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
+            Name               = 'SurfaceMap'
+            Artifact           = 'Projects\Plug\Agent\Config\ui\surface-map.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1'
+            GeneratorArgs      = @{ Target = 'surfacemap'; OutFile = '{TEMP}' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'surface-map-v1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1 -Apply'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+
     )
 }

@@ -10,6 +10,7 @@ using BackEndDriven.Diagnostics;
 using FrameworkAbstractions.ComponentRegistry;
 using FrameworkAbstractions.WinFormsAbstractions;
 using Modules.Parsing.Parsing;
+using Modules.Threading;
 
 namespace BackEndDriven.CommandExecution;
 
@@ -83,10 +84,22 @@ public class SleepSystem : CommandSystemBase
             return;
         }
 
+        if (ms < 0)
+        {
+            SetFailure(entity, $"sleep: 毫秒数不能为负 ({ms})");
+            return;
+        }
+
         // 等待前记录（而非等待后）：卡住现场可立即判定「脚本声明等待 N ms」而非「命令挂死」。
         if (ms >= DeclaredWaitLogMinMs)
             BackEndLog.Log("Command_Sleep", new { action = meta.Action, sleepMs = ms });
-        Thread.Sleep(ms);
+
+        // F4.7：可取消等待（宿主终止/窗体关闭即中断），不再用不可取消的 Thread.Sleep。
+        var token = TerminationScope.Current?.Token ?? CancellationToken.None;
+        if (token.CanBeCanceled)
+            Task.Delay(ms, token).GetAwaiter().GetResult();
+        else
+            Thread.Sleep(ms);
         SetSuccess(entity);
     }
 }

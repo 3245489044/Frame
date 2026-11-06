@@ -15,7 +15,7 @@ public readonly record struct OutboxReplaySummary(int Applied, int Rescheduled, 
 /// Outbox 重放存储端口（Share A-1 单源）：只暴露重放循环所需的最小能力，
 /// 由各存储实现适配（LiteDB/SQL/文件），重放顺序与失败隔离不在各实现内重复。
 /// </summary>
-public interface IOutboxReplayStore<out TEntry>
+public interface IOutboxReplayStore<TEntry>
 {
     /// <summary>取待重放条目（按实现定义的排序/上限）。</summary>
     Task<IReadOnlyList<TEntry>> ListPendingAsync(int maxItems, CancellationToken cancellationToken);

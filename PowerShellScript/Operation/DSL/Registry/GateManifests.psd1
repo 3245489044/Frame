@@ -492,6 +492,36 @@
         Note   = '选择态外置守卫（框架级态外置）：C1 刷新协议禁 DOM 反查（PollAttrs 第三/四参 null）/ C2 采集端（capture 产出 uiState.select + [data-select-slot]）/ C3 消费端（HtmlBridgePayload.SelectionKeys + UiSelectionState）/ C4 历史归属解析禁伪造 default / C5 选中态受控于 UiSelectionStore；负对照 -NegativeControl'
     }
 
+    RenderCoverage = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '字段覆盖率三表联立：frame-kinds:fields × fields.generated × surface-map.generated（缺一即红）'
+    }
+
+    CarrierNeutral = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'Composer/Projector 零载体字面量（载体词只允许在 surface-map 声明面）'
+    }
+
+    ViewFingerprint = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '三视图指纹两两不相交（七元组 + badge/accent）；history 禁 l0-only 截断'
+    }
+
     UiViewCatalog = @{
         Domain = 'Agent'
         Family = 'Presentation'

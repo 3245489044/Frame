@@ -1,3 +1,4 @@
+using Plate.DslMethod;
 using Plate.DslMethod.Model;
 
 namespace Usharp.Compute;

@@ -31,6 +31,7 @@ public sealed class ComputeInstruction
         => new() { Op = "convert", Text = from, Aux = to, Rule = rule, Scale = scale };
     public static ComputeInstruction NewList(int count) => new() { Op = "list", Count = count };
     public static ComputeInstruction NewMap(int count) => new() { Op = "map", Count = count };
+    public static ComputeInstruction Pop() => new() { Op = "pop" };
     public static ComputeInstruction ReturnValue() => new() { Op = "ret" };
     public static ComputeInstruction ReturnUnit() => new() { Op = "ret_unit" };
 }
@@ -214,6 +215,8 @@ public static class ComputeProgramCodec
                 obj.Add("count", instruction.Count);
                 break;
         }
+
+        // "pop"/"ret"/"ret_unit" 无操作数：JSON 仅含 op 字段。
 
         return obj;
     }
@@ -400,6 +403,7 @@ public static class ComputeProgramCodec
                 element.TryGetProperty("scale", out var scale) ? scale.GetInt32() : 0),
             "list" => ComputeInstruction.NewList(element.GetProperty("count").GetInt32()),
             "map" => ComputeInstruction.NewMap(element.GetProperty("count").GetInt32()),
+            "pop" => ComputeInstruction.Pop(),
             "ret" => ComputeInstruction.ReturnValue(),
             "ret_unit" => ComputeInstruction.ReturnUnit(),
             _ => throw new InvalidOperationException($"未知字节码指令 '{op}'")

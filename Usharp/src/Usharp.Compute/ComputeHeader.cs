@@ -80,8 +80,6 @@ public static class ComputeHeaderParser
         '+', '-', '*', '/', '(', ')', '=',
     };
 
-    private static readonly Regex NotIdentifier = new("[^A-Za-z0-9_]", RegexOptions.Compiled);
-
     public static bool TryParse(DslDeclaration declaration, out ComputeUnitHeader? header,
         out IReadOnlyList<ComputeDiagnostic> diagnostics)
     {
@@ -346,18 +344,6 @@ public static class ComputeHeaderParser
             budget, slice, heap, depth, shareMax, file, line);
         diagnostics = errors;
         return true;
-
-        void AddEffect(ComputeEffect effect)
-        {
-            if (effects.Contains(effect))
-            {
-                errors.Add(new ComputeDiagnostic(ComputeCodes.HeaderInvalid,
-                    $"effects 中效果 '{item}' 重复", file, line));
-                return;
-            }
-
-            effects.Add(effect);
-        }
     }
 
     private static void ValidatePurity(bool purityOk, ComputePurityPolicy purity,

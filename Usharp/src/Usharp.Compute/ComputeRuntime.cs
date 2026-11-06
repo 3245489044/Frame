@@ -196,7 +196,7 @@ public enum ComputeStatus
 public sealed record ComputeEffectRecord(string Kind, string Target, string Value, string Note);
 
 public sealed record ComputeResult(ComputeStatus Status, ComputeValue? Output, string Code,
-    string Message, long Steps);
+    string Message, long Steps, IReadOnlyList<ComputeConversionTrace> Conversions);
 
 internal sealed class ComputeFrameState
 {
@@ -216,6 +216,7 @@ public sealed class ComputeVm
     private readonly List<ComputeFrameState> _frames = new();
     private readonly List<ComputeValue> _stack = new();
     private readonly List<ComputeEffectRecord> _effects = new();
+    private readonly List<ComputeConversionTrace> _conversions = new();
 
     private long _steps;
     private bool _cancelled;
@@ -272,6 +273,9 @@ public sealed class ComputeVm
     public long Steps => _steps;
     public ComputeValue? Output => _output;
     public IReadOnlyList<ComputeEffectRecord> Effects => _effects;
+
+    /// <summary>显式宿主边界转换的留痕（每次 <c>convert</c> 指令一条；无隐式转换路径）。</summary>
+    public IReadOnlyList<ComputeConversionTrace> Conversions => _conversions;
     public ComputeProgram Program => _program;
 
     public void Cancel() => _cancelled = true;
@@ -344,7 +348,7 @@ public sealed class ComputeVm
     }
 
     private ComputeResult Result()
-        => new(_status, _output, _code, _message, _steps);
+        => new(_status, _output, _code, _message, _steps, _conversions.ToList());
 
     private bool Execute(ComputeFrameState frame, ComputeInstruction instruction)
     {
@@ -424,7 +428,7 @@ public sealed class ComputeVm
                 var entries = new List<KeyValuePair<string, ComputeValue>>(instruction.Count);
                 for (var i = 0; i < instruction.Count; i++)
                 {
-                    var value = Pop();
+                    var entryValue = Pop();
                     var key = Pop();
                     if (key.Kind != ComputeValueKind.String)
                     {
@@ -433,7 +437,7 @@ public sealed class ComputeVm
                         return false;
                     }
 
-                    entries.Add(new KeyValuePair<string, ComputeValue>(key.Text, value));
+                    entries.Add(new KeyValuePair<string, ComputeValue>(key.Text, entryValue));
                 }
 
                 entries.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
@@ -449,6 +453,12 @@ public sealed class ComputeVm
             }
             case "ret_unit":
                 return Return(frame, null);
+            case "pop":
+            {
+                if (_stack.Count == 0) return StackUnderflow();
+                Pop();
+                return true;
+            }
             default:
                 Fail(ComputeStatus.StateDiscarded, ComputeCodes.StateDiscarded,
                     $"未知指令 '{instruction.Op}'");
@@ -698,7 +708,7 @@ public sealed class ComputeVm
         {
             case ("host", "int"):
                 if (value.Kind != ComputeValueKind.Host) return TypeError("to_int");
-                return PushHostInt(value.HostValue!);
+                return PushHostInt(value.HostValue!, instruction);
             case ("host", "decimal"):
             {
                 if (value.Kind != ComputeValueKind.Host) return TypeError("to_decimal");
@@ -713,28 +723,28 @@ public sealed class ComputeVm
                 _stack.Add(ComputeValue.Decimal(instruction.Rule == "half_even"
                     ? ComputeHostBoundary.Quantize(quantized.Value)
                     : quantized.Value));
-                return true;
+                return Trace(instruction);
             }
             case ("host", "string"):
                 if (value.Kind != ComputeValueKind.Host) return TypeError("str");
                 _stack.Add(ComputeValue.String(value.HostValue!.CanonicalText));
-                return true;
+                return Trace(instruction);
             case ("int", "host"):
                 if (value.Kind != ComputeValueKind.Int) return TypeError("to_host");
                 _stack.Add(ComputeValue.Host(ComputeHostValue.FromInt(value.IntValue)));
-                return true;
+                return Trace(instruction);
             case ("decimal", "host"):
                 if (value.Kind != ComputeValueKind.Decimal) return TypeError("to_host");
                 _stack.Add(ComputeValue.Host(ComputeHostValue.FromDecimal(value.DecimalValue)));
-                return true;
+                return Trace(instruction);
             case ("bool", "host"):
                 if (value.Kind != ComputeValueKind.Bool) return TypeError("to_host");
                 _stack.Add(ComputeValue.Host(ComputeHostValue.FromBool(value.BoolValue)));
-                return true;
+                return Trace(instruction);
             case ("string", "host"):
                 if (value.Kind != ComputeValueKind.String) return TypeError("to_host");
                 _stack.Add(ComputeValue.Host(ComputeHostValue.FromString(value.Text)));
-                return true;
+                return Trace(instruction);
             default:
                 Fail(ComputeStatus.StateDiscarded, ComputeCodes.StateDiscarded,
                     $"未知转换 {instruction.Text}->{instruction.Aux}");
@@ -742,13 +752,13 @@ public sealed class ComputeVm
         }
     }
 
-    private bool PushHostInt(ComputeHostValue value)
+    private bool PushHostInt(ComputeHostValue value, ComputeInstruction instruction)
     {
         switch (value.Kind)
         {
             case ComputeHostValueKind.Int:
                 _stack.Add(ComputeValue.Int(long.Parse(value.CanonicalText, CultureInfo.InvariantCulture)));
-                return true;
+                return Trace(instruction);
             case ComputeHostValueKind.Decimal:
                 var dec = decimal.Parse(value.CanonicalText, CultureInfo.InvariantCulture);
                 if (dec != decimal.Truncate(dec))
@@ -759,12 +769,24 @@ public sealed class ComputeVm
                 }
 
                 _stack.Add(ComputeValue.Int((long)dec));
-                return true;
+                return Trace(instruction);
             default:
                 Fail(ComputeStatus.ArithmeticError, ComputeCodes.ArithmeticError,
                     $"host 值 '{value.CanonicalText}' 不能转 int");
                 return false;
         }
+    }
+
+    /// <summary>登记一次显式边界转换（不写 effect log：转换不是副作用，但必须留痕）。</summary>
+    private bool Trace(ComputeInstruction instruction)
+    {
+        var decimalInvolved = instruction.Text == "decimal" || instruction.Aux == "decimal";
+        var rounding = decimalInvolved
+            ? string.IsNullOrEmpty(instruction.Rule) ? ComputeHostBoundary.RoundingRule : instruction.Rule
+            : "none";
+        _conversions.Add(new ComputeConversionTrace(
+            instruction.Text, instruction.Aux, instruction.Scale, rounding, "vm.convert"));
+        return true;
     }
 
     private static decimal? HostDecimal(ComputeHostValue value) => value.Kind switch
@@ -933,7 +955,7 @@ public sealed class ComputeVm
                 if (args[0].Kind != ComputeValueKind.Map || args[1].Kind != ComputeValueKind.String)
                     return TypeError("has");
                 _stack.Add(ComputeValue.Bool(
-                    args[0].Entries.Any(e => string.Equals(e.Key, args[1].Text, StringComparison.Ordinal)));
+                    args[0].Entries.Any(e => string.Equals(e.Key, args[1].Text, StringComparison.Ordinal))));
                 return true;
             }
             case "mod":

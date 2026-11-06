@@ -423,7 +423,7 @@ public static class ComputeBodyParser
                 var stepToken = Current;
                 if (stepToken.Kind != ComputeTokenKind.Int)
                 {
-                    Error(stepToken, "loop step 必须是正整数字面量");
+                    ErrorLoop(stepToken, "loop step 必须是正整数字面量");
                     return null;
                 }
 
@@ -431,7 +431,7 @@ public static class ComputeBodyParser
                 if (!long.TryParse(stepToken.Text, NumberStyles.None, CultureInfo.InvariantCulture, out step)
                     || step <= 0)
                 {
-                    Error(stepToken, $"loop step='{stepToken.Text}' 必须为正整数");
+                    ErrorLoop(stepToken, $"loop step='{stepToken.Text}' 必须为正整数");
                     return null;
                 }
             }
@@ -758,6 +758,12 @@ public static class ComputeBodyParser
         {
             if (_errors.Any(e => e.Code == ComputeCodes.SyntaxInvalid && e.Line == token.Line)) return;
             _errors.Add(new ComputeDiagnostic(ComputeCodes.SyntaxInvalid, message, _file, token.Line));
+        }
+
+        private void ErrorLoop(ComputeToken token, string message)
+        {
+            if (_errors.Any(e => e.Code == ComputeCodes.LoopInvalid && e.Line == token.Line)) return;
+            _errors.Add(new ComputeDiagnostic(ComputeCodes.LoopInvalid, message, _file, token.Line));
         }
     }
 }

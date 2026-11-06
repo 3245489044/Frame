@@ -6,11 +6,12 @@ MinimumVisualStudioVersion = 10.0.40219.1
 # =====================================================================
 #  Usharp.sln  ——  Usharp 语言框架解决方案（聚合视图）· 权威约定注释（不可删除）
 # =====================================================================
-#  · 本解决方案【只引用 14 个聚合单元】：
-#      Usharp 子树 9 工程：Usharp.Syntax · Usharp.Semantics · Usharp.Matrix · Usharp.Emit ·
+#  · 本解决方案【只引用 15 个聚合单元】：
+#      Usharp 子树 10 工程：Usharp.Syntax · Usharp.Semantics · Usharp.Matrix · Usharp.Emit ·
 #        Usharp.Cli · Usharp.Adapters.UniversalReference · Usharp.Adapters.Observability ·
 #        Usharp.Adapters.Node（唯一引 Modules.Node 的 Usharp 工程）·
-#        Usharp.Adapters.Declarations（唯一桥接 Usharp ↔ DataStoreDriven 存储/引用词表）
+#        Usharp.Adapters.Declarations（唯一桥接 Usharp ↔ DataStoreDriven 存储/引用词表）·
+#        Usharp.Compute（分层计算包 + IR/字节码/VM；可选装载，纯声明零影响）
 #      CsharpPrj 6 伞工程：BasicMethod · Modules · Share · Operation · Plate · Strategy
 #  · 平台各伞工程目录下的子工程经伞 csproj 的 <ProjectReference> 递归纳入；
 #    禁止在本解决方案中直接加入任何平台子工程（叶子工程不得出现在此 .sln）。
@@ -40,6 +41,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Usharp.Adapters.Declarations", "src\Usharp.Adapters.Declarations\Usharp.Adapters.Declarations.csproj", "{8D4F6C32-AC5E-4F9A-B3D2-4E6F7A8B9C01}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Usharp.Adapters.Agent", "src\Usharp.Adapters.Agent\Usharp.Adapters.Agent.csproj", "{9E5A7B43-BD6F-4A8C-84D3-5F70819CA12D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Usharp.Compute", "src\Usharp.Compute\Usharp.Compute.csproj", "{A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasicMethod", "..\CsharpPrj\BasicMethod\BasicMethod.csproj", "{30383259-20CD-4A50-BD5F-70040DF8AEFD}"
 EndProject
@@ -255,6 +258,18 @@ Global
         {9E5A7B43-BD6F-4A8C-84D3-5F70819CA12D}.Release|x64.Build.0 = Release|Any CPU
         {9E5A7B43-BD6F-4A8C-84D3-5F70819CA12D}.Release|x86.ActiveCfg = Release|Any CPU
         {9E5A7B43-BD6F-4A8C-84D3-5F70819CA12D}.Release|x86.Build.0 = Release|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Debug|x64.ActiveCfg = Debug|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Debug|x64.Build.0 = Debug|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Debug|x86.ActiveCfg = Debug|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Debug|x86.Build.0 = Debug|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Release|Any CPU.Build.0 = Release|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Release|x64.ActiveCfg = Release|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Release|x64.Build.0 = Release|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Release|x86.ActiveCfg = Release|Any CPU
+        {A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D}.Release|x86.Build.0 = Release|Any CPU
     EndGlobalSection
     GlobalSection(SolutionProperties) = preSolution
         HideSolutionNode = FALSE

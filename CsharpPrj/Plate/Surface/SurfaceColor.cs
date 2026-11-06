@@ -50,17 +50,101 @@ public static class SurfaceColor
     }
 
     /// <summary>解析 CSS 色值文本：hex（同 <see cref="TryParseHex"/>）或关键字 <c>transparent</c>/<c>none</c>（= 全透明）。</summary>
-    public static bool TryParseCssColor(string? text, out int argb)
+    public static bool TryParseCssColor(string? text, out int argb) => TryParseColor(text, out argb);
+
+    /// <summary>
+    /// 解析通用色值文本（**唯一实现**）：<c>transparent</c>/<c>none</c> · hex · <c>rgb()</c>/<c>rgba()</c> · 裸 <c>r,g,b[,a]</c>。
+    /// <para>命名色不在此层（本程序集 BCL-only）；载体侧以 <c>Color.FromName</c> 兜底。</para>
+    /// </summary>
+    /// <param name="text">色值文本（可含首尾空白）。</param>
+    /// <param name="argb">打包 ARGB（<c>0xAARRGGBB</c>）。</param>
+    public static bool TryParseColor(string? text, out int argb)
     {
-        var value = text?.Trim();
-        if (value is not null && (value.Equals("transparent", StringComparison.OrdinalIgnoreCase)
-                                  || value.Equals("none", StringComparison.OrdinalIgnoreCase)))
+        argb = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        var value = text.Trim();
+        if (value.Equals("transparent", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("none", StringComparison.OrdinalIgnoreCase))
         {
-            argb = 0;
             return true;
         }
 
-        return TryParseHex(value, out argb);
+        if (value[0] == '#') return TryParseHex(value, out argb);
+        if (TryParseRgbFunction(value, out argb)) return true;
+        return TryParseBareRgb(value, out argb);
+    }
+
+    /// <summary>解析 <c>rgb(r,g,b)</c> / <c>rgba(r,g,b,a)</c>（a 支持 0–1 小数与 0–255 整数）。</summary>
+    /// <param name="text">色值文本。</param>
+    /// <param name="argb">打包 ARGB。</param>
+    public static bool TryParseRgbFunction(string? text, out int argb)
+    {
+        argb = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        var value = text.Trim();
+        var open = value.IndexOf('(');
+        if (open <= 0 || !value.EndsWith(')')) return false;
+
+        var name = value[..open].Trim();
+        var hasAlpha = name.Equals("rgba", StringComparison.OrdinalIgnoreCase);
+        if (!hasAlpha && !name.Equals("rgb", StringComparison.OrdinalIgnoreCase)) return false;
+
+        var parts = value[(open + 1)..^1].Split(
+            new[] { ',', '/', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length is < 3 or > 4) return false;
+        if (!int.TryParse(parts[0], out var r)
+            || !int.TryParse(parts[1], out var g)
+            || !int.TryParse(parts[2], out var b))
+        {
+            return false;
+        }
+
+        var alpha = 255;
+        if (parts.Length == 4 && !TryParseAlpha(parts[3], out alpha)) return false;
+        if (r is < 0 or > 255 || g is < 0 or > 255 || b is < 0 or > 255) return false;
+
+        argb = unchecked((alpha << 24) | (r << 16) | (g << 8) | b);
+        return true;
+    }
+
+    private static bool TryParseBareRgb(string value, out int argb)
+    {
+        argb = 0;
+        var parts = value.Split(',', StringSplitOptions.TrimEntries);
+        if (parts.Length is not (3 or 4)) return false;
+        if (!int.TryParse(parts[0], out var r)
+            || !int.TryParse(parts[1], out var g)
+            || !int.TryParse(parts[2], out var b))
+        {
+            return false;
+        }
+
+        var alpha = 255;
+        if (parts.Length == 4 && !int.TryParse(parts[3], out alpha)) return false;
+        if (r is < 0 or > 255 || g is < 0 or > 255 || b is < 0 or > 255 || alpha is < 0 or > 255) return false;
+
+        argb = unchecked((alpha << 24) | (r << 16) | (g << 8) | b);
+        return true;
+    }
+
+    private static bool TryParseAlpha(string text, out int alpha)
+    {
+        alpha = 255;
+        if (!double.TryParse(
+                text,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsed))
+        {
+            return false;
+        }
+
+        alpha = parsed <= 1.0
+            ? (int)Math.Round(parsed * 255, MidpointRounding.AwayFromZero)
+            : (int)Math.Round(parsed, MidpointRounding.AwayFromZero);
+        return alpha is >= 0 and <= 255;
     }
 
     /// <summary>打包 ARGB → CSS hex（固定 <c>#RRGGBBAA</c>，alpha 最后）。</summary>

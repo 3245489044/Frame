@@ -25,8 +25,8 @@ public static class SkinDecorator
 
     private static readonly ConditionalWeakTable<Control, SkinState> States = new();
 
-    /// <summary>属性级换肤的已应用指纹（幂等；避免每次 Apply 重复写颜色）。</summary>
-    private static readonly ConditionalWeakTable<Control, string> FallbackThemes = new();
+    /// <summary>属性通道已由材质投影器接管的控件（E2 单一写者判据：声明属性不得再写 BackColor）。</summary>
+    private static readonly ConditionalWeakTable<Control, object> PropertyOwned = new();
 
     /// <summary>按描述符挂载/更新绘制（幂等；未启用/无材质/不支持 ⇒ 卸除，禁残留旧绘制）。</summary>
     public static void Attach(Control? control, ControlDescriptor descriptor)
@@ -52,12 +52,23 @@ public static class SkinDecorator
         // 但保持系统浅色会直接破坏整体玻璃观感 ⇒ 只做「属性级换肤」（底色/文字色，可逆重启）。
         if (!SupportsOwnerDraw(control))
         {
-            var themed = ApplyFallbackTheme(control, material);
+            // 属性通道用「已按通道能力降级」的材质（alpha 层在解析期已落回 fallback），禁把绘制材质直接写属性。
+            var propertyMaterial = SelectMaterial(
+                                        SkinMaterialCatalog.ForProperty(descriptor.Id)
+                                        ?? SkinMaterialCatalog.ForProperty(descriptor.Name))
+                                    ?? SkinMaterialCatalog.GlobalProperty;
+            var themed = propertyMaterial is not null && ApplyFallbackTheme(control, propertyMaterial);
             Detach(control);
             // 只有「连属性级换肤也做不到」才记账（可承载的控件静默换色，避免每控件一条噪声）。
             if (!themed)
             {
-                FrontEndDrivenLog.Log("SkinDecorator_unsupported", new { type = control.GetType().Name, material = material.MaterialId });
+                FrontEndDrivenLog.Log("SkinDecorator_unsupported", new
+                {
+                    type = control.GetType().Name,
+                    // 通道错标防护：属性分支只记属性材质（缺失即 null），禁回退成 draw 材质名。
+                    material = propertyMaterial?.MaterialId,
+                    channel = WinFormsPropertyProjector.ChannelId,
+                });
             }
 
             return;
@@ -108,6 +119,8 @@ public static class SkinDecorator
     public static void Disable()
     {
         Enabled = false;
+        // 关肤后属性通道归还声明侧：清空接管标记，否则声明颜色会被永久剥离（E2 豁免失效）。
+        PropertyOwned.Clear();
         // 先快照：Detach 会从 States 中移除条目，直接枚举会破坏表。
         var attached = new List<Control>();
         foreach (var pair in States) attached.Add(pair.Key);
@@ -144,41 +157,23 @@ public static class SkinDecorator
     private static bool SupportsOwnerDraw(Control control)
         => control is Panel or FlowLayoutPanel or TableLayoutPanel or UserControl or GroupBox or Label;
 
+    /// <summary>该控件的属性通道（BackColor）是否已由材质投影器接管（唯一写者判据）。</summary>
+    /// <param name="control">目标控件。</param>
+    public static bool IsPropertyChannelOwned(Control? control)
+        => control is not null && PropertyOwned.TryGetValue(control, out _);
+
     /// <summary>
-    /// 非 owner-draw 控件的属性级换肤：底 = 材质底色，文字 = 反差色；Button 去系统立体感。
-    /// <para>只写颜色，不参与绘制缓存；同材质重复调用直接跳过。</para>
+    /// 非 owner-draw 控件的属性级换肤：**委托属性通道投影器**（唯一写点；不透明化与幂等比对都在投影器内）。
     /// </summary>
     private static bool ApplyFallbackTheme(Control control, ResolvedMaterial material)
     {
-        if (!SkinPaintEngine.TryGetBaseColor(material, out var baseColor)) return false;
-
-        var key = MaterialKey(material);
-        if (FallbackThemes.TryGetValue(control, out var applied)
-            && string.Equals(applied, key, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        control.BackColor = baseColor;
-        control.ForeColor = Contrast(baseColor);
-
-        if (control is Button button && button.FlatStyle == FlatStyle.Standard)
-        {
-            button.FlatStyle = FlatStyle.Flat;
-            button.FlatAppearance.BorderColor = ControlPaint.Dark(baseColor, 0.15f);
-        }
-
-        FallbackThemes.Remove(control);
-        FallbackThemes.Add(control, key);
+        if (!WinFormsPropertyProjector.TryApply(control, material, out _)) return false;
+        PropertyOwned.Remove(control);
+        PropertyOwned.Add(control, PropertyOwnedMarker);
         return true;
     }
 
-    /// <summary>反差文字色（按底色亮度在黑/白之间二选一）。</summary>
-    private static Color Contrast(Color background)
-    {
-        var luminance = (0.299 * background.R + 0.587 * background.G + 0.114 * background.B) / 255.0;
-        return luminance < 0.55 ? Color.FromArgb(230, 237, 243) : Color.FromArgb(30, 34, 40);
-    }
+    private static readonly object PropertyOwnedMarker = new();
 
     private static void PaintControl(Control control, SkinState state, PaintEventArgs e)
     {
@@ -307,18 +302,9 @@ public static class SkinDecorator
     [ThreadStatic]
     private static bool _capturingBackdrop;
 
-    /// <summary>槽优先选择：<c>*_surface</c>（背景槽）→ 其余按声明序（禁以枚举顺序当语义）。</summary>
+    /// <summary>槽优先选择（唯一实现：<see cref="SurfaceSlotSelection"/>）。</summary>
     private static ResolvedMaterial? SelectMaterial(IReadOnlyDictionary<string, ResolvedMaterial>? materials)
-    {
-        if (materials is not { Count: > 0 }) return null;
-
-        foreach (var pair in materials)
-        {
-            if (pair.Key.EndsWith("_surface", StringComparison.Ordinal)) return pair.Value;
-        }
-
-        return materials.Values.FirstOrDefault();
-    }
+        => SurfaceSlotSelection.SelectBackground(materials);
 
     private static string CacheKey(ResolvedMaterial material, Rectangle bounds, int dpi, SurfaceLightState? light)
         => $"{MaterialKey(material)}:{bounds.Width}x{bounds.Height}@dpi{dpi}"

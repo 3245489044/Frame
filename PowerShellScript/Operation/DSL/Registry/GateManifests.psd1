@@ -601,6 +601,36 @@
         Note   = '三载体声明一致性：carriers 单源 = 单元 carriers = surface-map 角色载体集；负对照缺载体必红'
     }
 
+    UiProjectionCapability = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '投影能力矩阵：caps 键文法(channel_primitive) / property 通道须声明 property_fill / property_fill 必须 supported-opaque；负对照 property_fill=supported 必红'
+    }
+
+    UiMaterialPropertyWriter = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '材质属性写点唯一（扫描面=FrontEndDriven 全子树）：材质写点=WinFormsPropertyProjector.cs 恰 1；声明属性写点仅 WinFormsControlAdapter.cs 与 WinFormsSurfaceBackend 的 descriptor 字段；负对照未白名单写点必红'
+    }
+
+    PublicApiAdditive = @{
+        Domain = 'Agent'
+        Family = 'Boundary'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '公共 API 只允许加法：签名基线 Baselines\PublicApi.json 的条目不得删除/改签名（P2）；写开关 -UpdateBaseline 不在聚合器使用；负对照基线多余签名必红'
+    }
+
     UiViewCatalog = @{
         Domain = 'Agent'
         Family = 'Presentation'

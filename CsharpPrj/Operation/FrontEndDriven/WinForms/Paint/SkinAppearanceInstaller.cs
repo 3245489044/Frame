@@ -32,44 +32,39 @@ public static class SkinAppearanceInstaller
 
         var profile = string.IsNullOrWhiteSpace(profileId) ? program.ActiveProfile : profileId;
         var byKey = new Dictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>(StringComparer.Ordinal);
-        ResolvedMaterial? global = null;
+        var byKeyProperty = new Dictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>(StringComparer.Ordinal);
 
+        // 能力矩阵/层规格只建一次：每视图两次解析（draw / property）共用同一上下文。
+        var context = SurfaceResolver.Prepare(program);
         foreach (var view in program.Views.Keys)
         {
-            var resolved = SurfaceResolver.Resolve(program, view, carrierId, profile);
+            var resolved = SurfaceResolver.Resolve(program, context, view, carrierId, profile);
+            var resolvedProperty = SurfaceResolver.Resolve(
+                program, context, view, carrierId, profile,
+                channel: WinFormsPropertyProjector.ChannelId);
             foreach (var container in resolved.Containers)
             {
                 if (container.Materials.Count == 0) continue;
                 byKey[container.Id] = container.Materials;
                 byKey.TryAdd(container.Key, container.Materials);
-                if (global is null
-                    && container.Materials.TryGetValue("panel_surface", out var surfaceMaterial)
-                    && surfaceMaterial.Layers.Count > 0)
-                {
-                    global = surfaceMaterial;
-                }
             }
-        }
 
-        // 无 panel_surface 槽时退回「第一个有层栈的材质」（声明序），仍无 ⇒ 不启用。
-        if (global is null)
-        {
-            foreach (var materials in byKey.Values)
+            foreach (var container in resolvedProperty.Containers)
             {
-                foreach (var candidate in materials.Values)
-                {
-                    if (candidate.Layers.Count == 0) continue;
-                    global = candidate;
-                    break;
-                }
-
-                if (global is not null) break;
+                if (container.Materials.Count == 0) continue;
+                byKeyProperty[container.Id] = container.Materials;
+                byKeyProperty.TryAdd(container.Key, container.Materials);
             }
         }
+
+        var global = SelectGlobal(byKey, "panel_surface");
+        var globalProperty = SelectGlobal(byKeyProperty, "panel_surface");
 
         SkinMaterialCatalog.Set(byKey);
+        SkinMaterialCatalog.SetProperty(byKeyProperty);
         SkinMaterialCatalog.SetGlobal(global);
-        SkinDecorator.Enabled = global is not null;
+        SkinMaterialCatalog.SetGlobalProperty(globalProperty);
+        SkinDecorator.Enabled = global is not null || globalProperty is not null;
         SkinDiagnostics.RecordInstall(
             SkinDecorator.Enabled, profile, carrierId, program.Fingerprint, byKey.Count, global);
         // 装配可见化：unresolvedTokens>0 表示层值仍是 token 名（运行期会解析成透明），
@@ -80,12 +75,19 @@ public static class SkinAppearanceInstaller
             profile,
             carrier = carrierId,
             catalog = byKey.Count,
+            catalogProperty = byKeyProperty.Count,
             global = global?.MaterialId,
+            globalProperty = globalProperty?.MaterialId,
             layers = global?.Layers.Count ?? 0,
             unresolvedTokens = SkinDiagnostics.Current.UnresolvedTokenCount,
         });
         return SkinDecorator.Enabled;
     }
+
+    /// <summary>全局回退材质（唯一实现：<see cref="SurfaceSlotSelection.SelectGlobal"/>）。</summary>
+    private static ResolvedMaterial? SelectGlobal(
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>> byKey, string slot)
+        => SurfaceSlotSelection.SelectGlobal(byKey, slot);
 
     /// <summary>卸载外观（清目录 + 清全局材质 + 全量 Detach）。</summary>
     public static void Uninstall()

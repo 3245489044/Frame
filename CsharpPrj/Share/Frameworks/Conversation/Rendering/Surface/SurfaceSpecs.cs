@@ -88,6 +88,7 @@ public sealed record SurfaceCarrierSpec(
 {
     /// <summary>该图元在本载体的三态（未声明 ⇒ unsupported，可见降级）。</summary>
     /// <param name="primitive">图元名。</param>
+    [System.Obsolete("改用 CapabilityMatrix.SpecOf(carrier, channel, primitive)（通道/值域感知）；本方法下一版本移除。")]
     public string Capability(string primitive)
         => primitive is not null && Caps.TryGetValue(primitive, out var state) ? state : "unsupported";
 }

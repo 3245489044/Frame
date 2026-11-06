@@ -434,9 +434,12 @@ public static class SkinPaintEngine
     }
 
     /// <summary>
-    /// 材质底色（首个 fill/gradient 层的首个色）：非 owner-draw 控件的属性换肤用。
-    /// 无可用底色 ⇒ false（调用方保持原属性，禁静默造色）。
+    /// 材质底色（首个 fill/gradient 层的首个色）——**兼容保留**；属性通道请走
+    /// <c>WinFormsPropertyProjector</c>（会做不透明化，避免 Control.BackColor 拒绝 alpha）。
     /// </summary>
+    /// <param name="material">已解析材质。</param>
+    /// <param name="color">首个可用底色（可能含 alpha）。</param>
+    [Obsolete("属性通道统一经 WinFormsPropertyProjector（不透明化）；本方法仅为二进制兼容保留")]
     public static bool TryGetBaseColor(ResolvedMaterial? material, out Color color)
     {
         color = Color.Empty;
@@ -446,13 +449,13 @@ public static class SkinPaintEngine
         {
             if (string.Equals(layer.Primitive, "fill", StringComparison.Ordinal))
             {
-                if (TryParseColor(Param(layer, "value"), 255, out color) && color.A > 0) return true;
+                if (TryParseColor(Param(layer, "value"), out color) && color.A > 0) return true;
             }
             else if (string.Equals(layer.Primitive, "gradient", StringComparison.Ordinal))
             {
                 var first = Param(layer, "value")
                     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                if (first.Length > 0 && TryParseColor(first[0], 255, out color) && color.A > 0) return true;
+                if (first.Length > 0 && TryParseColor(first[0], out color) && color.A > 0) return true;
             }
         }
 
@@ -487,49 +490,13 @@ public static class SkinPaintEngine
     private static bool TryColor(ResolvedLayer layer, List<string> skipped, out Color color)
     {
         var raw = Param(layer, "value");
-        if (TryParseColor(raw, 255, out color)) return true;
+        if (TryParseColor(raw, out color)) return true;
         skipped.Add("unresolved-value:" + (raw.Length == 0 ? layer.Primitive : raw));
         return false;
     }
 
-    private static bool TryParseColor(string value, int alpha, out Color color)
-    {
-        color = Color.Transparent;
-        if (string.IsNullOrWhiteSpace(value)) return false;
-        var text = value.Trim();
-        try
-        {
-            if (text.StartsWith('#'))
-            {
-                // 颜色格式唯一转换点（SurfaceColor）：CSS 8 位 = RRGGBBAA，不再交给 ColorTranslator（后者按 AARRGGBB 解释）。
-                if (!SurfaceColor.TryParseHex(text, out var argb)) return false;
-                color = Color.FromArgb(argb);
-                return true;
-            }
-
-            if (Color.FromName(text) is { IsKnownColor: true } named)
-            {
-                color = named;
-                return true;
-            }
-
-            var parts = text.Split(',');
-            if (parts.Length >= 3
-                && int.TryParse(parts[0], out var r)
-                && int.TryParse(parts[1], out var g)
-                && int.TryParse(parts[2], out var b))
-            {
-                color = Color.FromArgb(alpha, Clamp(r), Clamp(g), Clamp(b));
-                return true;
-            }
-        }
-        catch (Exception)
-        {
-            // 非法色值 ⇒ 未解析（调用方记账，禁抛给绘制路径）。
-        }
-
-        return false;
-    }
+    /// <summary>层色值解析（唯一桥：<see cref="SurfaceColorParse"/>；失败 ⇒ 记账并返回 false，禁静默画成透明）。</summary>
+    private static bool TryParseColor(string value, out Color color) => SurfaceColorParse.TryParse(value, out color);
 
     private static bool TrySplitColors(string value, ResolvedLayer layer, List<string> skipped, out Color[] colors)
     {
@@ -543,13 +510,11 @@ public static class SkinPaintEngine
 
         for (var i = 0; i < raw.Length; i++)
         {
-            if (TryParseColor(raw[i], 255, out colors[i])) continue;
+            if (TryParseColor(raw[i], out colors[i])) continue;
             skipped.Add("unresolved-value:" + raw[i]);
             return false;
         }
 
         return true;
     }
-
-    private static int Clamp(int value) => Math.Min(255, Math.Max(0, value));
 }

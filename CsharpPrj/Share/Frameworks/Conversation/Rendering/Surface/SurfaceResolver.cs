@@ -3,10 +3,20 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
+using Modules.CapabilityResolution;
+using UiBackend;
 
 namespace Share.Conversation.Rendering.Surface;
+
+/// <summary>一次解析用到的声明派生输入（能力矩阵 / 层规格 / 资源问题）。</summary>
+/// <param name="Capabilities">载体 × 通道 × 图元能力矩阵。</param>
+/// <param name="LayerSpecs">层名 → 内核层规格（资源 id 已换 src）。</param>
+/// <param name="AssetIssuesByLayer">层名 → 资源问题（未声明 asset）。</param>
+public sealed record SurfaceResolveContext(
+    CapabilityMatrix Capabilities,
+    IReadOnlyDictionary<string, LayerSpec> LayerSpecs,
+    IReadOnlyDictionary<string, SurfaceIssue> AssetIssuesByLayer);
 
 /// <summary>
 /// 表面解析器（**纯函数**）：程序 + 视图 + 档 + 载体 + token 表 → <see cref="ResolvedSurface"/>。
@@ -28,24 +38,76 @@ public static class SurfaceResolver
     /// <param name="profileId">外观档（空 ⇒ <see cref="DefaultProfile"/>）。</param>
     /// <param name="tokens">token 值表（来自 <see cref="UiDeclaration"/> 解析结果；键名 → 值）。</param>
     /// <param name="overrides">显式覆盖（最高优先级；并入指纹）。</param>
+    /// <summary>
+    /// 兼容重载（六参数，channel=draw）：保护已烘焙调用方的二进制绑定（禁以可选参数替代重载）。
+    /// </summary>
+    /// <param name="program">表面程序。</param>
+    /// <param name="view">视图键。</param>
+    /// <param name="carrierId">载体 id。</param>
+    /// <param name="profileId">外观档（空 ⇒ 默认档）。</param>
+    /// <param name="tokens">token 值表。</param>
+    /// <param name="overrides">显式覆盖。</param>
+    public static ResolvedSurface Resolve(
+        SurfaceProgramDeclaration program,
+        string view,
+        string carrierId,
+        string? profileId,
+        IReadOnlyDictionary<string, string>? tokens,
+        IReadOnlyDictionary<string, string>? overrides)
+        => Resolve(program, view, carrierId, profileId, tokens, overrides, channel: null);
+
+    /// <summary>解析一次视图 × 档 × 载体 × 通道。</summary>
+    /// <param name="program">表面程序（未装配 ⇒ 返回空容器 + program-unavailable）。</param>
+    /// <param name="view">视图键。</param>
+    /// <param name="carrierId">载体 id（html/winforms/text…）。</param>
+    /// <param name="profileId">外观档（空 ⇒ <see cref="DefaultProfile"/>）。</param>
+    /// <param name="tokens">token 值表（键名 → 值）。</param>
+    /// <param name="overrides">显式覆盖（最高优先级；并入指纹）。</param>
+    /// <param name="channel">写面通道（空 ⇒ <see cref="CapabilityMatrix.DefaultChannel"/>）。</param>
     public static ResolvedSurface Resolve(
         SurfaceProgramDeclaration program,
         string view,
         string carrierId,
         string? profileId = null,
         IReadOnlyDictionary<string, string>? tokens = null,
-        IReadOnlyDictionary<string, string>? overrides = null)
+        IReadOnlyDictionary<string, string>? overrides = null,
+        string? channel = null)
+        => Resolve(program, Prepare(program), view, carrierId, profileId, tokens, overrides, channel);
+
+    /// <summary>解析一次视图 × 档 × 载体 × 通道（复用已构建的解析上下文；每视图只建一次矩阵/层规格）。</summary>
+    /// <param name="program">表面程序（未装配 ⇒ 返回空容器 + program-unavailable）。</param>
+    /// <param name="context">解析上下文（能力矩阵 / 层规格 / 资源问题）。</param>
+    /// <param name="view">视图键。</param>
+    /// <param name="carrierId">载体 id（html/winforms/text…）。</param>
+    /// <param name="profileId">外观档（空 ⇒ <see cref="DefaultProfile"/>）。</param>
+    /// <param name="tokens">token 值表（键名 → 值）。</param>
+    /// <param name="overrides">显式覆盖（最高优先级；并入指纹）。</param>
+    /// <param name="channel">写面通道（空 ⇒ <see cref="CapabilityMatrix.DefaultChannel"/>）。</param>
+    public static ResolvedSurface Resolve(
+        SurfaceProgramDeclaration program,
+        SurfaceResolveContext context,
+        string view,
+        string carrierId,
+        string? profileId = null,
+        IReadOnlyDictionary<string, string>? tokens = null,
+        IReadOnlyDictionary<string, string>? overrides = null,
+        string? channel = null)
     {
         ArgumentNullException.ThrowIfNull(program);
+        ArgumentNullException.ThrowIfNull(context);
         var carrier = carrierId ?? string.Empty;
         var profileName = string.IsNullOrWhiteSpace(profileId) ? DefaultProfile : profileId!;
         var values = tokens ?? new Dictionary<string, string>(StringComparer.Ordinal);
         var issues = new List<SurfaceIssue>();
+        var resolvedChannel = string.IsNullOrWhiteSpace(channel) ? CapabilityMatrix.DefaultChannel : channel!;
+        var fingerprintChannel = string.Equals(resolvedChannel, CapabilityMatrix.DefaultChannel, StringComparison.Ordinal)
+            ? null
+            : resolvedChannel;
 
         if (!program.IsDeclared)
         {
             issues.Add(new SurfaceIssue("program-unavailable", "surface.generated.json 未装配"));
-            return new ResolvedSurface(view ?? string.Empty, profileName, carrier, Fingerprint(program, view, profileName, carrier, overrides), Array.Empty<ResolvedContainer>(), issues);
+            return new ResolvedSurface(view ?? string.Empty, profileName, carrier, Fingerprint(program, view, profileName, carrier, overrides, fingerprintChannel), Array.Empty<ResolvedContainer>(), issues);
         }
 
         var profile = program.EffectiveProfile(profileName);
@@ -55,14 +117,17 @@ public static class SurfaceResolver
             profile = program.EffectiveProfile(DefaultProfile);
         }
 
-        var carrierSpec = program.Carriers.TryGetValue(carrier, out var spec) ? spec : null;
-        if (carrierSpec is null) issues.Add(new SurfaceIssue("carrier-undeclared", carrier));
+        if (!program.Carriers.ContainsKey(carrier)) issues.Add(new SurfaceIssue(ResolutionIssueCodes.CarrierUndeclared, carrier));
+
+        var capabilities = context.Capabilities;
+        var layerSpecs = context.LayerSpecs;
+        var assetIssuesByLayer = context.AssetIssuesByLayer;
 
         var containers = new List<ResolvedContainer>();
         if (!program.Views.TryGetValue(view ?? string.Empty, out var keys))
         {
             issues.Add(new SurfaceIssue("view-undeclared", view ?? string.Empty));
-            return new ResolvedSurface(view ?? string.Empty, profileName, carrier, Fingerprint(program, view, profileName, carrier, overrides), containers, issues);
+            return new ResolvedSurface(view ?? string.Empty, profileName, carrier, Fingerprint(program, view, profileName, carrier, overrides, fingerprintChannel), containers, issues);
         }
 
         foreach (var key in keys)
@@ -74,20 +139,21 @@ public static class SurfaceResolver
                 continue;
             }
 
-            containers.Add(ResolveContainer(program, container, profile, carrier, carrierSpec, values));
+            containers.Add(ResolveContainer(program, container, profile, carrier, values, capabilities, layerSpecs, assetIssuesByLayer, resolvedChannel));
         }
 
-        return new ResolvedSurface(view!, profileName, carrier, Fingerprint(program, view, profileName, carrier, overrides), containers, issues);
+        return new ResolvedSurface(view!, profileName, carrier, Fingerprint(program, view, profileName, carrier, overrides, fingerprintChannel), containers, issues);
     }
 
-    /// <summary>解析指纹（program + 视图 + 档 + 载体 + 覆盖；确定性）。</summary>
+    /// <summary>解析指纹（program + 视图 + 档 + 载体 + 覆盖 + 非默认通道；确定性）。</summary>
     private static string Fingerprint(
         SurfaceProgramDeclaration program, string? view, string profile, string carrier,
-        IReadOnlyDictionary<string, string>? overrides)
+        IReadOnlyDictionary<string, string>? overrides, string? channel = null)
     {
         var builder = new StringBuilder();
         builder.Append(program.Fingerprint).Append('|').Append(view ?? string.Empty).Append('|')
             .Append(profile).Append('|').Append(carrier);
+        if (channel is not null) builder.Append('|').Append(channel);
         if (overrides is { Count: > 0 })
         {
             foreach (var pair in overrides.OrderBy(p => p.Key, StringComparer.Ordinal))
@@ -96,7 +162,51 @@ public static class SurfaceResolver
             }
         }
 
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()))).ToLowerInvariant();
+        return Signature.Sha256(builder.ToString());
+    }
+
+    /// <summary>构建解析上下文（纯函数；同一 program 的多次解析可只建一次，避免重复构建能力矩阵/层规格）。</summary>
+    /// <param name="program">表面程序。</param>
+    public static SurfaceResolveContext Prepare(SurfaceProgramDeclaration program)
+    {
+        ArgumentNullException.ThrowIfNull(program);
+        var capabilities = CapabilityMatrix.FromStrings(
+            program.Carriers.ToDictionary(
+                pair => pair.Key,
+                pair => (IReadOnlyDictionary<string, string>)pair.Value.Caps,
+                StringComparer.Ordinal));
+
+        var layerSpecs = new Dictionary<string, LayerSpec>(program.Layers.Count, StringComparer.Ordinal);
+        var assetIssuesByLayer = new Dictionary<string, SurfaceIssue>(StringComparer.Ordinal);
+        foreach (var pair in program.Layers)
+        {
+            var parameters = new Dictionary<string, string>(pair.Value.Params.Count, StringComparer.Ordinal);
+            foreach (var parameter in pair.Value.Params)
+            {
+                // 资源 id → 载体无关相对路径（**单一转换点**）：未声明 ⇒ 保留 id 并可见化（按材质归集）。
+                if (!string.Equals(parameter.Key, "asset", StringComparison.Ordinal))
+                {
+                    parameters[parameter.Key] = parameter.Value;
+                    continue;
+                }
+
+                if (!program.Assets.TryGetValue(parameter.Value, out var asset))
+                {
+                    assetIssuesByLayer[pair.Key] = new SurfaceIssue("asset-unknown", parameter.Value);
+                    parameters[parameter.Key] = parameter.Value;
+                    continue;
+                }
+
+                parameters[parameter.Key] = asset.Src;
+                if (!pair.Value.Params.ContainsKey("slice") && asset.Slice.Length > 0) parameters["slice"] = asset.Slice;
+                if (!pair.Value.Params.ContainsKey("repeat") && asset.Repeat.Length > 0) parameters["repeat"] = asset.Repeat;
+                if (!pair.Value.Params.ContainsKey("anchor") && asset.Anchor.Length > 0) parameters["anchor"] = asset.Anchor;
+            }
+
+            layerSpecs[pair.Key] = new LayerSpec(pair.Value.Name, pair.Value.Primitive, pair.Value.Z, parameters);
+        }
+
+        return new SurfaceResolveContext(capabilities, layerSpecs, assetIssuesByLayer);
     }
 
     private static ResolvedContainer ResolveContainer(
@@ -104,8 +214,11 @@ public static class SurfaceResolver
         SurfaceContainerSpec container,
         SurfaceProfileSpec? profile,
         string carrierId,
-        SurfaceCarrierSpec? carrierSpec,
-        IReadOnlyDictionary<string, string> tokens)
+        IReadOnlyDictionary<string, string> tokens,
+        CapabilityMatrix capabilities,
+        IReadOnlyDictionary<string, LayerSpec> layerSpecs,
+        IReadOnlyDictionary<string, SurfaceIssue> assetIssuesByLayer,
+        string channel)
     {
         var issues = new List<SurfaceIssue>();
 
@@ -136,7 +249,8 @@ public static class SurfaceResolver
         var materials = new Dictionary<string, ResolvedMaterial>(StringComparer.Ordinal);
         foreach (var slot in slots)
         {
-            materials[slot.Key] = ResolveMaterial(program, slot.Key, slot.Value, carrierSpec, tokens, issues);
+            materials[slot.Key] = ResolveMaterial(
+                program, carrierId, slot.Key, slot.Value, capabilities, layerSpecs, tokens, channel, assetIssuesByLayer, issues);
         }
 
         return new ResolvedContainer(
@@ -165,13 +279,20 @@ public static class SurfaceResolver
         };
     }
 
-    /// <summary>解析一个槽的材质：层栈 + 能力三态 + fallback（做不到 ⇒ 回退到可承载材质）。</summary>
+    /// <summary>
+    /// 解析一个槽的材质：**委托通用内核**（层 × 能力 × 通道 × 值域 × fallback）。
+    /// <para>本方法只做「声明 → 内核输入」适配与 issue 归集，不再自带层解析逻辑（单实现）。</para>
+    /// </summary>
     private static ResolvedMaterial ResolveMaterial(
         SurfaceProgramDeclaration program,
+        string carrierId,
         string slot,
         string materialId,
-        SurfaceCarrierSpec? carrierSpec,
+        CapabilityMatrix capabilities,
+        IReadOnlyDictionary<string, LayerSpec> layerSpecs,
         IReadOnlyDictionary<string, string> tokens,
+        string channel,
+        IReadOnlyDictionary<string, SurfaceIssue> assetIssuesByLayer,
         List<SurfaceIssue> containerIssues)
     {
         if (materialId.Length == 0)
@@ -186,91 +307,63 @@ public static class SurfaceResolver
             return new ResolvedMaterial(slot, materialId, null, Array.Empty<ResolvedLayer>(), new[] { missing });
         }
 
-        var direct = BuildLayers(program, material, carrierSpec, tokens);
-        if (!direct.Degraded || material.Fallback.Length == 0
-            || !program.Materials.TryGetValue(material.Fallback, out var fallback))
+        IReadOnlyDictionary<string, string>? fallbackRefs = null;
+        if (!string.IsNullOrWhiteSpace(material.Fallback)
+            && program.Materials.TryGetValue(material.Fallback, out var fallbackMaterial))
         {
-            foreach (var issue in direct.Issues) containerIssues.Add(issue);
-            return new ResolvedMaterial(slot, materialId, null, direct.Layers, direct.Issues);
+            fallbackRefs = fallbackMaterial.Layers;
         }
 
-        var degradedIssues = new List<SurfaceIssue>(direct.Issues)
-        {
-            new("material-degraded", slot + ":" + materialId + "→" + fallback.Name),
-        };
-        var fallbackLayers = BuildLayers(program, fallback, carrierSpec, tokens);
-        degradedIssues.AddRange(fallbackLayers.Issues);
-        foreach (var issue in degradedIssues) containerIssues.Add(issue);
+        var resolution = LayeredResolver.Resolve(
+            layerSpecs,
+            material.Layers,
+            capabilities,
+            carrierId,
+            tokenResolver: value => tokens.TryGetValue(value, out var resolved) ? resolved : value,
+            fallback: material.Fallback,
+            fallbackRefs: fallbackRefs,
+            channel: channel,
+            domainClassifier: SurfaceColorDomain.Classify);
 
-        return new ResolvedMaterial(slot, materialId, fallback.Name, fallbackLayers.Layers, degradedIssues);
+        var issues = new List<SurfaceIssue>(resolution.Issues.Count + 1);
+        // 同因多报去重：载体未声明已在表面级报过一次，此处不逐层重复（内核保持「每层可见」，去重归口调用方）。
+        var carrierDeclared = capabilities.HasCarrier(carrierId);
+        foreach (var issue in resolution.Issues)
+        {
+            if (!carrierDeclared && string.Equals(issue.Code, ResolutionIssueCodes.CarrierUndeclared, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            issues.Add(new SurfaceIssue(issue.Code, issue.Detail));
+        }
+
+        foreach (var layerName in ReferencedLayers(material, program))
+        {
+            if (assetIssuesByLayer.TryGetValue(layerName, out var assetIssue))
+            {
+                issues.Add(new SurfaceIssue(assetIssue.Code, material.Name + ":" + layerName + ":" + assetIssue.Detail));
+            }
+        }
+
+        foreach (var issue in issues) containerIssues.Add(issue);
+
+        var layers = new List<ResolvedLayer>(resolution.Layers.Count);
+        foreach (var layer in resolution.Layers)
+        {
+            layers.Add(new ResolvedLayer(layer.Role, layer.Primitive, layer.Z, layer.Params));
+        }
+
+        return new ResolvedMaterial(slot, materialId, resolution.FallbackUsed, layers, issues);
     }
 
-    private static (IReadOnlyList<ResolvedLayer> Layers, IReadOnlyList<SurfaceIssue> Issues, bool Degraded) BuildLayers(
-        SurfaceProgramDeclaration program,
-        SurfaceMaterialSpec material,
-        SurfaceCarrierSpec? carrierSpec,
-        IReadOnlyDictionary<string, string> tokens)
+    private static IEnumerable<string> ReferencedLayers(SurfaceMaterialSpec material, SurfaceProgramDeclaration program)
     {
-        var layers = new List<ResolvedLayer>();
-        var issues = new List<SurfaceIssue>();
-        var degraded = false;
-
-        foreach (var reference in material.Layers
-                     .OrderBy(pair => LayerZ(program, pair.Value))
-                     .ThenBy(pair => pair.Value, StringComparer.Ordinal))
+        foreach (var layerRef in material.Layers.Values) yield return layerRef;
+        if (!string.IsNullOrWhiteSpace(material.Fallback)
+            && program.Materials.TryGetValue(material.Fallback, out var fallback))
         {
-            if (!program.Layers.TryGetValue(reference.Value, out var layer))
-            {
-                issues.Add(new SurfaceIssue("layer-unknown", material.Name + ":" + reference.Value));
-                degraded = true;
-                continue;
-            }
-
-            var capability = carrierSpec?.Capability(layer.Primitive) ?? "unsupported";
-            if (carrierSpec is null) issues.Add(new SurfaceIssue("carrier-undeclared", layer.Primitive));
-
-            if (capability == "unsupported")
-            {
-                issues.Add(new SurfaceIssue("unsupported", material.Name + ":" + layer.Name + ":" + layer.Primitive));
-                degraded = true;
-                continue;
-            }
-
-            if (capability == "emulated")
-            {
-                issues.Add(new SurfaceIssue("emulated", material.Name + ":" + layer.Name + ":" + layer.Primitive));
-            }
-
-            var parameters = new Dictionary<string, string>(layer.Params.Count, StringComparer.Ordinal);
-            foreach (var pair in layer.Params)
-            {
-                // 资源 id → 载体无关相对路径（**单一转换点**）：未声明 ⇒ 保留 id 并可见化，
-                // 资源缺失由下游 Skipped / SurfaceAssets 门禁呈现（禁静默空白）。
-                if (string.Equals(pair.Key, "asset", StringComparison.Ordinal))
-                {
-                    if (!program.Assets.TryGetValue(pair.Value, out var asset))
-                    {
-                        issues.Add(new SurfaceIssue("asset-unknown", material.Name + ":" + layer.Name + ":" + pair.Value));
-                        parameters[pair.Key] = pair.Value;
-                        continue;
-                    }
-
-                    parameters[pair.Key] = asset.Src;
-                    if (!layer.Params.ContainsKey("slice") && asset.Slice.Length > 0) parameters["slice"] = asset.Slice;
-                    if (!layer.Params.ContainsKey("repeat") && asset.Repeat.Length > 0) parameters["repeat"] = asset.Repeat;
-                    if (!layer.Params.ContainsKey("anchor") && asset.Anchor.Length > 0) parameters["anchor"] = asset.Anchor;
-                    continue;
-                }
-
-                parameters[pair.Key] = tokens.TryGetValue(pair.Value, out var value) ? value : pair.Value;
-            }
-
-            layers.Add(new ResolvedLayer(reference.Key, layer.Primitive, layer.Z, parameters));
+            foreach (var layerRef in fallback.Layers.Values) yield return layerRef;
         }
-
-        return (layers, issues, degraded);
     }
-
-    private static int LayerZ(SurfaceProgramDeclaration program, string layerName)
-        => program.Layers.TryGetValue(layerName, out var layer) ? layer.Z : int.MaxValue;
 }

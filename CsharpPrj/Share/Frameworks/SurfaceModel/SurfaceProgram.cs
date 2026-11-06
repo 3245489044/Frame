@@ -18,12 +18,16 @@ public sealed class SurfaceProgram
     public static SurfaceProgram Empty { get; } = new(SurfaceProgramDeclaration.Empty);
 
     private readonly Lazy<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>> _carrierCaps;
+    private readonly Lazy<CapabilityMatrix> _capabilities;
 
     private SurfaceProgram(SurfaceProgramDeclaration declaration)
     {
         Declaration = declaration ?? throw new ArgumentNullException(nameof(declaration));
         _carrierCaps = new Lazy<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>>(
             BuildCarrierCaps,
+            isThreadSafe: true);
+        _capabilities = new Lazy<CapabilityMatrix>(
+            () => CapabilityMatrix.FromStrings(_carrierCaps.Value),
             isThreadSafe: true);
     }
 
@@ -73,8 +77,8 @@ public sealed class SurfaceProgram
     /// <summary>载体 → 图元 → 声明词（能力矩阵唯一输入）。</summary>
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> CarrierCapabilities => _carrierCaps.Value;
 
-    /// <summary>能力矩阵（三态查询）。</summary>
-    public CapabilityMatrix Capabilities => CapabilityMatrix.FromStrings(CarrierCapabilities);
+    /// <summary>能力矩阵（三态查询；声明派生，构造后缓存，禁每次访问重建）。</summary>
+    public CapabilityMatrix Capabilities => _capabilities.Value;
 
     /// <summary>展开外观档（未声明 ⇒ null）。</summary>
     /// <param name="profileId">档名。</param>

@@ -344,15 +344,24 @@ public static class UsharpSurfaceProgramEmitter
         {
             foreach (var cap in ((JsonObject)pair.Value!)["caps"]!.AsObject())
             {
-                if (!primitiveSet.Contains(cap.Key))
+                // 能力键文法：<primitive>（默认绘制通道）或 <channel>_<primitive>（写面细分）。
+                var separator = cap.Key.IndexOf('_');
+                var channel = separator <= 0 ? "draw" : cap.Key[..separator];
+                var primitive = separator <= 0 ? cap.Key : cap.Key[(separator + 1)..];
+                if (channel is not ("draw" or "property" or "css" or "text"))
+                {
+                    diagnostics.Add(Error(file, $"载体 '{pair.Key}' 的 caps 键 '{cap.Key}' 通道前缀 '{channel}' 非法（须 draw/property/css/text）"));
+                }
+
+                if (!primitiveSet.Contains(primitive))
                 {
                     diagnostics.Add(Error(file, $"载体 '{pair.Key}' 的 caps 键 '{cap.Key}' 不在图元词表"));
                 }
 
                 var state = cap.Value?.GetValue<string>() ?? string.Empty;
-                if (state != "supported" && state != "emulated" && state != "unsupported")
+                if (state != "supported" && state != "supported-opaque" && state != "emulated" && state != "unsupported")
                 {
-                    diagnostics.Add(Error(file, $"载体 '{pair.Key}' 的 caps['{cap.Key}'] 非法：{state}（须 supported/emulated/unsupported）"));
+                    diagnostics.Add(Error(file, $"载体 '{pair.Key}' 的 caps['{cap.Key}'] 非法：{state}（须 supported/supported-opaque/emulated/unsupported）"));
                 }
             }
         }

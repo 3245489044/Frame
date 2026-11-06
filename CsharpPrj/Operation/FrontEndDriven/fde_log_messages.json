@@ -2,6 +2,16 @@
     "version": "1.3",
   "description": "FrontEndDriven 模块日志消息注册文件 - ★ 2026-08-05 级别降噪：Skip_Child/ParentNotReady→Debug，ApplyResult_summary→Debug，RootMountedVisual→Debug，EventBindingSystem_update_start→Debug；新增 RootControlFallbackByName_debug/RenderStageRunner_ActualHostChildCount_normal 按条件分支；CsgEntryPoint_CollectSnapshot_complete 标记 dep（replaced-by CsgCollectSnapshot_summary）｜★ 2026-08-07 渲染分步成功汇总降噪：布局收敛报告/宿主基准/可见性契约/收集完成/开始应用/挂载结果/事件订阅/root挂载成功 降 Debug 并归 FrontEndDriven.RenderStage|EventBinding 分类（使 LogFilterConfig 黑名单生效）；保留 RenderPipelineComposition_Execute_summary 与 RenderRequestQueue_incremental_done 两条单行汇总为 Info｜★ 2026-08-08 级别降噪：RenderPipelineComposition_Execute_summary→Debug（Execute 仅 Load/Creation 区间，collected=0 为「区间未运行」噪音，真实渲染已由 RenderRequestQueue_incremental_done 单行承载）｜★ 2026-08-12 新增 RenderValidationStage_summary/details（RenderValidationStage 验证审计日志）｜★ 2026-08-27 布局收敛状态机门控：新增 LayoutSubsystem_reflow_converged / LayoutSubsystem_convergence_blocked / _retrying / _abandoned（确定性收敛状态机治「未就绪反复空转」——Blocked 等待挂载信号不重排、Retrying 有限递增退避、Abandoned 明确放弃）",
   "messages": {
+    "SkinAppearance_Install": {
+      "template": "[皮肤] 外观装配完成 — enabled={enabled}, profile={profile}, carrier={carrier}, catalog={catalog}, catalogProperty={catalogProperty}, global={global}, globalProperty={globalProperty}, layers={layers}, unresolvedTokens={unresolvedTokens}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Skin"
+    },
+    "WinFormApplier_SkinAttachFailed": {
+      "template": "[皮肤] 控件装配失败（已按可见降级继续，不中断整页渲染） — nodeId={nodeId}, type={type}, error={error}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
     "EcsGate_DoLoadAndRender_mount": {
       "template": "EcsGate 渲染挂载统计 — scope={scope}, succeeded={succeeded}, collected={collectedCount}, applied={appliedCount}, mounted={mountedCount}, orphan={orphanCount}, hostActualChildCount={hostActualChildCount}",
       "level": "Debug",

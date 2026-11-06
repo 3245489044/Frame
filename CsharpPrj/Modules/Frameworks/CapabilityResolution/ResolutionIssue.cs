@@ -24,4 +24,7 @@ public static class ResolutionIssueCodes
 
     /// <summary>载体未声明能力（按不支持处理，可见）。</summary>
     public const string CarrierUndeclared = "carrier-undeclared";
+
+    /// <summary>层值域超出该通道能力（如属性通道拿到 alpha 色；已剔除并降级）。</summary>
+    public const string ValueOutOfDomain = "value-out-of-domain";
 }

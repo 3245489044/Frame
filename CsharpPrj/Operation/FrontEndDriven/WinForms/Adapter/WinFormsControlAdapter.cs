@@ -9,6 +9,7 @@ using FrontEndDriven.Abstractions;
 using FrontEndDriven.Diagnostics;
 using FrontEndDriven.Protocol;
 using FrontEndDriven.Utils;
+using FrontEndDriven.WinForms.Paint;
 using WinFormsValueContract;
 
 namespace FrontEndDriven.WinForms.Adapter
@@ -75,7 +76,10 @@ namespace FrontEndDriven.WinForms.Adapter
 
             try
             {
-                ctrl.ForeColor = ColorTranslator.FromHtml(htmlColor);
+                // 颜色格式唯一转换点（SurfaceColor）：8 位 CSS hex = RRGGBBAA，禁用 ColorTranslator（按 AARRGGBB 解释）。
+                if (!SurfaceColorParse.TryParse(htmlColor, out var color))
+                    throw new FormatException($"色值不可解析: {htmlColor}");
+                ctrl.ForeColor = color;
             }
             catch (Exception ex)
             {
@@ -91,7 +95,9 @@ namespace FrontEndDriven.WinForms.Adapter
 
             try
             {
-                ctrl.BackColor = ColorTranslator.FromHtml(htmlColor);
+                if (!SurfaceColorParse.TryParse(htmlColor, out var color))
+                    throw new FormatException($"色值不可解析: {htmlColor}");
+                ctrl.BackColor = color;
             }
             catch (Exception ex)
             {

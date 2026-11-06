@@ -17,29 +17,56 @@ public static class SkinMaterialCatalog
         new Dictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>(StringComparer.Ordinal);
 
     private static volatile IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>> _byKey = EmptyCatalog;
+    private static volatile IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>> _byKeyProperty = EmptyCatalog;
 
     /// <summary>整体替换目录（null ⇒ 清空；换肤/失效的**唯一写入口**）。</summary>
-    /// <param name="byKey">容器键 → 槽 → 材质。</param>
+    /// <param name="byKey">容器键 → 槽 → 材质（draw 通道）。</param>
     public static void Set(IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>? byKey)
         => _byKey = byKey ?? EmptyCatalog;
 
-    /// <summary>清空目录。</summary>
-    public static void Clear() => Set(null);
+    /// <summary>整体替换属性通道目录（null ⇒ 清空；唯一写入口）。</summary>
+    /// <param name="byKey">容器键 → 槽 → 材质（property 通道，已按能力降级）。</param>
+    public static void SetProperty(IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>? byKey)
+        => _byKeyProperty = byKey ?? EmptyCatalog;
 
-    /// <summary>全局回退材质（控件未命中容器键时使用；null ⇒ 无回退，保持纯属性着色）。</summary>
+    /// <summary>清空目录。</summary>
+    public static void Clear()
+    {
+        Set(null);
+        SetProperty(null);
+        SetGlobal(null);
+        SetGlobalProperty(null);
+    }
+
+    /// <summary>全局回退材质（绘制通道；null ⇒ 无回退，保持纯属性着色）。</summary>
     public static ResolvedMaterial? Global { get; private set; }
+
+    /// <summary>全局回退材质（属性通道；已按通道能力降级）。</summary>
+    public static ResolvedMaterial? GlobalProperty { get; private set; }
 
     /// <summary>设置全局回退材质（唯一写入口；与主机无关）。</summary>
     /// <param name="material">已解析材质（null ⇒ 清除）。</param>
     public static void SetGlobal(ResolvedMaterial? material) => Global = material;
 
-    /// <summary>按容器键取材质（未命中 ⇒ null）。</summary>
+    /// <summary>设置属性通道全局回退材质（唯一写入口）。</summary>
+    /// <param name="material">已解析材质（null ⇒ 清除）。</param>
+    public static void SetGlobalProperty(ResolvedMaterial? material) => GlobalProperty = material;
+
+    /// <summary>按容器键取材质（绘制通道；未命中 ⇒ null）。</summary>
     /// <param name="key">容器键（控件 Id 或容器名）。</param>
     public static IReadOnlyDictionary<string, ResolvedMaterial>? For(string? key)
         => key is { Length: > 0 } && _byKey.TryGetValue(key, out var materials) ? materials : null;
 
+    /// <summary>按容器键取材质（属性通道；未命中 ⇒ null）。</summary>
+    /// <param name="key">容器键（控件 Id 或容器名）。</param>
+    public static IReadOnlyDictionary<string, ResolvedMaterial>? ForProperty(string? key)
+        => key is { Length: > 0 } && _byKeyProperty.TryGetValue(key, out var materials) ? materials : null;
+
     /// <summary>当前目录快照（只读；诊断/断言用，禁写入）。</summary>
     public static IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>> Snapshot => _byKey;
+
+    /// <summary>属性通道目录快照（只读；诊断/断言用）。</summary>
+    public static IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>> SnapshotProperty => _byKeyProperty;
 
     /// <summary>目录条目数（诊断/测试判据）。</summary>
     public static int Count => _byKey.Count;

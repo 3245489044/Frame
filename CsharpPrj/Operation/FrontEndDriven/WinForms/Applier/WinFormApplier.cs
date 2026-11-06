@@ -218,7 +218,18 @@ public sealed class WinFormApplier
             }
 
             // M5b：已解析材质 owner-draw（默认关闭；开关 = SkinDecorator.Enabled）。
-            SkinDecorator.Attach(control, desc);
+            // 单控件装配失败 ⇒ 可见降级并继续（禁让一个控件的配色能力不匹配中断整页渲染）。
+            try
+            {
+                SkinDecorator.Attach(control, desc);
+            }
+            catch (Exception ex)
+            {
+                result.SkipReasons.Add($"SkinAttachFailed nodeId={desc.Id}: {ex.Message}");
+                FrontEndDrivenLog.Log("WinFormApplier_SkinAttachFailed",
+                    new { nodeId = desc.Id, type = control.GetType().Name, error = ex.Message });
+            }
+
             work.Add((desc, entity, control));
         }
 
@@ -228,6 +239,10 @@ public sealed class WinFormApplier
         foreach (var (desc, entity, control) in work)
         {
             var normalized = NormalizeSnapshot(desc, control, BuildPropertyDict(desc));
+
+            // E2·属性通道单一写者：材质投影器已接管该控件 BackColor 时，声明属性不得再写（禁顺序依赖；
+            // 剥离发生在归一化产物上，故回写基线同一份，不会造成「未应用属性进入基线」）。
+            if (SkinDecorator.IsPropertyChannelOwned(control)) normalized.Remove(UIProtocol.Prop_BackColor);
 
             // R3·布局真源收敛（SingleImplementation）：ECS 布局托管实体（proportional / dock·anchor 原生意图）
             // 的像素 Bounds 不再由内容 Apply 写入——物理 Bounds 唯一由 LayoutProjector（纯 ECS 父原点）在挂载后投影。
@@ -248,8 +263,19 @@ public sealed class WinFormApplier
             if (changed.Count == 0)
                 continue;
 
-            ApplyPropertiesFromDict(control, changed, entity);
-            result.UpdatedCount++;
+            // E7·逐控件隔离：单个控件的非法属性值不得中断整页渲染（与 tolerated 口径一致；失败可见化并跳过基线回写）。
+            try
+            {
+                ApplyPropertiesFromDict(control, changed, entity);
+                result.UpdatedCount++;
+            }
+            catch (Exception ex)
+            {
+                result.SkipReasons.Add($"ApplyFailed nodeId={desc.Id}: {ex.Message}");
+                FrontEndDrivenLog.Log("WinFormApplier_ApplyFailed",
+                    new { nodeId = desc.Id, type = control.GetType().Name, error = ex.Message });
+                continue;
+            }
 
             // R1：回写基线必须是「实际目标快照」减去未应用键后的同一份归一化产物，
             // 不得把未经 StripCoordinates/SplitterDistance 豁免的全量快照写回 —— 否则未应用属性进入基线，

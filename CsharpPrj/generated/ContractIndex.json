@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-06T11:25:42.4614176Z",
+  "builtAt": "2026-11-06T18:32:10.6684480Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -285,14 +285,14 @@
       "kind": "KeyFamily",
       "pattern": "#R",
       "note": "事实 id 前缀",
-      "total": 130,
+      "total": 136,
       "truncated": false,
       "byRole": {
         "Gate": 8,
         "Test": 43,
         "Declaration": 0,
-        "Code": 22,
-        "Doc": 53,
+        "Code": 25,
+        "Doc": 56,
         "Other": 4
       },
       "hits": [
@@ -323,6 +323,27 @@
           "line": 46,
           "role": "Code",
           "text": "/// <summary>本轮轮序号（1-based；= 轮级关联键 <c>会话键#R&lt;n&gt;</c> 的 n，标识单源见 Agent 侧 <c>FactIds.Round</c>／<c>AgentInstance.RoundKey</c>；旧形态 <c>runId+\"R\"+n</c> 已废除）。"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Plate/Surface/SurfaceColor.cs",
+          "line": 9,
+          "role": "Code",
+          "text": "/// <para>CSS 8 位 hex = <c>#RRGGBBAA</c>（alpha 在最后）；GDI+/Win32 打包值 = <c>0xAARRGGBB</c>（alpha 在最前）。"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Plate/Surface/SurfaceColor.cs",
+          "line": 15,
+          "role": "Code",
+          "text": "/// <summary>解析 <c>#RGB</c> / <c>#RGBA</c> / <c>#RRGGBB</c> / <c>#RRGGBBAA</c>（CSS 语义；8 位 = RRGGBBAA）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Plate/Surface/SurfaceColor.cs",
+          "line": 66,
+          "role": "Code",
+          "text": "/// <summary>打包 ARGB → CSS hex（固定 <c>#RRGGBBAA</c>，alpha 最后）。</summary>"
         },
         {
           "repo": "Frame",
@@ -533,6 +554,27 @@
           "line": 132,
           "role": "Doc",
           "text": "> 本轮**已改善**（对比 10.3/10.4 旧日志）：`context_project` 已 `NodeStepSucceeded`（P0 修复生效，`events.jsonl` 于 `cv_toolcall_node#R1` 04:07:50 可见）；`port_catalog` 由 `Failed` → `Ready`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/glass-transparency/01-现状与透明化瓶颈.md",
+          "line": 285,
+          "role": "Doc",
+          "text": "| 颜色方言 | CSS `#RRGGBBAA` vs GDI+ `#AARRGGBB`；GDI+ 不认 `rgba()` | C1/C5 的 canonical ARGB 是硬前提 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/glass-transparency/04-实施记录-透明与实时光.md",
+          "line": 42,
+          "role": "Doc",
+          "text": "- `TryParseHex`：`#RGB` / `#RGBA` / `#RRGGBB` / `#RRGGBBAA`，**8 位按 CSS 语义 = RRGGBBAA**。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/glass-transparency/04-实施记录-透明与实时光.md",
+          "line": 44,
+          "role": "Doc",
+          "text": "- `ToCssHex`：固定输出 `#RRGGBBAA`（alpha 最后）。"
         },
         {
           "repo": "Main",
@@ -4532,7 +4574,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Applier/WinFormApplier.cs",
-          "line": 278,
+          "line": 289,
           "role": "Code",
           "text": "result.RelationsProcessed = relations.Count;"
         },
@@ -11851,13 +11893,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1666.0,
+    "hitCount": 1672.0,
     "byRole": {
       "Gate": 29,
       "Test": 194,
       "Declaration": 104,
-      "Code": 345,
-      "Doc": 893,
+      "Code": 348,
+      "Doc": 896,
       "Other": 101
     },
     "truncatedFacts": [
@@ -11867,7 +11909,7 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 459
+        "lines": 462
       },
       {
         "repo": "Projects",
@@ -11875,7 +11917,7 @@
       },
       {
         "repo": "Main",
-        "lines": 1385
+        "lines": 1388
       }
     ]
   }

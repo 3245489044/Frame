@@ -66,7 +66,7 @@ public sealed class SurfaceGatherModule : IGatherModule
     private static CapabilityMatrix CapabilitiesOf(SurfaceProgram? program)
         => program is null || !program.IsDeclared
             ? CapabilityMatrix.Empty
-            : CapabilityMatrix.FromStrings(program.CarrierCapabilities);
+            : program.Capabilities;
 
     private IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> MapOf(SurfaceProgram? program)
     {

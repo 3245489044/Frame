@@ -185,8 +185,8 @@ if ($report.Count -lt $minReps) {
 }
 
 # ---- [E3] 正/负对照（防判据空转；只读：按名复用既有 Check-*.ps1 作样本，与 Family 目录分层解耦） ----
-$ctrlA = Find-GateScript -Name 'EffectiveFace'
-$ctrlB = Find-GateScript -Name 'GenerationLayout'
+$ctrlA = Find-GateScript -Name 'EffectiveFace' -Domain 'Agent'
+$ctrlB = Find-GateScript -Name 'GenerationLayout' -Domain 'Agent'
 $fpA = Get-EffectiveFingerprint $ctrlA
 $fpB = Get-EffectiveFingerprint $ctrlB
 # 正对照：同内容 ⇒ 判「对齐」（命中；证明判据非恒假）。

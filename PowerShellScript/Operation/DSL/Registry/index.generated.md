@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（113 件）
+## Agent（115 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -104,8 +104,10 @@
 | `UiAnchorWrites` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiAnchorWrites.ps1` |
 | `UiCarrierParity` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiCarrierParity.ps1` |
 | `UiLocDeclaration` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiLocDeclaration.ps1` |
+| `UiMaterialPropertyWriter` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiMaterialPropertyWriter.ps1` |
 | `UiNoViewBranch` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiNoViewBranch.ps1` |
 | `UiProgramCoverage` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiProgramCoverage.ps1` |
+| `UiProjectionCapability` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiProjectionCapability.ps1` |
 | `UiReadOutcome` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiReadOutcome.ps1` |
 | `UiRegionOwnership` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiRegionOwnership.ps1` |
 | `UiRenderEntry` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiRenderEntry.ps1` |
@@ -133,17 +135,23 @@
 | `BuildTargetMap` | full | 0 | — | — | `Projects\BuildFramework\Gates\Check-BuildTargetMap.ps1` |
 | `DistributionIncrement` | full | 0 | — | — | `Projects\BuildFramework\Gates\Check-DistributionIncrement.ps1` |
 
-## Constraint（7 件）
+## Constraint（13 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
 | `CF-W-01-DeclarationNoImplRef` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-01-DeclarationNoImplRef.ps1` |
 | `CF-W-02-DeclarationSurfaceClosed` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-02-DeclarationSurfaceClosed.ps1` |
 | `CF-W-03-ImplNoMutableConfigRef` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-03-ImplNoMutableConfigRef.ps1` |
+| `CF-W-04-NoConfigMutation` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-04-NoConfigMutation.ps1` |
 | `CF-W-05-NoConfigConstruction` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-05-NoConfigConstruction.ps1` |
 | `CF-W-07-PlatformTypeQuarantine` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-07-PlatformTypeQuarantine.ps1` |
 | `CF-W-08-NoAmbientLookup` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-08-NoAmbientLookup.ps1` |
 | `CF-W-09-NoStaticMutableState` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-09-NoStaticMutableState.ps1` |
+| `CF-W-10-NoZombieConfigField` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-10-NoZombieConfigField.ps1` |
+| `CF-W-11-ConfigDefaultSingleSource` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-11-ConfigDefaultSingleSource.ps1` |
+| `CF-W-12-SemanticReadClassified` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-12-SemanticReadClassified.ps1` |
+| `CF-W-13-SnapshotOnly` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-13-SnapshotOnly.ps1` |
+| `CF-W-14-FieldUsageIndex` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-14-FieldUsageIndex.ps1` |
 
 ## Data（29 件）
 
@@ -319,7 +327,7 @@
 | `KeyGrammar` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1` |
 | `RecognizerVocabulary` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1` |
 
-## Process（28 件）
+## Process（30 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -329,6 +337,7 @@
 | `BatchLineEndings` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-BatchLineEndings.ps1` |
 | `BatchScope` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-BatchScope.ps1` |
 | `CallGovernance` | fast | 0 | CallGovernance | Boundary | `Environment\CentralTest\Tools\Gate\Process\Check-CallGovernance.ps1` |
+| `CommandSpecCoverage` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-CommandSpecCoverage.ps1` |
 | `ContainerSemantics` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-ContainerSemantics.ps1` |
 | `DeclarationCapability` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-DeclarationCapability.ps1` |
 | `DimensionReduction` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-DimensionReduction.ps1` |
@@ -339,6 +348,7 @@
 | `InvokeEntrypoints` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-InvokeEntrypoints.ps1` |
 | `JudgmentParity` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-JudgmentParity.ps1` |
 | `JudgmentPoints` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-JudgmentPoints.ps1` |
+| `LogTemplateBinding` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-LogTemplateBinding.ps1` |
 | `OrchestrationKernel` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-OrchestrationKernel.ps1` |
 | `PreflightCost` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-PreflightCost.ps1` |
 | `ReadModelSingleSource` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-ReadModelSingleSource.ps1` |
@@ -362,12 +372,18 @@
 | `SpecPortLedger` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecPortLedger.ps1` |
 | `SpecToolingContract` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Spec\Check-SpecToolingContract.ps1` |
 
-## TestLayout（2 件）
+## TestLayout（8 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
 | `TestFileOwned` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestFileOwned.ps1` |
+| `TestIncrementGuard` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestIncrementGuard.ps1` |
+| `TestLayoutDebt` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestLayoutDebt.ps1` |
+| `TestLayoutOverride` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestLayoutOverride.ps1` |
+| `TestNamingVariant` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestNamingVariant.ps1` |
+| `TestPathMirror` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestPathMirror.ps1` |
 | `TestSourceReachable` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestSourceReachable.ps1` |
+| `TestSpecsSource` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestSpecsSource.ps1` |
 
 ## Usharp（7 件）
 

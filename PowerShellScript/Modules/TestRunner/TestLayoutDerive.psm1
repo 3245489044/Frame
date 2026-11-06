@@ -955,6 +955,10 @@ function Measure-TestLayoutAlignment {
         $content = ''
         try { $content = [IO.File]::ReadAllText($t.Abs) } catch { $content = '' }
         if ($t.Kind -eq 'Cs' -or $t.Kind -eq 'Spec') {
+            # `.specs` 是声明式跨模块用例：`project` 只给归属工程，不给源码边界；
+            # 且部分 AgentTest 的 L0 映射并不指向真实源码目录（`Agent.Launcher.Tests` → `src\Agent.Launcher`），
+            # 若对 spec 也做 I3 收敛会把这些真实类型命中全部滤掉。故 spec 仅做特异性过滤、不做前缀收敛。
+            $l2Prefix = $(if ($t.Kind -eq 'Cs') { $prefix } else { '' })
             $fileTypes = New-Object System.Collections.Generic.HashSet[string]
             foreach ($m in [regex]::Matches($content, $idPattern)) {
                 $id = $m.Value
@@ -962,7 +966,7 @@ function Measure-TestLayoutAlignment {
                 if ($ignoredTypes.ContainsKey($id)) { continue }
                 [void]$fileTypes.Add($id)
                 foreach ($s in @($Index.TypeToSources[$id])) {
-                    if ($prefix -and -not $s.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
+                    if ($l2Prefix -and -not $s.StartsWith($l2Prefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
                     if ($seen.Add($s)) { $found.Add($s) }
                 }
             }
@@ -1015,6 +1019,14 @@ function Measure-TestLayoutAlignment {
             $evidence.Add('Override')
         }
 
+        # ---- SpecOnly 车道：`project` 即归属契约（spec 可能测配置资产，无 C# 投影）----
+        # 只对「project 唯一命中真实测试工程」成立；缺 project / 多命中 / 未命中 ⇒ 仍为无主。
+        $projectOwned = $false
+        if ($t.Kind -eq 'Spec' -and $projDir) {
+            $projectOwned = $true
+            if ($found.Count -eq 0 -and @($evidence) -notcontains 'L0:project') { $evidence.Add('L0:project') }
+        }
+
         $rec = [pscustomobject]@{
             Path      = $t.Rel
             Class     = $t.Class
@@ -1028,7 +1040,7 @@ function Measure-TestLayoutAlignment {
             if (-not $sourceToTests.ContainsKey($s)) { $sourceToTests[$s] = New-Object System.Collections.Generic.HashSet[string] }
             [void]$sourceToTests[$s].Add($t.Rel)
         }
-        if ($found.Count -eq 0) {
+        if ($found.Count -eq 0 -and -not $projectOwned) {
             $reason = 'L1/L2/L3 均无证据'
             if ($t.Kind -eq 'Spec' -and $projReason) { $reason = $projReason }
             $unowned.Add([pscustomobject]@{ Path = $t.Rel; Project = $projDir; Reason = $reason })

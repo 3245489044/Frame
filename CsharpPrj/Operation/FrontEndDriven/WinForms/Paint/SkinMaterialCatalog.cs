@@ -38,6 +38,9 @@ public static class SkinMaterialCatalog
     public static IReadOnlyDictionary<string, ResolvedMaterial>? For(string? key)
         => key is { Length: > 0 } && _byKey.TryGetValue(key, out var materials) ? materials : null;
 
+    /// <summary>当前目录快照（只读；诊断/断言用，禁写入）。</summary>
+    public static IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>> Snapshot => _byKey;
+
     /// <summary>目录条目数（诊断/测试判据）。</summary>
     public static int Count => _byKey.Count;
 }

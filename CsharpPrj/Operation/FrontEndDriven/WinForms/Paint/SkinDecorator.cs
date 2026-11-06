@@ -86,6 +86,7 @@ public static class SkinDecorator
             state.Handler = (_, e) => PaintControl(target, state, e);
             control.Paint += state.Handler;
             control.Disposed += (_, _) => Detach(target);
+            SkinDiagnostics.RecordAttach(true);
         }
 
         control.Invalidate();
@@ -111,7 +112,18 @@ public static class SkinDecorator
         state.Material = null;
         state.MaterialKey = null;
         States.Remove(control);
+        SkinDiagnostics.RecordAttach(false);
     }
+
+    /// <summary>控件当前生效材质（未挂载 ⇒ null；断言/诊断读取面）。</summary>
+    /// <param name="control">目标控件。</param>
+    public static ResolvedMaterial? MaterialOf(Control? control)
+        => control is not null && States.TryGetValue(control, out var state) ? state.Material : null;
+
+    /// <summary>是否属于 owner-draw 白名单（断言前置：白名单外永远不着色）。</summary>
+    /// <param name="control">目标控件。</param>
+    public static bool IsOwnerDrawSupported(Control? control)
+        => control is not null && SupportsOwnerDraw(control);
 
     /// <summary>是否支持 owner-draw（容器/文本承载类；其余控件自绘内容）。</summary>
     private static bool SupportsOwnerDraw(Control control)
@@ -143,6 +155,7 @@ public static class SkinDecorator
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.Clear(Color.Transparent);
         var skipped = SkinPaintEngine.Paint(graphics, new Rectangle(Point.Empty, bounds.Size), material);
+        SkinDiagnostics.RecordPaint(skipped);
         if (skipped.Count > 0)
         {
             FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", skipped) });

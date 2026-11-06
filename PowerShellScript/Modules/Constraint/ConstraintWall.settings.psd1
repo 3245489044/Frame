@@ -125,6 +125,29 @@
     # CW-12 的 Adapter 白名单：语义字段读取只允许出现在这些目录。本轮为空 = 存量语义读取全部计入棘轮。
     SemanticReadAllowedDirs = @()
 
+    # 语义字段索引（FieldUsageIndex）：产物不入库（CentralTest BuildOutput），由 CF-W-14 做新鲜度/非空自证。
+    # 版本号进入产物；门禁侧只认本值，版本不符即视为过期（fail-closed）。
+    IndexGeneratorVersion = '1'
+    IndexOutputDirRel = 'Environment/CentralTest/BuildOutput'
+    IndexBuildOutputDirRel = 'Frame/CsharpPrj/BuildOutput'
+    # 源码所属装配：既不作 metadata 引用（否则同名类型歧义），也要求其**不得**出现在 BuildOutput 引用集内（生成器 fail-closed）。
+    IndexExcludedAssemblies = @(
+        'Modules.TConfig'
+        'WorkFlowMethod'
+        'FrontEndDriven'
+    )
+    # 仅从引用集剔除、但允许存在的装配（工具自身产物）。
+    IndexIgnoredAssemblies = @(
+        'FieldUsageIndex'
+    )
+    # 合法方法回写 API（显式登记，不做推断）。空 = CW-04 方法回写仍 attest；后续只增不减地登记。
+    IndexMutatorApis = @()
+    # 允许的持有容器：配置经快照传输不计裸持有。
+    IndexExemptTypes = @(
+        'ConfigSnapshot'
+    )
+    IndexAutoGenerate = $true
+
     # 排除目录：生成物/历史退役/测试夹具不参与实现侧扫描。
     ExcludePathSegments = @(
         '/obj/'

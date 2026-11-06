@@ -50,6 +50,10 @@ public sealed record ComputeIfStatement(ComputeExpression Condition, IReadOnlyLi
 public sealed record ComputeLoopStatement(string Variable, ComputeExpression From, ComputeExpression To,
     long Step, bool StepDeclared, IReadOnlyList<ComputeStatement> Body, int Line) : ComputeStatement(Line);
 
+/// <summary>无界循环：条件每轮重新求值；终止性由运行预算/条件保证（不做静态判定）。</summary>
+public sealed record ComputeWhileStatement(ComputeExpression Condition, IReadOnlyList<ComputeStatement> Body,
+    int Line) : ComputeStatement(Line);
+
 public sealed record ComputeReturnStatement(ComputeExpression? Value, int Line) : ComputeStatement(Line);
 
 public sealed record ComputeCallStatement(ComputeCallExpression Call, int Line) : ComputeStatement(Line);
@@ -334,8 +338,7 @@ public static class ComputeBodyParser
                         return ParseLoop(token);
                     case "while":
                         _index++;
-                        Error(token, "while 属于第 4 步（递归/图灵完备层），本阶段未启用");
-                        return null;
+                        return ParseWhile(token);
                     case "return":
                         _index++;
                         return ParseReturn(token);
@@ -440,6 +443,16 @@ public static class ComputeBodyParser
             var body = ParseStatements(new HashSet<string>(StringComparer.Ordinal) { "end" });
             if (!ExpectWord("end", "loop 缺少 end")) return null;
             return new ComputeLoopStatement(name.Text, from, to, step, stepDeclared, body, keyword.Line);
+        }
+
+        private ComputeStatement? ParseWhile(ComputeToken keyword)
+        {
+            var condition = ParseExpression();
+            if (condition is null) return null;
+            if (!ExpectWord("do", "while 需要 do")) return null;
+            var body = ParseStatements(new HashSet<string>(StringComparer.Ordinal) { "end" });
+            if (!ExpectWord("end", "while 缺少 end")) return null;
+            return new ComputeWhileStatement(condition, body, keyword.Line);
         }
 
         private ComputeStatement? ParseReturn(ComputeToken keyword)

@@ -118,10 +118,10 @@ internal sealed class ComputeLowering
                 HasReturn = _header.HasReturn,
                 Purity = _header.Purity,
                 Effects = _header.Effects,
-                Budget = _header.Budget,
+                Budget = _header.EffectiveBudget,
                 Slice = _header.Slice,
                 Heap = _header.Heap,
-                Depth = _header.Depth,
+                Depth = _header.EffectiveDepth,
                 LocalCount = _nextSlot - _header.Arguments.Count,
                 SourceFile = _header.SourceFile,
                 LineNumber = _header.LineNumber,
@@ -164,6 +164,9 @@ internal sealed class ComputeLowering
                     break;
                 case ComputeLoopStatement loop:
                     EmitLoop(loop);
+                    break;
+                case ComputeWhileStatement loop:
+                    EmitWhile(loop);
                     break;
                 case ComputeReturnStatement ret:
                     EmitReturn(ret);
@@ -351,7 +354,27 @@ internal sealed class ComputeLowering
                 }
             }
 
-            _loops.Add(new ComputeLoopMeta(statement.Line, fromLiteral, toLiteral, statement.Step, iterations));
+            _loops.Add(new ComputeLoopMeta(statement.Line, fromLiteral, toLiteral, statement.Step, iterations, "loop"));
+        }
+
+        private void EmitWhile(ComputeWhileStatement statement)
+        {
+            var checkIndex = _code.Count;
+            var condition = EmitExpression(statement.Condition);
+            if (condition is null) return;
+            if (condition.Kind != ComputeTypeKind.Bool)
+            {
+                Error(ComputeCodes.TypeMismatch, "while 条件必须是 bool", statement.Line);
+                return;
+            }
+
+            var exitIndex = Emit(ComputeInstruction.JumpIfFalse(0), statement.Line);
+            var assignedBefore = _assigned.ToHashSet(StringComparer.Ordinal);
+            EmitBlock(statement.Body, assignedBefore);
+            Emit(ComputeInstruction.Jump(checkIndex), statement.Line);
+            var end = _code.Count;
+            _code[exitIndex] = ComputeInstruction.JumpIfFalse(end);
+            _loops.Add(new ComputeLoopMeta(statement.Line, null, null, 0, null, "while"));
         }
 
         private void EmitReturn(ComputeReturnStatement statement)

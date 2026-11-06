@@ -97,6 +97,87 @@ namespace RoslynSpace.RoslynSyntaxUtilities.Base
             return result;
         }
 
+        /// <summary>
+        /// 多语法树编译结果（与单树 <see cref="CompilationResult"/> 分离：单树结果的核心字段是
+        /// <c>SyntaxTree</c>/<c>SemanticModel</c>，多树结果只提供 <c>Compilation</c> 与按树取模型）。
+        /// </summary>
+        public class MultiCompilationResult
+        {
+            public bool Success { get; set; }
+            public CSharpCompilation Compilation { get; set; }
+            public List<SyntaxTree> SyntaxTrees { get; set; } = new();
+            public List<Diagnostic> Diagnostics { get; set; } = new();
+            public List<CompilationError> Errors { get; set; } = new();
+            public string ErrorSummary { get; set; }
+
+            /// <summary>按树取语义模型；未构建成功时为 <c>null</c>。</summary>
+            public SemanticModel GetSemanticModel(SyntaxTree tree)
+                => Compilation == null ? null : Compilation.GetSemanticModel(tree);
+        }
+
+        /// <summary>
+        /// 用**同一编译单元**承接多棵语法树（供离线索引/跨文件语义分析）。
+        /// 复用 <see cref="CSharpSourceProvider"/> 产出的树；引用只认 <see cref="CompilationConfig.AdditionalReferences"/>，
+        /// 不做单树通道的 <c>AutoResolveReferences</c>（该口径按源码文本反射装配，无法覆盖多树）。
+        /// </summary>
+        public static MultiCompilationResult BuildFromTrees(
+            IEnumerable<SyntaxTree> syntaxTrees,
+            CompilationConfig config = null)
+        {
+            config ??= new CompilationConfig();
+            var result = new MultiCompilationResult();
+
+            try
+            {
+                var trees = syntaxTrees == null ? new List<SyntaxTree>() : syntaxTrees.ToList();
+                if (trees.Count == 0)
+                {
+                    result.Errors.Add(new CompilationError("SYSTEM", "多树编译未收到任何语法树", null, null, ErrorSeverity.SystemError));
+                    result.ErrorSummary = "多树编译未收到任何语法树";
+                    return result;
+                }
+
+                result.SyntaxTrees = trees;
+                var references = new List<MetadataReference>(config.AdditionalReferences);
+                var options = new CSharpCompilationOptions(
+                    config.OutputKind,
+                    optimizationLevel: config.OptimizationLevel,
+                    allowUnsafe: config.AllowUnsafe,
+                    checkOverflow: config.CheckOverflow);
+
+                result.Compilation = CSharpCompilation.Create(
+                    config.AssemblyName,
+                    trees,
+                    references,
+                    options);
+
+                if (config.CollectDiagnostics)
+                {
+                    result.Diagnostics = result.Compilation.GetDiagnostics().ToList();
+                    result.Errors = result.Diagnostics
+                        .Where(d => d.Severity == DiagnosticSeverity.Error)
+                        .Select(d => CompilationError.FromDiagnostic(d, ErrorSeverity.CompilationError))
+                        .ToList();
+
+                    result.Success = !result.Errors.Any();
+                    result.ErrorSummary = result.Errors.Any()
+                        ? $"发现 {result.Errors.Count} 个编译错误"
+                        : "编译成功";
+                }
+                else
+                {
+                    result.Success = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add(new CompilationError("SYSTEM", ex.Message, null, null, ErrorSeverity.SystemError));
+                result.ErrorSummary = $"编译过程异常: {ex.Message}";
+            }
+
+            return result;
+        }
+
         /// <summary>构建失败（未取得语义模型）即抛出，供要求「失败即异常」语义的调用点共用同一判定。</summary>
         public static CompilationResult BuildOrThrow(string code, CompilationConfig config = null)
         {

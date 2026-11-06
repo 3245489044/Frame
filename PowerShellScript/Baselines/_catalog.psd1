@@ -165,5 +165,6 @@
         @{ File = 'Constraint\CF-W-11-ConfigDefaultSingleSource.psd1'; Role = 'Data'; Domain = 'Constraint'; Gate = 'CF-W-11-ConfigDefaultSingleSource'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-11-ConfigDefaultSingleSource.ps1'; DueWhen = 'CW-11 就地缺省归零' }
         @{ File = 'Constraint\CF-W-12-SemanticReadClassified.psd1'; Role = 'Data'; Domain = 'Constraint'; Gate = 'CF-W-12-SemanticReadClassified'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-12-SemanticReadClassified.ps1'; DueWhen = 'CW-12 语义读取收归 Adapter' }
         @{ File = 'Constraint\CF-W-13-SnapshotOnly.psd1'; Role = 'Data'; Domain = 'Constraint'; Gate = 'CF-W-13-SnapshotOnly'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-13-SnapshotOnly.ps1'; DueWhen = 'CW-13 配置持有全部快照化' }
+        @{ File = 'Constraint\CF-W-14-FieldUsageIndex.psd1'; Role = 'Data'; Domain = 'Constraint'; Gate = 'CF-W-14-FieldUsageIndex'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-14-FieldUsageIndex.ps1'; DueWhen = '未解析接收者归零' }
     )
 }

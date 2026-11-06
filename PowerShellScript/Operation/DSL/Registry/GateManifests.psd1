@@ -2785,5 +2785,13 @@
         Note    = 'CW-13 配置只以 ConfigSnapshot<T> 持有（可静态确认的显式类型子集）；var/接口推断与深拷贝不可变仍 attest；基线棘轮 Baselines\Constraint\CF-W-13-SnapshotOnly.psd1；正负对照'
     }
 
+    'CF-W-14-FieldUsageIndex' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = 'ConstraintIndex 产物（BuildOutput\Debug\ConstraintIndex\FieldUsageIndex.json）的 schema/新鲜度/非空/引用集/未解析接收者'
+        Note    = '语义字段使用索引自证：Trees/Fields/Accesses 非空；排除装配不得进入引用集；UnresolvedReceivers 棘轮；基线棘轮 Baselines\Constraint\CF-W-14-FieldUsageIndex.psd1；正负对照'
+    }
+
 }
 

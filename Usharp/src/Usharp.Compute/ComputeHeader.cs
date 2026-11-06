@@ -41,14 +41,23 @@ public sealed record ComputeUnitHeader(
     long? Budget,
     long Slice,
     long Heap,
-    long Depth,
+    long? Depth,
     decimal? ShareMax,
     string SourceFile,
-    int LineNumber)
+    int LineNumber,
+    bool BudgetUnbounded = false,
+    bool DepthUnbounded = false)
 {
     public const long DefaultSlice = 1000;
     public const long DefaultHeap = 1000;
-    public const long DefaultDepth = 64;
+    public const long DefaultDepth = 256;
+    public const long DefaultBudget = 1_000_000;
+
+    /// <summary>显式 <c>budget=unbounded</c> 时不受隐含预算约束（attest 风险项）。</summary>
+    public long? EffectiveBudget => BudgetUnbounded ? null : Budget ?? DefaultBudget;
+
+    /// <summary>显式 <c>depth=unbounded</c> 时不受调用帧上限约束（attest 风险项）。</summary>
+    public long? EffectiveDepth => DepthUnbounded ? null : Depth ?? DefaultDepth;
 }
 
 /// <summary>
@@ -289,10 +298,11 @@ public static class ComputeHeaderParser
         }
 
         long? budget = null;
+        var budgetUnbounded = false;
         if (values.TryGetValue(FieldBudget, out var budgetText))
         {
-            var value = PositiveLong(budgetText, FieldBudget, errors, file, line, out var ok);
-            if (ok) budget = value;
+            budget = ReadLimit(budgetText, FieldBudget, errors, file, line, out budgetUnbounded, out var ok);
+            if (!ok) budget = null;
         }
 
         var slice = ComputeUnitHeader.DefaultSlice;
@@ -302,18 +312,19 @@ public static class ComputeHeaderParser
             if (ok) slice = value;
         }
 
-        var heap = budget ?? ComputeUnitHeader.DefaultHeap;
+        var heap = ComputeUnitHeader.DefaultHeap;
         if (values.TryGetValue(FieldHeap, out var heapText))
         {
             var value = PositiveLong(heapText, FieldHeap, errors, file, line, out var ok);
             if (ok) heap = value;
         }
 
-        var depth = budget ?? ComputeUnitHeader.DefaultDepth;
+        long? depth = null;
+        var depthUnbounded = false;
         if (values.TryGetValue(FieldDepth, out var depthText))
         {
-            var value = PositiveLong(depthText, FieldDepth, errors, file, line, out var ok);
-            if (ok) depth = value;
+            depth = ReadLimit(depthText, FieldDepth, errors, file, line, out depthUnbounded, out var ok);
+            if (!ok) depth = null;
         }
 
         decimal? shareMax = null;
@@ -341,7 +352,7 @@ public static class ComputeHeaderParser
 
         header = new ComputeUnitHeader(
             declaration.Name, kind, arguments, returnType, hasReturn, purity, effects,
-            budget, slice, heap, depth, shareMax, file, line);
+            budget, slice, heap, depth, shareMax, file, line, budgetUnbounded, depthUnbounded);
         diagnostics = errors;
         return true;
     }
@@ -367,6 +378,21 @@ public static class ComputeHeaderParser
             default:
                 break;
         }
+    }
+
+    private static long? ReadLimit(string text, string field, List<ComputeDiagnostic> errors,
+        string file, int line, out bool unbounded, out bool ok)
+    {
+        if (string.Equals(text, "unbounded", StringComparison.Ordinal))
+        {
+            unbounded = true;
+            ok = true;
+            return null;
+        }
+
+        unbounded = false;
+        var value = PositiveLong(text, field, errors, file, line, out ok);
+        return ok ? value : null;
     }
 
     private static long PositiveLong(string text, string field, List<ComputeDiagnostic> errors,

@@ -69,6 +69,8 @@ public static class SkinAppearanceInstaller
         SkinMaterialCatalog.Set(byKey);
         SkinMaterialCatalog.SetGlobal(global);
         SkinDecorator.Enabled = global is not null;
+        SkinDiagnostics.RecordInstall(
+            SkinDecorator.Enabled, profile, carrierId, program.Fingerprint, byKey.Count, global);
         return SkinDecorator.Enabled;
     }
 
@@ -78,5 +80,6 @@ public static class SkinAppearanceInstaller
         SkinMaterialCatalog.Set(null);
         SkinMaterialCatalog.SetGlobal(null);
         SkinDecorator.Disable();
+        SkinDiagnostics.RecordUninstall();
     }
 }

@@ -1,5 +1,4 @@
-﻿using Share.Frameworks.Billing;
-using Strategy.Observability.Envelope;
+﻿using Strategy.Observability.Envelope;
 using Strategy.Observability.Query;
 
 namespace Operation.StatisticalDriven.Pricing;

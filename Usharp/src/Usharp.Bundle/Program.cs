@@ -165,6 +165,36 @@ if (args.Length >= 3 && string.Equals(args[0], "fields", StringComparison.Ordina
     }
 }
 
+if (args.Length >= 3 && string.Equals(args[0], "uiprogram", StringComparison.OrdinalIgnoreCase))
+{
+    var programConfigRoot = args[1];
+    var programOutFile = args[2];
+    try
+    {
+        var emitted = DeclaredBundleBuilder.BuildUiProgram(programConfigRoot);
+        if (emitted.Json is null)
+        {
+            Console.Error.WriteLine($"ui-program 不可产出：errors={emitted.Errors}");
+            foreach (var diagnostic in emitted.Diagnostics)
+            {
+                if (diagnostic.Severity != Usharp.Semantics.UsharpSeverity.Error) continue;
+                Console.Error.WriteLine("  " + diagnostic);
+            }
+
+            return 1;
+        }
+
+        DeclaredBundleBuilder.WriteUiDeclaration(programOutFile, emitted.Json);
+        Console.WriteLine($"ui-program: errors={emitted.Errors} fingerprint={emitted.Fingerprint}");
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"ui-program 失败: {ex.Message}");
+        return 2;
+    }
+}
+
 if (args.Length >= 3 && string.Equals(args[0], "surfacemap", StringComparison.OrdinalIgnoreCase))
 {
     var mapConfigRoot = args[1];

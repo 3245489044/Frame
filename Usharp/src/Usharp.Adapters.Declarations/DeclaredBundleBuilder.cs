@@ -270,6 +270,19 @@ public static class DeclaredBundleBuilder
         return (emitted.Json, errors, emitted.Diagnostics);
     }
 
+    /// <summary>由 <c>Config\ui</c> 闭包构建 UI 个性化程序（ui-v1：token/slot/skin/part 单一产物）。</summary>
+    /// <param name="configRoot">配置根（含 <c>ui</c> 子目录）。</param>
+    public static (string? Json, string Fingerprint, int Errors, IReadOnlyList<UsharpDiagnostic> Diagnostics)
+        BuildUiProgram(string configRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
+        var closure = DeclarationClosures.Resolve(DeclarationLayout.FromRoot(configRoot).Spec("ui", configRoot));
+        var compilation = UsharpCompilationHost.Shared.Resolve(closure);
+        var emitted = Usharp.Emit.UsharpUiProgramEmitter.Emit(compilation);
+        var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
+        return (emitted.Json, emitted.Fingerprint ?? string.Empty, errors, emitted.Diagnostics);
+    }
+
     /// <summary>写出 UI 声明产物（UTF-8 无 BOM；目录不存在则创建）。</summary>
     /// <param name="outputFile">产物文件路径。</param>
     /// <param name="json">产物 JSON。</param>

@@ -14,7 +14,7 @@
 param(
     [Parameter(ParameterSetName = 'Check')][switch]$Check,
     [Parameter(ParameterSetName = 'Apply')][switch]$Apply,
-    [ValidateSet('gatherviews', 'fields', 'surfacemap', 'all')][string]$Target = 'all',
+    [ValidateSet('gatherviews', 'fields', 'surfacemap', 'uiprogram', 'all')][string]$Target = 'all',
     [string]$OutFile = ''
 )
 
@@ -27,6 +27,7 @@ $definitions = @(
     @{ Target = 'gatherviews'; Kind = 'gatherviews'; Out = (Join-Path $configRoot 'gather\gather-views.generated.json') }
     @{ Target = 'fields';      Kind = 'fields';      Out = (Join-Path $configRoot 'nodes\fields.generated.json') }
     @{ Target = 'surfacemap';  Kind = 'surfacemap';  Out = (Join-Path $configRoot 'ui\surface-map.generated.json') }
+    @{ Target = 'uiprogram';   Kind = 'uiprogram';   Out = (Join-Path $configRoot 'ui\ui.generated.json') }
 )
 
 if ($OutFile -and $Target -eq 'all') {

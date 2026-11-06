@@ -522,6 +522,16 @@
         Note   = '三视图指纹两两不相交（七元组 + badge/accent）；history 禁 l0-only 截断'
     }
 
+    UiProgramCoverage = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'UI 个性化单一声明程序（ui-v1）：槽位→token 闭合、每载体元素齐全、皮肤链无环、单元无零样式；负对照未知 token 必红'
+    }
+
     UiViewCatalog = @{
         Domain = 'Agent'
         Family = 'Presentation'

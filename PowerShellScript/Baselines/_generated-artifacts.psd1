@@ -220,7 +220,19 @@
             Kind               = 'Json'
             IgnoreJsonFields   = @()
             SentinelPattern    = 'surface-map-v1'
-            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1 -Apply'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1 -Apply -Target surfacemap'
+            Origin             = 'Derived'
+            DueWhen            = ''
+        }
+        @{
+            Name               = 'UiProgram'
+            Artifact           = 'Projects\Plug\Agent\Config\ui\ui.generated.json'
+            Generator          = 'Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1'
+            GeneratorArgs      = @{ Target = 'uiprogram'; OutFile = '{TEMP}' }
+            Kind               = 'Json'
+            IgnoreJsonFields   = @()
+            SentinelPattern    = 'ui-v1'
+            FixCommand         = 'pwsh Frame\PowerShellScript\Share\Ui\Generate-RenderDeclarations.ps1 -Apply -Target uiprogram'
             Origin             = 'Derived'
             DueWhen            = ''
         }

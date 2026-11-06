@@ -512,6 +512,15 @@
         Note   = 'Composer/Projector 零载体字面量（载体词只允许在 surface-map 声明面）'
     }
 
+    SurfaceAssets = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+    }
+
     SurfaceProgram = @{
         Domain = 'Agent'
         Family = 'Presentation'
@@ -519,7 +528,7 @@
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '表面程序结构闭合（surface-v1）：容器 view=owner / write 受控 / 映射存在 / 视图→容器闭合 / 无孤儿映射；负对照删映射必红'
+        Note   = '表面程序结构闭合（surface-v1）：容器 view=owner / write 受控 / 映射存在 / 视图→容器闭合 / 无孤儿映射 / 外观闭合（层→图元、材质→层+fallback、Profile→材质、caps 三态、每图元有落地载体）；负对照删映射必红'
     }
 
     ViewFingerprint = @{

@@ -14,6 +14,7 @@ using FrontEndDriven.Shared;
 using FrontEndDriven.Shared.Utils;
 using FrontEndDriven.ControlRender.Layout;
 using FrontEndDriven.WinForms.Applier.Projection;
+using FrontEndDriven.WinForms.Paint;
 using TConfig.ECS;
 using TConfig.ECS.Components;
 
@@ -216,6 +217,8 @@ public sealed class WinFormApplier
                 continue;
             }
 
+            // M5b：已解析材质 owner-draw（默认关闭；开关 = SkinDecorator.Enabled）。
+            SkinDecorator.Attach(control, desc);
             work.Add((desc, entity, control));
         }
 

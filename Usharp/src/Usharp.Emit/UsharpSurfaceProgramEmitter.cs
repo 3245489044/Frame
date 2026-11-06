@@ -34,6 +34,13 @@ public static class UsharpSurfaceProgramEmitter
     public const string ContainerPrefix = "surface_container_";
     public const string MappingPrefix = "surface_mapping_";
     public const string ViewPrefix = "surface_view_";
+    public const string PrimitivePrefix = "surface_primitive_";
+    public const string LayerPrefix = "surface_layer_";
+    public const string MaterialPrefix = "surface_material_";
+    public const string ProfilePrefix = "surface_profile_";
+    public const string CarrierPrefix = "surface_carrier_";
+    public const string StatePrefix = "surface_state_";
+    public const string AssetPrefix = "surface_asset_";
 
     /// <summary>容器写模式受控词。</summary>
     public static readonly IReadOnlySet<string> WriteModes =
@@ -53,6 +60,13 @@ public static class UsharpSurfaceProgramEmitter
         var mappings = new JsonObject();
         var containers = new JsonObject();
         var views = new JsonObject();
+        var primitives = new JsonArray();
+        var states = new JsonArray();
+        var layers = new JsonObject();
+        var materials = new JsonObject();
+        var profiles = new JsonObject();
+        var carriers = new JsonObject();
+        var assets = new JsonObject();
 
         foreach (var record in compilation.Records)
         {
@@ -136,6 +150,83 @@ public static class UsharpSurfaceProgramEmitter
                     ["containers"] = UsharpRecordJson.Array(UsharpRecordJson.StrList(record.Body, "containers")),
                 };
             }
+            else if (record.RecordId.StartsWith(PrimitivePrefix, StringComparison.Ordinal))
+            {
+                primitives.Add(JsonValue.Create(UsharpRecordJson.Str(record.Body, "name", record.RecordId[PrimitivePrefix.Length..])));
+            }
+            else if (record.RecordId.StartsWith(StatePrefix, StringComparison.Ordinal))
+            {
+                states.Add(JsonValue.Create(UsharpRecordJson.Str(record.Body, "name", record.RecordId[StatePrefix.Length..])));
+            }
+            else if (record.RecordId.StartsWith(LayerPrefix, StringComparison.Ordinal))
+            {
+                var name = UsharpRecordJson.Str(record.Body, "name", record.RecordId[LayerPrefix.Length..]);
+                layers[name] = new JsonObject
+                {
+                    ["name"] = name,
+                    ["primitive"] = UsharpRecordJson.Str(record.Body, "primitive", string.Empty),
+                    ["z"] = UsharpRecordJson.Str(record.Body, "z", "0"),
+                    ["params"] = Nested(record.Body, "params"),
+                };
+            }
+            else if (record.RecordId.StartsWith(MaterialPrefix, StringComparison.Ordinal))
+            {
+                var name = UsharpRecordJson.Str(record.Body, "name", record.RecordId[MaterialPrefix.Length..]);
+                materials[name] = new JsonObject
+                {
+                    ["name"] = name,
+                    ["fallback"] = UsharpRecordJson.Str(record.Body, "fallback", string.Empty),
+                    ["layers"] = Nested(record.Body, "layers"),
+                };
+            }
+            else if (record.RecordId.StartsWith(ProfilePrefix, StringComparison.Ordinal))
+            {
+                var name = UsharpRecordJson.Str(record.Body, "name", record.RecordId[ProfilePrefix.Length..]);
+                profiles[name] = new JsonObject
+                {
+                    ["name"] = name,
+                    ["extends"] = UsharpRecordJson.Str(record.Body, "extends", string.Empty),
+                    ["values"] = Nested(record.Body, "values"),
+                    ["materials"] = Nested(record.Body, "materials"),
+                };
+            }
+            else if (record.RecordId.StartsWith(AssetPrefix, StringComparison.Ordinal))
+            {
+                var id = UsharpRecordJson.Str(record.Body, "id", record.RecordId[AssetPrefix.Length..]);
+                var kind = UsharpRecordJson.Str(record.Body, "kind", "texture");
+                var src = UsharpRecordJson.Str(record.Body, "src", string.Empty);
+                if (kind != "texture" && kind != "decal")
+                {
+                    diagnostics.Add(Error(file, $"资源 '{id}' 的 kind 非法：{kind}（须 ∈ {{texture,decal}}）"));
+                    continue;
+                }
+
+                if (src.Length == 0 || System.IO.Path.IsPathRooted(src) || src.Contains(':'))
+                {
+                    diagnostics.Add(Error(file, $"资源 '{id}' 的 src 必须为载体无关相对路径（禁绝对路径）：'{src}'"));
+                    continue;
+                }
+
+                assets[id] = new JsonObject
+                {
+                    ["id"] = id,
+                    ["kind"] = kind,
+                    ["src"] = src,
+                    ["slice"] = UsharpRecordJson.Str(record.Body, "slice", string.Empty),
+                    ["repeat"] = UsharpRecordJson.Str(record.Body, "repeat", "repeat"),
+                    ["anchor"] = UsharpRecordJson.Str(record.Body, "anchor", "top-left"),
+                };
+            }
+            else if (record.RecordId.StartsWith(CarrierPrefix, StringComparison.Ordinal))
+            {
+                var id = UsharpRecordJson.Str(record.Body, "id", record.RecordId[CarrierPrefix.Length..]);
+                carriers[id] = new JsonObject
+                {
+                    ["id"] = id,
+                    ["dialect"] = UsharpRecordJson.Str(record.Body, "dialect", string.Empty),
+                    ["caps"] = Nested(record.Body, "caps"),
+                };
+            }
         }
 
         if (containers.Count == 0)
@@ -183,6 +274,70 @@ public static class UsharpSurfaceProgramEmitter
             }
         }
 
+        // 外观闭合：层→图元 / 材质→层+fallback / Profile→材质 / 载体 caps 词表（结构事实）。
+        var primitiveSet = new HashSet<string>(primitives.Select(p => p?.GetValue<string>() ?? string.Empty), StringComparer.Ordinal);
+        foreach (var pair in layers)
+        {
+            var primitive = ((JsonObject)pair.Value!)["primitive"]?.GetValue<string>() ?? string.Empty;
+            if (!primitiveSet.Contains(primitive))
+            {
+                diagnostics.Add(Error(file, $"层 '{pair.Key}' 的 primitive='{primitive}' 未在图元词表声明"));
+            }
+        }
+
+        foreach (var pair in materials)
+        {
+            var node = (JsonObject)pair.Value!;
+            foreach (var layerRef in node["layers"]!.AsObject().Select(p => p.Value?.GetValue<string>() ?? string.Empty))
+            {
+                if (layerRef.Length > 0 && !layers.ContainsKey(layerRef))
+                {
+                    diagnostics.Add(Error(file, $"材质 '{pair.Key}' 引用了未声明层 '{layerRef}'"));
+                }
+            }
+
+            var fallback = node["fallback"]?.GetValue<string>() ?? string.Empty;
+            if (fallback.Length > 0 && !materials.ContainsKey(fallback))
+            {
+                diagnostics.Add(Error(file, $"材质 '{pair.Key}' 的 fallback='{fallback}' 未声明"));
+            }
+        }
+
+        foreach (var pair in profiles)
+        {
+            var node = (JsonObject)pair.Value!;
+            var extends = node["extends"]?.GetValue<string>() ?? string.Empty;
+            if (extends.Length > 0 && !profiles.ContainsKey(extends))
+            {
+                diagnostics.Add(Error(file, $"Profile '{pair.Key}' 的 extends='{extends}' 未声明"));
+            }
+
+            foreach (var materialRef in node["materials"]!.AsObject().Select(p => p.Value?.GetValue<string>() ?? string.Empty))
+            {
+                if (materialRef.Length > 0 && !materials.ContainsKey(materialRef))
+                {
+                    diagnostics.Add(Error(file, $"Profile '{pair.Key}' 引用了未声明材质 '{materialRef}'"));
+                }
+            }
+        }
+
+        foreach (var pair in carriers)
+        {
+            foreach (var cap in ((JsonObject)pair.Value!)["caps"]!.AsObject())
+            {
+                if (!primitiveSet.Contains(cap.Key))
+                {
+                    diagnostics.Add(Error(file, $"载体 '{pair.Key}' 的 caps 键 '{cap.Key}' 不在图元词表"));
+                }
+
+                var state = cap.Value?.GetValue<string>() ?? string.Empty;
+                if (state != "supported" && state != "emulated" && state != "unsupported")
+                {
+                    diagnostics.Add(Error(file, $"载体 '{pair.Key}' 的 caps['{cap.Key}'] 非法：{state}（须 supported/emulated/unsupported）"));
+                }
+            }
+        }
+
         if (diagnostics.Count > 0) return new UsharpSurfaceProgramResult(null, null, diagnostics);
 
         var body = new JsonObject
@@ -191,6 +346,16 @@ public static class UsharpSurfaceProgramEmitter
             ["views"] = views,
             ["containers"] = containers,
             ["mappings"] = mappings,
+            ["appearance"] = new JsonObject
+            {
+                ["primitives"] = primitives,
+                ["states"] = states,
+                ["layers"] = layers,
+                ["materials"] = materials,
+                ["profiles"] = profiles,
+                ["carriers"] = carriers,
+                ["assets"] = assets,
+            },
         };
 
         var compact = body.ToJsonString();
@@ -200,6 +365,12 @@ public static class UsharpSurfaceProgramEmitter
 
         return new UsharpSurfaceProgramResult(document.ToJsonString(), hash, diagnostics);
     }
+
+    /// <summary>一层嵌套标量记录 → JSON 对象（params/layers/values/materials/caps）。</summary>
+    private static JsonObject Nested(UsharpRecord record, string name)
+        => record.TryGet(name, out var value) && value is UsharpRecord nested
+            ? UsharpRecordJson.Props(nested)
+            : new JsonObject();
 
     /// <summary>mapping.carriers → { 载体 id: { 属性: 值 } }（properties 归一：element → tag）。</summary>
     private static JsonObject Carriers(UsharpRecord record)

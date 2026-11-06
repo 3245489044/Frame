@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-06 18:36:23
+  生成时间: 2026-11-06 19:05:49
 -->
 <Project>
 
@@ -56,6 +56,7 @@
     <Mod_Storage>$(CsharpPrjDir)Modules\Foundations\Storage\</Mod_Storage>
     <Mod_DeclarativeDataflow>$(CsharpPrjDir)Modules\Data\DeclarativeDataflow\</Mod_DeclarativeDataflow>
     <Mod_DiagnosticContext>$(CsharpPrjDir)Modules\Foundations\DiagnosticContext\</Mod_DiagnosticContext>
+    <Mod_CapabilityResolution>$(CsharpPrjDir)Modules\Frameworks\CapabilityResolution\</Mod_CapabilityResolution>
     <Mod_EventFramework>$(CsharpPrjDir)Modules\Frameworks\EventFramework\</Mod_EventFramework>
     <Mod_ExecutionFramework>$(CsharpPrjDir)Modules\Frameworks\ExecutionFramework\</Mod_ExecutionFramework>
     <Mod_GraphProcessing>$(CsharpPrjDir)Modules\Data\GraphProcessing\</Mod_GraphProcessing>
@@ -145,6 +146,7 @@
     <Mod_Share_Llm>$(CsharpPrjDir)Share\Frameworks\Llm\</Mod_Share_Llm>
     <Mod_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\</Mod_CircuitFramework>
     <Mod_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\</Mod_Share_Conversation>
+    <Mod_Share_SurfaceModel>$(CsharpPrjDir)Share\Frameworks\SurfaceModel\</Mod_Share_SurfaceModel>
     <Mod_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\</Mod_Share_Messaging>
     <Mod_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\</Mod_Share_ContextGeometry>
     <Mod_Share_PortContext>$(CsharpPrjDir)Share\Frameworks\PortContext\</Mod_Share_PortContext>
@@ -202,6 +204,7 @@
     <Proj_Storage>$(CsharpPrjDir)Modules\Foundations\Storage\Storage.csproj</Proj_Storage>
     <Proj_DeclarativeDataflow>$(CsharpPrjDir)Modules\Data\DeclarativeDataflow\DeclarativeDataflow.csproj</Proj_DeclarativeDataflow>
     <Proj_DiagnosticContext>$(CsharpPrjDir)Modules\Foundations\DiagnosticContext\DiagnosticContext.csproj</Proj_DiagnosticContext>
+    <Proj_CapabilityResolution>$(CsharpPrjDir)Modules\Frameworks\CapabilityResolution\CapabilityResolution.csproj</Proj_CapabilityResolution>
     <Proj_EventFramework>$(CsharpPrjDir)Modules\Frameworks\EventFramework\EventFramework.csproj</Proj_EventFramework>
     <Proj_ExecutionFramework>$(CsharpPrjDir)Modules\Frameworks\ExecutionFramework\ExecutionFramework.csproj</Proj_ExecutionFramework>
     <Proj_GraphProcessing>$(CsharpPrjDir)Modules\Data\GraphProcessing\GraphProcessing.csproj</Proj_GraphProcessing>
@@ -291,6 +294,7 @@
     <Proj_Share_Llm>$(CsharpPrjDir)Share\Frameworks\Llm\Share.Llm.csproj</Proj_Share_Llm>
     <Proj_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\CircuitFramework.csproj</Proj_CircuitFramework>
     <Proj_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\Share.Conversation.csproj</Proj_Share_Conversation>
+    <Proj_Share_SurfaceModel>$(CsharpPrjDir)Share\Frameworks\SurfaceModel\SurfaceModel.csproj</Proj_Share_SurfaceModel>
     <Proj_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\Share.Messaging.csproj</Proj_Share_Messaging>
     <Proj_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\Share.ContextGeometry.csproj</Proj_Share_ContextGeometry>
     <Proj_Share_PortContext>$(CsharpPrjDir)Share\Frameworks\PortContext\Share.PortContext.csproj</Proj_Share_PortContext>

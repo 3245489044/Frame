@@ -78,6 +78,7 @@
     "Storage": "Modules\\Foundations\\Storage\\Storage.csproj",
     "DeclarativeDataflow": "Modules\\Data\\DeclarativeDataflow\\DeclarativeDataflow.csproj",
     "DiagnosticContext": "Modules\\Foundations\\DiagnosticContext\\DiagnosticContext.csproj",
+    "CapabilityResolution": "Modules\\Frameworks\\CapabilityResolution\\CapabilityResolution.csproj",
     "EventFramework": "Modules\\Frameworks\\EventFramework\\EventFramework.csproj",
     "ExecutionFramework": "Modules\\Frameworks\\ExecutionFramework\\ExecutionFramework.csproj",
     "GraphProcessing": "Modules\\Data\\GraphProcessing\\GraphProcessing.csproj",
@@ -168,6 +169,7 @@
 
     "CircuitFramework": "Share\\Frameworks\\CircuitFramework\\CircuitFramework.csproj",
     "Share.Conversation": "Share\\Frameworks\\Conversation\\Share.Conversation.csproj",
+    "Share.SurfaceModel": "Share\\Frameworks\\SurfaceModel\\SurfaceModel.csproj",
     "Share.Messaging": "Share\\Frameworks\\Messaging\\Share.Messaging.csproj",
     "Share.ContextGeometry": "Share\\Frameworks\\ContextGeometry\\Share.ContextGeometry.csproj",
     "Share.PortContext": "Share\\Frameworks\\PortContext\\Share.PortContext.csproj",

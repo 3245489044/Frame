@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>能力解析内核（CapabilityResolution）</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>通用「层 + 能力三态 + fallback + 规范签名」内核（BCL-only）：层引用按载体能力裁剪，unsupported 可见降级、emulated 保留并记账；不认识皮肤/材质/载体方言，任何多层能力叠加问题可复用。</ModuleRule_Description>
+    <ModuleRule_Keywords>能力;三态;层;fallback;签名;规范序;降级</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="BCL-only：零 ProjectReference，禁存储/网络/时钟/UI 依赖" />
+    <ModuleRule_Rule Include="不认识领域词（skin/material/css/控件）：图元与层名一律由调用方传入" />
+    <ModuleRule_Rule Include="缺失与不支持必须进 Issues（禁静默变纯色 / 禁静默丢层）" />
+    <ModuleRule_Rule Include="签名只由结构事实生成（primitive|z|params(sorted)|state），禁读执行者叙述" />
+    <ModuleRule_Rule Include="层序唯一由 z 升序（同 z 按 role 名序），禁调用方各自排序" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Modules.CapabilityResolution</RootNamespace>
+    <AssemblyName>Modules.CapabilityResolution</AssemblyName>
+    <Description>通用能力解析内核 — 层/能力三态/fallback/规范签名（BCL-only）</Description>
+  </PropertyGroup>
+
+</Project>

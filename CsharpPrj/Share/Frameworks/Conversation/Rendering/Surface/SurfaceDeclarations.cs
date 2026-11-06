@@ -20,7 +20,8 @@ public sealed record SurfaceDeclarations(
     SurfaceMapDeclaration Map,
     FieldDeclaration Fields,
     PresentationDeclaration Presentation,
-    IReadOnlyDictionary<string, IReadOnlyList<string>> KindFields)
+    IReadOnlyDictionary<string, IReadOnlyList<string>> KindFields,
+    ResolvedSurface? Resolved = null)
 {
     /// <summary>空声明（全部缺失：渲染走可见降级，不伪造）。</summary>
     public static readonly SurfaceDeclarations Empty = new(

@@ -7,6 +7,7 @@
       P1 契约数 ≥ 基线（正对照；防扫描面坍缩）
       P2 执行体在位（契约有消费者，禁孤儿声明）
       K1 每份契约经 Test-LaunchContract 判定合格（字段完备 / Entries 双向映射 / 禁 BuildOutput 字面）
+      K4 前置实现件在位（assembly-closure → 门禁落点单源 / binary-contract → 契约 Preflight.Script）
     退出码：0 无违规 / 1 违规 / 2 前置缺失。
 #>
 [CmdletBinding()]
@@ -16,6 +17,7 @@ $ErrorActionPreference = 'Stop'
 
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateBaseline.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Share\Launch\LaunchContract.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
 $baseline = Import-GateBaseline -Name LaunchContract
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..\..'))
@@ -54,6 +56,26 @@ foreach ($file in $contracts) {
     $contract = Import-LaunchContract -Path $file.FullName
     foreach ($x in @(Test-LaunchContract -Contract $contract -ContractPath $file.FullName -RepoRoot $repoRoot)) {
         $violations.Add(("[K1] {0}: {1}" -f $file.Name, $x))
+    }
+    # K4 前置实现件在位：assembly-closure 走门禁落点单源；binary-contract 走契约声明的 preflight 脚本。
+    # 动机：启动体在 S5 才发现缺件（exit 2）属晚失败，前置实现件缺失须在门禁期判红（判据载 = 文件存在性）。
+    foreach ($p in @($contract['Preconditions'])) {
+        switch ([string]$p) {
+            'none' { }
+            'assembly-closure' {
+                $impl = ''
+                try { $impl = [string](Find-GateScript -Name 'AssemblyClosure' -Domain 'Meta') } catch { $impl = '' }
+                if ([string]::IsNullOrWhiteSpace($impl) -or -not (Test-Path -LiteralPath $impl)) {
+                    $violations.Add(("[K4] {0}: 前置 assembly-closure 实现件不可解析（门禁落点 AssemblyClosure@Meta）" -f $file.Name))
+                }
+            }
+            'binary-contract' {
+                $rel = [string]$contract['ContractPreflight']['Script']
+                if ([string]::IsNullOrWhiteSpace($rel) -or -not (Test-Path -LiteralPath (Join-Path $repoRoot $rel))) {
+                    $violations.Add(("[K4] {0}: 前置 binary-contract 实现件缺失（{1}）" -f $file.Name, $rel))
+                }
+            }
+        }
     }
 }
 

@@ -100,12 +100,28 @@ public static class HtmlShellProjector
         string overlayHtml,
         string? pollAttrs = null,
         string? refreshTitle = null,
-        string? viewKey = null)
+        string? viewKey = null,
+        IReadOnlyDictionary<string, SurfaceContainerMarkup>? markup = null)
     {
         var present = new HashSet<string>(containers.Select(static c => c.Key), StringComparer.Ordinal);
 
         string Slot(string suffix) => RegionNamePrefix + suffix;
         string Html(string key) => contents.TryGetValue(key, out var value) ? value : string.Empty;
+
+        string Block(string key, string fallbackClass, string body)
+        {
+            var structure = markup is not null && markup.TryGetValue(key, out var found) ? found : null;
+            var tag = string.IsNullOrWhiteSpace(structure?.Tag) ? "div" : structure!.Tag;
+            var cssClass = string.Join(" ", new[] { fallbackClass, structure?.Class }
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+            var attrs = new MarkupAttrBatch().Class(cssClass, fallbackClass).Name(key);
+            if (structure is not null)
+            {
+                foreach (var pair in structure.Attributes) attrs.Data(pair.Key, pair.Value);
+            }
+
+            return MarkupTag.Element(tag, attrs, body);
+        }
 
         var bubbleHtml = new StringBuilder();
         foreach (var section in bubbles ?? Array.Empty<(string Key, string Html)>()) bubbleHtml.Append(section.Html);
@@ -117,17 +133,15 @@ public static class HtmlShellProjector
             if (slot == UiViewContainerSlot.Main || UiViewContainerSlots.IsShellSlot(slot)) continue;
 
             var body = slot == UiViewContainerSlot.Stream ? Html(container.Key) + bubbleHtml : Html(container.Key);
-            mainInner.Append(MarkupBlock.Render(
-                "div",
-                container.IsStream ? "region stream" : "region",
-                "region",
+            mainInner.Append(Block(
                 container.Key,
+                container.IsStream ? "region stream" : "region",
                 body));
         }
 
         var main = MarkupBlock.Render("div", "region", "region", Slot("main"), mainInner.ToString());
         var selectorRegion = present.Contains(Slot("seg"))
-            ? MarkupBlock.Render("div", "seg region", "region", Slot("seg"), selectorHtml)
+            ? Block(Slot("seg"), "seg region", selectorHtml)
             : string.Empty;
         var titleRegion = present.Contains(Slot("head"))
             ? MarkupPresets.LabelledSpan(Slot("head"), MarkupTag.Text(title))
@@ -136,10 +150,10 @@ public static class HtmlShellProjector
             ? MarkupPresets.LabelledSpan(Slot("subhead"), MarkupTag.Text(subtitle))
             : subtitle;
         var treeRegion = present.Contains(Slot("aside"))
-            ? MarkupBlock.Render("div", "region", "region", Slot("aside"), treeHtml)
+            ? Block(Slot("aside"), "region", treeHtml)
             : string.Empty;
         var overlayRegion = present.Contains(Slot("overlay"))
-            ? MarkupBlock.Render("div", "region", "region", Slot("overlay"), overlayHtml)
+            ? Block(Slot("overlay"), "region", overlayHtml)
             : string.Empty;
 
         var html = HtmlTemplateEngine.Render(templates, "layoutShell",
@@ -180,12 +194,28 @@ public static class HtmlShellProjector
     public static IReadOnlyDictionary<string, string> ComposeContents(
         IReadOnlyList<UiViewContainer> containers,
         IReadOnlyDictionary<string, string> shellSlots,
-        IReadOnlyDictionary<string, string> containerContents)
+        IReadOnlyDictionary<string, string> containerContents,
+        IReadOnlyDictionary<string, SurfaceContainerMarkup>? markup = null)
     {
         ArgumentNullException.ThrowIfNull(containers);
         var slots = shellSlots ?? new Dictionary<string, string>(StringComparer.Ordinal);
         var contents = containerContents ?? new Dictionary<string, string>(StringComparer.Ordinal);
         var composed = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        string Wrap(string key, string html)
+        {
+            var structure = markup is not null && markup.TryGetValue(key, out var found) ? found : null;
+            var tag = string.IsNullOrWhiteSpace(structure?.Tag) ? "div" : structure!.Tag;
+            var cssClass = string.Join(" ", new[] { "region", structure?.Class }
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+            var attrs = new MarkupAttrBatch().Class(cssClass, "region").Name(key);
+            if (structure is not null)
+            {
+                foreach (var pair in structure.Attributes) attrs.Data(pair.Key, pair.Value);
+            }
+
+            return MarkupTag.Element(tag, attrs, html);
+        }
 
         foreach (var container in containers)
         {
@@ -197,9 +227,10 @@ public static class HtmlShellProjector
                 ? suffix
                 : container.Key;
 
-            if (slots.TryGetValue(key, out var slotHtml)) composed[container.Key] = slotHtml;
-            else if (contents.TryGetValue(container.Key, out var contentHtml)) composed[container.Key] = contentHtml;
-            else composed[container.Key] = string.Empty;
+            var html = slots.TryGetValue(key, out var slotHtml)
+                ? slotHtml
+                : contents.TryGetValue(container.Key, out var contentHtml) ? contentHtml : string.Empty;
+            composed[container.Key] = Wrap(container.Key, html);
         }
 
         return composed;

@@ -53,6 +53,8 @@
     <ProjectReference Include="$(Proj_ContractFramework)" />
     <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
     <ProjectReference Include="$(Proj_DiagnosticContext)" />
+    <!-- 通用能力解析内核（Modules\Frameworks\CapabilityResolution，BCL-only）：层 + 能力三态 + fallback + 规范签名 -->
+    <ProjectReference Include="$(Proj_CapabilityResolution)" />
     <ProjectReference Include="$(Proj_EventFramework)" />
     <ProjectReference Include="$(Proj_ExecutionFramework)" />
     <ProjectReference Include="$(Proj_GraphProcessing)" />
@@ -99,6 +101,7 @@
     <Compile Remove="Foundations\ContractFramework\**\*.cs" />
     <Compile Remove="Data\DeclarativeDataflow\**\*.cs" />
     <Compile Remove="Foundations\DiagnosticContext\**\*.cs" />
+    <Compile Remove="Frameworks\CapabilityResolution\**\*.cs" />
     <Compile Remove="Frameworks\ExecutionFramework\**\*.cs" />
     <Compile Remove="Data\GraphProcessing\**\*.cs" />
     <Compile Remove="Foundations\Governance\**\*.cs" />

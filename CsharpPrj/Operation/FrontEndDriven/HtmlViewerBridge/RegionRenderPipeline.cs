@@ -46,6 +46,7 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
     private readonly string _stableSlotKey;
     private readonly string _volatileSlotKey;
     private readonly string _regionSlotPrefix;
+    private readonly Func<string>? _appearanceFingerprint;
     private readonly string _regionNamePrefix;
     private readonly string _streamRegionPrefix;
     private readonly Action<string, Exception>? _onFailure;
@@ -68,7 +69,8 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
         IUiDeclarationPort declarations,
         string regionNamePrefix = HtmlShellProjector.RegionNamePrefix,
         Action<string, Exception>? onFailure = null,
-        string streamRegionPrefix = UiViewNames.StreamSectionPrefix)
+        string streamRegionPrefix = UiViewNames.StreamSectionPrefix,
+        Func<string>? appearanceFingerprint = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _hash = hash ?? throw new ArgumentNullException(nameof(hash));
@@ -82,6 +84,7 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
         _stableSlotKey = stableSlotKey;
         _volatileSlotKey = volatileSlotKey;
         _regionSlotPrefix = regionSlotPrefix;
+        _appearanceFingerprint = appearanceFingerprint;
         _regionNamePrefix = regionNamePrefix;
         _onFailure = onFailure;
         _streamRegionPrefix = streamRegionPrefix;
@@ -259,11 +262,16 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
     }
 
     /// <summary>区域槽键（按视图分区：卸载即失效，切回必回源重写）。</summary>
-    private string RegionSlot(string? viewKey, string key) => _regionSlotPrefix + (viewKey ?? "-") + "/" + key;
+    private string RegionSlot(string? viewKey, string key)
+        => _regionSlotPrefix + (viewKey ?? "-") + "/" + key + AppearanceSuffix();
 
     /// <summary>流槽键（按 视图 × 流容器 分区；全集指纹水位）。</summary>
     private string StreamSlot(string? viewKey, string containerKey)
-        => _regionSlotPrefix + (viewKey ?? "-") + "/stream/" + containerKey;
+        => _regionSlotPrefix + (viewKey ?? "-") + "/stream/" + containerKey + AppearanceSuffix();
+
+    /// <summary>外观指纹后缀（M7）：切肤后旧写槽不复用；空指纹保持旧键形态（零回归）。</summary>
+    private string AppearanceSuffix()
+        => _appearanceFingerprint?.Invoke() is { Length: > 0 } fingerprint ? "/" + fingerprint : string.Empty;
 
     /// <summary>写目标名（容器键已是 DOM 名 ⇒ 不重复加前缀）。</summary>
     private string TargetName(string key)

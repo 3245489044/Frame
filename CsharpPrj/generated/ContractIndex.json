@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-06T10:43:33.8970801Z",
+  "builtAt": "2026-11-06T11:25:42.4614176Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -4532,7 +4532,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Applier/WinFormApplier.cs",
-          "line": 275,
+          "line": 278,
           "role": "Code",
           "text": "result.RelationsProcessed = relations.Count;"
         },

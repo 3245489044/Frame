@@ -18,21 +18,25 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
     private readonly SurfaceMapDeclaration _map;
     private readonly UiDeclaration? _declaration;
     private readonly string? _skin;
+    private readonly ResolvedSurface? _surface;
     private readonly HashSet<UnsupportedSlot> _unsupported = new();
 
     /// <param name="map">载体映射声明。</param>
     /// <param name="backendId">后端 id（声明面键；缺省 = 声明内 html 键）。</param>
     /// <param name="declaration">UI 个性化声明（可空 ⇒ 仅结构映射，零行为变化）。</param>
     /// <param name="skin">皮肤 id（可空 ⇒ 声明默认档）。</param>
+    /// <param name="surface">已解析表面（可空 ⇒ 走原模板路径，零回归）。</param>
     public HtmlSurfaceBackend(
         SurfaceMapDeclaration map,
         string backendId = "html",
         UiDeclaration? declaration = null,
-        string? skin = null)
+        string? skin = null,
+        ResolvedSurface? surface = null)
     {
         _map = map ?? throw new ArgumentNullException(nameof(map));
         _declaration = declaration;
         _skin = skin;
+        _surface = surface;
         BackendId = backendId;
     }
 
@@ -74,6 +78,8 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
             attributes["data-surface"] = node.Surface.ToString().ToLowerInvariant();
         }
 
+        // M4a：容器结构/材质类来自已解析表面（可空 ⇒ 原路径）；仅新增 class/data 属性，不改段键。
+        tag = ApplySurface(attributes, node.Key, tag);
         ApplyTheme(attributes, theme?.PartForRole(node.Role) ?? theme?.PartForClass(node.Class), node.State);
 
         var children = new List<UiNode>(node.Fields.Count + node.Children.Count);
@@ -103,6 +109,39 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         ApplyTheme(attributes, theme?.PartForCell(field.Cell), UiNodeState.Open);
 
         return new UiNode(tag, $"{field.Name}", attributes, TextOf(field), null, null);
+    }
+
+    /// <summary>
+    /// 叠加已解析表面的容器结构与材质类：tag/cls 来自容器映射，材质类 = <c>material-&lt;id&gt;</c>。
+    /// <para>仅新增属性；未命中容器 ⇒ 原样返回（可见降级由 SurfaceProgram 门禁承担）。</para>
+    /// </summary>
+    private string ApplySurface(IDictionary<string, string> attributes, string key, string tag)
+    {
+        if (_surface?.Container(key) is not { } container) return tag;
+
+        if (container.Structure.TryGetValue("tag", out var structureTag) && structureTag.Length > 0)
+        {
+            tag = structureTag;
+        }
+
+        var classes = new List<string>();
+        if (attributes.TryGetValue("class", out var existing) && existing.Length > 0) classes.Add(existing);
+        if (container.Structure.TryGetValue("cls", out var structureClass) && structureClass.Length > 0)
+        {
+            classes.Add(structureClass);
+        }
+
+        foreach (var material in container.Materials.Values)
+        {
+            classes.Add(CssSurfaceProjector.ClassName(material.FallbackUsed ?? material.MaterialId));
+        }
+
+        if (classes.Count > 0)
+        {
+            attributes["class"] = string.Join(" ", classes.Distinct(StringComparer.Ordinal));
+        }
+
+        return tag;
     }
 
     /// <summary>

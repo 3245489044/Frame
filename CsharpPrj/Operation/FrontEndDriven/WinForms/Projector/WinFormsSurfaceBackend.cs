@@ -18,21 +18,25 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
     private readonly SurfaceMapDeclaration _map;
     private readonly UiDeclaration? _declaration;
     private readonly string? _skin;
+    private readonly ResolvedSurface? _surface;
     private readonly HashSet<UnsupportedSlot> _unsupported = new();
 
     /// <param name="map">载体映射声明。</param>
     /// <param name="backendId">后端 id（声明面键）。</param>
     /// <param name="declaration">UI 个性化声明（可空 ⇒ 仅结构映射，零行为变化）。</param>
     /// <param name="skin">皮肤 id（可空 ⇒ 声明默认档）。</param>
+    /// <param name="surface">已解析表面（可空 ⇒ 原 ControlConfig 路径）。</param>
     public WinFormsSurfaceBackend(
         SurfaceMapDeclaration map,
         string backendId = "winforms",
         UiDeclaration? declaration = null,
-        string? skin = null)
+        string? skin = null,
+        ResolvedSurface? surface = null)
     {
         _map = map ?? throw new ArgumentNullException(nameof(map));
         _declaration = declaration;
         _skin = skin;
+        _surface = surface;
         BackendId = backendId;
     }
 
@@ -79,6 +83,26 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
             Enabled = node.State != UiNodeState.Disabled,
             Dock = "Top",
         };
+        // M5a：容器结构（控件类型/Dock）与已解析材质引用；不在此层做图元绘制（M5b）。
+        if (_surface?.Container(node.Key) is { } container)
+        {
+            if (container.Structure.TryGetValue("control", out var structureControl)
+                && !string.IsNullOrWhiteSpace(structureControl))
+            {
+                descriptor.Type = structureControl;
+            }
+
+            if (container.Structure.TryGetValue("dock", out var structureDock)
+                && !string.IsNullOrWhiteSpace(structureDock))
+            {
+                descriptor.Dock = structureDock;
+                descriptor.HasDock = true;
+            }
+
+            descriptor.SkinRefs = container.Materials;
+            descriptor.Issues = container.Issues;
+        }
+
         ApplyTheme(descriptor, theme?.PartForRole(node.Role) ?? theme?.PartForClass(node.Class), node.State, node.Role);
         snapshot.Controls.Add(descriptor);
 

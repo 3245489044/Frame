@@ -416,8 +416,8 @@ foreach ($precondition in @($contract['Preconditions'])) {
                 Exit-Launch -Code 2
             }
             $sw = [System.Diagnostics.Stopwatch]::StartNew()
-            # fail-closed：先置哨兵 -1，门禁「未 exit 就崩溃」不得被读成通过（0）
-            $LASTEXITCODE = -1
+            # fail-closed：先置全局哨兵 -1（禁写局部 $LASTEXITCODE：嵌套脚本里会遮蔽自动变量、读不到子脚本退出码）
+            $global:LASTEXITCODE = -1
             try { & $closureGate -Check }
             catch {
                 $sw.Stop()
@@ -425,7 +425,7 @@ foreach ($precondition in @($contract['Preconditions'])) {
                 Write-LaunchConsole ('[launch] exit 3：装配闭包判定不可得（' + $_.Exception.Message + '）') 'Red'
                 Exit-Launch -Code 3
             }
-            $closureRc = if ($null -eq $LASTEXITCODE) { -1 } else { $LASTEXITCODE }
+            $closureRc = if ($null -eq $global:LASTEXITCODE) { -1 } else { [int]$global:LASTEXITCODE }
             $sw.Stop()
             Write-LaunchTrace 'STEP' ("[S5] 装配闭包：result={0} exit={1} took_ms={2}" -f $(if ($closureRc -eq 0) { 'ok' } else { 'fail' }), $closureRc, [int]$sw.Elapsed.TotalMilliseconds)
             if ($closureRc -ne 0) {

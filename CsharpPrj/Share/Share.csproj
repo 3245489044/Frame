@@ -23,6 +23,8 @@
     <ProjectReference Include="$(Proj_AssemblyFramework)" />
     <ProjectReference Include="$(Proj_CommandFramework)" />
     <ProjectReference Include="$(Proj_Share_Conversation)" />
+    <!-- ★ 表面模型门面 + 六域聚拢模块（Share.SurfaceModel）：产品无关，产品经烘焙 DLL 消费 -->
+    <ProjectReference Include="$(Proj_Share_SurfaceModel)" />
     <!-- ★ 通用信息传递内核（Share.Messaging）：信封/地址/状态机/路由/流控/闭包，零 ProjectReference（仅 BCL） -->
     <ProjectReference Include="$(Proj_Share_Messaging)" />
     <!-- ★ 上下文几何内核（Share.ContextGeometry）：缓存带/前缀段/快照/组合/命中核算/策略判据，零 ProjectReference（仅 BCL） -->

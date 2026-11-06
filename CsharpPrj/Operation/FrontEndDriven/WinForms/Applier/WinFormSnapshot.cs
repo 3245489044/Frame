@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ParameterResolver.Abstractions;
+using Share.Conversation.Rendering.Surface;
 
 namespace FrontEndDriven.WinForms.Applier;
 
@@ -54,6 +55,12 @@ public sealed class ControlDescriptor : IMetadataProvider<ControlDescriptor>
     public List<string>? Items { get; set; }
 
     public List<EventBindingDescriptor>? EventBindings { get; set; }
+
+    /// <summary>已解析材质引用（槽 → 材质；M5a 只携带不绘制，M5b 由 SkinDecorator 消费）。</summary>
+    public IReadOnlyDictionary<string, ResolvedMaterial>? SkinRefs { get; set; }
+
+    /// <summary>解析期可见问题（缺失/不支持/模拟；禁静默）。</summary>
+    public IReadOnlyList<SurfaceIssue>? Issues { get; set; }
 
     public string? ExecutionResult { get; set; }
 

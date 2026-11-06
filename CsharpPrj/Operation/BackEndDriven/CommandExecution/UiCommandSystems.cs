@@ -6,6 +6,8 @@ using FrameworkAbstractions.ContainerAbstractions;
 using BackEndDriven.Diagnostics;
 using Share.EventBindingOrchestrator.Abstractions;
 using Share.EventBindingOrchestrator.Adapters;
+// F3.1：删除本类内纯转发的私有 GetParamString，直接静态导入唯一权威实现。
+using static BackEndDriven.CommandExecution.ValidateSystemHelpers;
 
 namespace BackEndDriven.CommandExecution;
 
@@ -331,9 +333,6 @@ public class AssertSystem : CommandSystemBase
         return null;
     }
 
-    // GetParamString 单一实现收敛到 ValidateSystemHelpers（S1：唯一权威，删冗余副本）。
-    private static string? GetParamString(CommandMetaComponent meta, string key)
-        => ValidateSystemHelpers.GetParamString(meta, key);
 }
 
 

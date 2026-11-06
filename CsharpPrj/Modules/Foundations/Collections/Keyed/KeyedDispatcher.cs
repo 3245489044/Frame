@@ -1,16 +1,13 @@
-using System;
-using System.Collections.Generic;
-
-namespace Operation.LoopFoldMethod.Catalog;
+namespace Modules.Foundations.Collections.Keyed;
 
 /// <summary>
-/// **域键分派器**（通用）—— 持「域键 → 服务」映射，无键重载走默认键，未命中不伪造（返回 false / null）。
+/// 域键分派器（通用）—— 持「域键 → 服务」映射，无键重载走默认键，未命中不伪造（返回 false / null）。
 /// <para>
 /// 存在理由：注册表按类型键注册时，同类型多域无法各注册一次；故单槽注册本分派器，多域在内装填。
 /// </para>
 /// </summary>
 /// <typeparam name="TService">域服务类型。</typeparam>
-public sealed class KeyedDispatcher<TService>
+public class KeyedDispatcher<TService>
 {
     private readonly IReadOnlyDictionary<string, TService> _services;
     private readonly string _defaultKey;

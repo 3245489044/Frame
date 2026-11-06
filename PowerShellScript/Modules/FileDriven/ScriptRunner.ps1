@@ -285,11 +285,17 @@ function New-ScriptRunner {
                 return
             }
 
-            # 过滤空行和模式提示行，取最后一行作为结果
-            $lines = $output | Where-Object { 
+            # 过滤空行和模式提示行，取最后一行作为结果。
+            # SelectScript 只输出单值（相对路径/命令字/标记）时管道结果会被解包为 string，
+            # 必须显式包成数组：否则 $lines[-1] 走的是字符串索引语义，返回 [char] 而非整行。
+            $lines = @($output | Where-Object {
                 $_ -and $_ -notmatch '^\s*$' -and $_ -notmatch '^\s*\[当前模式:'
+            })
+            if ($lines.Count -eq 0) {
+                Write-Host "[错误] 脚本选择器输出为空" -ForegroundColor Red
+                return
             }
-            $lastLine = $lines[-1]
+            $lastLine = [string]$lines[$lines.Count - 1]
 
             if ([string]::IsNullOrEmpty($lastLine)) {
                 # 退出

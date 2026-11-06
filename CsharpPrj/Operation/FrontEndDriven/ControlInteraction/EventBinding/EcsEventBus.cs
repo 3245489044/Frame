@@ -15,6 +15,7 @@ using FrontEndDriven.Diagnostics;
 using FrontEndDriven.ECS.Components;
 using ParameterResolver.Utilities;
 using Modules.Threading;
+using Modules.EventFramework.Bus;
 using Plate.HtmlViewer;
 using Share.EventBindingOrchestrator.Invocation;
 using Share.EventBindingOrchestrator.Abstractions;
@@ -70,9 +71,8 @@ public sealed class EcsEventBus : IInteractionEventPort
     private readonly ControlPool _controlPool;
     private readonly EntityQueryService _entityQuery;
 
-    private readonly ConcurrentQueue<UIInteractionEvent> _queue = new();
-
-    private int _dispatching;
+    // 单消费者可重入派发队列（Modules.EventFramework）：守卫 + 重入入队 + 统一 drain 单源。
+    private readonly ReentrantEventDispatchQueue<UIInteractionEvent> _queue = new();
 
     /// <summary>
     /// 在途分发取消表（Fix·双时钟对齐）：opId → 可取消令牌源。
@@ -123,7 +123,7 @@ public sealed class EcsEventBus : IInteractionEventPort
         _queue.Enqueue(evt);
 
         // 重入保护：分发中再次 Enqueue 只入队（外层分发循环会消费），同步无法确知该事件结果 → Dispatching。
-        if (Interlocked.Exchange(ref _dispatching, 1) == 1)
+        if (!_queue.TryEnterDrain())
             return new EventDispatchResult(EventDispatchOutcome.Dispatching);
 
         try
@@ -132,36 +132,29 @@ public sealed class EcsEventBus : IInteractionEventPort
             _entityNotFoundBurst = 0;
 
             // 命令链期望同步语义（click → 函数执行 → 结果）；GUI 采集也即时分发。
-            while (_queue.TryDequeue(out var e))
-            {
-                e.Ack?.Settle(Dispatch(e));
-            }
+            _queue.Drain(e => e.Ack?.Settle(Dispatch(e)));
 
             // E2：只认本事件的逐事件 ack（原实现返回「最后出队事件」结果，并发下归属错）。
             return evt.Ack?.Result ?? new EventDispatchResult(EventDispatchOutcome.Ignored);
         }
         finally
         {
-            Interlocked.Exchange(ref _dispatching, 0);
+            _queue.ExitDrain();
         }
     }
 
     public void DispatchPending()
     {
-        if (Interlocked.Exchange(ref _dispatching, 1) == 1) return;
+        if (!_queue.TryEnterDrain()) return;
 
         try
         {
             _entityNotFoundBurst = 0; // F4.2：新一轮突发重置聚合计数
-
-            while (_queue.TryDequeue(out var evt))
-            {
-                evt.Ack?.Settle(Dispatch(evt));
-            }
+            _queue.Drain(evt => evt.Ack?.Settle(Dispatch(evt)));
         }
         finally
         {
-            Interlocked.Exchange(ref _dispatching, 0);
+            _queue.ExitDrain();
         }
     }
 

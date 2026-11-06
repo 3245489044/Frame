@@ -21,6 +21,14 @@ public interface ICommandSystem
 public interface IAsyncCommandSystem
 {
     Task ExecuteAsync(Entity entity, CommandMetaComponent meta);
+
+    /// <summary>
+    /// 预算感知重载：协调器把命令级 deadline 的取消令牌真正传入命令体（不再丢弃 <c>_ =></c>）。
+    /// 默认委托到两参版本（既有实现零改动）；能观察取消的实现应覆写本方法并在等待/轮询中使用该令牌，
+    /// 以便预算超时后可立即停止工作，而不是在后台继续写业务状态（结果隔离）。
+    /// </summary>
+    Task ExecuteAsync(Entity entity, CommandMetaComponent meta, CancellationToken cancellationToken)
+        => ExecuteAsync(entity, meta);
 }
 
 /// <summary>

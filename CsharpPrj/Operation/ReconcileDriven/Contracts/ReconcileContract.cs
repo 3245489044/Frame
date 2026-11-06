@@ -33,6 +33,13 @@ public sealed record ReconcileContract(string Mode, string Order, IReadOnlyList<
 
         var mode = string.IsNullOrWhiteSpace(cfg.Mode) ? ReconcileModes.Off : cfg.Mode!.Trim();
         var order = string.IsNullOrWhiteSpace(cfg.Order) ? ReconcileOrders.Strict : cfg.Order!.Trim();
+
+        // 未知取值不得静默降级为“非严格/不告警”：装载期即失败（E-9）。
+        if (!IsKnownMode(mode))
+            throw new ArgumentException($"未知对账模式 '{mode}'（允许 {ReconcileModes.Off}/{ReconcileModes.Warn}/{ReconcileModes.Strict}）", nameof(cfg));
+        if (!IsKnownOrder(order))
+            throw new ArgumentException($"未知对账顺序 '{order}'（允许 {ReconcileOrders.Any}/{ReconcileOrders.Strict}）", nameof(cfg));
+
         var signals = cfg.Signals?
             .Where(s => s is not null && !string.IsNullOrWhiteSpace(s.Signal))
             .ToList() ?? new List<SignalExpectation>();
@@ -40,4 +47,13 @@ public sealed record ReconcileContract(string Mode, string Order, IReadOnlyList<
         var when = string.IsNullOrWhiteSpace(cfg.When) ? null : cfg.When!.Trim();
         return new ReconcileContract(mode, order, signals, when);
     }
+
+    private static bool IsKnownMode(string mode)
+        => string.Equals(mode, ReconcileModes.Off, StringComparison.OrdinalIgnoreCase)
+           || string.Equals(mode, ReconcileModes.Warn, StringComparison.OrdinalIgnoreCase)
+           || string.Equals(mode, ReconcileModes.Strict, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsKnownOrder(string order)
+        => string.Equals(order, ReconcileOrders.Any, StringComparison.OrdinalIgnoreCase)
+           || string.Equals(order, ReconcileOrders.Strict, StringComparison.OrdinalIgnoreCase);
 }

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>通用序列单调校验内核</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>按调用方给定的序键（Func&lt;T,long&gt;）校验序列单调性并定位首个违序位置：纯算法、BCL-only、零 ProjectReference；不识别任何业务字段（事件/任务/审计语义由消费方注入）。</ModuleRule_Description>
+    <ModuleRule_Keywords>序列;单调;违序;排序;序键;校验</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="内核只依赖 BCL；不得 using Share.* / Operation.* / Strategy.*" />
+    <ModuleRule_Rule Include="只接收序键选择器；禁在模块内识别 EventKind/ScopeId 等业务字段" />
+    <ModuleRule_Rule Include="违序定位语义单源（首个违序下标 + 基准下标），消费方不做第二份循环比较" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Modules.Sequencing</AssemblyName>
+    <RootNamespace>Modules.Sequencing</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Description>通用序列单调校验内核 — 序键单调性判定与首个违序定位（BCL-only）</Description>
+  </PropertyGroup>
+
+</Project>

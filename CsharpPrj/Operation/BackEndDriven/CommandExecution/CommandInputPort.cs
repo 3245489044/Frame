@@ -5,8 +5,8 @@ using System.Linq;
 using ECS.Core;
 using ECS.Components;
 using BackEndDriven.Diagnostics;
-using BackEndDriven.Utilities;
 using FrameworkAbstractions.ComponentRegistry;
+using Share.HostAssembly.Concurrency;
 using Modules.Parsing.Models;
 using TConfig;
 
@@ -79,9 +79,21 @@ public sealed class CommandInputPort
         ArgumentNullException.ThrowIfNull(commandText);
 
         // 优先事件平台 workflow 执行（含 middleware 管道）；成功后返回执行结果实体。
-        var workflowEntity = AsyncHelper.RunSync(() => ExecuteSingleWorkflowAsync(commandText), 30_000);
-        if (workflowEntity != null)
-            return workflowEntity.Value;
+        // 有界同步桥统一走 Share.SyncAsyncBridge（A-3 单源）；超时抛 TimeoutException → 明确放弃并回退本地命令，
+        // 不再像原 AsyncHelper 那样让超时异常逃逸到调用方（F4.2）。
+        try
+        {
+            var workflowEntity = SyncAsyncBridge.WaitResultBounded(
+                () => ExecuteSingleWorkflowAsync(commandText),
+                TimeSpan.FromMilliseconds(30_000));
+            if (workflowEntity != null)
+                return workflowEntity.Value;
+        }
+        catch (TimeoutException ex)
+        {
+            BackEndLog.Log("CommandInputPort_ExecuteSingle_workflow_timeout",
+                new { command = commandText, error = ex.Message });
+        }
 
         // 回退：本地命令系统解析并执行。
         var entity = _parseSystem.ParseAndCreateEntity(commandText, 0);
@@ -148,9 +160,11 @@ public sealed class CommandInputPort
         }
         catch (Exception ex)
         {
-            BackEndLog.Log("CommandInputPort_ExecuteSingle_workflow_fallback",
-                new { command = commandText, error = ex.Message });
-            return null;
+            // F4.4：只有「IEventPlatform 未注册」（Result == null）才允许回退本地命令；
+            // 工作流真实失败必须上抛，不能被静默吞掉后当作「平台未注册」走另一条执行路径。
+            BackEndLog.Log("CommandInputPort_ExecuteSingle_workflow_failed",
+                new { command = commandText, error = ex.Message, type = ex.GetType().Name });
+            throw;
         }
     }
 

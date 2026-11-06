@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>存储分页内核（PageCursor）</ModuleRule_Title>
+    <ModuleRule_Layer>1</ModuleRule_Layer>
+    <ModuleRule_Description>存储侧游标推进的纯状态内核：afterId 游标、页大小、最大页数护栏与上下文可读的越界失败。零 IO、零时钟、零 ProjectReference（仅 BCL）；不绑定具体存储实现或实体类型。</ModuleRule_Description>
+    <ModuleRule_Keywords>分页;游标;afterId;PageCursor;护栏</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="纯状态内核：只推进游标与页数，不执行查询、不持有存储连接、不含实体语义" />
+    <ModuleRule_Rule Include="游标未严格推进（超过最大页数）必须 fail-fast 并带上下文，禁止静默死循环或截断" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Modules.Foundations.Storage</RootNamespace>
+    <AssemblyName>Modules.Foundations.Storage</AssemblyName>
+    <Description>存储分页内核 — afterId 游标 + 页大小 + 最大页数护栏（纯逻辑，BCL-only）</Description>
+  </PropertyGroup>
+
+</Project>

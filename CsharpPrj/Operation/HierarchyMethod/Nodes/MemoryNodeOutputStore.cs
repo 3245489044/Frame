@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.WorkFlowMethod.Nodes.Contracts;
+using SignalRankField = Modules.Node.Projection.NodeSignalRankField;
+using SignalRanking = Modules.Node.Projection.NodeSignalRanking;
+using SignalValueKind = Modules.Node.Projection.NodeSignalValueKind;
 
 namespace Operation.HierarchyMethod.Nodes
 {
@@ -17,6 +21,15 @@ namespace Operation.HierarchyMethod.Nodes
     public sealed class MemoryNodeOutputStore : INodeOutputStore
     {
         private readonly Dictionary<(string WorkflowId, string NodeKey), NodeEntry> _entries = new();
+
+        /// <summary>信号排序字段声明（与持久落点同一口径，机制单源 = Modules NodeSignalRanking）。</summary>
+        private static readonly IReadOnlyList<SignalRankField> SignalRankFields = new[]
+        {
+            new SignalRankField("sticky", SignalValueKind.Boolean),
+            new SignalRankField("priority", SignalValueKind.Number),
+            new SignalRankField("valueScore", SignalValueKind.Number),
+            new SignalRankField("freshness", SignalValueKind.Number),
+        };
 
         /// <summary>声明式种子：写入一个节点输出端口（null 值忽略，对齐真实存储「不产生空槽位」）。</summary>
         public void Seed(string workflowId, string nodeKey, string port, object? value) => Put(workflowId, nodeKey, port, value);
@@ -113,17 +126,25 @@ namespace Operation.HierarchyMethod.Nodes
             string workflowId, string? module = null, string? nodeType = null, string? region = null,
             int limit = -1, CancellationToken ct = default)
         {
-            var result = _entries
+            var signals = _entries
                 .Where(kv => string.Equals(kv.Key.WorkflowId, workflowId, StringComparison.Ordinal))
                 .Where(kv => string.IsNullOrWhiteSpace(module) || kv.Value.Module == module)
                 .Where(kv => string.IsNullOrWhiteSpace(nodeType) || kv.Value.NodeType == nodeType)
                 .Where(kv => string.IsNullOrWhiteSpace(region) || kv.Value.Region == region)
                 .Select(kv => kv.Value.ToSignal(kv.Key.WorkflowId, kv.Key.NodeKey))
-                .OrderByDescending(s => s.Sticky)
-                .ThenByDescending(s => s.Priority)
-                .ThenByDescending(s => s.ValueScore ?? double.MinValue)
-                .ThenByDescending(s => s.Freshness)
                 .ToList();
+
+            var result = SignalRanking.Rank(
+                signals,
+                static (signal, field) => field switch
+                {
+                    "sticky" => signal.Sticky ? "1" : "0",
+                    "priority" => signal.Priority.ToString(CultureInfo.InvariantCulture),
+                    "valueScore" => signal.ValueScore?.ToString(CultureInfo.InvariantCulture),
+                    "freshness" => signal.Freshness.ToString(CultureInfo.InvariantCulture),
+                    _ => null,
+                },
+                SignalRankFields);
 
             return Task.FromResult<IReadOnlyList<NodeSignal>>(limit >= 0 ? result.Take(limit).ToList() : result);
         }

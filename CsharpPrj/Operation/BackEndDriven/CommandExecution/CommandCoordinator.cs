@@ -1,8 +1,9 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
-using Modules.Threading;
 using ECS.Core;
+using ExecutionFramework.Engine.Core;
+using Modules.Threading;
 using FrameworkAbstractions.ComponentRegistry;
 using BackEndDriven.Diagnostics;
 using BackEndDriven.CommandExecution.Context;
@@ -440,22 +441,25 @@ public class CommandSystemCoordinator
                 {
                     // 命令级硬 deadline（脚本显式 timeout 才启用）：预算内正常等待，超时即强制退出该命令
                     // （不等待被取消方返回），由失败熔断停脚本；无 timeout 时保持原 await 语义（零回归）。
-                    var timeoutMs = ResolveCommandBudgetMs(meta);
-                    if (timeoutMs is { } budgetMs)
+                    // 策略下沉 Modules（ExecutionBudgetPolicy）：解析/竞速/三态分类/迟到结果隔离单源；
+                    // 取消令牌经 IAsyncCommandSystem 三参重载真正传入命令体（修复原 `_ =>` 丢弃）。
+                    var budgetMs = ExecutionBudgetPolicy.TryReadBudgetMs(meta.Parameters);
+                    if (budgetMs is { } declaredMs)
                     {
                         var outer = (ctx?.Termination ?? TerminationScope.Current)?.Token ?? CancellationToken.None;
-                        var run = await BoundedRun.RunAsync(
-                            _ => asyncSystem.ExecuteAsync(entity, meta),
-                            TimeSpan.FromMilliseconds(budgetMs),
+                        var run = await ExecutionBudgetPolicy.RunAsync(
+                            ct => asyncSystem.ExecuteAsync(entity, meta, ct),
+                            declaredMs,
                             outer).ConfigureAwait(false);
-                        if (run.Kind == BoundedRunOutcomeKind.TimedOut)
+
+                        if (run.Outcome == ExecutionBudgetOutcome.TimedOut)
                         {
-                            MarkFailed(entity, $"Command '{meta.Action}' 超时（{budgetMs}ms，强制退出）", sw);
+                            MarkFailed(entity, $"Command '{meta.Action}' 超时（{declaredMs}ms，强制退出）", sw);
                             return;
                         }
 
                         // 外层取消（窗体关闭/宿主终止）：命令已被放弃，必须落终态，否则只能报「未设置最终状态」。
-                        if (run.Kind == BoundedRunOutcomeKind.OuterCanceled)
+                        if (run.Outcome == ExecutionBudgetOutcome.OuterCanceled)
                         {
                             MarkFailed(entity, $"Command '{meta.Action}' 被外层取消（窗体关闭/宿主终止，强制退出）", sw);
                             return;
@@ -572,16 +576,4 @@ public class CommandSystemCoordinator
             TerminationScope.Current?.Terminate(TerminationReason.Failed, errorMessage);
     }
 
-    /// <summary>命令级预算（仅脚本显式声明 timeout 时启用；返回 null = 无命令级硬 deadline）。</summary>
-    private static long? ResolveCommandBudgetMs(CommandMetaComponent meta)
-    {
-        if (meta.Parameters is { } parameters
-            && parameters.TryGetValue("timeout", out var raw)
-            && long.TryParse(raw?.ToString(), out var budgetMs)
-            && budgetMs > 0)
-        {
-            return budgetMs;
-        }
-        return null;
-    }
 }

@@ -29,6 +29,13 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_ComponentData)" />
+    <!-- 键目录与选择内核（Modules\Foundations\Collections\Keyed，L1、BCL-only）：行式目录/显式序合并/域键分派/有序文本装配；
+         同键重复登记 fail-fast -->
+    <ProjectReference Include="$(Proj_Keyed)" />
+    <Compile Remove="Foundations\Collections\Keyed\**\*.cs" />
+    <!-- 存储分页内核（Modules\Foundations\Storage，L1、BCL-only）：afterId 游标 + 页大小 + 最大页数护栏 -->
+    <ProjectReference Include="$(Proj_Storage)" />
+    <Compile Remove="Foundations\Storage\**\*.cs" />
     <!-- 通用计算基底（Modules\Foundations\Compute，L1、BCL + Modules.Threading）：扁平/SoA 布局、Arena/Scratch、
          3D cache-block 遍历、具名 SIMD 核、tile 调度、算子图编译；不含体素/群系语义 -->
     <ProjectReference Include="$(Proj_Compute)" />
@@ -40,6 +47,8 @@
     <!-- 通用压力口径内核（Modules\Foundations\Regulation，L1、BCL-only）：上下文估算/EWMA/三维压力/
          迟滞/标量归一/跨轮进度追踪；零 ProjectReference，纯数值单源 -->
     <ProjectReference Include="$(Proj_Regulation)" />
+    <!-- 序列单调校验内核（Modules\Foundations\Sequencing，L1、BCL-only）：序键单调判定 + 首个违序定位 -->
+    <ProjectReference Include="$(Proj_Sequencing)" />
     <!-- 契约框架（Modules\Foundations\ContractFramework，BCL-only）：契约身份/注册/对账/执行/取证内核 -->
     <ProjectReference Include="$(Proj_ContractFramework)" />
     <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
@@ -86,6 +95,7 @@
     <Compile Remove="Foundations\Concurrency\**\*.cs" />
     <Compile Remove="Foundations\PathBoundary\**\*.cs" />
     <Compile Remove="Foundations\Regulation\**\*.cs" />
+    <Compile Remove="Foundations\Sequencing\**\*.cs" />
     <Compile Remove="Foundations\ContractFramework\**\*.cs" />
     <Compile Remove="Data\DeclarativeDataflow\**\*.cs" />
     <Compile Remove="Foundations\DiagnosticContext\**\*.cs" />

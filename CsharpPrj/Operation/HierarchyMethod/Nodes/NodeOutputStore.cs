@@ -1,11 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Foundations.Storage;
 using Operation.DataStoreDriven.Abstractions;
 using Operation.HierarchyMethod.Nodes.Instances;
 using Operation.WorkFlowMethod.Nodes.Contracts;
+using SignalRankField = Modules.Node.Projection.NodeSignalRankField;
+using SignalRanking = Modules.Node.Projection.NodeSignalRanking;
+using SignalValueKind = Modules.Node.Projection.NodeSignalValueKind;
 
 namespace Operation.HierarchyMethod.Nodes {
     /// <summary>
@@ -19,6 +24,15 @@ namespace Operation.HierarchyMethod.Nodes {
     {
         private readonly INodeStore _nodes;
         private readonly string _defaultWorkflowId;
+
+        /// <summary>信号排序字段声明（机制委托 Modules.Node.Projection.NodeSignalRanking；缺失恒末尾，稳定序）。</summary>
+        private static readonly IReadOnlyList<SignalRankField> SignalRankFields = new[]
+        {
+            new SignalRankField("sticky", SignalValueKind.Boolean),
+            new SignalRankField("priority", SignalValueKind.Number),
+            new SignalRankField("valueScore", SignalValueKind.Number),
+            new SignalRankField("freshness", SignalValueKind.Number),
+        };
 
         public NodeOutputStore(INodeStore nodes, string defaultWorkflowId = NodeKeys.DefaultWorkflowId)
         {
@@ -111,14 +125,12 @@ namespace Operation.HierarchyMethod.Nodes {
             if (limit <= 0) return await EnumerateOutputsAsync(workflowId, ct).ConfigureAwait(false);
 
             var wf = NormalizeWf(workflowId);
-            const int pageSize = 200;
-            const int maxPages = 10_000;
-            var result = new List<NodeOutput>(Math.Min(limit, pageSize));
-            long? afterId = null;
-            var pages = 0;
+            // 游标/页大小/最大页数护栏单源 = Modules.Foundations.Storage.PageCursor（L1 纯状态内核）。
+            var cursor = new PageCursor($"nodeType={NodeTypes.Node}, threadId={wf}");
+            var result = new List<NodeOutput>(Math.Min(limit, cursor.PageSize));
             while (result.Count < limit)
             {
-                var page = await _nodes.ListAsync(NodeTypes.Node, wf, afterId, pageSize, ct).ConfigureAwait(false);
+                var page = await _nodes.ListAsync(NodeTypes.Node, wf, cursor.AfterId, cursor.PageSize, ct).ConfigureAwait(false);
                 foreach (var rec in page)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -126,11 +138,8 @@ namespace Operation.HierarchyMethod.Nodes {
                     if (output is not null) result.Add(output);
                     if (result.Count >= limit) break;
                 }
-                if (page.Count < pageSize) break;
-                afterId = page[^1].Id;
-                if (++pages >= maxPages)
-                    throw new InvalidOperationException(
-                        $"分页拉取超过 {maxPages} 页上限（nodeType={NodeTypes.Node}, threadId={wf}），疑似 afterId 游标未严格推进。");
+                if (!cursor.ShouldContinue(page.Count)) break;
+                cursor.Advance(page[^1].Id);
             }
             return result;
         }
@@ -188,13 +197,19 @@ namespace Operation.HierarchyMethod.Nodes {
                 if (!string.IsNullOrWhiteSpace(region) && !string.Equals(doc.Region, region, StringComparison.Ordinal)) continue;
                 signals.Add(BuildSignal(rec.NodeKey, wf, doc));
             }
-            // 信号 rank：sticky → priority desc → valueScore desc → freshness desc（spec §五）。
-            var ranked = signals
-                .OrderByDescending(s => s.Sticky)
-                .ThenByDescending(s => s.Priority)
-                .ThenByDescending(s => s.ValueScore ?? double.MinValue)
-                .ThenByDescending(s => s.Freshness)
-                .ToList();
+            // 信号 rank：sticky → priority desc → valueScore desc → freshness desc（spec §五）；
+            // 机制委托 Modules.Node.Projection.NodeSignalRanking（缺失字段恒末尾、稳定排序）。
+            var ranked = SignalRanking.Rank(
+                signals,
+                static (signal, field) => field switch
+                {
+                    "sticky" => signal.Sticky ? "1" : "0",
+                    "priority" => signal.Priority.ToString(CultureInfo.InvariantCulture),
+                    "valueScore" => signal.ValueScore?.ToString(CultureInfo.InvariantCulture),
+                    "freshness" => signal.Freshness.ToString(CultureInfo.InvariantCulture),
+                    _ => null,
+                },
+                SignalRankFields);
             return limit >= 0 ? ranked.Take(limit).ToList() : ranked;
         }
 
@@ -226,21 +241,16 @@ namespace Operation.HierarchyMethod.Nodes {
         /// <summary>分页拉取某 NodeType + ThreadId 下全部记录（afterId 游标，避免 limit 截断）。</summary>
         private async Task<IReadOnlyList<NodeRecord>> ListAllAsync(string nodeType, string threadId, CancellationToken ct)
         {
-            const int limit = 200;
-            // A6.5：分页护栏——最大页数上限，防底层 ListAsync 未严格按 afterId 过滤（或返回重复）时死循环。
-            const int maxPages = 10_000;
+            // A6.5：分页护栏单源 = Modules.Foundations.Storage.PageCursor
+            // （最大页数上限，防底层 ListAsync 未严格按 afterId 过滤或返回重复时死循环）。
+            var cursor = new PageCursor($"nodeType={nodeType}, threadId={threadId}");
             var all = new List<NodeRecord>();
-            long? afterId = null;
-            var pages = 0;
             while (true)
             {
-                var page = await _nodes.ListAsync(nodeType, threadId, afterId, limit, ct).ConfigureAwait(false);
+                var page = await _nodes.ListAsync(nodeType, threadId, cursor.AfterId, cursor.PageSize, ct).ConfigureAwait(false);
                 all.AddRange(page);
-                if (page.Count < limit) break;
-                afterId = page[^1].Id;
-                if (++pages >= maxPages)
-                    throw new InvalidOperationException(
-                        $"分页拉取超过 {maxPages} 页上限（nodeType={nodeType}, threadId={threadId}），疑似 afterId 游标未严格推进。");
+                if (!cursor.ShouldContinue(page.Count)) break;
+                cursor.Advance(page[^1].Id);
             }
             return all;
         }

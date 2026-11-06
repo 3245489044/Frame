@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Plate.JsonMethod.Serialization;
+using Modules.Node.Format;
 using Operation.WorkFlowMethod.Nodes.Contracts;
 
 namespace Operation.HierarchyMethod.Nodes {
@@ -103,18 +104,8 @@ namespace Operation.HierarchyMethod.Nodes {
         /// <see cref="EncodeBusiness"/> 往返，否则原内容会被替换为空业务载荷。</para>
         /// </summary>
         public static bool IsBusinessPayload(string? payloadJson)
-        {
-            if (string.IsNullOrWhiteSpace(payloadJson)) return false;
-            try
-            {
-                return JsonSerializationService.Instance.ParseJsonNode(payloadJson) is JsonObject root
-                       && root.ContainsKey(nameof(BusinessNodePayload.Outputs));
-            }
-            catch (JsonException)
-            {
-                return false;
-            }
-        }
+            // 形态判定单源 = Modules.Node.Format.NodePayloadGuard（L1 通用件；标记键固定为 Outputs）。
+            => NodePayloadGuard.IsBusinessPayload(payloadJson);
 
         /// <summary>文档 → 载荷 JSON（NodeOutputDoc 独立承载场景，如投影/测试装配）。</summary>
         public static string EncodeDoc(NodeOutputDoc doc)

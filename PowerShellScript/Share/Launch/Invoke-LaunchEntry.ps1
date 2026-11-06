@@ -500,8 +500,11 @@ Write-LaunchTrace 'STEP' ("[S6] 启动：begin target={0} argv={1}" -f $target, 
 $psi = [System.Diagnostics.ProcessStartInfo]::new($target)
 $psi.WorkingDirectory = $workingDirectory
 $psi.UseShellExecute = $false
-$psi.RedirectStandardOutput = $true
-$psi.RedirectStandardError = $true
+# 交互宿主独占控制台：重定向会让子进程失去控制台句柄（菜单输出被吞 + Clear-Host 报「句柄无效」）。
+# 非交互宿主（Launcher.exe）保持 tee 到 trace（LaunchTrace 基线标记不含 [STDOUT]，交互模式不 tee 不破门禁）。
+$teeStreams = -not [bool]$options.Interactive
+$psi.RedirectStandardOutput = $teeStreams
+$psi.RedirectStandardError = $teeStreams
 foreach ($a in $argumentList) { $psi.ArgumentList.Add($a) }
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
@@ -511,15 +514,21 @@ if ($null -eq $process) {
     Write-LaunchConsole '[launch] exit 2：启动器进程创建失败' 'Red'
     Exit-Launch -Code 2
 }
-$stdoutTask = $process.StandardOutput.ReadToEndAsync()
-$stderrTask = $process.StandardError.ReadToEndAsync()
+$stdoutTask = $null
+$stderrTask = $null
+if ($teeStreams) {
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+}
 $process.WaitForExit()
 $sw.Stop()
 
 $stdoutText = ''
 $stderrText = ''
-try { if ($stdoutTask.Wait(5000)) { $stdoutText = [string]$stdoutTask.Result } } catch { }
-try { if ($stderrTask.Wait(5000)) { $stderrText = [string]$stderrTask.Result } } catch { }
+if ($teeStreams) {
+    try { if ($stdoutTask.Wait(5000)) { $stdoutText = [string]$stdoutTask.Result } } catch { }
+    try { if ($stderrTask.Wait(5000)) { $stderrText = [string]$stderrTask.Result } } catch { }
+}
 
 if (-not [string]::IsNullOrEmpty($stdoutText)) {
     Write-LaunchTrace 'STDOUT' '<raw-begin>'
@@ -533,7 +542,7 @@ if (-not [string]::IsNullOrEmpty($stderrText)) {
 }
 
 $processExitCode = $process.ExitCode
-Write-LaunchTrace 'STEP' ("[S6] 启动：end pid={0} exit={1} alive_ms={2}" -f $process.Id, $processExitCode, [int]$sw.Elapsed.TotalMilliseconds)
+Write-LaunchTrace 'STEP' ("[S6] 启动：end pid={0} exit={1} alive_ms={2} tee={3}" -f $process.Id, $processExitCode, [int]$sw.Elapsed.TotalMilliseconds, $teeStreams)
 
 # ---- S7 收尾（窗口保持策略归执行体，不归 bat）----
 $hold = $false

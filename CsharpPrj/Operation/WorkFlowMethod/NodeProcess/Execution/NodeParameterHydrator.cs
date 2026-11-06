@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GraphFramework.Snapshots;
 using Modules.KeySpace.Model;
-using Modules.Node.Identity;
+using Modules.Node.Materialization;
 using Modules.Node.Ports;
 using WorkFlowMethod.Diagnostics;
 using WorkFlowMethod.KeySpace.Adapters;
@@ -77,17 +77,20 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
                 space.Adopt(existing);
             }
 
-            foreach (var (port, value) in node.OutputPorts)
+            // 键构造单源 = Modules.Node.Materialization.NodeParamBinder（空值过滤 + 裸键/限定键），
+            // 本处只执行写入（PortKeySpace 幂等 + 参数解析器回放）。
+            foreach (var entry in NodeParamBinder.Bind(nodeKey, node.OutputPorts))
             {
-                if (value is null) continue; // 空端口不合入（与框架侧同一规则）
-
-                if (space.TryAddBare(nodeKey, port, value))
+                if (space.TryAddBare(nodeKey, entry.Port, entry.Value))
                 {
-                    executionStage.SetExecutionParameter(executionId, port, value);
+                    executionStage.SetExecutionParameter(executionId, entry.BareKey, entry.Value);
                 }
 
-                space.TryAdd(nodeKey, port, value);
-                executionStage.SetExecutionParameter(executionId, NodePortKeys.Format(nodeKey, port), value);
+                space.TryAdd(nodeKey, entry.Port, entry.Value);
+                if (entry.QualifiedKey.Length > 0)
+                {
+                    executionStage.SetExecutionParameter(executionId, entry.QualifiedKey, entry.Value);
+                }
             }
         }
     }

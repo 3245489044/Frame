@@ -16,6 +16,9 @@ public static class ContextEstimator
     /// <summary>字符→token 经验系数（中英混合场景近似）。</summary>
     public const double CharsPerToken = 4.0;
 
+    /// <summary>UTF-8 文本的经验“字节数/字符数”系数（中英混合场景近似）。</summary>
+    public const double DefaultBytesPerChar = 3.0;
+
     /// <param name="realTokens">真实输入 token 用量（null/≤0 = 缺失，走派生）。</param>
     public static ContextEstimate Estimate(long? realTokens, long resultTextLength, int messageCount, long baseChars = 0)
     {
@@ -26,5 +29,26 @@ public static class ContextEstimator
 
         long tokens = (long)Math.Ceiling(chars / CharsPerToken);
         return new ContextEstimate(chars, tokens);
+    }
+
+    /// <summary>
+    /// 由已知字符数派生 token（复用 <see cref="CharsPerToken"/> 与向上取整，禁止另立系数）。
+    /// </summary>
+    public static ContextEstimate EstimateFromChars(long chars)
+        => Estimate(null, chars < 0 ? 0 : chars, 0);
+
+    /// <summary>
+    /// 由字节数派生 token：先按 <paramref name="bytesPerChar"/> 换算字符（向上取整），
+    /// 再复用 <see cref="CharsPerToken"/> 向上取整。用于只能拿到输出字节流长度的场景。
+    /// </summary>
+    /// <param name="bytes">字节数（≤0 返回零估算）。</param>
+    /// <param name="bytesPerChar">字节/字符系数，必须 &gt;0。</param>
+    public static ContextEstimate EstimateFromBytes(long bytes, double bytesPerChar = DefaultBytesPerChar)
+    {
+        if (bytesPerChar <= 0)
+            throw new ArgumentOutOfRangeException(nameof(bytesPerChar), "字节/字符系数必须 > 0");
+
+        long chars = bytes <= 0 ? 0 : (long)Math.Ceiling(bytes / bytesPerChar);
+        return EstimateFromChars(chars);
     }
 }

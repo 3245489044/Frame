@@ -21,9 +21,10 @@ public sealed record ReconcileVerdict(
         get
         {
             if (Passed) return null;
+            // 判据优先顺序：终止缺失（R3）先于完整性（R1）——“未回环”比“缺某条”更接近根因。
+            if (TerminalMissing) return ReconcileCodes.R3TerminalMissing;
             if (Missing.Count > 0) return ReconcileCodes.R1Missing;
             if (OutOfOrder.Count > 0) return ReconcileCodes.R2OutOfOrder;
-            if (TerminalMissing) return ReconcileCodes.R3TerminalMissing;
             if (ScopeMismatch.Count > 0) return ReconcileCodes.R4ScopeMismatch;
             return null;
         }

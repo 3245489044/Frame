@@ -40,7 +40,8 @@ public static class ReconcileBootstrap
         var effective = options ?? new ReconcileOptions();
         var registry = new ReconcileContractRegistry();
         var stage = new ReconcileStage(bus, collector, new EventReconciler(), effective);
-        var gate = vocabulary is null || vocabulary.IsEmpty ? null : new ReconcileContractGate(vocabulary);
+        // 门始终挂载：C2/C6 与词表无关，必须始终生效；C1 在词表为空时由门内部跳过。
+        var gate = new ReconcileContractGate(vocabulary ?? ReconcileVocabulary.Empty);
         var hook = new ReconcileHook(registry, stage, effective, gate);
         InvocationKernel.ReconcileHook = hook;
         return hook;

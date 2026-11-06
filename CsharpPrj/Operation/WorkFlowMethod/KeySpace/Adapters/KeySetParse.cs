@@ -1,12 +1,9 @@
-using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Text.Json;
 using Modules.KeySpace.Abstractions;
 using Modules.KeySpace.Diagnostics;
 using Modules.KeySpace.Model;
-using Modules.KeySpace.Rules;
+using Modules.KeySpace.Parsing;
 using WorkFlowMethod.Skeletons.NodeProcess.Execution;
 
 namespace WorkFlowMethod.KeySpace.Adapters;
@@ -30,105 +27,14 @@ public sealed record KeySetParseResult(
 /// </summary>
 public static class KeySetParse
 {
-    private static readonly KeySetPlanner Planner = new();
-
+    /// <summary>
+    /// 解析键集文本（实现单源 = <see cref="KeySetParser"/>，L2 通用件）；
+    /// 声明来自当前组合根注入的节点端口契约宿主，仅做结果契约映射。
+    /// </summary>
     public static KeySetParseResult Parse(string? raw, string family)
     {
-        var members = new List<string>();
-        KeyDiagnostic? diagnostic = null;
-        var declaration = NodePortContractRegistry.Shared.Declaration;
-
-        if (!string.IsNullOrWhiteSpace(raw))
-        {
-            var text = raw.Trim();
-            // 以 '[' / '{' 开头按 JSON 解析：非法 JSON 必须显式失败，不得冒充历史逗号形态。
-            // 以 '"' 开头的单键字面量仍走历史逗号形态（兼容既有落库形态）。
-            if (text.StartsWith("[", StringComparison.Ordinal)
-                || text.StartsWith("{", StringComparison.Ordinal))
-            {
-                try
-                {
-                    using var document = JsonDocument.Parse(text);
-                    if (document.RootElement.ValueKind != JsonValueKind.Array)
-                    {
-                        diagnostic = KeyDiagnostic.Warn(
-                            KeyReasonCodes.Unparsable, KeyResolution.Unparsable,
-                            KeyRef.Of(family, text), "键集 JSON 根不是数组");
-                    }
-                    else
-                    {
-                        foreach (var item in document.RootElement.EnumerateArray())
-                        {
-                            var value = item.ValueKind == JsonValueKind.String
-                                ? item.GetString()
-                                : item.ToString();
-                            if (!string.IsNullOrWhiteSpace(value))
-                            {
-                                members.Add(value);
-                            }
-                        }
-                    }
-                }
-                catch (JsonException exception)
-                {
-                    diagnostic = KeyDiagnostic.Warn(
-                        KeyReasonCodes.Unparsable, KeyResolution.Unparsable,
-                        KeyRef.Of(family, text), "键集 JSON 解析失败: " + exception.Message);
-                }
-            }
-            else
-            {
-                members.AddRange(SplitCommaForm(text));
-                diagnostic = KeyDiagnostic.Info(
-                    KeyReasonCodes.LegacyForm, KeyResolution.Resolved,
-                    KeyRef.Of(family, text), "非 JSON 数组形态，按历史逗号形态解析");
-            }
-        }
-
-        var plan = Planner.Plan(new KeySetPlanInput(
-            RawMembers: members,
-            Self: new KeyEntity(family, Array.Empty<KeyRef>()),
-            MaxTargets: int.MaxValue,
-            AllowFanout: true,
-            EmptyPolicy: EmptySetPolicy.Report,
-            Declaration: declaration));
-
-        return new KeySetParseResult(
-            plan.Targets.Select(target => target.Value).ToArray(),
-            plan,
-            diagnostic);
-    }
-
-    /// <summary>历史逗号形态（无 Regex / 无 <c>Split(',')</c>）：剥外部括号/引号，逐字符扫描。</summary>
-    private static IEnumerable<string> SplitCommaForm(string text)
-    {
-        var start = text.StartsWith("[", StringComparison.Ordinal) ? 1 : 0;
-        var end = text.EndsWith("]", StringComparison.Ordinal) ? text.Length - 1 : text.Length;
-        var builder = new System.Text.StringBuilder();
-
-        for (var index = start; index < end; index++)
-        {
-            var current = text[index];
-            if (current == ',')
-            {
-                var token = builder.ToString().Trim().Trim('"');
-                if (token.Length > 0)
-                {
-                    yield return token;
-                }
-
-                builder.Clear();
-                continue;
-            }
-
-            builder.Append(current);
-        }
-
-        var last = builder.ToString().Trim().Trim('"');
-        if (last.Length > 0)
-        {
-            yield return last;
-        }
+        var parsed = KeySetParser.Parse(raw, family, NodePortContractRegistry.Shared.Declaration);
+        return new KeySetParseResult(parsed.Members, parsed.Plan, parsed.Diagnostic);
     }
 }
 

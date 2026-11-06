@@ -1,10 +1,11 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Modules.KeySpace.Abstractions;
 using Modules.KeySpace.Model;
 using Modules.KeySpace.Rules;
+using Modules.Node.Ports;
 using WorkFlowMethod.Skeletons.NodeProcess.Models;
 
 namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
@@ -29,12 +30,13 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
         public static void Configure(IKeySpaceDeclaration declaration)
             => Volatile.Write(ref _shared, new NodePortContractRegistry(declaration));
 
-        private readonly ConcurrentDictionary<string, IReadOnlyList<PortContract>> _contracts =
-            new(StringComparer.Ordinal);
+        // 缓存与投影单源 = Modules.Node.Ports.NodePortContractCatalog（实例级，不读进程静态）。
+        private readonly NodePortContractCatalog _catalog;
 
         public NodePortContractRegistry(IKeySpaceDeclaration declaration)
         {
             Declaration = declaration ?? throw new ArgumentNullException(nameof(declaration));
+            _catalog = new NodePortContractCatalog(declaration);
         }
 
         public IKeySpaceDeclaration Declaration { get; }
@@ -51,17 +53,12 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
                 return Array.Empty<PortContract>();
             }
 
-            var parameterKeys = config.funcPipelineConfig.ParameterKeys ?? string.Empty;
-            var resultKeys = config.funcPipelineConfig.ResultKeys ?? string.Empty;
-            var cacheKey = string.Concat(
-                config.basicConfig?.Callkey ?? string.Empty, "|", parameterKeys, "|", resultKeys);
-
-            return _contracts.GetOrAdd(cacheKey, _ =>
-            {
-                var parameters = NodeResultExtractor.NormalizeResultKeys(parameterKeys);
-                var results = NodeResultExtractor.NormalizeResultKeys(resultKeys);
-                return PortContractRules.ForKeys(Declaration, parameters, results);
-            });
+            // 归一键集后再交给通用目录：缓存键由目录按「callKey | 入键集 | 出键集」单源构造。
+            var parameters = NodeResultExtractor.NormalizeResultKeys(config.funcPipelineConfig.ParameterKeys)
+                .ToArray();
+            var results = NodeResultExtractor.NormalizeResultKeys(config.funcPipelineConfig.ResultKeys)
+                .ToArray();
+            return _catalog.Resolve(config.basicConfig?.Callkey, parameters, results);
         }
     }
 }

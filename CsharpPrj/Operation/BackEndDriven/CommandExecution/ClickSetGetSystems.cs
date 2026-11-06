@@ -44,7 +44,14 @@ public class ClickSystem : CommandSystemBase, IAsyncCommandSystem
     /// 经 <see cref="OperationExtensions.TryWaitAsync"/>（底层 Task.WaitAsync，非阻塞）订阅 AsyncOp 完成信号，
     /// 慢 LLM 调用期间让出命令线程、GUI/消息泵/回写可继续。
     /// </summary>
-    public async Task ExecuteAsync(Entity entity, CommandMetaComponent meta)
+    public Task ExecuteAsync(Entity entity, CommandMetaComponent meta)
+        => ExecuteCoreAsync(entity, meta, CancellationToken.None);
+
+    /// <summary>预算感知重载：命令级 deadline 取消令牌直达等待原语。</summary>
+    public Task ExecuteAsync(Entity entity, CommandMetaComponent meta, CancellationToken cancellationToken)
+        => ExecuteCoreAsync(entity, meta, cancellationToken);
+
+    private async Task ExecuteCoreAsync(Entity entity, CommandMetaComponent meta, CancellationToken cancellationToken)
     {
         var target = meta.Target;
         if (string.IsNullOrWhiteSpace(target))
@@ -61,12 +68,12 @@ public class ClickSystem : CommandSystemBase, IAsyncCommandSystem
 
         // 反应式等待参数（R）：wait=true → 在事件函数真实完成信号（EventDispatchResult.Completion）上
         // 阻塞等待——非轮询，替代脚本层「sleep + await <control> timeout」的时间启发式。
-        var wait = ParseBool(meta.Parameters, "wait");
-        var (hasTimeout, parsedTimeoutMs) = ParseTimeout(meta.Parameters, "timeout");
+        var wait = CommandParameters.GetBool(meta.Parameters, "wait");
+        var (hasTimeout, parsedTimeoutMs) = CommandParameters.TryGetInt(meta.Parameters, "timeout");
         var functionTimeoutMs = hasTimeout ? parsedTimeoutMs : (int?)null;
         // 等待预算 = 函数预算 + 宽限：函数在预算点被终止后，click 仍能读到归因分类（而非竞速超时）。
         var waitTimeoutMs = (hasTimeout ? parsedTimeoutMs : DefaultWaitTimeoutMs) + WaitGraceMs;
-        var outputTarget = ReadParam(meta.Parameters, "output");
+        var outputTarget = CommandParameters.GetString(meta.Parameters, "output");
 
         var isDouble = string.Equals(meta.Action, "doubleclick", StringComparison.OrdinalIgnoreCase);
         var eventName = isDouble ? "doubleclick" : "click";
@@ -107,7 +114,8 @@ public class ClickSystem : CommandSystemBase, IAsyncCommandSystem
                 var finished = await ack.Completion.TryWaitAsync(
                     waitTimeoutMs > 0
                         ? TimeSpan.FromMilliseconds(waitTimeoutMs)
-                        : Timeout.InfiniteTimeSpan).ConfigureAwait(false);
+                        : Timeout.InfiniteTimeSpan,
+                    cancellationToken).ConfigureAwait(false);
                 if (!finished)
                 {
                     // 等待超时（函数未在预算点前终止）：给出可读原因（函数名 + 预算 + 已等待时长），
@@ -156,35 +164,6 @@ public class ClickSystem : CommandSystemBase, IAsyncCommandSystem
             SetFailure(entity, $"{meta.Action} '{target}' 失败: {ex.Message}");
         }
     }
-    private static bool ParseBool(Dictionary<string, object?>? parameters, string key)
-    {
-        if (parameters != null && parameters.TryGetValue(key, out var v) && v != null)
-        {
-            var s = v.ToString();
-            return string.Equals(s, "true", StringComparison.OrdinalIgnoreCase) || s == "1";
-        }
-        return false;
-    }
-
-    private static (bool Present, int Value) ParseTimeout(Dictionary<string, object?>? parameters, string key)
-    {
-        if (parameters != null && parameters.TryGetValue(key, out var v) && v != null
-            && int.TryParse(v.ToString(), out var parsed))
-        {
-            return (true, parsed);   // parsed <= 0 → 不设总时限（无绝对上限，依赖函数内部空闲看门狗）
-        }
-        return (false, 0);
-    }
-
-    private static string? ReadParam(Dictionary<string, object?>? parameters, string key)
-    {
-        if (parameters != null && parameters.TryGetValue(key, out var v) && v != null)
-        {
-            return v.ToString();
-        }
-        return null;
-    }
-
 }
 
 

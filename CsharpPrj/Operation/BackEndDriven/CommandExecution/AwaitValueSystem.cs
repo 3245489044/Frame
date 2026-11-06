@@ -36,7 +36,14 @@ public class AwaitValueSystem : CommandSystemBase, IAsyncCommandSystem
     /// 经 <see cref="OperationExtensions.TryWaitAsync"/>（Task.WaitAsync，非阻塞）订阅完成信号——
     /// 命令线程不再 <c>tcs.Task.Wait(timeout)</c> 同步阻塞，慢异步函数写回期间让出线程。
     /// </summary>
-    public async Task ExecuteAsync(Entity entity, CommandMetaComponent meta)
+    public Task ExecuteAsync(Entity entity, CommandMetaComponent meta)
+        => ExecuteCoreAsync(entity, meta, CancellationToken.None);
+
+    /// <summary>预算感知重载：命令级 deadline 取消令牌直达等待原语（超时即停止等待，不继续占线程/写状态）。</summary>
+    public Task ExecuteAsync(Entity entity, CommandMetaComponent meta, CancellationToken cancellationToken)
+        => ExecuteCoreAsync(entity, meta, cancellationToken);
+
+    private async Task ExecuteCoreAsync(Entity entity, CommandMetaComponent meta, CancellationToken cancellationToken)
     {
         var target = meta.Target;
         if (string.IsNullOrWhiteSpace(target))
@@ -60,7 +67,8 @@ public class AwaitValueSystem : CommandSystemBase, IAsyncCommandSystem
 
         // 非阻塞等待发布；timeoutMs <= 0 → 不设总时限（依赖发布方自身空闲看门狗自终止）。
         var completed = await op.Completion.TryWaitAsync(
-            timeoutMs > 0 ? TimeSpan.FromMilliseconds(timeoutMs) : Timeout.InfiniteTimeSpan)
+            timeoutMs > 0 ? TimeSpan.FromMilliseconds(timeoutMs) : Timeout.InfiniteTimeSpan,
+            cancellationToken)
             .ConfigureAwait(false);
 
         if (completed)
@@ -75,15 +83,7 @@ public class AwaitValueSystem : CommandSystemBase, IAsyncCommandSystem
         }
     }
 
+    // 参数解析收敛到 Share.CommandParameters（A-1 单源）；parsed <= 0 → 不设总时限（无限等待）。
     private static int ResolveTimeout(CommandMetaComponent meta)
-    {
-        if (meta.Parameters != null
-            && meta.Parameters.TryGetValue("timeout", out var v)
-            && v != null
-            && int.TryParse(v.ToString(), out var parsed))
-        {
-            return parsed;   // parsed <= 0 → 不设总时限（无限等待，依赖发布方自身空闲看门狗自终止）
-        }
-        return DefaultTimeoutMs;
-    }
+        => CommandParameters.GetInt(meta.Parameters, "timeout", DefaultTimeoutMs);
 }

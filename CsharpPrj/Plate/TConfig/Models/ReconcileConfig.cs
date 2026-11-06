@@ -77,7 +77,7 @@ public class SignalExpectation
     /// <summary>
     /// 归属键名（G-3 键名映射）：声明后只比对载荷中**该字段**的值与 <see cref="Scope"/>
     /// （如 UI 侧 <c>taskKey</c> ↔ 载荷字段 <c>taskKey</c>），避免全串子串误配；
-    /// 未声明时退化为「ScopeId 精确 或 载荷子串包含」。
+    /// 未声明时只认 <c>ScopeId</c> 精确匹配（不再做载荷子串兜底，防止 "user:1" 命中 "user:10"）。
     /// </summary>
     public string? ScopeKey { get; set; }
 

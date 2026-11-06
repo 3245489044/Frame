@@ -44,10 +44,12 @@ public sealed class ReconcileContractRegistry
     {
         contract = null;
         if (string.IsNullOrWhiteSpace(functionName)) return false;
-        if (!_byFunction.TryGetValue(functionName, out var list) || list.Count == 0) return false;
+        if (!_byFunction.TryGetValue(functionName, out var list)) return false;
 
         lock (_gate)
         {
+            if (list.Count == 0) return false;
+
             if (!string.IsNullOrWhiteSpace(command))
             {
                 var hit = list.FirstOrDefault(c => string.Equals(c.When?.Trim(), command!.Trim(), StringComparison.OrdinalIgnoreCase));

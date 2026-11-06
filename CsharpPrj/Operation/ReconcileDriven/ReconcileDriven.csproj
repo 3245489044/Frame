@@ -35,6 +35,10 @@
     <ProjectReference Include="$(Proj_TConfig)" />
     <!-- 依赖倒置抽象（Share，Layer 2）：IEventReconcileHook / InvocationKernel 包裹点 -->
     <ProjectReference Include="$(Proj_EventBindingOrchestrator)" />
+    <!-- 通用 Threading 内核（Modules，Layer 1）：AmbientSlot / AsyncConditionWaiter -->
+    <ProjectReference Include="$(Proj_Threading)" />
+    <!-- 序列单调校验内核（Modules，Layer 1）：EventSeq 单调判定 -->
+    <ProjectReference Include="$(Proj_Sequencing)" />
   </ItemGroup>
 
   <ItemGroup>

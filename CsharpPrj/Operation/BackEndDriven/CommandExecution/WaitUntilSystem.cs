@@ -255,36 +255,33 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
 
         if (string.IsNullOrWhiteSpace(expectedContains)) return false;
 
-        if (parameters.TryGetValue("timeout", out var t) && int.TryParse(t?.ToString(), out var tv))
+        // 参数解析收敛到 Share.CommandParameters（A-1 单源）。
+        if (CommandParameters.TryGetInt(parameters, "timeout") is { Present: true } t)
         {
-            timeoutMs = tv;
+            timeoutMs = t.Value;
             parameters.Remove("timeout");
         }
 
-        if (parameters.TryGetValue("interval", out var iv) && int.TryParse(iv?.ToString(), out var ivv) && ivv > 0)
+        if (CommandParameters.TryGetInt(parameters, "interval") is { Present: true, Value: > 0 } iv)
         {
-            intervalMs = ivv;
+            intervalMs = iv.Value;
             parameters.Remove("interval");
         }
 
-        if (parameters.TryGetValue("output", out var o) && o != null)
+        if (CommandParameters.GetString(parameters, "output") is { } o)
         {
-            outputTarget = o.ToString();
+            outputTarget = o;
             parameters.Remove("output");
         }
 
         // failWhen/failContains：终态失败词表（逗号或竖线分隔）；命中即短路失败，不等到 timeout。
-        if (parameters.TryGetValue("failWhen", out var fw) && fw != null)
-            parameters.Remove("failWhen");
-        else if (parameters.TryGetValue("failContains", out fw) && fw != null)
-            parameters.Remove("failContains");
-
-        if (fw != null)
+        var failKey = parameters.ContainsKey("failWhen") ? "failWhen"
+            : parameters.ContainsKey("failContains") ? "failContains"
+            : null;
+        if (failKey is not null)
         {
-            failTokens = fw.ToString()?
-                .Split(new[] { ',', '|', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray() ?? Array.Empty<string>();
+            failTokens = CommandParameters.GetTokens(parameters, failKey);
+            parameters.Remove(failKey);
         }
 
         return true;

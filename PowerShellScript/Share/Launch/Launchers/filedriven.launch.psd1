@@ -83,11 +83,16 @@
         }
         interactive = @{
             Script      = '交互启动.bat'
-            Args        = @('--interactive', '--log', 'WdUI.All,FileDriven.All')
+            # Args 为空：Interactive 模式由本表 Interactive=$true 表达（Invoke-LaunchEntry S2），
+            # 且 --log 在交互宿主是「日志查询命令」，与 Launcher 的「日志分类过滤」同名不同义。
+            Args        = @()
             Env         = @{
                 FILEDRIVEN_BATCH_NAME   = '交互启动测试'
                 FILEDRIVEN_BATCH_SOURCE = '交互启动.bat'
                 FILEDRIVEN_BATCH_DESC   = '从交互启动.bat 启动的测试运行'
+                # 过程日志回显：运行测试GUI模式.ps1 读此值并以 --log-mode 传给 Launcher；
+                # 缺省 database 只落库不打印（旧 bat 的 console 语义在启动面重构时丢失）。
+                LOG_OUTPUT_MODE         = 'console'
             }
             Interactive = $true
         }

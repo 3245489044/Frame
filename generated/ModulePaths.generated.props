@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-06 01:36:46
+  生成时间: 2026-11-06 11:49:50
 -->
 <Project>
 
@@ -52,6 +52,8 @@
     <Mod_PathBoundary>$(CsharpPrjDir)Modules\Foundations\PathBoundary\</Mod_PathBoundary>
     <Mod_PortContext>$(CsharpPrjDir)Modules\Foundations\PortContext\</Mod_PortContext>
     <Mod_ContractFramework>$(CsharpPrjDir)Modules\Foundations\ContractFramework\</Mod_ContractFramework>
+    <Mod_Keyed>$(CsharpPrjDir)Modules\Foundations\Collections\Keyed\</Mod_Keyed>
+    <Mod_Storage>$(CsharpPrjDir)Modules\Foundations\Storage\</Mod_Storage>
     <Mod_DeclarativeDataflow>$(CsharpPrjDir)Modules\Data\DeclarativeDataflow\</Mod_DeclarativeDataflow>
     <Mod_DiagnosticContext>$(CsharpPrjDir)Modules\Foundations\DiagnosticContext\</Mod_DiagnosticContext>
     <Mod_EventFramework>$(CsharpPrjDir)Modules\Frameworks\EventFramework\</Mod_EventFramework>
@@ -79,6 +81,7 @@
     <Mod_Pipeline>$(CsharpPrjDir)Modules\Composition\Pipeline\</Mod_Pipeline>
     <Mod_Registry>$(CsharpPrjDir)Modules\Composition\Registry\</Mod_Registry>
     <Mod_Regulation>$(CsharpPrjDir)Modules\Foundations\Regulation\</Mod_Regulation>
+    <Mod_Sequencing>$(CsharpPrjDir)Modules\Foundations\Sequencing\</Mod_Sequencing>
     <Mod_Sync>$(CsharpPrjDir)Modules\Frameworks\Sync\</Mod_Sync>
     <Mod_Threading>$(CsharpPrjDir)Modules\Foundations\Threading\</Mod_Threading>
     <Mod_ValidationFramework>$(CsharpPrjDir)Modules\Frameworks\ValidationFramework\</Mod_ValidationFramework>
@@ -191,6 +194,8 @@
     <Proj_PathBoundary>$(CsharpPrjDir)Modules\Foundations\PathBoundary\PathBoundary.csproj</Proj_PathBoundary>
     <Proj_PortContext>$(CsharpPrjDir)Modules\Foundations\PortContext\PortContext.csproj</Proj_PortContext>
     <Proj_ContractFramework>$(CsharpPrjDir)Modules\Foundations\ContractFramework\ContractFramework.csproj</Proj_ContractFramework>
+    <Proj_Keyed>$(CsharpPrjDir)Modules\Foundations\Collections\Keyed\Keyed.csproj</Proj_Keyed>
+    <Proj_Storage>$(CsharpPrjDir)Modules\Foundations\Storage\Storage.csproj</Proj_Storage>
     <Proj_DeclarativeDataflow>$(CsharpPrjDir)Modules\Data\DeclarativeDataflow\DeclarativeDataflow.csproj</Proj_DeclarativeDataflow>
     <Proj_DiagnosticContext>$(CsharpPrjDir)Modules\Foundations\DiagnosticContext\DiagnosticContext.csproj</Proj_DiagnosticContext>
     <Proj_EventFramework>$(CsharpPrjDir)Modules\Frameworks\EventFramework\EventFramework.csproj</Proj_EventFramework>
@@ -218,6 +223,7 @@
     <Proj_Pipeline>$(CsharpPrjDir)Modules\Composition\Pipeline\Pipeline.csproj</Proj_Pipeline>
     <Proj_Registry>$(CsharpPrjDir)Modules\Composition\Registry\Registry.csproj</Proj_Registry>
     <Proj_Regulation>$(CsharpPrjDir)Modules\Foundations\Regulation\Regulation.csproj</Proj_Regulation>
+    <Proj_Sequencing>$(CsharpPrjDir)Modules\Foundations\Sequencing\Sequencing.csproj</Proj_Sequencing>
     <Proj_Sync>$(CsharpPrjDir)Modules\Frameworks\Sync\Sync.csproj</Proj_Sync>
     <Proj_Threading>$(CsharpPrjDir)Modules\Foundations\Threading\Threading.csproj</Proj_Threading>
     <Proj_ValidationFramework>$(CsharpPrjDir)Modules\Frameworks\ValidationFramework\ValidationFramework.csproj</Proj_ValidationFramework>

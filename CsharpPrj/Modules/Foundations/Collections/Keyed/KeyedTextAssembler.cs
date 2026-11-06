@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-
-namespace Operation.LoopFoldMethod.Catalog;
+namespace Modules.Foundations.Collections.Keyed;
 
 /// <summary>一条装配消息（键 + 阶段 + 文本 + 轮次；通用；域无关）。</summary>
 /// <param name="Key">条目键。</param>
@@ -11,7 +8,7 @@ namespace Operation.LoopFoldMethod.Catalog;
 public sealed record KeyedTextItem(string Key, string Stage, string Text, int Round);
 
 /// <summary>
-/// **有序文本装配**（通用；纯函数）—— 把「键 + 字段袋」序列装配为规范消息序列：
+/// 有序文本装配（通用；纯函数）—— 把「键 + 字段袋」序列装配为规范消息序列：
 /// 输入序即输出序；空文本条目跳过（不抛）；阶段/轮次缺失按缺省回退。
 /// </summary>
 public static class KeyedTextAssembler

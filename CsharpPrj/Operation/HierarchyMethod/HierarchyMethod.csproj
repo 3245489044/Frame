@@ -93,4 +93,10 @@
     <ProjectReference Include="$(Proj_Node)" />
   </ItemGroup>
 
+  <!-- ★ 2026-11-06 M5（分页游标提取）：NodeOutputStore 的 afterId 分页护栏改委托
+       Modules.Foundations.Storage.PageCursor（L1 纯状态内核），消除三处重复内联循环护栏。 -->
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Storage)" />
+  </ItemGroup>
+
 </Project>

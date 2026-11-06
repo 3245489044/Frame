@@ -1,4 +1,5 @@
-﻿using Strategy.Observability.Bus;
+﻿using Modules.Threading;
+using Strategy.Observability.Bus;
 using Strategy.Observability.Persistence;
 
 namespace Operation.ReconcileDriven.Trace;
@@ -11,22 +12,22 @@ namespace Operation.ReconcileDriven.Trace;
 /// <b>不</b>挂 EventSink（ur_events 异步批写 + at-least-once，实时对账会假红/假绿）。
 /// </para>
 /// <para>
-/// 过滤：按 AsyncLocal 活动触发域 —— 无活动域 ⇒ 直通丢弃（零开销）；有活动域 ⇒ 记录（同逻辑链内的事件）。
-/// 单线程 UI 触发天然命中；异步长任务经 AsyncLocal/上下文流动命中。
+/// 过滤：按 ambient 活动触发域 —— 无活动域 ⇒ 直通丢弃（零开销）；有活动域 ⇒ 记录（同逻辑链内的事件）。
+/// 域的进出经 <see cref="AmbientSlot{T}"/> 的 Enter/Dispose 成对恢复，嵌套触发不会让 Close 后的旧域继续吸信号。
 /// </para>
 /// </summary>
 public sealed class TriggerScopedSignalCollector : IObservabilitySink
 {
-    private static readonly AsyncLocal<TriggerScope?> Active = new();
+    private static readonly AmbientSlot<TriggerScope> Active = new("Operation.ReconcileDriven.TriggerScope");
 
     /// <summary>当前活动触发域（无则 null）。</summary>
-    public static TriggerScope? Current => Active.Value;
+    public static TriggerScope? Current => Active.Current;
 
     /// <summary>开启一个触发域：在其嵌套范围内 Push 的信号计入本域。返回句柄（Close/Dispose 摘域）。</summary>
     public TriggerScope Begin(string triggerId)
     {
         var scope = new TriggerScope(triggerId);
-        Active.Value = scope;
+        scope.AttachRestore(Active.Enter(scope));
         return scope;
     }
 

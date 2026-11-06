@@ -53,6 +53,14 @@
     <ProjectReference Include="$(Proj_ComponentData)" />
     <!-- LayoutAnalysis（共享布局分析：控件遍历、重叠检测等） -->
     <ProjectReference Include="$(Proj_LayoutAnalysis)" />
+
+    <!-- 收敛控制律内核（Modules\Foundations\Regulation，L1、BCL-only）：LayoutScheduler 的风暴护栏 +
+         按键预算耗尽重试/终态隔离（ConvergenceController）；阈值仍由 LayoutConvergencePolicy 注入 -->
+    <ProjectReference Include="$(Proj_Regulation)" />
+
+    <!-- 可重入事件派发队列（Modules\Frameworks\EventFramework\Bus）：EcsEventBus 的单消费者守卫 +
+         重入入队 + 统一 drain（ReentrantEventDispatchQueue<T>），事件绑定语义仍留在本工程 -->
+    <ProjectReference Include="$(Proj_EventFramework)" />
   </ItemGroup>
 
   <!-- ★ 2026-07-25 新增：Threading（通用执行状态结果类 ExecutionResult/StepRecord/ExecutionPhase） -->

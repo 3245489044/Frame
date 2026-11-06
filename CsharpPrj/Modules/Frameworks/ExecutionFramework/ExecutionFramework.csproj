@@ -40,6 +40,8 @@
     <ProjectReference Include="$(Proj_TConfig)" />
     <ProjectReference Include="$(Proj_ECS)" />
     <ProjectReference Include="$(Proj_RGE_Unified)" />
+    <!-- ExecutionBudgetPolicy 复用 Modules.Threading.BoundedRun（有界执行竞速单源，L1） -->
+    <ProjectReference Include="$(Proj_Threading)" />
   </ItemGroup>
 
 </Project>

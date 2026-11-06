@@ -25,6 +25,9 @@
     <!-- 框架抽象 -->
     <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
 
+    <!-- Share 同步-异步桥（A-3 单源）：CommandInputPort 的有界同步等待（替代工程内私有 AsyncHelper） -->
+    <ProjectReference Include="$(Proj_HostAssembly)" />
+
     <!-- ★ INonEventCommandRegistry 已迁移至 CommandFramework.Abstractions，不再需要直接引用 FunctionStorage -->
     <!-- <ProjectReference Include="..\FunctionStorage\FunctionStorage.csproj" /> -->
 

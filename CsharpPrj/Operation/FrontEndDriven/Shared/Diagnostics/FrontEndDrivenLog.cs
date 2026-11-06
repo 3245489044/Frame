@@ -1,47 +1,22 @@
 
-using System.Text.Json;
-using Common.PlaceholderFramework.Core;
 using Common.PlaceholderFramework.Integrated.Handlers;
 
 namespace FrontEndDriven.Diagnostics;
 
+/// <summary>
+/// 本工程日志门面：仅保留模块名/KeyPrefix/消息词表；前缀剥离、模板落盘、未注册降级
+/// 统一由 Share 的 <see cref="ModuleLog"/>（A-1 单源）承担。
+/// </summary>
 public static class FrontEndDrivenLog
 {
     private const string ModuleName = "FrontEndDriven";
     private const string KeyPrefix = "fde:";
 
-    public static void Initialize(string jsonFilePath)
-    {
-        LogPlaceholderHandlerBase.Initialize(jsonFilePath, KeyPrefix);
-    }
+    private static readonly ModuleLogChannel Channel = ModuleLog.CreateChannel(ModuleName, KeyPrefix);
 
-    private static string CleanMessageId(string messageId)
-    {
-        return messageId.StartsWith(KeyPrefix) ? messageId.Substring(KeyPrefix.Length) : messageId;
-    }
+    public static void Initialize(string jsonFilePath) => Channel.Initialize(jsonFilePath);
 
-    public static void Log(string messageId, object? data = null)
-    {
-        // L3 对齐：LogPlaceholderHandlerBase 消息定义未命中（loader 未初始化/msgId 未注册）时
-        // 降级 DEBUG 落盘，与 BackEndDriven.LogBase 行为一致（消除静默丢失）。
-        var cleanId = CleanMessageId(messageId);
-        bool logged = LogPlaceholderHandlerBase.Log(cleanId, ModuleName, KeyPrefix, data);
-        if (!logged)
-        {
-            var dataStr = data != null ? $" {JsonSerializer.Serialize(data, Plate.JsonMethod.Serialization.JsonSerializerFactory.Contexts.LogCompact)}" : "";
-            PlaceholderLogHelper.Log("DEBUG", cleanId, ModuleName,
-                $"[{KeyPrefix}{cleanId}]{dataStr}");
-        }
-    }
+    public static void Log(string messageId, object? data = null) => Channel.Log(messageId, data);
 
-    public static void Log(string messageId, string message)
-    {
-        var cleanId = CleanMessageId(messageId);
-        bool logged = LogPlaceholderHandlerBase.Log(cleanId, ModuleName, KeyPrefix, message);
-        if (!logged)
-        {
-            PlaceholderLogHelper.Log("DEBUG", cleanId, ModuleName,
-                $"[{KeyPrefix}{cleanId}] {message}");
-        }
-    }
+    public static void Log(string messageId, string message) => Channel.Log(messageId, message);
 }

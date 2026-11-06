@@ -3,10 +3,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Modules.KeySpace.Model;
 using Modules.KeySpace.Runtime;
-using Modules.Node.Ports;
+using Modules.Node.Materialization;
 using WorkFlowMethod.KeySpace.Adapters;
 using WorkFlowMethod.Skeletons.NodeProcess.Diagnostics;
 using WorkFlowMethod.Skeletons.NodeProcess.KeyMapping;
@@ -30,9 +29,6 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
     /// </summary>
     public static class NodeResultExtractor
     {
-        /// <summary>框架端口准入唯一实现（实例级；诊断经宿主 sink 单向投影到统一日志）。</summary>
-        private static readonly NodePortBinding Binding = new(NodeFrameworkLogSink.Instance);
-
         private sealed class SpecializedExtractor
         {
             public required Type ResultType;
@@ -84,42 +80,9 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
                 return specialized(result, resultKeys ?? Enumerable.Empty<string>());
             }
 
-            var declared = resultKeys?.Where(key => !string.IsNullOrEmpty(key)).ToArray() ?? Array.Empty<string>();
-            var lookup = BuildLookup(result);
-
-            // 成员面未知（简单值 / 无可枚举成员）→ null：落默认端口（由调用方以节点键整存），
-            // 与本方法既有语义一致（返回空字典 ⇒ 调用方补默认端口），同时产 port.default 可见化。
-            var members = lookup.Count == 0
-                ? null
-                : lookup.Select(pair => new PortMember(pair.Key, pair.Value is not null)
-                {
-                    Presence = pair.Value is null ? PortPresence.ExplicitNull : PortPresence.Value,
-                }).ToArray();
-
-            var outcome = Binding.ExtractValues(
-                nodeKey: string.Empty,
-                members,
-                valueOf: name => lookup[name],
-                defaultValue: result,
-                declaredPorts: declared,
-                memberComparer: StringComparer.OrdinalIgnoreCase); // 反射/字典键沿用既有宽松匹配
-
-            foreach (var pair in outcome.Ports)
-            {
-                if (pair.Key.Length > 0) props[pair.Key] = pair.Value;
-            }
-
-            // 事实保真：显式 null 的声明端口必须留痕（键存在、值 null），否则可空声明永久失效。
-            foreach (var pair in outcome.Presence)
-            {
-                if (pair.Value == PortPresence.ExplicitNull
-                    && declared.Contains(pair.Key, StringComparer.OrdinalIgnoreCase))
-                {
-                    props[pair.Key] = null;
-                }
-            }
-
-            return props;
+            // 默认提取单源 = Modules.Node.Materialization.NodeResultReader（L1 通用件）：
+            // 准入规则（NodePortRules）、显式 null 留痕、简单值默认端口、诊断投影全部由其承载。
+            return NodeResultReader.Read(resultKeys, result, NodeFrameworkLogSink.Instance);
         }
 
         /// <summary>
@@ -142,7 +105,7 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
                 return props;
             }
 
-            var lookup = BuildLookup(result);
+            var lookup = NodeResultReader.BuildLookup(result);
             var binding = new KeyBinder().BindOut(contracts, lookup);
             if (binding.RequiredMissing)
             {
@@ -185,31 +148,6 @@ namespace WorkFlowMethod.Skeletons.NodeProcess.Execution
             }
 
             return parsed.Members;
-        }
-
-        private static Dictionary<string, object?> BuildLookup(object result)
-        {
-            var lookup = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-            if (result is IDictionary<string, object?> dict)
-            {
-                foreach (var kv in dict) lookup[kv.Key] = kv.Value;
-                return lookup;
-            }
-            if (IsSimpleValue(result))
-                return lookup; // 简单值 → 不反射子成员（String/Length 等无意义成员），整存交由调用方默认端口
-            foreach (var p in result.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
-                if (p.GetIndexParameters().Length == 0)
-                    lookup[p.Name] = p.GetValue(result);
-            return lookup;
-        }
-
-        private static bool IsSimpleValue(object value)
-        {
-            return value is string or Enum or char or bool
-                or byte or sbyte or short or ushort or int or uint
-                or long or ulong or float or double or decimal
-                or DateTime or DateTimeOffset or TimeSpan or Guid
-                or DateOnly or TimeOnly;
         }
     }
 }

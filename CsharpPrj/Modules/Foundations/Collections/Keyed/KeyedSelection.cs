@@ -1,11 +1,8 @@
-using System;
-using System.Collections.Generic;
-
-namespace Operation.LoopFoldMethod.Catalog;
+namespace Modules.Foundations.Collections.Keyed;
 
 /// <summary>
-/// **键选择合并**（通用；纯函数）—— 把「原序键集」与「显式序覆盖列表」合并：
-/// 显式列表在前的按显式序，其余按原序追加（**不丢行**）。
+/// 键选择合并（通用；纯函数）—— 把「原序键集」与「显式序覆盖列表」合并：
+/// 显式列表在前的按显式序，其余按原序追加（不丢行）。
 /// </summary>
 public static class KeyedSelection
 {

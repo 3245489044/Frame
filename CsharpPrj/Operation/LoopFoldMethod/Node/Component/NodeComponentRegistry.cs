@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Modules.Node.Catalog;
 
 namespace Operation.LoopFoldMethod.Node.Component;
 
@@ -70,71 +71,26 @@ public sealed class NodeComponentRegistry : INodeComponentRegistry
     {
         lock (_gate)
         {
-            var selected = new List<NodeComponent>();
-            var unmet = new List<string>();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // 机制单源 = Modules.Node.Catalog.NodeComponentSelector（L1 纯函数）；
+            // 本处只做 NodeComponent / ComponentSelection 的契约映射，不再维护第二份选择算法。
+            var selection = NodeComponentSelector.Select(
+                _byName.Values,
+                static component => new NodeComponentDescriptor(
+                    component.Name,
+                    AlwaysOn: component.AlwaysOn,
+                    OnDemand: component.OnDemand,
+                    Order: component.Order,
+                    Trigger: component.Trigger,
+                    Tags: component.Tags),
+                requestedNames,
+                goal,
+                userInput,
+                scopeId,
+                maxAuto);
 
-            // AlwaysOn 恒入，依 Order 升序。
-            foreach (var c in _byName.Values.Where(c => c.AlwaysOn).OrderBy(c => c.Order))
-                if (seen.Add(c.Name)) selected.Add(c);
-
-            // 点名（按序、去重；未登记入 Unmet，不阻断）。
-            if (requestedNames is not null)
-            {
-                foreach (var name in requestedNames)
-                {
-                    if (string.IsNullOrWhiteSpace(name)) continue;
-                    if (_byName.TryGetValue(name, out var comp))
-                    {
-                        if (seen.Add(comp.Name)) selected.Add(comp);
-                    }
-                    else unmet.Add(name);
-                }
-            }
-
-            // 关键词自动补足「剩余名额」（autoPool = 非 AlwaysOn 且非 OnDemand）。
-            // E-15：maxAuto 是总名额，须扣除 AlwaysOn + 点名已占用的名额，否则实际入选会变成 maxAuto（超编）。
-            var remaining = Math.Max(0, maxAuto - selected.Count);
-            if (remaining > 0)
-            {
-                var text = Concat(goal, userInput, scopeId).ToLowerInvariant();
-                foreach (var c in _byName.Values
-                             .Where(c => !c.AlwaysOn && !c.OnDemand && !seen.Contains(c.Name))
-                             .Select(c => new { C = c, Score = Score(c, text) })
-                             .Where(x => x.Score > 0)
-                             .OrderByDescending(x => x.Score)
-                             .ThenBy(x => x.C.Name, StringComparer.OrdinalIgnoreCase)
-                             .Take(remaining))
-                {
-                    if (seen.Add(c.C.Name)) selected.Add(c.C);
-                }
-            }
-
-            return new ComponentSelection(selected, unmet);
+            return new ComponentSelection(selection.Selected, selection.Unmet);
         }
     }
-
-    private static string Concat(params string?[] parts)
-    {
-        var sb = new System.Text.StringBuilder();
-        foreach (var p in parts)
-            if (!string.IsNullOrWhiteSpace(p)) sb.Append(p).Append(' ');
-        return sb.ToString();
-    }
-
-    private static int Score(NodeComponent c, string text)
-    {
-        if (text.Length == 0) return 0;
-        if (Contains(text, c.Name)) return 3;
-        if (c.Trigger is { Length: > 0 } && Contains(text, c.Trigger)) return 2;
-        if (c.Tags is not null)
-            foreach (var tag in c.Tags)
-                if (Contains(text, tag)) return 1;
-        return 0;
-    }
-
-    private static bool Contains(string text, string keyword)
-        => keyword.Length > 0 && text.Contains(keyword.ToLowerInvariant(), StringComparison.Ordinal);
 
     /// <inheritdoc />
     /// <remarks>

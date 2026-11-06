@@ -62,6 +62,13 @@
     <!-- 提示词域投影器（Node/Project/PromptNodeProjector）段内拼接委托内核拼接单源 Share.Composition.KernelJoins
          （不过滤空段的 JoinAll 原义；保真锁定，不自建第二套 join）。Share 为框架层，向下引用无环。 -->
     <ProjectReference Include="$(Proj_Share_Conversation)" />
+
+    <!-- 通用键目录/选择内核（Modules\Foundations\Collections\Keyed，L1）：Catalog/ 的唯一实现来源；
+         本地仅保留同名转发门面以维持既有消费方（Agent.Modules）二进制契约。 -->
+    <ProjectReference Include="$(Proj_Keyed)" />
+
+    <!-- 通用组件选择内核（Modules\Data\Node\Catalog\ComponentSelector）：NodeComponentRegistry 的选择算法单源。 -->
+    <ProjectReference Include="$(Proj_Node)" />
   </ItemGroup>
 
 </Project>

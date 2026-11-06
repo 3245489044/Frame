@@ -1,11 +1,11 @@
 #nullable enable
 
 using System;
-using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using FrontEndDriven.Diagnostics;
 using FrameworkAbstractions.Framework;
+using Modules.Regulation;
 using TConfig.Abstractions;
 
 namespace FrontEndDriven.ControlRender.Layout;
@@ -32,14 +32,12 @@ public sealed class LayoutScheduler
     // 收敛阈值单源：MaxDrainPasses / ReflowStormThreshold / DrainBudget 定义见
     // LayoutConvergencePolicy（确定性收敛状态机的阈值单一权威），本处不再散落硬编码。
 
-    // 风暴跟踪状态（LayoutScheduler 为 UI 线程单消费者，仅 DrainAsync 内访问，无需加锁）。
-    private string? _lastReflowScope;
-    private int _consecutiveReflowCount;
-
-    // 预算耗尽计费按 scope 计（per-scope 隔离）：单条坏 scope 不再毒化全局重排——
-    // 每 scope 独立累计「连续预算耗尽仍滞留待重算」次数；仅队列整体清空时清空，
-    // 健康 scope 一旦收敛即随队列清空复位，不积累误判。
-    private readonly ConcurrentDictionary<string, int> _budgetExhaustions = new(StringComparer.OrdinalIgnoreCase);
+    // 收敛控制律（Modules.Regulation 单一实现）：风暴跟踪 + 按键预算耗尽重试/终态隔离。
+    // 阈值来自 LayoutConvergencePolicy（UI 体验调参仍留在本工程），控制律本身不再散落。
+    private readonly ConvergenceController _convergence = new(
+        LayoutConvergencePolicy.ReflowStormThreshold,
+        LayoutConvergencePolicy.DrainBudget,
+        StringComparer.OrdinalIgnoreCase);
 
     // 防重入守卫（独立于 VersionedKeyedQueue 内部 _draining）：`_work` 内可能再 Schedule（如 Reflow→RequestReflow），
     // 同步路径下会重入 DrainAsync。若嵌套 DrainAsync 在 DrainAllAsync 的重入守卫下"不消费"却仍执行预算/隔离逻辑，
@@ -102,8 +100,7 @@ public sealed class LayoutScheduler
 
         try
         {
-            _lastReflowScope = null;
-            _consecutiveReflowCount = 0;
+            _convergence.BeginPass();
 
             await _pending.DrainAllAsync(
                 execute: (scope, _, version) =>
@@ -112,18 +109,10 @@ public sealed class LayoutScheduler
                     // 避免 `_work` 内对同一 scope 反复 Schedule 造成 ScheduleDrain 重入无限风暴。
                     // （正常路径下一 scope 的 reflow 不会无界重排自身；此处仅护栏，不吞正确任务——
                     //  风暴 scope 已被 DrainAllAsync 经 TryConsumeIfLatest 出队且未执行 _work，不会被再次入队。）
-                    if (scope == _lastReflowScope)
-                        _consecutiveReflowCount++;
-                    else
-                    {
-                        _lastReflowScope = scope;
-                        _consecutiveReflowCount = 1;
-                    }
-
-                    if (_consecutiveReflowCount > LayoutConvergencePolicy.ReflowStormThreshold)
+                    if (!_convergence.TrackExecution(scope))
                     {
                         FrontEndDrivenLog.Log("LayoutScheduler_reflow_storm",
-                            new { scope, consecutive = _consecutiveReflowCount });
+                            new { scope, consecutive = _convergence.ConsecutiveCount });
                         return Task.FromResult(false); // = 原 `break`：终止本 pass 剩余遍历，交由外层 while 重新判定
                     }
 
@@ -149,7 +138,7 @@ public sealed class LayoutScheduler
         {
             // 本 drain 已清空（scope 全部收敛）→ 复位全部预算耗尽计数（per-scope），
             // 保证健康 scope 收敛后计数归零、不积累误判。
-            _budgetExhaustions.Clear();
+            _convergence.Reset();
             return;
         }
 
@@ -165,31 +154,33 @@ public sealed class LayoutScheduler
         // 预算计数仅队列整体清空时复位（见下方 final），健康 scope 收敛即复位，不积累误判。
         var remaining = _pending.Snapshot();
         bool anyReschedulable = false;
+        const string noteOnAbandon = "连续预算耗尽超上限，已终态隔离";
+        const string noteOnDrop = "剩余 scope 无可重试（Blocked/Converged/Abandoned）";
         foreach (var (key, _, _) in remaining)
         {
-            int count = _budgetExhaustions.TryGetValue(key, out var prev) ? prev + 1 : 1;
             bool retryable = _shouldRetry?.Invoke(key) ?? true;
+            var decision = _convergence.ClassifyRemaining(key, retryable);
 
-            if (!retryable || count > LayoutConvergencePolicy.DrainBudget)
+            if (decision.Kind != ConvergenceDecisionKind.Retry)
             {
                 // 终态：从待重算移除（scope 不应长期滞留）；超限且可重试 → 通知收敛机隔离。
                 _pending.TryRemove(key);
-                _budgetExhaustions.TryRemove(key, out _);
-                if (retryable)
+                if (decision.Kind == ConvergenceDecisionKind.Abandon)
                     _onBudgetExhausted?.Invoke(key);
                 FrontEndDrivenLog.Log("LayoutScheduler_drain_reschedule_giveup",
                     new
                     {
                         scope = key,
                         pendingCount = _pending.Count,
-                        consecutive = count,
+                        consecutive = decision.Attempt,
                         budgetKind = "drain",
-                        note = retryable ? "连续预算耗尽超上限，已终态隔离" : "剩余 scope 无可重试（Blocked/Converged/Abandoned）"
+                        note = decision.Kind == ConvergenceDecisionKind.Abandon
+                            ? noteOnAbandon
+                            : noteOnDrop
                     });
                 continue;
             }
 
-            _budgetExhaustions[key] = count;
             anyReschedulable = true; // 仍在退避预算内的可重试 scope → 消化剩余
         }
 

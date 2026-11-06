@@ -113,6 +113,9 @@
         @{ File = 'Usharp\UsharpJoint.psd1'; Role = 'Data'; Domain = 'Usharp'; Gate = 'UsharpJoint'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Usharp\Check-UsharpJoint.ps1' }
         @{ File = 'Build\BuildFrameworkModules.psd1'; Role = 'Data'; Domain = 'Build'; Gate = 'BuildFrameworkModules'; Shape = 'Grid'; Origins = @('Debt'); Consumer = 'Projects\BuildFramework\Gates\Check-BuildFrameworkModules.ps1'; DueWhen = 'B1 收口：裸值/行形态转事实行（U9/U11 既有红）；归属域可迁 Projects\BuildFramework' }
         @{ File = 'Build\BinaryContract.psd1'; Role = 'Data'; Domain = 'Build'; Gate = 'BinaryContract'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Projects\BuildFramework\Gates\Check-BinaryContract.ps1' }
+        @{ File = 'Meta\DeclarationLayout.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'DeclarationLayout'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-DeclarationLayout.ps1'; DueWhen = 'MigrationRootFiles 于 Batch 2 完成后清空' }
+        @{ File = 'Meta\ConfigPaths.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'ConfigPaths'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-ConfigPaths.ps1'; DueWhen = 'DebtAllowlist 于 Batch 3 归零' }
+
 
         @{ File = '_catalog.psd1'; Role = 'Register'; Domain = 'Infra'; Gate = ''; Shape = 'Registry'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-GateBaselines.ps1' }
         # ---- Role=Register（`_` 前缀清册/登记表；不进单件判据面）----

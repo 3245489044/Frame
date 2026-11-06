@@ -113,7 +113,7 @@ foreach ($path in $keyspacePaths) {
 }
 
 # 工具轨（仓库必检；Data 仅在存在时做镜像检查）
-$toolFacePaths = @(Join-Path $configRoot 'tool-face.ushar')
+$toolFacePaths = @(Join-Path $configRoot 'toolface\tool-face.ushar')
 if ($dataAvailable) { $toolFacePaths += Join-Path $dataRoot 'tool-face.ushar' }
 foreach ($path in $toolFacePaths) {
     if (-not (Test-Path -LiteralPath $path)) { $violations.Add("缺工具面声明：$path"); continue }
@@ -124,7 +124,7 @@ foreach ($path in $toolFacePaths) {
 }
 
 # 子智能体档位（仓库必检；Data 仅在存在时做镜像检查）
-$subAgentPaths = @(Join-Path $configRoot 'subagents.ushar')
+$subAgentPaths = @(Join-Path $configRoot 'agents\subagents.ushar')
 if ($dataAvailable) { $subAgentPaths += Join-Path $dataRoot 'subagents.ushar' }
 foreach ($path in $subAgentPaths) {
     if (-not (Test-Path -LiteralPath $path)) { $violations.Add("缺子智能体声明：$path"); continue }

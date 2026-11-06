@@ -321,13 +321,20 @@ public sealed class DeclarationLayout
             new("gather", new[] { "gather" }, false, new[] { "_deprecated" }, DeclarationNaming.FullPath),
             new("llm", new[] { "llm" }, true, new[] { "prompts", "_deprecated" }, DeclarationNaming.RoleBasename),
             new("agents", new[] { "agents" }, true, new[] { "_deprecated" }, DeclarationNaming.FullPath),
+            new("model", new[] { "model" }, true, new[] { "_deprecated" }, DeclarationNaming.RoleBasename),
+            new("prompt", new[] { "prompt" }, true, new[] { "_deprecated" }, DeclarationNaming.RoleBasename),
+            new("policy", new[] { "policy" }, true, new[] { "_deprecated" }, DeclarationNaming.RoleBasename),
+            new("toolface", new[] { "toolface" }, true, new[] { "_deprecated" }, DeclarationNaming.RoleBasename),
+            new("rules", new[] { "rules" }, true, new[] { "_deprecated" }, DeclarationNaming.FullPath),
+            new("decisions", new[] { "decisions" }, true, new[] { "_deprecated" }, DeclarationNaming.FullPath),
+            new("runtime", new[] { "runtime" }, true, new[] { "_deprecated" }, DeclarationNaming.FullPath),
         };
 
         var bundles = new List<DeclarationBundle>
         {
             new("core", new[] { "nodes", "workflows", "keyspaces", "commands", "state", "relations" },
-                new[] { "prompt-segments.ushar" }),
-            new("toolface", new[] { "keyspaces" }, new[] { "tool-face.ushar" }),
+                new[] { "prompt/prompt-segments.ushar" }),
+            new("toolface", new[] { "keyspaces", "toolface" }, Array.Empty<string>()),
             new("ui", new[] { "ui" }, Array.Empty<string>()),
             new("gather", new[] { "gather" }, Array.Empty<string>()),
         };

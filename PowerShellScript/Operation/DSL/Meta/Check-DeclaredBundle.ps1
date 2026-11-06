@@ -33,18 +33,23 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
-}
+
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects'))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Detail:$ShowDetail -Key 'DeclaredBundle'
+$Root = $ctx.Root
 
 $violations = [System.Collections.Generic.List[string]]::new()
 
-$declaredDir = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Core\Declared'
+$declaredDir = Join-Path (Get-MappedPath -Key 'AgentSrc') 'Agent.Core\Declared'
 $manifestPath = Join-Path $declaredDir 'declared-manifest.json'
 $manifestGzPath = Join-Path $declaredDir 'declared-manifest.json.gz'
 $roundSpecPath = Join-Path $declaredDir 'round-spec.generated.json'
 $schemaPath = Join-Path $declaredDir 'reference-schema.generated.json'
-$assemblerPath = Join-Path $Root 'Projects\Plug\Agent\src\Agent.Session\Projection\HistoryViewportAssembler.cs'
+$assemblerPath = Join-Path (Get-MappedPath -Key 'AgentSrc') 'Agent.Session\Projection\HistoryViewportAssembler.cs'
 
 Write-Host ''
 Write-Host '============================================================' -ForegroundColor Cyan

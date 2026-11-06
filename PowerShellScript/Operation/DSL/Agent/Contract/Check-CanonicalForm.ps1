@@ -39,7 +39,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
 }
 
 $agentsRoot = Join-Path $Root 'Projects\Plug\Agent\Config\agents'
-$canonPath  = Join-Path $Root 'Projects\Plug\Agent\Config\conversation-canon.ushar'
+$canonPath  = Join-Path $Root 'Projects\Plug\Agent\Config\model\conversation\conversation-canon.ushar'
 Import-Module (Join-Path (Get-FrameRoot) 'PowerShellScript\Modules\Parsing\Invoke-CanonCli.psm1') -Force
 $cliPath    = Resolve-CanonCliPath -Root $Root
 $extraKeys  = @('retention', 'materialize')

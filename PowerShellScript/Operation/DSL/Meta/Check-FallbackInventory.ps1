@@ -42,19 +42,24 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# ---- 路径定位（无硬编码绝对路径；缺省上溯四级 = 仓库超根，含 Frame\ 与 Projects\）----
+# ---- 路径定位（无硬编码绝对路径；GateRuntime 超根与目录映射单源）----
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    $__repoRoot = $PSScriptRoot
+    while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects'))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+    if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+    Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+    $ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Key 'FallbackInventory'
+    $Root = $ctx.Root
 }
 $superRoot = $Root
-if ([string]::IsNullOrWhiteSpace($BaselinePath)) { $BaselinePath = Join-Path $PSScriptRoot '..\Registry\fallback-baseline.json' }
-if ([string]::IsNullOrWhiteSpace($RegistryPath)) { $RegistryPath = Join-Path $PSScriptRoot '..\Registry\fallback-registry.json' }
+if ([string]::IsNullOrWhiteSpace($BaselinePath)) { $BaselinePath = Join-Path (Get-MappedPath -Key 'GateRegistry') 'fallback-baseline.json' }
+if ([string]::IsNullOrWhiteSpace($RegistryPath)) { $RegistryPath = Join-Path (Get-MappedPath -Key 'GateRegistry') 'fallback-registry.json' }
 
 # 扫描面 = Frame 子模块 CsharpPrj ∪ Projects 子模块 Agent\src（跨子模块；缺失不静默）
 $scanRoots = @()
-$frameRoot = Join-Path $Root 'Frame\CsharpPrj'
+$frameRoot = Join-Path (Get-MappedPath -Key 'Frame') 'CsharpPrj'
 if (Test-Path -LiteralPath $frameRoot) { $scanRoots += (Resolve-Path $frameRoot).Path }
-$agentRoot = Join-Path $Root 'Projects\Plug\Agent\src'
+$agentRoot = Get-MappedPath -Key 'AgentSrc'
 if (Test-Path -LiteralPath $agentRoot) { $scanRoots += (Resolve-Path $agentRoot).Path }
 
 $excludeRx = '\\(obj|bin|_deprecated|BuildOutput|backups)\\'
@@ -81,7 +86,9 @@ if (Test-Path -LiteralPath $RegistryPath) {
 }
 
 # ---- catch 出口分类内核（单一实现，与 Invoke-CatchTriage / Invoke-CatchOutletPatch 共用；TH-12）----
-$catchModule = Join-Path $PSScriptRoot 'CatchOutlet.psm1'
+# 优先取共享骨架 Share\Text（F3 前置项）；未落地时回退到原 Meta 同目录实现
+$catchModule = Join-Path (Get-MappedPath -Key 'PowerShellScript') 'Share\Text\CatchOutlet.psm1'
+if (-not (Test-Path -LiteralPath $catchModule)) { $catchModule = Join-Path (Get-MappedPath -Key 'DSL') 'Meta\CatchOutlet.psm1' }
 $catchKernel = $false
 if (Test-Path -LiteralPath $catchModule) {
     Import-Module $catchModule -Force -DisableNameChecking

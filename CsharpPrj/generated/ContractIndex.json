@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-06T05:18:55.1447367Z",
+  "builtAt": "2026-11-06T05:41:10.0218028Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -1507,8 +1507,8 @@
       "total": 400,
       "truncated": true,
       "byRole": {
-        "Gate": 5,
-        "Test": 33,
+        "Gate": 4,
+        "Test": 34,
         "Declaration": 1,
         "Code": 18,
         "Doc": 261,
@@ -2102,13 +2102,6 @@
           "line": 585,
           "role": "Other",
           "text": "MemoryMB    = [math]::Round($proc.WorkingSet64 / 1MB, 1)"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Contract/Check-AgentProcessSurface.ps1",
-          "line": 4,
-          "role": "Gate",
-          "text": "#   [P1] 过程键族字面量 \"proc.\" 只允许出现在 Agent.Contract\\NodeDomain\\ProcessKeys.cs（键文法单源）；"
         },
         {
           "repo": "Frame",
@@ -4314,6 +4307,13 @@
           "line": 59,
           "role": "Test",
           "text": "Assert.AreEqual(\"proc.task-1.r2.tool-call.37\", position);"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 74,
+          "role": "Test",
+          "text": "Assert.AreEqual(\"proc.task-1\", ProcessKeys.StreamPositionKey(\"task-1\"));"
         }
       ]
     },
@@ -8390,52 +8390,17 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 397,
+      "total": 394,
       "truncated": false,
       "byRole": {
-        "Gate": 7,
+        "Gate": 2,
         "Test": 88,
         "Declaration": 61,
         "Code": 19,
-        "Doc": 221,
+        "Doc": 223,
         "Other": 1
       },
       "hits": [
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentDefaultDispatch.ps1",
-          "line": 26,
-          "role": "Gate",
-          "text": "@{ Tag = 'tool-call'; Kind = 'tool-invoke' },"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentDefaultDispatch.ps1",
-          "line": 79,
-          "role": "Gate",
-          "text": "if ($text -match 'subagent-(tool-call|workflow|base|ps|usharp)') {"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentSpec.ps1",
-          "line": 210,
-          "role": "Gate",
-          "text": "kinds = @('unrecognized', 'tool-call')"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentSpec.ps1",
-          "line": 211,
-          "role": "Gate",
-          "text": "recognizers = @([pscustomobject]@{ match = [pscustomobject]@{ step = 1 }; kind = 'tool-call' })"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/Agent/Declaration/Check-AgentSpec.ps1",
-          "line": 214,
-          "role": "Gate",
-          "text": "$probeStepIssues = @(Get-AgentSpecIssues -AgentName 'probe' -Spec $probeStepKey -HasRoundShape $true -CanonText \"unrecognized → X`ntool-call → Y\")"
-        },
         {
           "repo": "Frame",
           "file": "PowerShellScript/Share/Index/Build-ContractIndex.ps1",
@@ -9733,6 +9698,20 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.6/2026-11-06-渲染全面化与跨载体通用渲染框架-声明式主体框架设计与施工单.md",
+          "line": 292,
+          "role": "Doc",
+          "text": "| 工具调用（名称/入参） | ● 折叠 | ○ 计数 | ● 节点端口 | `tool-call` |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.6/2026-11-06-渲染全面化与跨载体通用渲染框架-声明式主体框架设计与施工单.md",
+          "line": 380,
+          "role": "Doc",
+          "text": "| `tool-call` | 过程行 + 展开区 | `tool(ref)`、`input(json → tree)`、`toolCallId(ref)` | toggleFold / copy |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.11/2026-09-11-Cline工具调用测试-下一步debug方案.md",
           "line": 202,
           "role": "Doc",
@@ -10832,24 +10811,24 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/collaboration.ushar",
-          "line": 24,
+          "file": "Plug/Agent/Config/agents/subagents.ushar",
+          "line": 69,
           "role": "Declaration",
-          "text": "Route.tool-call = tools_on"
+          "text": "[SubAgent] tool-call:"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/conversation-canon.ushar",
-          "line": 12,
+          "file": "Plug/Agent/Config/agents/subagents.ushar",
+          "line": 70,
           "role": "Declaration",
-          "text": "tool-call         → CanonicalNodeType.Action    | slot=invoke"
+          "text": "agent = tool-call"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/history-loop.ushar",
-          "line": 35,
+          "file": "Plug/Agent/Config/agents/subagents.ushar",
+          "line": 72,
           "role": "Declaration",
-          "text": "[Ref] DefaultToolSubAgent: HistoryDispatchPolicy:default_tool_sub_agent | edge=defaults | src=default_tool_sub_agent | tgt=tool-call | intent=consume"
+          "text": "skills = tool-call"
         },
         {
           "repo": "Projects",
@@ -10878,6 +10857,27 @@
           "line": 18,
           "role": "Declaration",
           "text": "[KeyLexicon] RecognizedKind: stage, endpoint, llm-call, tool, cost, workflow-plan, workflow-step, llm-iteration, llm-text, llm-reasoning, tool-call, tool-progress, tool-result, say-text, say-command, "
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/model/conversation/conversation-canon.ushar",
+          "line": 12,
+          "role": "Declaration",
+          "text": "tool-call         → CanonicalNodeType.Action    | slot=invoke"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/model/history/history-loop.ushar",
+          "line": 35,
+          "role": "Declaration",
+          "text": "[Ref] DefaultToolSubAgent: HistoryDispatchPolicy:default_tool_sub_agent | edge=defaults | src=default_tool_sub_agent | tgt=tool-call | intent=consume"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/model/orchestration/collaboration.ushar",
+          "line": 24,
+          "role": "Declaration",
+          "text": "Route.tool-call = tools_on"
         },
         {
           "repo": "Projects",
@@ -11007,6 +11007,13 @@
         },
         {
           "repo": "Projects",
+          "file": "Plug/Agent/Config/prompt/skills.ushar",
+          "line": 28,
+          "role": "Declaration",
+          "text": "[Skill] tool-call: module=internal | kind=operation | body=skills/internal/tool-call/SKILL.md | trigger=tool-call | tags=subagent,tool,call,invoke"
+        },
+        {
+          "repo": "Projects",
           "file": "Plug/Agent/Config/rules/local-llm.rules.ushar",
           "line": 11,
           "role": "Declaration",
@@ -11025,34 +11032,6 @@
           "line": 67,
           "role": "Declaration",
           "text": "comment = 命中「USHARP_TOOLCALL_TASK」→ create_node_reference（SubAgentTag=tool-call + 结构化 UserInput，确定性直调）"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/skills.ushar",
-          "line": 28,
-          "role": "Declaration",
-          "text": "[Skill] tool-call: module=internal | kind=operation | body=skills/internal/tool-call/SKILL.md | trigger=tool-call | tags=subagent,tool,call,invoke"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 69,
-          "role": "Declaration",
-          "text": "[SubAgent] tool-call:"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 70,
-          "role": "Declaration",
-          "text": "agent = tool-call"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/subagents.ushar",
-          "line": 72,
-          "role": "Declaration",
-          "text": "skills = tool-call"
         },
         {
           "repo": "Projects",
@@ -11816,13 +11795,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1661.0,
+    "hitCount": 1658.0,
     "byRole": {
-      "Gate": 42,
-      "Test": 190,
+      "Gate": 36,
+      "Test": 191,
       "Declaration": 104,
       "Code": 345,
-      "Doc": 884,
+      "Doc": 886,
       "Other": 96
     },
     "truncatedFacts": [
@@ -11832,7 +11811,7 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 484
+        "lines": 478
       },
       {
         "repo": "Projects",
@@ -11840,7 +11819,7 @@
       },
       {
         "repo": "Main",
-        "lines": 1355
+        "lines": 1357
       }
     ]
   }

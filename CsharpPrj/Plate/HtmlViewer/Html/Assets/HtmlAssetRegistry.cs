@@ -111,9 +111,14 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
         return ComponentStyles.Value.Modules.TryGetValue(name, out var asset) ? asset : string.Empty;
     }
 
-    /// <summary>通用组件生效样式 = 通用模块按固定序拼接（顺序固定 ⇒ 级联稳定；模块可被域覆盖）。</summary>
+    /// <summary>通用组件生效样式 = 通用模块按固定序拼接（顺序固定 ⇒ 级联稳定；模块可被域覆盖）
+    /// + 声明投影模块（<see cref="DeclarationStyleModule"/>，最后追加 ⇒ 声明优先）。</summary>
     internal static string FrameworkComponentCss =>
-        string.Join("\n", ComponentStyles.Value.Order.Select(GetStyleModule));
+        string.Join("\n", ComponentStyles.Value.Order.Select(GetStyleModule))
+        + "\n" + GetStyleModule(DeclarationStyleModule);
+
+    /// <summary>声明投影样式模块名（由 <c>SurfaceCssProjector</c> 注册；未注册 ⇒ 空串，零回归）。</summary>
+    internal const string DeclarationStyleModule = "ui-declaration";
 
     /// <summary>内置通用模块（资产加载结果；供诊断/覆盖前对照）。</summary>
     internal static IReadOnlyDictionary<string, string> CssModules => ComponentStyles.Value.Modules;

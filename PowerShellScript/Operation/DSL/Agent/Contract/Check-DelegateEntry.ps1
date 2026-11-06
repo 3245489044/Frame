@@ -40,7 +40,7 @@ $minChecks = [int]$baseline.MinChecks.Value
 $violations = [System.Collections.Generic.List[string]]::new()
 $checks = 0
 
-$facePath = Join-Path $repoRoot 'Projects\Plug\Agent\Config\tool-face.ushar'
+$facePath = Join-Path $repoRoot 'Projects\Plug\Agent\Config\toolface\tool-face.ushar'
 $assemblerPath = Join-Path $repoRoot 'Projects\Plug\Agent\src\Agent.McpRegistryHost\Faces\ToolFaceAssembler.cs'
 $trackPath = Join-Path $repoRoot 'Projects\Plug\Agent\src\Agent.McpRegistryHost\Tracks\DelegateSubAgentCallableTrack.cs'
 $catalogDir = Join-Path $repoRoot 'Projects\Plug\Agent\src\Agent.Core\Operation\Tool'

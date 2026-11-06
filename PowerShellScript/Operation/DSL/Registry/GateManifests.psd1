@@ -532,6 +532,16 @@
         Note   = 'UI 个性化单一声明程序（ui-v1）：槽位→token 闭合、每载体元素齐全、皮肤链无环、单元无零样式；负对照未知 token 必红'
     }
 
+    UiCarrierParity = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '三载体声明一致性：carriers 单源 = 单元 carriers = surface-map 角色载体集；负对照缺载体必红'
+    }
+
     UiViewCatalog = @{
         Domain = 'Agent'
         Family = 'Presentation'
@@ -2533,6 +2543,22 @@
         Expect  = 0
         Carrier = '契约 Trace 表 + 实跑 --diagnose 新增日志内容标记'
         Note    = 'K4 失败可复算：Trace.Dir/Tee/KeepDays 在册，诊断实跑必落日志且含契约哈希/阶段/判定证据'
+    }
+
+    DeclarationLayout = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '声明面布局守卫 D1–D7：role/dirs 存在 / bundle 角色已声明 / 磁盘 .ushar 全覆盖 / role-basename 逻辑名唯一 / 命名策略（model·prompt·policy·toolface=role-basename，agents=full-path）/ JSON ⇔ BuildDefault 三方等价 / 正负对照'
+    }
+
+    ConfigPaths = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '配置路径防回潮 P1–P4：C# 消费代码禁 @"Config\..." 与 Path.Combine("Config",...)；Agent 模块 PS 禁 Join-Path Config 硬编码；债务棘轮只降不升（Baselines\Meta\ConfigPaths.psd1）；正负对照'
     }
 
 }

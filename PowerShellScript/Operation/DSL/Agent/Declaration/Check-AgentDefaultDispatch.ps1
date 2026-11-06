@@ -18,9 +18,9 @@ if ([string]::IsNullOrWhiteSpace($AgentRoot)) {
 }
 
 $violations = New-Object System.Collections.Generic.List[string]
-$subagents = Get-Content -LiteralPath (Join-Path $AgentRoot 'Config\subagents.ushar') -Raw -Encoding UTF8
-$modes = Get-Content -LiteralPath (Join-Path $AgentRoot 'Config\history-modes.ushar') -Raw -Encoding UTF8
-$loop = Get-Content -LiteralPath (Join-Path $AgentRoot 'Config\history-loop.ushar') -Raw -Encoding UTF8
+$subagents = Get-Content -LiteralPath (Join-Path $AgentRoot 'Config\agents\subagents.ushar') -Raw -Encoding UTF8
+$modes = Get-Content -LiteralPath (Join-Path $AgentRoot 'Config\model\history\history-modes.ushar') -Raw -Encoding UTF8
+$loop = Get-Content -LiteralPath (Join-Path $AgentRoot 'Config\model\history\history-loop.ushar') -Raw -Encoding UTF8
 
 $pairs = @(
     @{ Tag = 'tool-call'; Kind = 'tool-invoke' },

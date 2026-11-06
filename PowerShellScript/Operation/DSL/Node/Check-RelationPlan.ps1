@@ -114,7 +114,7 @@ function Test-RelationSet($relations, $edgeNames, $containsEdges) {
 
 $relationText = Read-Text 'Projects\Plug\Agent\Config\relations\relation-ops.ushar'
 $referenceText = Read-Text 'Projects\Plug\Agent\Config\nodes\reference.ushar'
-$hierarchyText = Read-Text 'Projects\Plug\Agent\Config\hierarchy.ushar'
+$hierarchyText = Read-Text 'Projects\Plug\Agent\Config\model\hierarchy\hierarchy.ushar'
 
 if ([string]::IsNullOrWhiteSpace($relationText)) { $violations.Add('E1 relation-ops.ushar 缺失') }
 if ([string]::IsNullOrWhiteSpace($referenceText)) { $violations.Add('E2 reference.ushar 缺失') }

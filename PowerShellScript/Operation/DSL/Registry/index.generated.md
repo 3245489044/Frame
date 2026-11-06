@@ -196,7 +196,7 @@
 | `WireFabric` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WireFabric.ps1` |
 | `WorkFlowMethodKeySemantics` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\KeySpace\Check-WorkFlowMethodKeySemantics.ps1` |
 
-## Meta（34 件）
+## Meta（36 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -205,7 +205,9 @@
 | `BuildClosure` | fast | 0 | Build | Closure | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BuildClosure.ps1` |
 | `BuildLayout` | fast | 0 | Build | Closure | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BuildLayout.ps1` |
 | `BulkThreshold` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-BulkThreshold.ps1` |
+| `ConfigPaths` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-ConfigPaths.ps1` |
 | `ContractRegistry` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-ContractRegistry.ps1` |
+| `DeclarationLayout` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-DeclarationLayout.ps1` |
 | `DeclaredBundle` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-DeclaredBundle.ps1` |
 | `FallbackInventory` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-FallbackInventory.ps1` |
 | `FallbackInventoryRate` | fast | 0 | Meta | Ratchet | `Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-FallbackInventoryRate.ps1` |

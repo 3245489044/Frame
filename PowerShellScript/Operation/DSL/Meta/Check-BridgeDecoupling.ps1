@@ -22,8 +22,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# 定位仓库根（本脚本位于 Frame\PowerShellScript\Operation\DSL）
-$repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..\..'))
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$repoRoot = $PSScriptRoot
+while ($repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $repoRoot 'Projects'))) { $repoRoot = Split-Path -Parent $repoRoot }
+if (-not $repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$repoRoot = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 $bridgeDll = Join-Path $repoRoot ("Projects\PrjBridge\bin\{0}\net10.0-windows\PrjBridge.dll" -f $Configuration)
 
 $fail = $false

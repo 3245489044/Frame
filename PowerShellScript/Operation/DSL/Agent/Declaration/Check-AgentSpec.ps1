@@ -7,7 +7,7 @@
     声明面（单源）：
       Projects\Plug\Agent\Config\agents\<agent>\recognizers.json   （词表 + 规则 + default）
       Projects\Plug\Agent\Config\agents\<agent>\round-shape.ushar  （轮次形状契约）
-      Projects\Plug\Agent\Config\conversation-canon.ushar          （kind → CSG 映射，唯一映射点）
+      Projects\Plug\Agent\Config\model\conversation\conversation-canon.ushar          （kind → CSG 映射，唯一映射点）
 
     判据：
       A1 目录齐备：每个 agent 目录同时有 recognizers.json 与 round-shape.ushar（缺一即违规）。
@@ -45,7 +45,7 @@ if ([string]::IsNullOrWhiteSpace($Root))
 }
 
 $agentsRoot = Join-Path $Root 'Projects\Plug\Agent\Config\agents'
-$canonPath  = Join-Path $Root 'Projects\Plug\Agent\Config\conversation-canon.ushar'
+$canonPath  = Join-Path $Root 'Projects\Plug\Agent\Config\model\conversation\conversation-canon.ushar'
 $fallbackKind = Get-GateUnrecognizedKind   # A7 单源（同 C# RecognizedKinds.Unrecognized）
 $processKeys = @('order', 'step', 'sequence', 'then', 'next')
 

@@ -78,7 +78,7 @@ function Test-Coverage([hashtable]$Products, $Faces, [string[]]$RequiredFacts) {
     return $violations
 }
 
-$graphPath = Join-Path $Root 'Projects\Plug\Agent\Config\graph.ushar'
+$graphPath = Join-Path $Root 'Projects\Plug\Agent\Config\model\graph\graph.ushar'
 $declared = Read-Graph $graphPath
 $required = @('empty_reason', 'synthetic', 'window_digest')
 $violations = Test-Coverage -Products $declared.Products -Faces $declared.Faces -RequiredFacts $required

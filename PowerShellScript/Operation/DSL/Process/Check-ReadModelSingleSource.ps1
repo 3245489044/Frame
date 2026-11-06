@@ -285,7 +285,7 @@ else {
     foreach ($d in $closure.FakeProbe) { $violations.Add("[R5] versionProbe 为空串（假版本）：$d") }
 
     # R6 字段面单源：生成物 fields[] ↔（[ReadModel] fields= 声明序 × [Segment] field=/type=/order=/requirement=）
-    $segmentText = Read-Text (Join-Path $Root 'Projects\Plug\Agent\Config\prompt-segments.ushar')
+    $segmentText = Read-Text (Join-Path $Root 'Projects\Plug\Agent\Config\prompt\prompt-segments.ushar')
     $declText = Read-Text (Join-Path $Root 'Projects\Plug\Agent\Config\commands\agent-commands.ushar')
     $segments = Get-SegmentFieldMap -Text $segmentText
     $declaredOrder = Get-DeclaredFieldOrder -Text $declText

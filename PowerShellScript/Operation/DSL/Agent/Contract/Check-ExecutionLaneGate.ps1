@@ -30,8 +30,8 @@ $minChecks = [int]$baseline.MinChecks.Value
 $violations = [System.Collections.Generic.List[string]]::new()
 $checks = 0
 
-$subagentsPath = Join-Path $repoRoot 'Projects\Plug\Agent\Config\subagents.ushar'
-$lanesPath = Join-Path $repoRoot 'Projects\Plug\Agent\Config\lanes.ushar'
+$subagentsPath = Join-Path $repoRoot 'Projects\Plug\Agent\Config\agents\subagents.ushar'
+$lanesPath = Join-Path $repoRoot 'Projects\Plug\Agent\Config\policy\lanes.ushar'
 
 function Get-SubAgentBlocks {
     param([AllowEmptyString()][string]$Text)

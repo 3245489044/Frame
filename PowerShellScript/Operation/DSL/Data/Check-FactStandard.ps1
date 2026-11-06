@@ -52,7 +52,7 @@ $pending    = [System.Collections.Generic.List[string]]::new()
 
 $agentSrc   = Join-Path $Root 'Projects\Plug\Agent\src'
 $frameConv  = Join-Path $Root 'Frame\CsharpPrj\Share\Frameworks\Conversation'
-$declaration = Join-Path $Root 'Projects\Plug\Agent\Config\session-facts.ushar'
+$declaration = Join-Path $Root 'Projects\Plug\Agent\Config\model\context\session-facts.ushar'
 # S1 下沉（2026-09-24）：标识标准唯一字面量源已迁 Frame 侧（Share.Conversation.Ids），
 # Agent 侧 Agent.Session\Ids 仅剩迁移提示 ⇒ 扫描根须含 Frame 侧，否则 C1 退化为恒真（假绿）。
 $grammarFile = Join-Path $frameConv 'Ids\FactIdGrammar.cs'

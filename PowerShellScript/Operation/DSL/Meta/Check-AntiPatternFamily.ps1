@@ -20,12 +20,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# 定位仓库根（含 clinerules\ 与 Frame\）—— 相对 $PSScriptRoot 上溯，禁硬编码绝对路径
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
 $__repo = $PSScriptRoot
-while ($__repo -and $__repo -ne (Split-Path $__repo -Parent)) {
-    if ((Test-Path (Join-Path $__repo 'Frame')) -and ((Test-Path (Join-Path $__repo 'clinerules')) -or (Test-Path (Join-Path $__repo '.clinerules')))) { break }
-    $__repo = Split-Path $__repo -Parent
-}
+while ($__repo -and -not ((Test-Path -LiteralPath (Join-Path $__repo 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repo 'Projects'))) { $__repo = Split-Path -Parent $__repo }
+if (-not $__repo) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repo 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$__repo = Get-GateRepoRoot -ScriptRoot $PSScriptRoot
 $rulesDir = if (Test-Path (Join-Path $__repo 'clinerules')) { Join-Path $__repo 'clinerules' } else { Join-Path $__repo '.clinerules' }
 $formulaPath = Join-Path $rulesDir 'formula.md'
 $baselinePath = Join-Path $__repo 'Frame\PowerShellScript\Baselines\Meta\AntiPatternFamily.psd1'

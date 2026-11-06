@@ -38,15 +38,13 @@ public sealed class StatisticalObservability : IAsyncDisposable
 
     /// <summary>加载本模块语义契约（statistical_semantics.json，嵌入资源；可覆盖为外部实例）。</summary>
     public static IReadOnlyList<EventContract> LoadContracts(string? semanticsJson = null)
-        => ObservabilitySemanticsJson.Load(semanticsJson ?? ReadEmbeddedSemantics());
+        => EmbeddedSemanticsContractLoader.Load(
+            typeof(StatisticalObservability).Assembly, ResourceSuffix, semanticsJson);
 
     /// <summary>把本模块语义契约并入既有注册表（方案 A：Agent 组合根合并用）。重复注册静默忽略（TryAdd）。</summary>
     public static void RegisterInto(IObservabilityContractRegistry registry, string? semanticsJson = null)
-    {
-        ArgumentNullException.ThrowIfNull(registry);
-        foreach (var c in LoadContracts(semanticsJson))
-            registry.Register(c);
-    }
+        => EmbeddedSemanticsContractLoader.RegisterInto(
+            registry, typeof(StatisticalObservability).Assembly, ResourceSuffix, semanticsJson);
 
     /// <summary>
     /// 独立宿主装配一次统计语义观测（默认 Configure <see cref="Obs"/>）。
@@ -83,16 +81,10 @@ public sealed class StatisticalObservability : IAsyncDisposable
 
     /// <summary>读取嵌入的统计语义契约 JSON。</summary>
     public static string ReadEmbeddedSemantics()
-    {
-        var asm = typeof(StatisticalObservability).Assembly;
-        var name = asm.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith("statistical_semantics.json", StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException("程序集缺少嵌入资源 statistical_semantics.json");
-        using var s = asm.GetManifestResourceStream(name)
-            ?? throw new InvalidOperationException($"无法打开嵌入资源 {name}");
-        using var r = new StreamReader(s);
-        return r.ReadToEnd();
-    }
+        => EmbeddedSemanticsContractLoader.ReadEmbedded(
+            typeof(StatisticalObservability).Assembly, ResourceSuffix);
+
+    private const string ResourceSuffix = "statistical_semantics.json";
 
     /// <summary>优雅关闭：先显式排空（flush 失败抛出，调用方决定处置），再释放事件区。</summary>
     public async Task ShutdownAsync(CancellationToken ct = default)

@@ -7,7 +7,7 @@ namespace Modules.Foundations.Collections.Keyed;
 /// </para>
 /// </summary>
 /// <typeparam name="TService">域服务类型。</typeparam>
-public class KeyedDispatcher<TService>
+public sealed class KeyedDispatcher<TService>
 {
     private readonly IReadOnlyDictionary<string, TService> _services;
     private readonly string _defaultKey;

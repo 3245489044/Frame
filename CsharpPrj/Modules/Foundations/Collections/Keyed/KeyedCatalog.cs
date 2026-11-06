@@ -11,7 +11,7 @@ namespace Modules.Foundations.Collections.Keyed;
 /// </para>
 /// </summary>
 /// <typeparam name="TDescriptor">域描述类型（自含差异参数的数据行）。</typeparam>
-public class KeyedCatalog<TDescriptor>
+public sealed class KeyedCatalog<TDescriptor>
 {
     private readonly IReadOnlyList<TDescriptor> _all;
     private readonly Dictionary<string, TDescriptor> _byKey;

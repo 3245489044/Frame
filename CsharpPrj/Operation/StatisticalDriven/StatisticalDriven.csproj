@@ -32,6 +32,14 @@
   <ItemGroup>
     <!-- 复用观测内核（Strategy.Observability，Layer 3）；不得复刻其 Envelope/Registry/Bus/Query -->
     <ProjectReference Include="$(Proj_Observability)" />
+    <!-- 子进程执行编排（Share.Frameworks.Process，Layer 3）：双流/超时/取消杀树/采样单源 -->
+    <ProjectReference Include="$(Proj_Share_Process)" />
+    <!-- 上下文估算内核（Modules.Regulation，Layer 1）：bytes→chars→tokens 单源 -->
+    <ProjectReference Include="$(Proj_Regulation)" />
+    <!-- 计费内核（Share.Frameworks.Billing）：UnifiedUsage/定价/成本公式（纯计算） -->
+    <ProjectReference Include="$(Proj_Share_Billing)" />
+    <!-- LLM Usage 归一化（Share.Frameworks.Llm）：供应商 usage JSON → UnifiedUsage -->
+    <ProjectReference Include="$(Proj_Share_Llm)" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>共享计费内核（Share.Frameworks.Billing）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>跨 Operation 复用的纯计费模型：统一 usage 字段、模型/资源单价、分段阶梯定价、纯成本公式与成本分解。零 I/O、零观测内核依赖；查询投影与事件折叠仍留在各 Operation。</ModuleRule_Description>
+    <ModuleRule_Keywords>计费;定价;Token;成本;阶梯价;缓存写入;Share</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="本模块只放纯计算/纯数据模型（BCL-only），禁止引用 Strategy/Operation 或做事件查询" />
+    <ModuleRule_Rule Include="输入口径（InputIncludesCached）必须显式，禁止在公式内无条件 input-cached" />
+    <ModuleRule_Rule Include="阶梯定价按超出阈值部分分段计价，禁止整数级跳变" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Share.Frameworks.Billing</RootNamespace>
+    <AssemblyName>Share.Frameworks.Billing</AssemblyName>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Description>共享计费内核 — 统一 usage、模型/资源单价、分段阶梯定价与成本分解（纯计算）</Description>
+  </PropertyGroup>
+
+</Project>

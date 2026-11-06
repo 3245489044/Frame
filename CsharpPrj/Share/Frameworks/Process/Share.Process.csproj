@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>共享子进程执行编排（Share.Frameworks.Process）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>跨 Operation 复用的子进程编排层：启动 + stdout/stderr 并行读取 + 超时/取消杀树 + 周期采样（墙钟、CPU、峰值/累计内存）。终止原语强制复用 Modules.Threading.IProcessHandle；Windows 平台细节留在各 Operation 采集器。</ModuleRule_Description>
+    <ModuleRule_Keywords>子进程;ProcessRunner;双流;超时;取消;杀树;采样;Share</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="终止必须经 Modules.Threading.IProcessHandle.Kill(entireProcessTree: true)，禁止裸 Process.Kill 分支" />
+    <ModuleRule_Rule Include="取消/超时路径必须先杀树再返回/抛出，禁止留下孤儿进程" />
+    <ModuleRule_Rule Include="墙钟与内存积分共用同一 Stopwatch（单调时钟），禁在采样循环内混用 DateTime.UtcNow" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Share.Frameworks.Process</RootNamespace>
+    <AssemblyName>Share.Frameworks.Process</AssemblyName>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Description>共享子进程执行编排 — 双流并行、超时/取消杀树、周期资源采样（复用 IProcessHandle）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Threading)" />
+  </ItemGroup>
+
+</Project>

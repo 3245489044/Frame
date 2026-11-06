@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-06 11:49:50
+  生成时间: 2026-11-06 12:08:31
 -->
 <Project>
 
@@ -139,6 +139,9 @@
     <Mod_Share_NodeIo>$(CsharpPrjDir)Share\Frameworks\NodeIo\</Mod_Share_NodeIo>
     <Mod_Share_ObjectiveBoundary>$(CsharpPrjDir)Share\Frameworks\ObjectiveBoundary\</Mod_Share_ObjectiveBoundary>
     <Mod_Share_AgentLoop>$(CsharpPrjDir)Share\Frameworks\AgentLoop\</Mod_Share_AgentLoop>
+    <Mod_Share_Process>$(CsharpPrjDir)Share\Frameworks\Process\</Mod_Share_Process>
+    <Mod_Share_Billing>$(CsharpPrjDir)Share\Frameworks\Billing\</Mod_Share_Billing>
+    <Mod_Share_Llm>$(CsharpPrjDir)Share\Frameworks\Llm\</Mod_Share_Llm>
     <Mod_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\</Mod_CircuitFramework>
     <Mod_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\</Mod_Share_Conversation>
     <Mod_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\</Mod_Share_Messaging>
@@ -281,6 +284,9 @@
     <Proj_Share_NodeIo>$(CsharpPrjDir)Share\Frameworks\NodeIo\Share.NodeIo.csproj</Proj_Share_NodeIo>
     <Proj_Share_ObjectiveBoundary>$(CsharpPrjDir)Share\Frameworks\ObjectiveBoundary\Share.ObjectiveBoundary.csproj</Proj_Share_ObjectiveBoundary>
     <Proj_Share_AgentLoop>$(CsharpPrjDir)Share\Frameworks\AgentLoop\Share.AgentLoop.csproj</Proj_Share_AgentLoop>
+    <Proj_Share_Process>$(CsharpPrjDir)Share\Frameworks\Process\Share.Process.csproj</Proj_Share_Process>
+    <Proj_Share_Billing>$(CsharpPrjDir)Share\Frameworks\Billing\Share.Billing.csproj</Proj_Share_Billing>
+    <Proj_Share_Llm>$(CsharpPrjDir)Share\Frameworks\Llm\Share.Llm.csproj</Proj_Share_Llm>
     <Proj_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\CircuitFramework.csproj</Proj_CircuitFramework>
     <Proj_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\Share.Conversation.csproj</Proj_Share_Conversation>
     <Proj_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\Share.Messaging.csproj</Proj_Share_Messaging>

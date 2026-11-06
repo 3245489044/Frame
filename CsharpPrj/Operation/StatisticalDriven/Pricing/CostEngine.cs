@@ -1,3 +1,4 @@
+using Share.Frameworks.Billing;
 using Strategy.Observability.Envelope;
 using Strategy.Observability.Query;
 
@@ -9,7 +10,7 @@ namespace Operation.StatisticalDriven.Pricing;
 /// </summary>
 /// <remarks>
 /// 量纲约定：Metrics 值为 double；token 度量按整取（<see cref="ToLong"/>），
-/// 资源度量保留 double。金额以 decimal 输出。
+/// 资源度量保留 double。金额以 decimal 输出。计价模型统一由 Share.Frameworks.Billing 提供。
 /// </remarks>
 public sealed class CostEngine
 {
@@ -33,8 +34,9 @@ public sealed class CostEngine
     {
         var pricing = _pricing.Resolve(provider, model);
 
-        long inTokens = 0, cachedTokens = 0, outTokens = 0;
+        long inTokens = 0, cachedTokens = 0, cacheWriteTokens = 0, rawInputTokens = 0, outTokens = 0;
         long llmCalls = 0;
+        long unknownEvents = 0;
         decimal llmCost = 0m;
 
         double cpuSec = 0, memGbSec = 0, ioBytes = 0;
@@ -52,13 +54,20 @@ public sealed class CostEngine
                 {
                     var input = ToLong(Metric(evt, CostEventKinds.TokenIn));
                     var cached = ToLong(Metric(evt, CostEventKinds.TokenCached));
+                    var cacheWrite = ToLong(Metric(evt, CostEventKinds.TokenCacheWrite));
                     var output = ToLong(Metric(evt, CostEventKinds.TokenOut));
-                    var ctx = OptionalLong(Metric(evt, CostEventKinds.ContextLength));
 
-                    var (_, cost) = CostFormulas.LlmCallCost(input, cached, output, ctx, pricing);
+                    // 缺失（键不存在）≠ 0：context_length=0 是合法值，不能当缺失（E-6）。
+                    var ctxValue = OptionalMetric(evt, CostEventKinds.ContextLength);
+                    var ctx = ctxValue.HasValue ? (long?)Math.Round(ctxValue.Value) : null;
+
+                    var (rawInput, cost) = CostFormulas.LlmCallCost(
+                        input, cached, cacheWrite, output, ctx, pricing);
 
                     inTokens += input;
                     cachedTokens += cached;
+                    cacheWriteTokens += cacheWrite;
+                    rawInputTokens += rawInput;
                     outTokens += output;
                     llmCost += cost;
                     llmCalls++;
@@ -78,6 +87,14 @@ public sealed class CostEngine
                     reinjectedTokens += ToLong(Metric(evt, CostEventKinds.ReinjectedTokens));
                     reinjectCount++;
                     break;
+                // 已知但无成本贡献的事件：显式忽略（不记为未知）。
+                case CostEventKinds.ComputeSpanStarted:
+                case CostEventKinds.ContextSnapshot:
+                case CostEventKinds.OutputEmitted:
+                    break;
+                default:
+                    unknownEvents++;   // 口径显式：未知事件计数可见，不静默丢弃（E-15）
+                    break;
             }
         }
 
@@ -89,8 +106,11 @@ public sealed class CostEngine
             LlmCallCount = llmCalls,
             ComputeSpanCount = computeSpans,
             ReinjectCount = reinjectCount,
+            UnknownEventCount = unknownEvents,
             InputTokens = inTokens,
             CachedTokens = cachedTokens,
+            CacheWriteTokens = cacheWriteTokens,
+            RawInputTokens = rawInputTokens,
             OutputTokens = outTokens,
             CpuSeconds = cpuSec,
             MemoryGbSeconds = memGbSec,
@@ -105,7 +125,9 @@ public sealed class CostEngine
     private static double Metric(ObservabilityEvent evt, string key)
         => evt.Metrics is { } m && m.TryGetValue(key, out var v) ? v : 0d;
 
-    private static long? OptionalLong(double v) => v > 0d ? (long?)Math.Round(v) : null;
+    /// <summary>缺失返回 null；存在（含 0）返回原值。</summary>
+    private static double? OptionalMetric(ObservabilityEvent evt, string key)
+        => evt.Metrics is { } m && m.TryGetValue(key, out var v) ? v : null;
 
     private static long ToLong(double v) => (long)Math.Round(v);
 }

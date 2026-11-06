@@ -161,6 +161,9 @@
     "Share.NodeIo": "Share\\Frameworks\\NodeIo\\Share.NodeIo.csproj",
     "Share.ObjectiveBoundary": "Share\\Frameworks\\ObjectiveBoundary\\Share.ObjectiveBoundary.csproj",
     "Share.AgentLoop": "Share\\Frameworks\\AgentLoop\\Share.AgentLoop.csproj",
+    "Share.Process": "Share\\Frameworks\\Process\\Share.Process.csproj",
+    "Share.Billing": "Share\\Frameworks\\Billing\\Share.Billing.csproj",
+    "Share.Llm": "Share\\Frameworks\\Llm\\Share.Llm.csproj",
 
     "CircuitFramework": "Share\\Frameworks\\CircuitFramework\\CircuitFramework.csproj",
     "Share.Conversation": "Share\\Frameworks\\Conversation\\Share.Conversation.csproj",

@@ -7,6 +7,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Threading;
+using Operation.DataStoreDriven.Abstractions;
 using UniversalWorkflowFramework.Storage;
 using UniversalWorkflowFramework.StorageFramework.Sqlite;
 
@@ -37,19 +38,28 @@ public sealed class ThreadingSqliteWriteHost : ISqliteWriteHost, IDisposable
 
     private readonly ConcurrentDictionary<string, Entry> _entries = new(StringComparer.Ordinal);
 
-    /// <summary>取/建库级写通道条目（端口视角）。</summary>
-    public ISqliteWriteEntry GetOrCreate(string connectionString)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        var key = SqliteWriteOwnerRegistry.DbPathOf(connectionString);
-        return _entries.GetOrAdd(key, _ => CreateEntry(connectionString));
-    }
+    /// <summary>取/建库级写通道条目（端口视角）—— 与 <see cref="GetEntry"/> 同义，保留端口入口。</summary>
+    public ISqliteWriteEntry GetOrCreate(string connectionString) => GetEntry(connectionString);
 
     /// <summary>卸载指定库的写通道（停 worker、释放常驻写连接、移除条目）。测试/关闭用：释放后再次写入会重建。</summary>
     public void Release(string connectionString)
     {
         var key = SqliteWriteOwnerRegistry.DbPathOf(connectionString);
-        if (_entries.TryRemove(key, out var entry)) entry.Actor.Stop();
+        if (!_entries.TryRemove(key, out var entry)) return;
+        try
+        {
+            entry.Actor.Stop();
+        }
+        catch (Exception ex)
+        {
+            // F4.4：释放失败（仍有 reader/WAL 锁）必须可见，不能静默导致下次启动文件锁残留。
+            StorageConsistencyEvents.Report(StorageConsistencyEvents.ReleaseFailed, new
+            {
+                op = "release",
+                db = key,
+                error = ex.Message,
+            });
+        }
     }
 
     /// <summary>当前已建条目库路径。</summary>
@@ -67,7 +77,20 @@ public sealed class ThreadingSqliteWriteHost : ISqliteWriteHost, IDisposable
         var actor = new SingleWriterActor<SQLiteConnection>(
             create: () => OpenWriteConnection(connectionString),
             name: "sqlite-writer:" + Path.GetFileName(SqliteWriteOwnerRegistry.DbPathOf(connectionString)),
-            dispose: conn => { try { conn.Dispose(); } catch { /* 释放失败静默 */ } });
+            dispose: conn =>
+            {
+                try { conn.Dispose(); }
+                catch (Exception ex)
+                {
+                    // F4.4：常驻写连接释放失败须可见（否则文件锁残留，表现为下次启动打不开库）。
+                    StorageConsistencyEvents.Report(StorageConsistencyEvents.ReleaseFailed, new
+                    {
+                        op = "dispose",
+                        db = SqliteWriteOwnerRegistry.DbPathOf(connectionString),
+                        error = ex.Message,
+                    });
+                }
+            });
         actor.Start();
         return new Entry { ConnectionString = connectionString, Actor = actor };
     }
@@ -83,9 +106,10 @@ public sealed class ThreadingSqliteWriteHost : ISqliteWriteHost, IDisposable
     }
 
     /// <summary>等在途事务结束：worker 自身线程重入走内联；非 worker 才需等在途事务收尾（超时快速失败带 owner 自证）。</summary>
-    private void WaitTxIdle(Entry entry)
+    private void WaitTxIdle(Entry entry, TimeSpan? waitTimeout = null)
     {
         if (entry.Actor.IsCurrentWorker) return;
+        var timeout = waitTimeout is { } t && t > TimeSpan.Zero ? t : TxIdleWaitTimeout;
         lock (entry.Sync)
         {
             if (!entry.TxOpen) return;
@@ -93,8 +117,8 @@ public sealed class ThreadingSqliteWriteHost : ISqliteWriteHost, IDisposable
             while (entry.TxOpen)
             {
                 var elapsedMs = (Stopwatch.GetTimestamp() - start) * 1000.0 / Stopwatch.Frequency;
-                if (elapsedMs >= TxIdleWaitTimeout.TotalMilliseconds) break;
-                Monitor.Wait(entry.Sync, Math.Max(1, (int)(TxIdleWaitTimeout.TotalMilliseconds - elapsedMs)));
+                if (elapsedMs >= timeout.TotalMilliseconds) break;
+                Monitor.Wait(entry.Sync, Math.Max(1, (int)(timeout.TotalMilliseconds - elapsedMs)));
             }
             if (entry.TxOpen)
             {
@@ -102,7 +126,7 @@ public sealed class ThreadingSqliteWriteHost : ISqliteWriteHost, IDisposable
                     ? 0.0
                     : (Stopwatch.GetTimestamp() - entry.TxOpenedAtTicks) * 1000.0 / Stopwatch.Frequency;
                 throw new TimeoutException(
-                    $"ThreadingSqliteWriteHost: 在途事务未在 {TxIdleWaitTimeout.TotalSeconds:0.0}s 内收尾（owner={entry.TxOwner ?? "<unknown>"}, " +
+                    $"ThreadingSqliteWriteHost: 在途事务未在 {timeout.TotalSeconds:0.0}s 内收尾（owner={entry.TxOwner ?? "<unknown>"}, " +
                     $"openThread={entry.TxOwnerThreadId}, openMs={openMs:0}），单条写等待超时——疑似事务门遗漏 MarkTxIdle，按 execution_failure 归类，不静默挂起。");
             }
         }
@@ -113,7 +137,8 @@ public sealed class ThreadingSqliteWriteHost : ISqliteWriteHost, IDisposable
     {
         ArgumentNullException.ThrowIfNull(action);
         var entry = GetEntry(connectionString);
-        WaitTxIdle(entry);
+        // F4.3：timeoutMs 真正生效（不再「声明但忽略」）；≤0 回退默认事务门等待。
+        WaitTxIdle(entry, timeoutMs > 0 ? TimeSpan.FromMilliseconds(timeoutMs) : null);
         entry.Actor.Execute(c => action(c), cancellationToken);
     }
 
@@ -122,7 +147,7 @@ public sealed class ThreadingSqliteWriteHost : ISqliteWriteHost, IDisposable
     {
         ArgumentNullException.ThrowIfNull(action);
         var entry = GetEntry(connectionString);
-        WaitTxIdle(entry);
+        WaitTxIdle(entry, timeoutMs > 0 ? TimeSpan.FromMilliseconds(timeoutMs) : null);
         return entry.Actor.Execute(c => action(c), cancellationToken);
     }
 
@@ -144,7 +169,17 @@ public sealed class ThreadingSqliteWriteHost : ISqliteWriteHost, IDisposable
     {
         foreach (var kv in _entries)
         {
-            try { kv.Value.Actor.Stop(); } catch { /* 释放失败静默 */ }
+            try { kv.Value.Actor.Stop(); }
+            catch (Exception ex)
+            {
+                // F4.4：关闭期释放失败须可见（文件锁残留 → 下次启动失败）。
+                StorageConsistencyEvents.Report(StorageConsistencyEvents.ReleaseFailed, new
+                {
+                    op = "dispose-all",
+                    db = kv.Key,
+                    error = ex.Message,
+                });
+            }
         }
         _entries.Clear();
     }

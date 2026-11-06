@@ -5,6 +5,9 @@ public sealed record ProcessMeasurement
 {
     public required int ExitCode { get; init; }
 
+    /// <summary>是否因超时被杀树（true 时 ExitCode 不具业务意义）。</summary>
+    public bool TimedOut { get; init; }
+
     /// <summary>墙钟耗时（毫秒）。</summary>
     public required double WallMs { get; init; }
 

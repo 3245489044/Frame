@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using UniversalWorkflowFramework.StorageFramework.Core;
 
 namespace Operation.DataStoreDriven.Core;
 
@@ -30,17 +31,17 @@ public sealed class StorageConsistencyGuard : IStorageConsistencyGuard
     /// <inheritdoc />
     public async Task<ConsistencyReport> LightCheckAsync(CancellationToken ct = default)
     {
-        var before = await _outbox.CountAsync(ct).ConfigureAwait(false);
-        var replayed = await _writeUnit.DrainOutboxAsync(100, ct).ConfigureAwait(false);
-        var after = await _outbox.CountAsync(ct).ConfigureAwait(false);
-        var notes = new List<string> { $"replayed={replayed}" };
-        var report = new ConsistencyReport("LightCheck", before.Pending, after.Pending, after.Abandoned, 0, 0, notes);
+        // 计数→重放→计数 的巡检脉冲统一走 Share.StorageConsistencyPulse（A-2 单源）。
+        var pulse = await RunPulseAsync(ct).ConfigureAwait(false);
+        var notes = new List<string> { $"replayed={pulse.Replayed}" };
+        var report = new ConsistencyReport("LightCheck", pulse.PendingBefore, pulse.PendingAfter,
+            pulse.Abandoned, 0, 0, notes);
         StorageConsistencyEvents.Report(StorageConsistencyEvents.ReconcilePass, new
         {
             check = report.Check,
             pending = report.PendingAfter,
             abandoned = report.Abandoned,
-            replayed,
+            replayed = pulse.Replayed,
         });
         return report;
     }
@@ -71,18 +72,41 @@ public sealed class StorageConsistencyGuard : IStorageConsistencyGuard
     /// <inheritdoc />
     public async Task<ConsistencyReport> ReplayPendingAsync(CancellationToken ct = default)
     {
-        var before = await _outbox.CountAsync(ct).ConfigureAwait(false);
-        var replayed = await _writeUnit.DrainOutboxAsync(100, ct).ConfigureAwait(false);
-        var after = await _outbox.CountAsync(ct).ConfigureAwait(false);
-        var report = new ConsistencyReport("ReplayPending", before.Pending, after.Pending, after.Abandoned, 0, 0,
-            new[] { $"replayed={replayed}" });
+        // 与 LightCheck 的唯一差异是 Check 名；采样序列复用同一 Share 脉冲实现（A-2）。
+        var pulse = await RunPulseAsync(ct).ConfigureAwait(false);
+        var report = new ConsistencyReport("ReplayPending", pulse.PendingBefore, pulse.PendingAfter,
+            pulse.Abandoned, 0, 0, new[] { $"replayed={pulse.Replayed}" });
         StorageConsistencyEvents.Report(StorageConsistencyEvents.ReconcilePass, new
         {
             check = report.Check,
             pending = report.PendingAfter,
             abandoned = report.Abandoned,
-            replayed,
+            replayed = pulse.Replayed,
         });
         return report;
+    }
+
+    private Task<ConsistencyPulseSnapshot> RunPulseAsync(CancellationToken ct)
+        => StorageConsistencyPulse.RunAsync(new OutboxPulsePort(_outbox, _writeUnit), 100, ct);
+
+    private sealed class OutboxPulsePort : IConsistencyPulsePort
+    {
+        private readonly IOutboxStore _outbox;
+        private readonly ICompositeWriteUnit _writeUnit;
+
+        public OutboxPulsePort(IOutboxStore outbox, ICompositeWriteUnit writeUnit)
+        {
+            _outbox = outbox;
+            _writeUnit = writeUnit;
+        }
+
+        public async Task<(int Pending, int Abandoned)> CountAsync(CancellationToken cancellationToken)
+        {
+            var counts = await _outbox.CountAsync(cancellationToken).ConfigureAwait(false);
+            return (counts.Pending, counts.Abandoned);
+        }
+
+        public Task<int> ReplayAsync(int maxItems, CancellationToken cancellationToken)
+            => _writeUnit.DrainOutboxAsync(maxItems, cancellationToken);
     }
 }

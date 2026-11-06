@@ -79,17 +79,19 @@ public sealed class SqliteTaskPoolStore<TItem> : KvJsonStoreBase, ITaskPoolPersi
     public Task<IReadOnlyList<TItem>> ListAsync(TaskExecutionStatus status, int limit = 100, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        // 过滤（ThreadId/Status）与优先级排序（CAST 数字）均 SQL 侧下推（usharp_get 表达式）。
+        // 过滤（ThreadId/Status）、优先级排序（CAST 数字）与上限均 SQL 侧下推（usharp_get 表达式）。
+        // F4.6：limit > 0 → SQL LIMIT（避免全表载入内存后再 Take）；limit ≤ 0 → 全量（调用方表达「不限制」）。
+        var bound = limit > 0 ? $" LIMIT {limit}" : string.Empty;
         var rows = Query(
             $"SELECT {KvUsharpTable.ColDoc} FROM [{Table}] WHERE {Extract(UsharpRecordPaths.ThreadId)}=@t AND {Extract(UsharpRecordPaths.Status)}=@s " +
-            $"ORDER BY CAST({Extract(UsharpRecordPaths.Priority)} AS INTEGER) DESC",
+            $"ORDER BY CAST({Extract(UsharpRecordPaths.Priority)} AS INTEGER) DESC{bound}",
             Params(("t", PoolThreadId), ("s", status.ToString())));
         var list = new List<TItem>(rows.Count);
         foreach (var row in rows)
         {
             if (TryReadItem(SqliteRows.Str(row, "Doc"), out var item)) list.Add(item!);
         }
-        return Task.FromResult<IReadOnlyList<TItem>>(list.Take(Math.Max(0, limit)).ToList());
+        return Task.FromResult<IReadOnlyList<TItem>>(list);
     }
 
     public Task<TItem?> GetAsync(string taskKey, CancellationToken ct = default)

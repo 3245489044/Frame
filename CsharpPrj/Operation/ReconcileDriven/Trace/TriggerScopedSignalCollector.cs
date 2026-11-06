@@ -34,7 +34,7 @@ public sealed class TriggerScopedSignalCollector : IObservabilitySink
     /// <summary>同步接收一条已就绪事件：仅当存在活动触发域时入账。</summary>
     public void Push(PersistedEvent evt)
     {
-        var scope = Active.Value;
+        var scope = Active.Current;
         if (scope is null || evt?.Event is null) return;
 
         scope.Add(new SignalRecord(

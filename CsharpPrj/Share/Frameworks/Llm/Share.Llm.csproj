@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>共享 LLM Usage 归一化（Share.Frameworks.Llm）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>跨 Operation 复用的供应商 usage JSON 归一化层：OpenAI/Anthropic/DeepSeek/Gemini 映射到 Share.Frameworks.Billing.UnifiedUsage，并提供线程安全注册表与未知供应商兜底。零 I/O、零观测内核依赖。</ModuleRule_Description>
+    <ModuleRule_Keywords>LLM;Usage;归一化;Token;供应商;Share</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="统一字段唯一归属 Share.Frameworks.Billing.UnifiedUsage；本模块只做 JSON→字段映射" />
+    <ModuleRule_Rule Include="供应商缓存语义必须显式（InputIncludesCached / CacheWriteTokens），禁止把 cache_miss 当 cache_write" />
+    <ModuleRule_Rule Include="读取数值同时接受 Number 与数字字符串；缺键/类型不符回退 0，不抛" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Share.Frameworks.Llm.Usage</RootNamespace>
+    <AssemblyName>Share.Frameworks.Llm</AssemblyName>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Description>共享 LLM Usage 归一化 — 多供应商 usage JSON → UnifiedUsage（线程安全注册表 + 未知兜底）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Share_Billing)" />
+  </ItemGroup>
+
+</Project>

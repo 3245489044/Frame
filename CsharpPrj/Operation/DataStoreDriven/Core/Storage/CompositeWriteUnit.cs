@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Operation.DataStoreDriven.Abstractions;
+using UniversalWorkflowFramework.StorageFramework.Core;
 
 namespace Operation.DataStoreDriven.Core;
 
@@ -107,58 +108,74 @@ public sealed class CompositeWriteUnit : ICompositeWriteUnit
     /// <inheritdoc />
     public async Task<int> DrainOutboxAsync(int maxItems = 100, CancellationToken ct = default)
     {
-        var pending = await _outbox.ListPendingAsync(maxItems, ct).ConfigureAwait(false);
-        var applied = 0;
-        foreach (var entry in pending)
+        // 重放循环/尝试上限/失败隔离统一走 Share.OutboxReplayCoordinator（A-1 单源）。
+        var coordinator = new OutboxReplayCoordinator<OutboxEntry>(MaxReplayAttempts);
+        var summary = await coordinator.DrainAsync(
+            new OutboxReplayStoreAdapter(_outbox),
+            ResolveReplayPlan,
+            maxItems,
+            ct).ConfigureAwait(false);
+
+        if (summary.Abandoned > 0 || summary.Faults > 0)
         {
-            ct.ThrowIfCancellationRequested();
-            if (!_replay.TryGetValue(entry.UnitName, out var factory))
+            StorageConsistencyEvents.Report(StorageConsistencyEvents.OutboxAbandoned, new
             {
-                // 未登记重放工厂 ⇒ 不猜、不静默：标 Abandoned（可见化）。
-                await _outbox.MarkAbandonedAsync(entry.IdempotencyKey, "no-replay-factory", ct).ConfigureAwait(false);
-                StorageConsistencyEvents.Report(StorageConsistencyEvents.OutboxAbandoned, new
-                {
-                    unit = entry.UnitName,
-                    key = entry.IdempotencyKey,
-                    reason = "no-replay-factory",
-                });
-                continue;
-            }
-
-            var unit = factory(new OutboxEntryFactory(entry.PayloadJson, entry.IdempotencyKey));
-            if (unit?.Graph is null)
-            {
-                await _outbox.MarkAbandonedAsync(entry.IdempotencyKey, "replay-factory-returned-null", ct).ConfigureAwait(false);
-                StorageConsistencyEvents.Report(StorageConsistencyEvents.OutboxAbandoned, new
-                {
-                    unit = entry.UnitName,
-                    key = entry.IdempotencyKey,
-                    reason = "replay-factory-returned-null",
-                });
-                continue;
-            }
-
-            try
-            {
-                await unit.Graph(ct).ConfigureAwait(false);
-                await _outbox.MarkAppliedAsync(entry.IdempotencyKey, ct).ConfigureAwait(false);
-                applied++;
-                StorageConsistencyEvents.Report(StorageConsistencyEvents.GraphReplayed, new
-                {
-                    unit = entry.UnitName,
-                    key = entry.IdempotencyKey,
-                });
-            }
-            catch (Exception ex)
-            {
-                await _outbox.UpsertPendingAsync(entry with
-                {
-                    Attempts = entry.Attempts + 1,
-                    LastError = $"replay:{ex.GetType().Name}: {ex.Message}",
-                    State = OutboxStates.Pending,
-                }, ct).ConfigureAwait(false);
-            }
+                abandoned = summary.Abandoned,
+                faults = summary.Faults,
+                rescheduled = summary.Rescheduled,
+            });
         }
-        return applied;
+
+        if (summary.Applied > 0)
+        {
+            StorageConsistencyEvents.Report(StorageConsistencyEvents.GraphReplayed, new { applied = summary.Applied });
+        }
+
+        return summary.Applied;
+    }
+
+    /// <summary>单条目累计尝试上限（达到即 Abandoned，保证不会无限重排；F4.7）。</summary>
+    private const int MaxReplayAttempts = 5;
+
+    private OutboxReplayPlan ResolveReplayPlan(OutboxEntry entry)
+    {
+        if (!_replay.TryGetValue(entry.UnitName, out var factory))
+            return new OutboxReplayPlan(false, null, "no-replay-factory");
+
+        var unit = factory(new OutboxEntryFactory(entry.PayloadJson, entry.IdempotencyKey));
+        return unit?.Graph is null
+            ? new OutboxReplayPlan(false, null, "replay-factory-returned-null")
+            : new OutboxReplayPlan(true, unit.Graph, null);
+    }
+
+    /// <summary>把工程内 IOutboxStore 适配为 Share 重放端口（存储实现差异收敛在此）。</summary>
+    private sealed class OutboxReplayStoreAdapter : IOutboxReplayStore<OutboxEntry>
+    {
+        private readonly IOutboxStore _store;
+
+        public OutboxReplayStoreAdapter(IOutboxStore store) => _store = store;
+
+        public Task<IReadOnlyList<OutboxEntry>> ListPendingAsync(int maxItems, CancellationToken cancellationToken)
+            => _store.ListPendingAsync(maxItems, cancellationToken);
+
+        public string GetKey(OutboxEntry entry) => entry.IdempotencyKey;
+
+        public string GetUnitName(OutboxEntry entry) => entry.UnitName;
+
+        public int GetAttempts(OutboxEntry entry) => entry.Attempts;
+
+        public Task MarkAppliedAsync(string key, CancellationToken cancellationToken)
+            => _store.MarkAppliedAsync(key, cancellationToken);
+
+        public Task MarkAbandonedAsync(string key, string reason, CancellationToken cancellationToken)
+            => _store.MarkAbandonedAsync(key, reason, cancellationToken);
+
+        public Task RescheduleAsync(OutboxEntry entry, string error, CancellationToken cancellationToken)
+            => _store.UpsertPendingAsync(entry with
+            {
+                Attempts = entry.Attempts + 1,
+                LastError = error,
+                State = OutboxStates.Pending,
+            }, cancellationToken);
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using Modules.Node.Relations;
 using UniversalWorkflowFramework.Core.Models;
 
 namespace Operation.DataStoreDriven.Graph;
@@ -51,8 +52,9 @@ public sealed class DeclaredGraphKeyGrammar : IGraphKeyGrammar
     /// <summary>共享实例（键文法无状态）。</summary>
     public static DeclaredGraphKeyGrammar Instance { get; } = new();
 
-    private const char TypeSeparator = ':';
-    private const char LocationSeparator = '@';
+    // 端点拼法/反解/剥位置统一委托 Modules.Node.Relations.EndpointKeyGrammar（B-2 单源）；
+    // 本类只保留边键（::）与旧分隔符（U+0001）的存储域语法。
+    private const char LocationSeparator = EndpointKeyGrammar.LocationSeparator;
     private const string EdgeSeparator = "::";
     private const char LegacyEdgeSeparator = '\u0001';
 
@@ -65,28 +67,16 @@ public sealed class DeclaredGraphKeyGrammar : IGraphKeyGrammar
 
     /// <inheritdoc />
     public string Endpoint(string resourceType, string id, string? location)
-        => string.IsNullOrWhiteSpace(location)
-            ? resourceType + TypeSeparator + id
-            : resourceType + TypeSeparator + id + LocationSeparator + location;
+        => EndpointKeyGrammar.Compose(resourceType, id, location);
 
     /// <inheritdoc />
     public bool TryParseEndpoint(string? key, out GraphEndpointKey endpoint)
     {
-        endpoint = default;
-        if (string.IsNullOrWhiteSpace(key)) return false;
-
-        var typeEnd = key.IndexOf(TypeSeparator);
-        if (typeEnd <= 0) return false;
-
-        var resourceType = key[..typeEnd];
-        var rest = key[(typeEnd + 1)..];
-        if (rest.Length == 0) return false;
-
-        var at = rest.LastIndexOf(LocationSeparator);
-        var id = at < 0 ? rest : rest[..at];
-        var location = at < 0 ? null : rest[(at + 1)..];
-        if (id.Length == 0) return false;
-        if (at >= 0 && string.IsNullOrEmpty(location)) return false;
+        if (!EndpointKeyGrammar.TryParse(key, out var resourceType, out var id, out var location))
+        {
+            endpoint = default;
+            return false;
+        }
 
         endpoint = new GraphEndpointKey(resourceType, id, location);
         return true;

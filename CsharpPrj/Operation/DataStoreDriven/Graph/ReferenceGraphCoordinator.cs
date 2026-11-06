@@ -62,18 +62,11 @@ public sealed partial class ReferenceGraphCoordinator : IResourceReferenceStore,
     private string? _uniqueIndexError;
     private bool _initialized;
     private int _disposed;
-    private long _version;
     private long _membershipVersion;
 
     /// <summary>
-    /// 图变更版本（单调递增）：任意写边/端点/声明成功后 +1。
-    /// 供快照缓存做「读前=读后」一致性校验与版本失效（F2），不参与写仲裁。
-    /// </summary>
-    public long Version => Interlocked.Read(ref _version);
-
-    /// <summary>
     /// 成员变更版本（单调递增）：仅「影响树成员」的写（<c>history_owns_task</c> 等归属边）推进。
-    /// <para>与 <see cref="Version"/> 分离，避免 outbox/tombstone/端点镜像等无关写把树缓存整体失效（RED-11）。</para>
+    /// <para>独立自增（不再维护无消费者的全局 Version），避免 outbox/tombstone/端点镜像等无关写把树缓存整体失效（RED-11）。</para>
     /// </summary>
     public long MembershipVersion => Interlocked.Read(ref _membershipVersion);
 
@@ -516,21 +509,17 @@ public sealed partial class ReferenceGraphCoordinator : IResourceReferenceStore,
             EnsureNodeInMemory(sourceKey);
             EnsureNodeInMemory(targetKey);
             var edgeId = BuildEdgeId(sourceKey, targetKey, refType, sourceId.Location);
-            // durable：先删后加（幂等 upsert，避免重复边）；{ _id, Doc } 形态下按 _id 定位。
-            _edges.DeleteMany(Query.EQ("_id", edgeId));
             // 旧端点形态（无 @location）的同一条边一并清除，避免文法升级后同一关系存在两行（C1 唯一性）。
             var legacyEdgeId = _keys.Edge(StripLocation(sourceKey), StripLocation(targetKey), refType, _policy.IdentityOf(refType));
-            if (!string.Equals(legacyEdgeId, edgeId, StringComparison.Ordinal))
-            {
-                _edges.DeleteMany(Query.EQ("_id", legacyEdgeId));
-                if (_graph.ContainsEdge(legacyEdgeId)) _graph.RemoveEdge(legacyEdgeId);
-            }
-            _edges.Insert(ToEdgeDoc(sourceKey, sourceId, targetKey, targetId, refType, strength, EdgeOrigin.Runtime, sourceId.Location,
-                _stampSource.Next(refType, EdgeOrigin.Runtime, sourceId.Location)));
-            if (!_graph.ContainsEdge(edgeId))
-                _graph.AddEdge(edgeId, sourceKey, targetKey, isDirected: true, new ReferenceEdgeData(refType, strength), strength);
+            // 写序（先删后加 + 旧形态清理 + 邻接去重）统一走 Modules.Node.Relations.EdgeWriteCoordinator（B-1）。
+            var doc = ToEdgeDoc(sourceKey, sourceId, targetKey, targetId, refType, strength, EdgeOrigin.Runtime, sourceId.Location,
+                _stampSource.Next(refType, EdgeOrigin.Runtime, sourceId.Location));
+            EdgeWriteCoordinator.Write(
+                new EdgeWriteRequest(edgeId, sourceKey, targetKey, refType, legacyEdgeId),
+                doc,
+                new LiteDbEdgeWriteSink(_edges, _graph, refType, strength));
             return Task.FromResult(GraphWriteOutcome.Written(verdict, cleared, clearReason));
-        }, affectsMembership: AffectsMembership(refType));
+        }, affectsMembership: AffectsMembership(refType), commit: outcome => outcome.Wrote);
     }
 
     /// <summary>解除引用边（**detach 语义**：不写墓碑，供内部撤销/重规划使用；用户删除请走
@@ -1394,28 +1383,37 @@ public sealed partial class ReferenceGraphCoordinator : IResourceReferenceStore,
     // 拖死整条 PersistAsync（OnAfterStep）→ 任务永久 Running。加有界等待，超时抛异常转非致命归类。
     private static readonly TimeSpan GateLeaseTimeout = TimeSpan.FromSeconds(5);
 
-    private async Task MutateAsync(CancellationToken ct, Func<Task> body, bool affectsMembership = false)
+    private async Task MutateAsync(
+        CancellationToken ct,
+        Func<Task> body,
+        bool affectsMembership = false,
+        Func<bool>? commit = null)
     {
         if (!await _gate.WaitAsync(GateLeaseTimeout, ct).ConfigureAwait(false))
             throw new TimeoutException($"LiteDB 图写门等待超时（{GateLeaseTimeout.TotalSeconds}s），疑似写门被长持未释放。");
         try
         {
             await body().ConfigureAwait(false);
-            Interlocked.Increment(ref _version);
-            if (affectsMembership) Interlocked.Increment(ref _membershipVersion);
+            // F4.1：只有「真写入」才推进成员版本；策略 Skip/Deny 不落库，不得让缓存键前进。
+            if (affectsMembership && (commit?.Invoke() ?? true))
+                Interlocked.Increment(ref _membershipVersion);
         }
         finally { _gate.Release(); }
     }
 
-    private async Task<T> MutateAsync<T>(CancellationToken ct, Func<Task<T>> body, bool affectsMembership = false)
+    private async Task<T> MutateAsync<T>(
+        CancellationToken ct,
+        Func<Task<T>> body,
+        bool affectsMembership = false,
+        Func<T, bool>? commit = null)
     {
         if (!await _gate.WaitAsync(GateLeaseTimeout, ct).ConfigureAwait(false))
             throw new TimeoutException($"LiteDB 图写门等待超时（{GateLeaseTimeout.TotalSeconds}s），疑似写门被长持未释放。");
         try
         {
             var result = await body().ConfigureAwait(false);
-            Interlocked.Increment(ref _version);
-            if (affectsMembership) Interlocked.Increment(ref _membershipVersion);
+            if (affectsMembership && (commit?.Invoke(result) ?? true))
+                Interlocked.Increment(ref _membershipVersion);
             return result;
         }
         finally { _gate.Release(); }
@@ -1490,11 +1488,42 @@ public sealed partial class ReferenceGraphCoordinator : IResourceReferenceStore,
         return doc is null ? null : ReadTombstoneDoc(doc);
     }
 
-    /// <summary>剥离端点键的 <c>@location</c> 段（旧形态兼容读）。</summary>
+    /// <summary>剥离端点键的 <c>@location</c> 段（旧形态兼容读）——拼法/反解统一在 Modules B-2 内核。</summary>
     private static string StripLocation(string endpointKey)
+        => EndpointKeyGrammar.StripLocation(endpointKey);
+
+    /// <summary>LiteDB + 热邻接的边写入端口适配（存储差异仅在此一处；写序在 Modules 内核）。</summary>
+    private sealed class LiteDbEdgeWriteSink : IEdgeWriteSink<BsonDocument>
     {
-        var at = endpointKey.LastIndexOf('@');
-        return at < 0 ? endpointKey : endpointKey.Substring(0, at);
+        private readonly ILiteCollection<BsonDocument> _edges;
+        private readonly ICoreGraph<string, Resource, ReferenceEdgeData> _graph;
+        private readonly string _refType;
+        private readonly double _strength;
+
+        public LiteDbEdgeWriteSink(
+            ILiteCollection<BsonDocument> edges,
+            ICoreGraph<string, Resource, ReferenceEdgeData> graph,
+            string refType,
+            double strength)
+        {
+            _edges = edges;
+            _graph = graph;
+            _refType = refType;
+            _strength = strength;
+        }
+
+        public void DeleteDurableEdge(string edgeId)
+            => _edges.DeleteMany(Query.EQ("_id", edgeId));
+
+        public bool ContainsGraphEdge(string edgeId) => _graph.ContainsEdge(edgeId);
+
+        public void RemoveGraphEdge(string edgeId) => _graph.RemoveEdge(edgeId);
+
+        public void InsertEdge(EdgeWriteRequest request, BsonDocument doc) => _edges.Insert(doc);
+
+        public void AddAdjacency(EdgeWriteRequest request, BsonDocument doc)
+            => _graph.AddEdge(request.EdgeId, request.SourceKey, request.TargetKey, isDirected: true,
+                new ReferenceEdgeData(_refType, _strength), _strength);
     }
 
     /// <summary>清边墓碑（全部候选形态）；返回是否命中（复活证据：false = 无墓碑可清）。</summary>

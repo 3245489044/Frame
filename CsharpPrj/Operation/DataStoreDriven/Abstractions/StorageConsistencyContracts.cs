@@ -36,6 +36,9 @@ public static class StorageConsistencyEvents
     /// <summary>一致性守护入口失败（对账/重放异常；不阻断存储主路径）。</summary>
     public const string GuardFailed = "storage-guard-failed";
 
+    /// <summary>SQLite 写通道/连接释放失败（文件锁残留可见化；不阻断关闭流程）。</summary>
+    public const string ReleaseFailed = "sqlite-release-failed";
+
     /// <summary>事件出口（缺省静默；装配期由组合根注入）。</summary>
     public static Action<string, object?>? Sink { get; set; }
 

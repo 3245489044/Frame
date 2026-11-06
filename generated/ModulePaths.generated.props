@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-06 19:05:49
+  生成时间: 2026-11-07 01:34:31
 -->
 <Project>
 
@@ -132,7 +132,9 @@
     <Mod_UniversalMiddleware>$(CsharpPrjDir)Share\Composition\UniversalMiddleware\</Mod_UniversalMiddleware>
     <Mod_Share_ConfigurationModels>$(CsharpPrjDir)Share\Foundations\ConfigurationModels\</Mod_Share_ConfigurationModels>
     <Mod_FrameworkAbstractions>$(CsharpPrjDir)Share\Foundations\FrameworkAbstractions\</Mod_FrameworkAbstractions>
+    <Mod_Share_IdentityFramework>$(CsharpPrjDir)Share\Foundations\IdentityFramework\</Mod_Share_IdentityFramework>
     <Mod_Share_JsonPayload>$(CsharpPrjDir)Share\Foundations\JsonPayload\</Mod_Share_JsonPayload>
+    <Mod_Share_JsonSource>$(CsharpPrjDir)Share\Foundations\JsonSource\</Mod_Share_JsonSource>
     <Mod_ScopeFramework>$(CsharpPrjDir)Share\Foundations\ScopeFramework\</Mod_ScopeFramework>
     <Mod_StateManagement>$(CsharpPrjDir)Share\Foundations\StateManagement\</Mod_StateManagement>
     <Mod_TreeTraceFramework>$(CsharpPrjDir)Share\Foundations\TreeTraceFramework\</Mod_TreeTraceFramework>
@@ -280,7 +282,9 @@
     <Proj_UniversalMiddleware>$(CsharpPrjDir)Share\Composition\UniversalMiddleware\UniversalMiddleware.csproj</Proj_UniversalMiddleware>
     <Proj_Share_ConfigurationModels>$(CsharpPrjDir)Share\Foundations\ConfigurationModels\Share.ConfigurationModels.csproj</Proj_Share_ConfigurationModels>
     <Proj_FrameworkAbstractions>$(CsharpPrjDir)Share\Foundations\FrameworkAbstractions\FrameworkAbstractions.csproj</Proj_FrameworkAbstractions>
+    <Proj_Share_IdentityFramework>$(CsharpPrjDir)Share\Foundations\IdentityFramework\IdentityFramework.csproj</Proj_Share_IdentityFramework>
     <Proj_Share_JsonPayload>$(CsharpPrjDir)Share\Foundations\JsonPayload\JsonPayload.csproj</Proj_Share_JsonPayload>
+    <Proj_Share_JsonSource>$(CsharpPrjDir)Share\Foundations\JsonSource\JsonSource.csproj</Proj_Share_JsonSource>
     <Proj_ScopeFramework>$(CsharpPrjDir)Share\Foundations\ScopeFramework\ScopeFramework.csproj</Proj_ScopeFramework>
     <Proj_StateManagement>$(CsharpPrjDir)Share\Foundations\StateManagement\StateManagement.csproj</Proj_StateManagement>
     <Proj_TreeTraceFramework>$(CsharpPrjDir)Share\Foundations\TreeTraceFramework\TreeTraceFramework.csproj</Proj_TreeTraceFramework>

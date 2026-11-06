@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>JSON 热重载数据源基座</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>通用文件型 JSON 数据源：单文件与多键两种形态共用同一 mtime 引擎（单次读盘、失败保留旧版并上报、文件变化才重试、缺失文件不抛）。解析器与校验器由调用方注入，本工程仅依赖 BCL，不含任何领域规则。</ModuleRule_Description>
+    <ModuleRule_Keywords>热重载;JSON;mtime;文件源;通用框架</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.JsonSource</RootNamespace>
+    <AssemblyName>Share.JsonSource</AssemblyName>
+    <Description>通用 JSON 热重载数据源基座（仅 BCL）</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>

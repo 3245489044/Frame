@@ -102,6 +102,48 @@ public static class TextScan
         return depth;
     }
 
+    /// <summary>
+    /// 从 <paramref name="open"/>（须指向 <c>{</c>）找配对的 <c>}</c>，返回其下标；未闭合 / 起点非法返回 <see cref="Unterminated"/>。
+    /// <para><paramref name="skipStrings"/>=true 时跳过字符串字面量（含转义序列），避免字面量花括号被误判为对象边界。</para>
+    /// </summary>
+    /// <param name="text">待扫描文本（null → <see cref="Unterminated"/>）。</param>
+    /// <param name="open">开括号 <c>{</c> 的 0 基下标。</param>
+    /// <param name="skipStrings">是否跳过字符串字面量（默认 true）。</param>
+    public static int FindMatchingBrace(string? text, int open, bool skipStrings = true)
+    {
+        if (text is null || open < 0 || open >= text.Length || text[open] != '{') return Unterminated;
+
+        var depth = 0;
+        var inString = false;
+        var escaped = false;
+
+        for (var i = open; i < text.Length; i++)
+        {
+            var ch = text[i];
+
+            if (inString)
+            {
+                if (skipStrings)
+                {
+                    if (escaped) escaped = false;
+                    else if (ch == '\\') escaped = true;
+                    else if (ch == '"') inString = false;
+                }
+                continue;
+            }
+
+            if (ch == '"' && skipStrings) { inString = true; continue; }
+            if (ch == '{') depth++;
+            else if (ch == '}')
+            {
+                depth--;
+                if (depth == 0) return i;
+            }
+        }
+
+        return Unterminated;
+    }
+
     /// <summary>指定括号对的深度（跳过字符串内的括号；其余括号不计）。</summary>
     /// <param name="text">待扫描文本（可为 null/空 → 0）。</param>
     /// <param name="openChar">开括号字符。</param>

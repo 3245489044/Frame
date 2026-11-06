@@ -61,6 +61,9 @@
     <!-- 可重入事件派发队列（Modules\Frameworks\EventFramework\Bus）：EcsEventBus 的单消费者守卫 +
          重入入队 + 统一 drain（ReentrantEventDispatchQueue<T>），事件绑定语义仍留在本工程 -->
     <ProjectReference Include="$(Proj_EventFramework)" />
+    <!-- 调用面契约内核（声明/绑定/命名空间索引）：加载期校验与运行期寻址共用同一判据载体 -->
+    <ProjectReference Include="$(Proj_Parsing)" />
+
   </ItemGroup>
 
   <!-- ★ 2026-07-25 新增：Threading（通用执行状态结果类 ExecutionResult/StepRecord/ExecutionPhase） -->

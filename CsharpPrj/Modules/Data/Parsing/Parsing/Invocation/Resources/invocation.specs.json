@@ -1,0 +1,37 @@
+{
+  "$schema": "invocation.specs/v1",
+  "comment": "调用面声明（唯一来源）。C# 校验器 / 门禁 / 文档共读此文件；新增或改命令必须先改这里。",
+  "defaultTimeoutMs": 300000,
+  "specs": [
+    { "action": "assert", "subAction": "container", "targetSpace": "ContainerHost", "minTargetTokens": 3 },
+    { "action": "assert", "subAction": "text-contains", "targetSpace": "Control", "minTargetTokens": 3 },
+    { "action": "assert", "subAction": "text-empty", "targetSpace": "Control", "args": ["control", "target"], "minTargetTokens": 2 },
+    { "action": "assert", "subAction": "event-bound", "targetSpace": "Control", "args": ["button", "target"], "minTargetTokens": 2 },
+    { "action": "assert", "subAction": "openforms", "targetSpace": "None", "args": ["count", "expected"], "minTargetTokens": 2 },
+
+    { "action": "validate", "targetSpace": "Control", "args": ["expectedText", "expectedX", "expectedY", "scope"] },
+    { "action": "validate-mount", "targetSpace": "Control", "args": ["parent", "visible"], "argSpaces": { "parent": "ContainerHost" } },
+
+    { "action": "get", "targetSpace": "Control", "args": ["output"] },
+    { "action": "set", "targetSpace": "Control", "args": ["value"] },
+    { "action": "click", "targetSpace": "Control", "args": ["value", "wait", "timeout", "output"] },
+
+    { "action": "show", "targetSpace": "Form" },
+    { "action": "close", "targetSpace": "Form" },
+    { "action": "load", "targetSpace": "ConfigFile", "args": ["modifier"] },
+    { "action": "sideload", "targetSpace": "ConfigFile", "args": ["modifier"] },
+    { "action": "discover", "targetSpace": "Control" },
+
+    { "action": "wait-until", "targetSpace": "ProbeFunction", "args": ["expectedContains", "contains", "timeout", "interval", "output", "failWhen", "failContains"] },
+    { "action": "exec", "targetSpace": "ProbeFunction", "args": ["expectedContains", "expectedJson", "parameters", "timeout", "output"], "allowProbeArgs": true },
+    { "action": "await", "targetSpace": "ProbeFunction", "args": ["timeout"] },
+
+    { "action": "list", "targetSpace": "None", "minTargetTokens": 0 },
+    { "action": "look", "targetSpace": "None", "minTargetTokens": 0 },
+    { "action": "layout", "targetSpace": "None" },
+    { "action": "parse", "targetSpace": "ConfigFile" },
+    { "action": "echo", "targetSpace": "None", "minTargetTokens": 0 },
+    { "action": "sleep", "targetSpace": "None", "minTargetTokens": 0 },
+    { "action": "exit", "targetSpace": "None", "minTargetTokens": 0 }
+  ]
+}

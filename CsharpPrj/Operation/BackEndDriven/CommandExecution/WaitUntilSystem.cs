@@ -3,6 +3,7 @@
 using System.Linq;
 using ECS.Components;
 using ECS.Core;
+using Modules.Parsing.Invocation;
 using Modules.Threading;
 using BackEndDriven.Diagnostics;
 using FrameworkAbstractions.ComponentRegistry;
@@ -50,9 +51,9 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             return;
         }
 
-        if (!TryParse(meta, out var parameters, out var expectedContains, out var timeoutMs, out var intervalMs, out var outputTarget, out var failTokens))
+        if (!TryParse(meta, out var parameters, out var expectedContains, out var timeoutMs, out var intervalMs, out var outputTarget, out var failTokens, out var parseError))
         {
-            SetFailure(entity, "wait-until: 缺少 expectedContains（空期望恒真，拒绝静默通过）");
+            SetFailure(entity, $"wait-until: {parseError}");
             return;
         }
 
@@ -227,7 +228,8 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         out int timeoutMs,
         out int intervalMs,
         out string? outputTarget,
-        out IReadOnlyList<string> failTokens)
+        out IReadOnlyList<string> failTokens,
+        out string? error)
     {
         parameters = new Dictionary<string, object?>();
         expectedContains = string.Empty;
@@ -235,6 +237,7 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
         intervalMs = DefaultIntervalMs;
         outputTarget = null;
         failTokens = Array.Empty<string>();
+        error = null;
 
         if (meta.Parameters != null)
         {
@@ -253,18 +256,33 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             parameters.Remove("contains");
         }
 
-        if (string.IsNullOrWhiteSpace(expectedContains)) return false;
-
-        // 参数解析收敛到 Share.CommandParameters（A-1 单源）。
-        if (CommandParameters.TryGetInt(parameters, "timeout") is { Present: true } t)
+        if (string.IsNullOrWhiteSpace(expectedContains))
         {
-            timeoutMs = t.Value;
-            parameters.Remove("timeout");
+            error = "缺少 expectedContains（空期望恒真，拒绝静默通过）";
+            return false;
         }
 
-        if (CommandParameters.TryGetInt(parameters, "interval") is { Present: true, Value: > 0 } iv)
+        // 数值参数读取唯一实现（InvocationArgs 三态）：非法值显式失败，不再静默落默认。
+        var timeout = InvocationArgs.Timeout(parameters, DefaultTimeoutMs);
+        if (timeout.Error is not null)
         {
-            intervalMs = iv.Value;
+            error = timeout.Error;
+            return false;
+        }
+
+        timeoutMs = timeout.BudgetMs ?? 0; // null = 显式 0（未声明 deadline，无限等待）
+        parameters.Remove("timeout");
+
+        var interval = InvocationArgs.Int(parameters, "interval");
+        if (interval.Present)
+        {
+            if (!interval.Valid || interval.Value <= 0)
+            {
+                error = $"interval 必须是正整数：'{interval.Raw}'";
+                return false;
+            }
+
+            intervalMs = interval.Value;
             parameters.Remove("interval");
         }
 

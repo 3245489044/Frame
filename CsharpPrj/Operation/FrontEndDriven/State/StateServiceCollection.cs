@@ -73,6 +73,10 @@ public static class StateServiceCollection
                 name => ordinaryControlFinder?.FindByName<System.Windows.Forms.Control>(name));
             AppServiceProvider.Register(assertionService);
 
+            // 调用面命名空间探针：让「加载期脚本校验」与「运行期寻址」共用同一判据载体
+            // （控件 / 容器宿主 / 作用域），消除「静态校验绿、运行期 HostNotResolved」的错位。
+            InvocationNameSpaceProbes.Register(hostMount, ordinaryControlFinder);
+
             var platform = AppServiceProvider.Resolve<EventPlatform>()
                 ?? throw new InvalidOperationException("EventPlatform 未注册到 AppServiceProvider");
 

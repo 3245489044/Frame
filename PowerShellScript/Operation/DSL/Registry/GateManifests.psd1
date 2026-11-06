@@ -1756,6 +1756,25 @@
         Note   = '降维门禁（D1–D6）：C0 登记载体自审（Carrier/Note 不含语义豁免词）/ C1–C4 计数棘轮（只降不升）/ C5 取证下限（ADR-6 降维不得删信息）/ C6 声明面完备（rules 须声明集合级 default、条目禁步骤键）/ C7 正对照（符号清单被掏空即判「判据无标的」）/ C8 负对照 ADR-1..ADR-6 / C9 -Target 列真实目标差距；基线 = Baselines\Process\DimensionReduction.psd1；-WriteBaseline 为写操作，聚合器禁用'
     }
 
+    # ===== 调用面契约门禁（P0 框架：命令声明面）=====
+    CommandSpecCoverage = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Carrier = '源码结构事实：CommandSystemBase 注册动作集（base(entityManager,"x")）vs CommandSpecCatalog 声明集'
+        Note   = '命令注册面与声明面一一对应；注册未声明/声明未注册均判红；含正/负对照（声明表掏空即判无标的）'
+    }
+
+    LogTemplateBinding = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Carrier = '源码结构事实：*_log_messages.json 的 msgId/占位符 vs .Log("id", new { ... }) 键集'
+        Note   = '日志模板与调用点绑定门禁：未登记 msgId / 漏绑定占位符（字面量 {x} 输出）；基线 Baselines\Process\LogTemplateBinding.psd1（只降不升）'
+    }
+
     # ===== 读模型单源门禁（读模型框架 RM-A）=====
     ReadModelSingleSource = @{
         Domain = 'Process'

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using Modules.Parsing.Invocation;
 using Modules.Threading;
 
 namespace ExecutionFramework.Engine.Core;
@@ -44,34 +45,13 @@ public static class ExecutionBudgetPolicy
 
     /// <summary>
     /// 从命令参数解析正数预算毫秒；缺失/非法/≤0 → null（表示「未声明 deadline」）。
-    /// 兼容 long/int/short/double/decimal/string（配置反序列化可能产生任意数值形态）。
+    /// <para>读取实现 = <c>InvocationArgs.TimeoutBudgetMs</c>（调用面参数读取唯一实现）；</para>
+    /// <para>非法值不在此静默：加载期由 <c>InvocationBinding</c> 报 R2（ArgumentValueInvalid），运行期命令层可先行拒绝。</para>
     /// </summary>
     public static long? TryReadBudgetMs(
         IReadOnlyDictionary<string, object?>? parameters,
         string key = DefaultBudgetKey)
-    {
-        if (parameters is null || !parameters.TryGetValue(key, out var raw) || raw is null)
-            return null;
-
-        long budgetMs = raw switch
-        {
-            long l => l,
-            int i => i,
-            short s => s,
-            byte b => b,
-            double d => (long)d,
-            float f => (long)f,
-            decimal m => (long)m,
-            string str => long.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
-                ? parsed
-                : -1L,
-            _ => long.TryParse(raw.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var fallback)
-                ? fallback
-                : -1L
-        };
-
-        return budgetMs > 0 ? budgetMs : null;
-    }
+        => InvocationArgs.TimeoutBudgetMs(parameters, key);
 
     /// <summary>
     /// 有界执行：<paramref name="budgetMs"/> 为 null/≤0 → 直通（<see cref="ExecutionBudgetOutcome.NotBudgeted"/>）；

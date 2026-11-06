@@ -52,32 +52,29 @@ public sealed class ContainerAssertionService
 
         if (!string.IsNullOrWhiteSpace(hostKeyOrScope))
         {
-            if (_port == null)
-                return new ContainerLookup
-                {
-                    Kind = ContainerFailureKind.AccessPortUnavailable,
-                    Subject = controlName,
-                    HostKey = hostKeyOrScope,
-                };
+            var handle = _port?.ResolveHostByKeyOrScope(hostKeyOrScope);
+            var hostControl = handle?.Control;
 
-            var handle = _port.ResolveHostByKeyOrScope(hostKeyOrScope);
-            if (handle == null)
-                return new ContainerLookup
-                {
-                    Kind = ContainerFailureKind.HostNotResolved,
-                    Subject = controlName,
-                    HostKey = hostKeyOrScope,
-                };
-
-            var hostControl = handle.Control;
+            // 面板容器兜底（唯一寻址口径的第二段）：宿主名可能是「可作为宿主的控件」（Panel/GroupBox），
+            // 它不在 ContainerRegistry 的 scope/hostKey 里，但同样是脚本可断言的容器。
             if (hostControl == null)
-                return new ContainerLookup
-                {
-                    Kind = ContainerFailureKind.HostNoControl,
-                    Subject = controlName,
-                    HostKey = hostKeyOrScope,
-                    Host = handle,
-                };
+            {
+                var hostAsControl = _findOrdinaryControl?.Invoke(hostKeyOrScope);
+                if (hostAsControl == null)
+                    return new ContainerLookup
+                    {
+                        Kind = handle != null
+                            ? ContainerFailureKind.HostNoControl
+                            : _port == null && _findOrdinaryControl == null
+                                ? ContainerFailureKind.AccessPortUnavailable
+                                : ContainerFailureKind.HostNotResolved,
+                        Subject = controlName,
+                        HostKey = hostKeyOrScope,
+                        Host = handle,
+                    };
+
+                hostControl = hostAsControl;
+            }
 
             var found = FindInControl(hostControl, controlName);
             if (found != null)
@@ -119,30 +116,48 @@ public sealed class ContainerAssertionService
     /// </summary>
     public ContainerDiagnosis AssertContainer(string scopeOrHostKey, string countExpr)
     {
-        if (_port == null)
-            return ContainerDiagnosis.Of(ContainerFailureKind.AccessPortUnavailable,
-                subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr);
+        ContainerHandle? handle = null;
+        Control? hostControl = null;
 
-        var handle = _port.ResolveHostByKeyOrScope(scopeOrHostKey);
-        if (handle == null)
-            return ContainerDiagnosis.Of(ContainerFailureKind.HostNotResolved,
-                subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr);
+        if (_port != null)
+        {
+            handle = _port.ResolveHostByKeyOrScope(scopeOrHostKey);
+            hostControl = handle?.Control;
+        }
 
-        if (handle.Control == null)
-            return ContainerDiagnosis.Of(ContainerFailureKind.HostNoControl,
-                subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr);
+        if (hostControl == null)
+        {
+            // 第二段寻址：面板容器（可作为宿主的控件）——不在 ContainerRegistry，但脚本按名断言它是容器。
+            var asControl = _findOrdinaryControl?.Invoke(scopeOrHostKey);
+            if (asControl == null)
+            {
+                return ContainerDiagnosis.Of(
+                    handle != null
+                        ? ContainerFailureKind.HostNoControl
+                        : _port == null && _findOrdinaryControl == null
+                            ? ContainerFailureKind.AccessPortUnavailable
+                            : ContainerFailureKind.HostNotResolved,
+                    subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr);
+            }
 
-        // R4：Mounted 判定单一出口——统一经端口 IsMounted(ContainerId)（HostMountService → ContainerRegistry 实时挂载状态）。
-        if (_port.IsMounted(handle.Id) == false)
+            if (asControl.FindForm() == null)
+                return ContainerDiagnosis.Of(ContainerFailureKind.OrphanControl,
+                    subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr);
+
+            hostControl = asControl;
+        }
+        else if (handle != null && _port != null && !_port.IsMounted(handle.Id))
+        {
             return ContainerDiagnosis.Of(ContainerFailureKind.HostNotMounted,
                 subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr,
                 mountState: handle.State.ToString());
+        }
 
         if (!TryParseCountExpr(countExpr, out var op, out var expected))
             return ContainerDiagnosis.Of(ContainerFailureKind.InvalidCountExpression,
                 subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr);
 
-        var actual = handle.Control.Controls.Count;
+        var actual = hostControl.Controls.Count;
         if (!CompareCount(actual, op, expected))
             return ContainerDiagnosis.Of(ContainerFailureKind.CountAssertionFailed,
                 subject: scopeOrHostKey, host: scopeOrHostKey, expected: countExpr, actual: actual);

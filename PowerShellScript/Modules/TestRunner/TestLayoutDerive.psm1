@@ -39,6 +39,11 @@ $script:TestLayoutDefaults = @{
     # L3 声明
     CoverCommentPattern      = '(?m)^\s*//\s*covers\s*:\s*(?<p>.+?)\s*$'
     CoverAttributePattern    = '\[\s*Covers\s*\(\s*"(?<p>[^"]+)"\s*\)\s*\]'
+    # L3 声明（非 dotnet 载体）
+    PesterCoverCommentPattern = '(?m)^\s*#\s*covers\s*:\s*(?<p>.+?)\s*$'
+    # `.specs` 指令
+    SpecProjectPattern       = '(?m)^\s*project\s+(?<p>\S+)\s*$'
+    SpecMigrateSourcePattern = '(?m)^\s*migrate\s+source\s+(?<p>.+?)\s*$'
     # 结构性免测（可被账本 Conventions.Exemptions 覆写）
     GeneratedPattern         = '(\.g\.cs$|\.Designer\.cs$|^AssemblyInfo\.cs$|^GlobalUsings\.cs$|\.Generated\.cs$)'
 }
@@ -198,6 +203,7 @@ function New-TestLayoutConfig {
         Evidence = @{
             MinTypeHits      = $script:TestLayoutDefaults.EvidenceMinTypeHits
             MaxDeclaringFile = $script:TestLayoutDefaults.EvidenceMaxDeclaringFile
+            IgnoredTypes     = @()
         }
         Exemptions = @{
             GeneratedPattern = $script:TestLayoutDefaults.GeneratedPattern
@@ -211,6 +217,7 @@ function New-TestLayoutConfig {
         if ($c.ContainsKey('Evidence') -and $null -ne $c.Evidence) {
             if ($c.Evidence.ContainsKey('MinTypeHits')) { $conv.Evidence.MinTypeHits = [int]$c.Evidence.MinTypeHits }
             if ($c.Evidence.ContainsKey('MaxDeclaringFile')) { $conv.Evidence.MaxDeclaringFile = [int]$c.Evidence.MaxDeclaringFile }
+            if ($c.Evidence.ContainsKey('IgnoredTypes')) { $conv.Evidence.IgnoredTypes = @($c.Evidence.IgnoredTypes) }
         }
         if ($c.ContainsKey('Exemptions') -and $null -ne $c.Exemptions) {
             foreach ($k in @($c.Exemptions.Keys)) { $conv.Exemptions[$k] = $c.Exemptions[$k] }
@@ -301,10 +308,15 @@ function Get-TestLayoutTestClass {
 function Get-TestLayoutFiles {
     <#
     .SYNOPSIS
-        枚举各根的 `.cs` / `.csproj`。
+        枚举各根的 `.cs` / `.csproj`，以及适配器声明的载体扩展（`.specs` / `*.Tests.ps1` / `package.json`）。
     .DESCRIPTION
         默认走**文件系统枚举**（本仓实测 4.7s；git 索引在大型子模块上首建 22s）。
         需要共享索引时显式 `-UseGitIndex`（GATE_FILE_INDEX_CACHE 预热场景）。
+
+        口径说明（与施工单的偏差，已记录）：
+          · `.cs` / `.csproj` 对所有根**始终保留**（结构面：工程目录用于 L0；且 spec 根下仍混装 `.cs` 载体，
+            严格「只按 Adapter.Glob」会静默丢弃存量载体 ⇒ 行为倒退）；
+          · Adapter.Glob 只**追加**该适配器的载体扩展，不削减结构枚举。
     .PARAMETER Enumerate
         注入枚举器（测试用）：入参 = 根绝对路径，返回绝对文件路径数组。
     #>
@@ -327,6 +339,9 @@ function Get-TestLayoutFiles {
         TestCs         = New-Object System.Collections.Generic.List[string]
         SourceProjects = New-Object System.Collections.Generic.List[string]
         TestProjects   = New-Object System.Collections.Generic.List[string]
+        TestSpecs      = New-Object System.Collections.Generic.List[string]
+        TestScripts    = New-Object System.Collections.Generic.List[string]
+        TestPackages   = New-Object System.Collections.Generic.List[string]
     }
     $exclude = '\\BuildOutput\\|\\obj\\|\\bin\\|node_modules|\\_deprecated\\'
 
@@ -335,26 +350,50 @@ function Get-TestLayoutFiles {
             Write-Warning "[TestLayout] 根不存在（跳过，WARN 可见化）：$($root.Key) → $($root.AbsPath)"
             continue
         }
+
+        # 结构扩展（始终）+ 适配器载体扩展（追加）
+        $globs = New-Object System.Collections.Generic.List[string]
+        foreach ($g in @('*.cs', '*.csproj')) { if (-not $globs.Contains($g)) { $globs.Add($g) } }
+        if ($Config.Adapters.ContainsKey($root.Adapter)) {
+            foreach ($g in @(([string]$Config.Adapters[$root.Adapter].Glob) -split '[;,]')) {
+                $gg = $g.Trim()
+                if ($gg -and -not $globs.Contains($gg)) { $globs.Add($gg) }
+            }
+        }
+
         if ($Enumerate) {
             $all = @(& $Enumerate $root.AbsPath)
         }
         elseif ($useGateIndex) {
-            $all = @(Get-GateFiles -Root $root.AbsPath -Extension @('cs', 'csproj') -NoCache:$NoCache)
+            $all = @(Get-GateFiles -Root $root.AbsPath -Extension @('cs', 'csproj', 'specs', 'ps1', 'json') -NoCache:$NoCache)
         }
         else {
             $all = @(Get-ChildItem -LiteralPath $root.AbsPath -Recurse -File -ErrorAction SilentlyContinue |
-                Where-Object { ($_.Extension -eq '.cs' -or $_.Extension -eq '.csproj') -and $_.FullName -notmatch $exclude } |
                 Select-Object -ExpandProperty FullName)
         }
 
         foreach ($f in $all) {
             if ([string]::IsNullOrWhiteSpace($f)) { continue }
             if ($f -match $exclude) { continue }
+            $name = [IO.Path]::GetFileName($f)
+            $matched = $false
+            foreach ($g in $globs) { if ($name -like $g) { $matched = $true; break } }
+            if (-not $matched) { continue }
+
             if ($f.EndsWith('.cs', [StringComparison]::OrdinalIgnoreCase)) {
                 if ($root.Kind -eq 'Source') { $result.SourceCs.Add($f) } else { $result.TestCs.Add($f) }
             }
             elseif ($f.EndsWith('.csproj', [StringComparison]::OrdinalIgnoreCase)) {
                 if ($root.Kind -eq 'Source') { $result.SourceProjects.Add($f) } else { $result.TestProjects.Add($f) }
+            }
+            elseif ($root.Kind -eq 'Test' -and $f.EndsWith('.specs', [StringComparison]::OrdinalIgnoreCase)) {
+                $result.TestSpecs.Add($f)
+            }
+            elseif ($root.Kind -eq 'Test' -and $f.EndsWith('.Tests.ps1', [StringComparison]::OrdinalIgnoreCase)) {
+                $result.TestScripts.Add($f)
+            }
+            elseif ($root.Kind -eq 'Test' -and $name -ieq 'package.json') {
+                $result.TestPackages.Add($f)
             }
         }
     }
@@ -494,8 +533,10 @@ function New-TestLayoutIndex {
     # ---- 类型特异性过滤（声明文件数 ≤ MaxDeclaringFile）----
     $maxDecl = [int]$Config.Conventions.Evidence.MaxDeclaringFile
     $typeToSources = @{}
+    $typeDeclaringCounts = @{}
     foreach ($t in @($typeAll.Keys)) {
         $set = $typeAll[$t]
+        $typeDeclaringCounts[$t] = $set.Count
         if ($set.Count -le $maxDecl) { $typeToSources[$t] = @($set) }
     }
 
@@ -516,11 +557,82 @@ function New-TestLayoutIndex {
         try { $content = [IO.File]::ReadAllText($abs) } catch { $content = '' }
         $name = [IO.Path]::GetFileName($abs)
         $testFiles.Add([pscustomobject]@{
-            Rel   = $rel
-            Abs   = $abs
-            Stem  = [IO.Path]::GetFileNameWithoutExtension($abs)
-            Dir   = [IO.Path]::GetDirectoryName($rel)
-            Class = (Get-TestLayoutTestClass -Name $name -Content $content)
+            Rel            = $rel
+            Abs            = $abs
+            Stem           = [IO.Path]::GetFileNameWithoutExtension($abs)
+            Dir            = [IO.Path]::GetDirectoryName($rel)
+            Class          = (Get-TestLayoutTestClass -Name $name -Content $content)
+            Kind           = 'Cs'
+            ProjectName    = ''
+            MigrateSources = @()
+        })
+    }
+
+    # ---- `.specs`（适配器 spec）：`project` → 测试工程；`migrate source` → L3 证据 ----
+    foreach ($abs in $files.TestSpecs) {
+        $rel = Get-TestLayoutRelativePath -Base $repo -Path $abs
+        if ([string]::IsNullOrWhiteSpace($rel)) { continue }
+        $content = ''
+        try { $content = [IO.File]::ReadAllText($abs) } catch { $content = '' }
+        $projectName = ''
+        $pm = [regex]::Match($content, $script:TestLayoutDefaults.SpecProjectPattern)
+        if ($pm.Success) { $projectName = $pm.Groups['p'].Value.Trim() }
+        $migrates = New-Object System.Collections.Generic.List[string]
+        foreach ($mm in [regex]::Matches($content, $script:TestLayoutDefaults.SpecMigrateSourcePattern)) {
+            $v = $mm.Groups['p'].Value.Trim().Trim('"').Trim()
+            if ($v) { $migrates.Add($v) }
+        }
+        # 规则（非清单）：既无 project 又无 migrate source ⇒ 共享台账/辅助，不计载体
+        $class = $(if ($projectName -or $migrates.Count -gt 0) { 'Carrier' } else { 'Helper' })
+        $testFiles.Add([pscustomobject]@{
+            Rel            = $rel
+            Abs            = $abs
+            Stem           = [IO.Path]::GetFileNameWithoutExtension($abs)
+            Dir            = [IO.Path]::GetDirectoryName($rel)
+            Class          = $class
+            Kind           = 'Spec'
+            ProjectName    = $projectName
+            MigrateSources = @($migrates)
+        })
+    }
+
+    # ---- Pester 载体（`*.Tests.ps1`）：工程 = 所在目录 ----
+    foreach ($abs in $files.TestScripts) {
+        $rel = Get-TestLayoutRelativePath -Base $repo -Path $abs
+        if ([string]::IsNullOrWhiteSpace($rel)) { continue }
+        $testFiles.Add([pscustomobject]@{
+            Rel            = $rel
+            Abs            = $abs
+            Stem           = [IO.Path]::GetFileNameWithoutExtension($abs)
+            Dir            = [IO.Path]::GetDirectoryName($rel)
+            Class          = 'Carrier'
+            Kind           = 'Pester'
+            ProjectName    = ''
+            MigrateSources = @()
+        })
+    }
+
+    # ---- npm 载体（`package.json`，`scripts.test` 存在）----
+    foreach ($abs in $files.TestPackages) {
+        $rel = Get-TestLayoutRelativePath -Base $repo -Path $abs
+        if ([string]::IsNullOrWhiteSpace($rel)) { continue }
+        $class = 'Carrier'   # fail-closed：不可解析时按载体处理（不得当辅助放过）
+        try {
+            $j = [IO.File]::ReadAllText($abs) | ConvertFrom-Json -ErrorAction Stop
+            $testScript = $j.scripts.test
+            if ($null -ne $testScript -and -not [string]::IsNullOrWhiteSpace([string]$testScript)) { $class = 'Carrier' }
+            else { $class = 'Helper' }
+        }
+        catch { }
+        $testFiles.Add([pscustomobject]@{
+            Rel            = $rel
+            Abs            = $abs
+            Stem           = [IO.Path]::GetFileNameWithoutExtension($abs)
+            Dir            = [IO.Path]::GetDirectoryName($rel)
+            Class          = $class
+            Kind           = 'Npm'
+            ProjectName    = ''
+            MigrateSources = @()
         })
     }
 
@@ -573,6 +685,17 @@ function New-TestLayoutIndex {
         }
     }
 
+    # 计数用显式循环（PowerShell 7.6 对 `@($对象列表 | Where-Object).Count` 会抛「Argument types do not match」）
+    $csCarriers = 0; $specs = 0; $pester = 0; $npm = 0
+    foreach ($tf in $testFiles) {
+        switch ($tf.Kind) {
+            'Cs' { if ($tf.Class -eq 'Carrier') { $csCarriers++ } }
+            'Spec' { $specs++ }
+            'Pester' { $pester++ }
+            'Npm' { if ($tf.Class -eq 'Carrier') { $npm++ } }
+        }
+    }
+
     $stats = [pscustomobject]@{
         SourceFiles    = $sourceFiles.Count
         TestFiles      = $testFiles.Count
@@ -580,6 +703,10 @@ function New-TestLayoutIndex {
         TestProjects   = $testProjectDirs.Count
         SpecificTypes  = $typeToSources.Count
         L0Mapped       = $projectMap.Count
+        CsCarriers     = $csCarriers
+        Specs          = $specs
+        PesterCarriers = $pester
+        NpmCarriers    = $npm
     }
 
     return [pscustomobject]@{
@@ -593,6 +720,7 @@ function New-TestLayoutIndex {
         ProjectMap        = $projectMap
         StemToSources     = $stemToSources
         TypeToSources     = $typeToSources
+        TypeDeclaringCounts = $typeDeclaringCounts
         Stats             = $stats
     }
 }
@@ -601,6 +729,105 @@ function New-TestLayoutIndex {
 #  对齐测量（投影：L0/L1/L2/L3 → filemap）
 # ============================================================
 
+function Resolve-TestLayoutLocator {
+    <#
+    .SYNOPSIS
+        解析 `scheme:Root/rel` 定位符（src / tst / spec / pkg）。
+    .DESCRIPTION
+        · scheme 必须在账本 `Capabilities.Schemes` 内，Root 必须存在；
+        · src ⇒ Source 根；tst/spec/pkg ⇒ Test 根（Kind 不符即不成立）；
+        · `Rel` = 仓库相对路径；`Exists` 单独给出（悬空是可判定事实，不在此静默吞掉）。
+    .OUTPUTS
+        { Ok; Reason; Scheme; Kind('Source'|'Test'); RootKey; Rel; Abs; Exists }
+    #>
+    param(
+        [Parameter(Mandatory)]$Config,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Value
+    )
+
+    $result = [pscustomobject]@{ Ok = $false; Reason = ''; Scheme = ''; Kind = ''; RootKey = ''; Rel = ''; Abs = ''; Exists = $false }
+    $v = $Value.Trim()
+    if ([string]::IsNullOrWhiteSpace($v)) { $result.Reason = '空定位符'; return $result }
+    $m = [regex]::Match($v, '^(?<s>[A-Za-z]+):(?<r>[^/\\]+)[/\\](?<p>.+)$')
+    if (-not $m.Success) { $result.Reason = '格式非 scheme:Root/rel'; return $result }
+
+    $scheme = $m.Groups['s'].Value.ToLowerInvariant()
+    if (@($Config.Capabilities.Schemes) -notcontains $scheme) { $result.Reason = "未知 scheme：$scheme"; return $result }
+    $rootKey = $m.Groups['r'].Value
+    if (-not $Config.RootByKey.ContainsKey($rootKey)) { $result.Reason = "未知根：$rootKey"; return $result }
+    $root = $Config.RootByKey[$rootKey]
+    $wantKind = $(if ($scheme -eq 'src') { 'Source' } else { 'Test' })
+    if ($root.Kind -ne $wantKind) { $result.Reason = "scheme '$scheme' 与根 '$rootKey' 的 Kind（$($root.Kind)）不符"; return $result }
+
+    $rel = ConvertTo-TestLayoutPath -RepoRoot $Config.RepoRoot -Path (Join-Path $root.AbsPath $m.Groups['p'].Value)
+    if ([string]::IsNullOrWhiteSpace($rel) -or -not $rel.StartsWith($root.Path, [StringComparison]::OrdinalIgnoreCase)) {
+        $result.Reason = '定位符越出所属根'; return $result
+    }
+
+    $result.Ok = $true
+    $result.Scheme = $scheme
+    $result.Kind = $root.Kind
+    $result.RootKey = $rootKey
+    $result.Rel = $rel
+    $result.Abs = (Join-Path $Config.RepoRoot $rel)
+    $result.Exists = (Test-Path -LiteralPath $result.Abs)
+    return $result
+}
+
+function Resolve-TestLayoutEvidenceTarget {
+    <#
+    .SYNOPSIS
+        把一条 L3 声明值解析为「真实存在的源码文件」；目录展开为其下源码文件。
+    .DESCRIPTION
+        U7 口径：声明值必须指向**存在的文件/目录**，否则 `Exists=$false`（调用方负责可见化/判红）。
+        指向测试文件时，取该测试文件已推导出的 Sources（`migrate source` 的历史文件即此形态）。
+        既非源码也非已登记测试的文件 ⇒ 不产生证据（避免用非源码制品伪装归属）。
+    .OUTPUTS
+        { Exists; Targets(string[]); Reason }
+    #>
+    param(
+        [Parameter(Mandatory)]$Config,
+        [Parameter(Mandatory)]$Index,
+        [Parameter(Mandatory)][AllowEmptyCollection()][hashtable]$TestRecords,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Value
+    )
+
+    $out = New-Object System.Collections.Generic.List[string]
+    $rels = @(Resolve-TestLayoutCoverTarget -Config $Config -Value $Value)
+    if (@($rels).Count -eq 0) {
+        return [pscustomobject]@{ Exists = $false; Targets = @(); Reason = '声明值不可解析' }
+    }
+
+    $exists = $false
+    foreach ($rel in $rels) {
+        if ([string]::IsNullOrWhiteSpace([string]$rel)) { continue }
+        $rel = ([string]$rel).TrimEnd('\')
+        $abs = Join-Path $Config.RepoRoot $rel
+        if (Test-Path -LiteralPath $abs -PathType Container) {
+            $exists = $true
+            $dirPrefix = $rel + '\'
+            foreach ($s in $Index.SourceFiles) {
+                if ($s.Rel.StartsWith($dirPrefix, [StringComparison]::OrdinalIgnoreCase)) { $out.Add([string]$s.Rel) }
+            }
+            continue
+        }
+        if (-not (Test-Path -LiteralPath $abs -PathType Leaf)) { continue }
+        $exists = $true
+        $isSource = $false
+        foreach ($s in $Index.SourceFiles) { if ($s.Rel -ieq $rel) { $isSource = $true; break } }
+        if ($isSource) { $out.Add($rel); continue }
+        if ($TestRecords.ContainsKey($rel)) {
+            foreach ($x in @($TestRecords[$rel].Sources)) { $out.Add([string]$x) }
+        }
+    }
+
+    return [pscustomobject]@{
+        Exists  = $exists
+        Targets = @($out | Select-Object -Unique)
+        Reason  = $(if ($exists) { '' } else { '目标不存在（悬空声明）' })
+    }
+}
+
 function Measure-TestLayoutAlignment {
     <#
     .SYNOPSIS
@@ -608,7 +835,9 @@ function Measure-TestLayoutAlignment {
     .DESCRIPTION
         · 投影非双射：多候选是正常结果，不判唯一；
         · I3 收敛：L1/L2 候选必须落在该测试工程 L0 对应的源码工程目录内；
-        · L3 声明（`// covers:` / `[Covers]` / `.specs` 的 `migrate source`）可跨目录。
+        · L3 声明（`// covers:` / `[Covers]` / `.specs` 的 `migrate source` / Pester `# covers:` / npm `testLayout.covers`）可跨目录；
+        · `.specs` 的 `project` 指令给工程（叶名必须唯一），`migrate source` 给证据；
+        · Overrides（Kind='Edge'）优先级最高：强制投影并标记 `Evidence='Override'`（可见化，禁静默）。
     #>
     param(
         [Parameter(Mandatory)]$Index
@@ -616,22 +845,83 @@ function Measure-TestLayoutAlignment {
 
     $config = $Index.Config
     $minTypeHits = [int]$config.Conventions.Evidence.MinTypeHits
+    $maxDecl = [int]$config.Conventions.Evidence.MaxDeclaringFile
     $idPattern = $script:TestLayoutDefaults.IdentifierPattern
     $coverComment = $script:TestLayoutDefaults.CoverCommentPattern
     $coverAttr = $script:TestLayoutDefaults.CoverAttributePattern
+    $pesterCover = $script:TestLayoutDefaults.PesterCoverCommentPattern
+
+    $ignoredTypes = @{}
+    foreach ($x in @($config.Conventions.Evidence.IgnoredTypes)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$x)) { $ignoredTypes[[string]$x] = $true }
+    }
+
+    # ---- 测试工程叶名 → 目录（spec `project` 指令用；多命中 ⇒ 不猜）----
+    $projectByLeaf = @{}
+    foreach ($d in @($Index.TestProjectDirs.Keys)) {
+        $leaf = [IO.Path]::GetFileName([string]$d)
+        if (-not $projectByLeaf.ContainsKey($leaf)) { $projectByLeaf[$leaf] = New-Object System.Collections.Generic.List[string] }
+        $projectByLeaf[$leaf].Add([string]$d)
+    }
 
     $testProjectDirsSorted = @($Index.TestProjectDirs.Keys | Sort-Object { $_.Length } -Descending)
     $testRecords = @{}
     $sourceToTests = @{}
     $unowned = New-Object System.Collections.Generic.List[object]
+    $specDangling = New-Object System.Collections.Generic.List[object]
     $evidenceCounts = @{ L1 = 0; L2 = 0; L3 = 0 }
+    $typeRefCounts = @{}
 
-    foreach ($t in $Index.TestFiles) {
+    # ---- U4：Overrides(Kind='Edge') 预解析（From=tst，To=src；To 可为目录）----
+    $forced = @{}
+    $overrideEdges = New-Object System.Collections.Generic.List[object]
+    foreach ($o in @($config.Overrides)) {
+        if ($null -eq $o) { continue }
+        if ([string]$o.Kind -ne 'Edge') { continue }
+        $from = Resolve-TestLayoutLocator -Config $config -Value ([string]$o.From)
+        $to = Resolve-TestLayoutLocator -Config $config -Value ([string]$o.To)
+        $edge = [pscustomobject]@{
+            Kind = 'Edge'; From = [string]$o.From; To = [string]$o.To
+            FromRel = $from.Rel; ToRel = $to.Rel
+            Applied = $false; Reason = ''
+        }
+        if (-not $from.Ok) { $edge.Reason = "From 不可解析：$($from.Reason)"; $overrideEdges.Add($edge); continue }
+        if (-not $to.Ok) { $edge.Reason = "To 不可解析：$($to.Reason)"; $overrideEdges.Add($edge); continue }
+        if ($from.Kind -ne 'Test') { $edge.Reason = 'From 必须是测试侧定位符（tst:/spec:/pkg:）'; $overrideEdges.Add($edge); continue }
+        if ($to.Kind -ne 'Source') { $edge.Reason = 'To 必须是源码侧定位符（src:）'; $overrideEdges.Add($edge); continue }
+        if (-not $to.Exists) { $edge.Reason = 'To 目标不存在（悬空 override）'; $overrideEdges.Add($edge); continue }
+
+        $targets = New-Object System.Collections.Generic.List[string]
+        if (Test-Path -LiteralPath $to.Abs -PathType Container) {
+            $dirPrefix = $to.Rel.TrimEnd('\') + '\'
+            foreach ($s in $Index.SourceFiles) {
+                if ($s.Rel.StartsWith($dirPrefix, [StringComparison]::OrdinalIgnoreCase)) { $targets.Add([string]$s.Rel) }
+            }
+        }
+        else { $targets.Add($to.Rel) }
+
+        if ($targets.Count -eq 0) { $edge.Reason = 'To 目录内无源码文件'; $overrideEdges.Add($edge); continue }
+        if (-not $forced.ContainsKey($from.Rel)) { $forced[$from.Rel] = New-Object System.Collections.Generic.List[string] }
+        foreach ($x in $targets) { if (-not $forced[$from.Rel].Contains($x)) { $forced[$from.Rel].Add($x) } }
+        $overrideEdges.Add($edge)
+    }
+
+    foreach ($t in @($Index.TestFiles | Sort-Object Kind)) {
         if ($t.Class -ne 'Carrier') { continue }
 
         $projDir = $null
-        foreach ($d in $testProjectDirsSorted) {
-            if ($t.Dir -ieq $d -or $t.Dir.StartsWith($d + '\', [StringComparison]::OrdinalIgnoreCase)) { $projDir = $d; break }
+        $projReason = ''
+        if ($t.Kind -eq 'Spec') {
+            if ([string]::IsNullOrWhiteSpace($t.ProjectName)) { $projReason = 'spec 缺 project 指令' }
+            elseif (-not $projectByLeaf.ContainsKey($t.ProjectName)) { $projReason = "project 指令未命中测试工程：$($t.ProjectName)" }
+            elseif (@($projectByLeaf[$t.ProjectName]).Count -ne 1) { $projReason = "project 指令叶名多命中（不猜）：$($t.ProjectName)" }
+            else { $projDir = [string]@($projectByLeaf[$t.ProjectName])[0] }
+        }
+        elseif ($t.Kind -eq 'Pester' -or $t.Kind -eq 'Npm') { $projDir = $t.Dir }
+        else {
+            foreach ($d in $testProjectDirsSorted) {
+                if ($t.Dir -ieq $d -or $t.Dir.StartsWith($d + '\', [StringComparison]::OrdinalIgnoreCase)) { $projDir = $d; break }
+            }
         }
         $sourceDir = ''
         if ($projDir -and $Index.ProjectMap.ContainsKey($projDir)) { $sourceDir = [string]$Index.ProjectMap[$projDir] }
@@ -645,58 +935,85 @@ function Measure-TestLayoutAlignment {
         # ---- L0 ----
         if ($sourceDir) { $evidence.Add('L0:path') }
 
-        # ---- L1 词干 ----
-        $stem = ($t.Stem -replace '(?i)(Tests?|Spec)$', '')
-        if (-not [string]::IsNullOrWhiteSpace($stem)) {
-            $key = $stem.ToLowerInvariant()
-            if ($Index.StemToSources.ContainsKey($key)) {
-                foreach ($s in @($Index.StemToSources[$key])) {
+        # ---- L1 词干（.cs / Pester；spec 词干不是类型名，跳过）----
+        if ($t.Kind -ne 'Spec') {
+            $stem = ($t.Stem -replace '(?i)(Tests?|Spec)$', '')
+            if (-not [string]::IsNullOrWhiteSpace($stem)) {
+                $key = $stem.ToLowerInvariant()
+                if ($Index.StemToSources.ContainsKey($key)) {
+                    $before = $found.Count
+                    foreach ($s in @($Index.StemToSources[$key])) {
+                        if ($prefix -and -not $s.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
+                        if ($seen.Add($s)) { $found.Add($s) }
+                    }
+                    if ($found.Count -gt $before) { $evidence.Add('L1:stem'); $evidenceCounts.L1++ }
+                }
+            }
+        }
+
+        # ---- L2 内容（声明类型倒排，特异性过滤 + I3 收敛；.cs / .specs）----
+        $content = ''
+        try { $content = [IO.File]::ReadAllText($t.Abs) } catch { $content = '' }
+        if ($t.Kind -eq 'Cs' -or $t.Kind -eq 'Spec') {
+            $fileTypes = New-Object System.Collections.Generic.HashSet[string]
+            foreach ($m in [regex]::Matches($content, $idPattern)) {
+                $id = $m.Value
+                if (-not $Index.TypeToSources.ContainsKey($id)) { continue }
+                if ($ignoredTypes.ContainsKey($id)) { continue }
+                [void]$fileTypes.Add($id)
+                foreach ($s in @($Index.TypeToSources[$id])) {
                     if ($prefix -and -not $s.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
                     if ($seen.Add($s)) { $found.Add($s) }
                 }
-                if ($found.Count -gt 0) { $evidence.Add('L1:stem'); $evidenceCounts.L1++ }
             }
+            foreach ($id in @($fileTypes)) { if ($typeRefCounts.ContainsKey($id)) { $typeRefCounts[$id]++ } else { $typeRefCounts[$id] = 1 } }
+            if ($fileTypes.Count -gt 0) { $evidence.Add('L2:type'); $evidenceCounts.L2++ }
         }
 
-        # ---- L2 内容（声明类型倒排，特异性过滤 + I3 收敛）----
-        $content = ''
-        try { $content = [IO.File]::ReadAllText($t.Abs) } catch { $content = '' }
-        $hits = @{}
-        foreach ($m in [regex]::Matches($content, $idPattern)) {
-            $id = $m.Value
-            if (-not $Index.TypeToSources.ContainsKey($id)) { continue }
-            foreach ($s in @($Index.TypeToSources[$id])) {
-                if ($prefix -and -not $s.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
-                if ($hits.ContainsKey($s)) { $hits[$s] = $hits[$s] + 1 } else { $hits[$s] = 1 }
-            }
-        }
-        $strong = @($hits.Keys | Where-Object { $hits[$_] -ge $minTypeHits })
-        if ($strong.Count -gt 0) {
-            $evidence.Add('L2:type')
-            $evidenceCounts.L2++
-            foreach ($s in $strong) { if ($seen.Add($s)) { $found.Add($s) } }
-        }
-
-        # ---- L3 显式声明（可跨工程；目录会展开为其下全部源码文件）----
-        $covers = New-Object System.Collections.Generic.List[string]
-        foreach ($m in [regex]::Matches($content, $coverComment)) { if ($m.Groups['p'].Success) { $covers.Add($m.Groups['p'].Value) } }
-        foreach ($m in [regex]::Matches($content, $coverAttr)) { if ($m.Groups['p'].Success) { $covers.Add($m.Groups['p'].Value) } }
+        # ---- L3 显式声明（存在性校验；可跨工程；目录展开）----
         $l3 = $false
-        foreach ($raw in $covers) {
-            foreach ($rel in @(Resolve-TestLayoutCoverTarget -Config $config -Value $raw)) {
-                $full = Join-Path $config.RepoRoot $rel
-                if (Test-Path -LiteralPath $full -PathType Container) {
-                    foreach ($s in $Index.SourceFiles) {
-                        if ($s.Rel.StartsWith($rel.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
-                            if ($seen.Add($s.Rel)) { $found.Add($s.Rel); $l3 = $true }
-                        }
-                    }
-                }
-                elseif ($seen.Add($rel)) { $found.Add($rel); $l3 = $true }
+        if ($t.Kind -eq 'Cs' -or $t.Kind -eq 'Pester') {
+            $covers = New-Object System.Collections.Generic.List[string]
+            if ($t.Kind -eq 'Cs') {
+                foreach ($m in [regex]::Matches($content, $coverComment)) { if ($m.Groups['p'].Success) { $covers.Add($m.Groups['p'].Value) } }
+                foreach ($m in [regex]::Matches($content, $coverAttr)) { if ($m.Groups['p'].Success) { $covers.Add($m.Groups['p'].Value) } }
             }
+            else { foreach ($m in [regex]::Matches($content, $pesterCover)) { if ($m.Groups['p'].Success) { $covers.Add($m.Groups['p'].Value) } } }
+            foreach ($raw in $covers) {
+                $r = Resolve-TestLayoutEvidenceTarget -Config $config -Index $Index -TestRecords $testRecords -Value $raw
+                foreach ($s in @($r.Targets)) { if ($seen.Add($s)) { $found.Add($s); $l3 = $true } }
+            }
+            if ($l3) { $evidence.Add('L3:covers'); $evidenceCounts.L3++ }
         }
-        if ($l3) { $evidence.Add('L3:covers'); $evidenceCounts.L3++ }
+        elseif ($t.Kind -eq 'Spec') {
+            foreach ($raw in @($t.MigrateSources)) {
+                $r = Resolve-TestLayoutEvidenceTarget -Config $config -Index $Index -TestRecords $testRecords -Value $raw
+                if (-not $r.Exists) {
+                    $specDangling.Add([pscustomobject]@{ Path = $t.Rel; Project = $t.ProjectName; Target = $raw; Reason = $r.Reason })
+                    continue
+                }
+                foreach ($s in @($r.Targets)) { if ($seen.Add($s)) { $found.Add($s); $l3 = $true } }
+            }
+            if ($l3) { $evidence.Add('L3:migrate-source'); $evidenceCounts.L3++ }
+        }
+        elseif ($t.Kind -eq 'Npm') {
+            try {
+                $j = $content | ConvertFrom-Json -ErrorAction Stop
+                foreach ($raw in @($j.testLayout.covers)) {
+                    if ([string]::IsNullOrWhiteSpace([string]$raw)) { continue }
+                    $r = Resolve-TestLayoutEvidenceTarget -Config $config -Index $Index -TestRecords $testRecords -Value ([string]$raw)
+                    foreach ($s in @($r.Targets)) { if ($seen.Add($s)) { $found.Add($s); $l3 = $true } }
+                }
+            }
+            catch { }
+            if ($l3) { $evidence.Add('L3:covers'); $evidenceCounts.L3++ }
+        }
 
+        # ---- U4：Edge override（最高优先级，标记可见）----
+        if ($forced.ContainsKey($t.Rel)) {
+            foreach ($s in @($forced[$t.Rel])) { if ($seen.Add($s)) { $found.Add($s) } }
+            $evidence.Add('Override')
+        }
 
         $rec = [pscustomobject]@{
             Path      = $t.Rel
@@ -712,8 +1029,16 @@ function Measure-TestLayoutAlignment {
             [void]$sourceToTests[$s].Add($t.Rel)
         }
         if ($found.Count -eq 0) {
-            $unowned.Add([pscustomobject]@{ Path = $t.Rel; Project = $projDir; Reason = 'L1/L2/L3 均无证据' })
+            $reason = 'L1/L2/L3 均无证据'
+            if ($t.Kind -eq 'Spec' -and $projReason) { $reason = $projReason }
+            $unowned.Add([pscustomobject]@{ Path = $t.Rel; Project = $projDir; Reason = $reason })
         }
+    }
+
+    # override 生效判定（记录落定后回填，供校验门；禁「声明了但没生效」静默）
+    foreach ($e in $overrideEdges) {
+        if ($e.Reason) { continue }
+        if ($testRecords.ContainsKey($e.FromRel) -and @($testRecords[$e.FromRel].Evidence) -contains 'Override') { $e.Applied = $true }
     }
 
     # ---- 汇总源码侧（覆盖/缺测/豁免）----
@@ -737,18 +1062,51 @@ function Measure-TestLayoutAlignment {
         $sourceRecords[$s.Rel] = [pscustomobject]@{ Path = $s.Rel; Class = $s.Class; Tests = $tests; Evidence = $ev }
     }
 
+    # ---- U11：候选数直方图（每测试文件 Sources 数 + Top 被引用类型）----
+    $buckets = [ordered]@{ '0' = 0; '1' = 0; '2' = 0; '3' = 0; '4' = 0; '5-10' = 0; '>10' = 0 }
+    $over10 = 0
+    foreach ($r in $testRecords.Values) {
+        $n = @($r.Sources).Count
+        if ($n -gt 10) { $buckets['>10']++; $over10++ }
+        elseif ($n -ge 5) { $buckets['5-10']++ }
+        else { $buckets[[string]$n]++ }
+    }
+    $ratio = $(if ($testRecords.Count -gt 0) { [math]::Round(($over10 * 100.0) / $testRecords.Count, 2) } else { 0 })
+    $topTypes = @($typeRefCounts.Keys |
+            Sort-Object @{ Expression = { -[int]$typeRefCounts[$_] } }, @{ Expression = { $_ } } |
+            Select-Object -First 15 |
+            ForEach-Object { [pscustomobject]@{ Type = [string]$_; TestFiles = [int]$typeRefCounts[$_]; DeclaringFiles = [int]$Index.TypeDeclaringCounts[$_] } })
+    $histogram = [pscustomobject]@{
+        Carriers         = $testRecords.Count
+        Buckets          = [pscustomobject]$buckets
+        Over10           = $over10
+        Over10Ratio      = $ratio
+        TopTypes         = $topTypes
+        MinTypeHits      = $minTypeHits
+        MaxDeclaringFile = $maxDecl
+        IgnoredTypes     = @($config.Conventions.Evidence.IgnoredTypes)
+    }
+
+    $helperCount = 0
+    foreach ($tf in $Index.TestFiles) { if ($tf.Class -eq 'Helper') { $helperCount++ } }
+
     $stats = [pscustomobject]@{
-        SourceFiles = $Index.SourceFiles.Count
-        Testable    = $testable
-        Exempt      = $exempt
-        Covered     = $covered
-        Uncovered   = $uncovered
-        Carriers    = $testRecords.Count
-        Helpers     = @($Index.TestFiles | Where-Object { $_.Class -eq 'Helper' }).Count
-        Unowned     = $unowned.Count
-        L1          = $evidenceCounts.L1
-        L2          = $evidenceCounts.L2
-        L3          = $evidenceCounts.L3
+        SourceFiles  = $Index.SourceFiles.Count
+        Testable     = $testable
+        Exempt       = $exempt
+        Covered      = $covered
+        Uncovered    = $uncovered
+        Carriers     = $testRecords.Count
+        Helpers      = $helperCount
+        Unowned      = $unowned.Count
+        L1           = $evidenceCounts.L1
+        L2           = $evidenceCounts.L2
+        L3           = $evidenceCounts.L3
+        Specs        = $Index.Stats.Specs
+        SpecDangling = $specDangling.Count
+        Pester       = $Index.Stats.PesterCarriers
+        Npm          = $Index.Stats.NpmCarriers
+        Overrides    = $overrideEdges.Count
     }
 
     return [pscustomobject]@{
@@ -759,6 +1117,9 @@ function Measure-TestLayoutAlignment {
         Sources          = $sourceRecords
         SourceToTests    = $sourceToTests
         Unowned          = $unowned.ToArray()
+        SpecDangling     = $specDangling.ToArray()
+        OverrideEdges    = $overrideEdges.ToArray()
+        Histogram        = $histogram
         Evidence         = $evidenceCounts
         Stats            = $stats
         TestProjects     = @($Index.TestProjectDirs.Keys)
@@ -837,20 +1198,21 @@ function Resolve-TestLayoutPath {
         $kind = ''
         $reason = ''
 
-        if ($rel -match '\.specs$') {
+        if ($FileMap.Tests.ContainsKey($rel)) {
+            # 统一：`.cs` / `.specs` / `*.Tests.ps1` / `package.json` 载体
+            $kind = 'TestFile'
+            $rec = $FileMap.Tests[$rel]
+            $testFiles.Add($rel)
+            if ($rec.Project) { $projects.Add([string]$rec.Project) }
+            foreach ($e in @($rec.Evidence)) { $evidence.Add([string]$e) }
+            if (@($rec.Sources).Count -eq 0) { $reason = '测试文件无源码投影（FA2 候选）' }
+        }
+        elseif ($rel -match '\.specs$') {
             $kind = 'SpecFile'
-            $reason = '声明式用例暂未纳入 filemap（F4）'
+            $reason = 'spec 不在任何已登记测试根'
         }
         elseif ($rel -match '\.cs$') {
-            if ($FileMap.Tests.ContainsKey($rel)) {
-                $kind = 'TestFile'
-                $rec = $FileMap.Tests[$rel]
-                $testFiles.Add($rel)
-                if ($rec.Project) { $projects.Add([string]$rec.Project) }
-                foreach ($e in @($rec.Evidence)) { $evidence.Add([string]$e) }
-                if (@($rec.Sources).Count -eq 0) { $reason = '测试文件无源码投影（FA2 候选）' }
-            }
-            elseif ($FileMap.Sources.ContainsKey($rel)) {
+            if ($FileMap.Sources.ContainsKey($rel)) {
                 $kind = 'SourceFile'
                 $rec = $FileMap.Sources[$rel]
                 if ($rec.Class -ne 'Testable') { $reason = "源码已豁免：$($rec.Class)" }
@@ -1000,13 +1362,21 @@ function ConvertTo-TestLayoutFileMapJson {
             l1          = $s.L1
             l2          = $s.L2
             l3          = $s.L3
+            specs       = $s.Specs
+            specDangling = $s.SpecDangling
+            pester      = $s.Pester
+            npm         = $s.Npm
+            overrides   = $s.Overrides
         }
         sources          = $sources
         tests            = $tests
         unowned          = @($FileMap.Unowned)
         unmappedProjects = @($FileMap.UnmappedProjects)
+        specDangling     = @($FileMap.SpecDangling)
+        overrideEdges    = @($FileMap.OverrideEdges)
+        histogram        = $FileMap.Histogram
     }
-    return ($doc | ConvertTo-Json -Depth 8)
+    return ($doc | ConvertTo-Json -Depth 12)
 }
 
 Export-ModuleMember -Function @(
@@ -1022,6 +1392,8 @@ Export-ModuleMember -Function @(
     'New-TestLayoutIndex',
     'Measure-TestLayoutAlignment',
     'Resolve-TestLayoutCoverTarget',
+    'Resolve-TestLayoutLocator',
+    'Resolve-TestLayoutEvidenceTarget',
     'Resolve-TestLayoutPath',
     'ConvertTo-TestLayoutFileMapJson'
 )

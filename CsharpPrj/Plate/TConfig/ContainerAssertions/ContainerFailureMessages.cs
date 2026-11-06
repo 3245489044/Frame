@@ -55,6 +55,9 @@ namespace TConfig.ContainerAssertions
 
         /// <summary>宿主未收到子控件（宿主物理挂载断链）。</summary>
         HostEmptyAfterRender,
+
+        /// <summary>目标名不是容器宿主（该名字属于其他命名空间：控件/作用域/窗体/配置/探测函数）。</summary>
+        NotAContainer,
     }
 
     /// <summary>
@@ -104,6 +107,7 @@ namespace TConfig.ContainerAssertions
                 ContainerFailureKind.ConfigLoadFailed => $"配置加载失败: {t}",
                 ContainerFailureKind.RenderNotSucceeded => "渲染管线未成功（挂载跳过）",
                 ContainerFailureKind.HostEmptyAfterRender => "宿主未收到子控件（宿主物理挂载断链）",
+                ContainerFailureKind.NotAContainer => $"'{t}' 不是容器宿主（该名字属于其他命名空间：控件/作用域/窗体/配置/探测函数）",
                 _ => string.Empty,
             };
 

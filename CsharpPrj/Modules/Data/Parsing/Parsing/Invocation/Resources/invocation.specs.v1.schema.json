@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "invocation.specs/v1",
+  "comment": "只使用 JsonSchemaSubsetValidator 支持的子集关键字（type/required/properties/additionalProperties/items/minItems/enum/pattern）。子集外关键字会被静默忽略 ⇒ 判据失活。",
+  "type": "object",
+  "required": ["specs"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "comment": { "type": "string" },
+    "defaultTimeoutMs": { "type": "integer" },
+    "specs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["action"],
+        "additionalProperties": false,
+        "properties": {
+          "action": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "subAction": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "targetSpace": {
+            "type": "string",
+            "enum": ["None", "Control", "ContainerHost", "Scope", "ProbeFunction", "ConfigFile", "Form"]
+          },
+          "args": { "type": "array", "items": { "type": "string" } },
+          "allowProbeArgs": { "type": "boolean" },
+          "argSpaces": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["Control", "ContainerHost", "Scope", "ProbeFunction", "ConfigFile", "Form"]
+            }
+          },
+          "minTargetTokens": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

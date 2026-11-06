@@ -42,6 +42,8 @@
     <ProjectReference Include="$(Proj_RGE_Unified)" />
     <!-- ExecutionBudgetPolicy 复用 Modules.Threading.BoundedRun（有界执行竞速单源，L1） -->
     <ProjectReference Include="$(Proj_Threading)" />
+    <!-- 调用面契约内核（Modules.Data.Parsing）：命令声明/绑定/命名空间索引唯一实现 -->
+    <ProjectReference Include="$(Proj_Parsing)" />
   </ItemGroup>
 
 </Project>

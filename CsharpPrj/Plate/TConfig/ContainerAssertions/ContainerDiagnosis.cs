@@ -71,6 +71,7 @@ namespace TConfig.ContainerAssertions
                     or ContainerFailureKind.HostNoControl
                     or ContainerFailureKind.HostNotMounted
                     or ContainerFailureKind.HostSameAsTarget
+                    or ContainerFailureKind.NotAContainer
                     or ContainerFailureKind.CountAssertionFailed
                     => (Host ?? Subject, (string?)null),
                 _ => (Subject, Host),

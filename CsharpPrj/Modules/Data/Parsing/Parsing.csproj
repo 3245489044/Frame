@@ -3,14 +3,16 @@
   <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>文本语法与发射内核（Parsing）</ModuleRule_Title>
     <ModuleRule_Layer>2</ModuleRule_Layer>
-    <ModuleRule_Description>文本语法内核：① 命令解析编译（分词/解析/规范化/参数解析）；② 键文法子程序集（Keys）；③ 标记文法与发射（Markup：方言描述符 + 属性/标签/折叠/值格式化单一实现）。Markup 目录零内部依赖、零 Frame 依赖、零领域词，可被任意标记宿主消费。</ModuleRule_Description>
-    <ModuleRule_Keywords>命令解析;分词;键文法;标记文法;属性发射;转义;折叠段;值格式化</ModuleRule_Keywords>
+    <ModuleRule_Description>文本语法与发射内核：① 命令解析编译（分词/解析/规范化/参数解析）；② 调用面契约内核（声明表/绑定/命名空间索引/契约门，JSON 一律经 Plate.JsonMethod）；③ 键文法子程序集（Keys）；④ 标记文法与发射（Markup：方言描述符 + 属性/标签/折叠/值格式化单一实现）。Markup 目录零内部依赖、零 Frame 依赖、零领域词，可被任意标记宿主消费。</ModuleRule_Description>
+    <ModuleRule_Keywords>命令解析;分词;键文法;标记文法;属性发射;转义;折叠段;值格式化;调用面契约;命名空间索引</ModuleRule_Keywords>
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
     <ModuleRule_Rule Include="Markup\ 目录自包含：仅 BCL，禁引用本工程其它目录、禁引用 BasicMethod/JsonMethod/Frame 任何程序集（以保留「零新工程可拆为独立子程序集」的升级路径）" />
     <ModuleRule_Rule Include="Markup\ 零领域词：禁 session/history/agent/tool 等业务标识符与文案；页面级命名约定只作字符串常量（Region/StreamItem）" />
     <ModuleRule_Rule Include="Markup\ 单一实现：属性名文法/值编码/引号/布尔形态/空元素形态只经 MarkupDialect 声明；属性批与标签闭合各恰一份实现，禁各处手拼 data-* 或 details 壳" />
+    <ModuleRule_Rule Include="Invocation\ JSON 只经 Plate.JsonMethod（JsonTolerantReader/JsonDuplicateKeyScanner/JsonSchemaSubsetValidator/JsonSerializationService）；禁自建 JsonSerializerOptions、禁 JsonDocument.Parse 直呼" />
+    <ModuleRule_Rule Include="Invocation\ 声明面唯一 = Resources\invocation.specs.json（嵌入资源）；命令语法/目标空间/参数集只在此声明，禁在命令系统里另立白名单" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -30,11 +32,20 @@
   <ItemGroup>
     <!-- Common、StateMachine 已整合到 BasicMethod.csproj -->
     <ProjectReference Include="$(Proj_BasicMethod)" />
-    <!-- 平台级统一 JSON 框架（Layer 6）：命令内嵌 JSON 片段的解析/规范化唯一出口（ParseJsonNode） -->
+    <!-- 平台级统一 JSON 框架（Layer 6）：JSON 读取/校验/反序列化唯一出口（本模块不新增 JSON 逻辑） -->
     <ProjectReference Include="$(Proj_JsonMethod)" />
+    <!-- 通用契约框架：契约身份/注册/执行/取证（本模块只做 DotNet 执行体适配） -->
+    <ProjectReference Include="$(Proj_ContractFramework)" />
     <!-- 转换内核（Modules 同层，netstandard2.0 零依赖）：文本扫描原语（TextScan，与 RoslynJson/分析器侧同源） -->
     <ProjectReference Include="$(Proj_LogicComposition_Conversion)" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- 声明面数据（唯一来源）：以逻辑名嵌入，宿主/测试免路径解析 -->
+    <EmbeddedResource Include="Parsing\Invocation\Resources\invocation.specs.json" LogicalName="invocation.specs.json" />
+    <EmbeddedResource Include="Parsing\Invocation\Resources\invocation.specs.v1.schema.json" LogicalName="invocation.specs.v1.schema.json" />
+  </ItemGroup>
+
 
   <!-- 子目录 Keys\ 为独立子程序集（键文法内核 Modules.Parsing.Keys，BCL-only）：排除其源码，
        避免与本工程重复编译（子工程经 Modules.csproj 的 $(Proj_Parsing_Keys) 进入构建与烘焙闭包）。 -->

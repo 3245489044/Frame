@@ -6,6 +6,8 @@ using FrameworkAbstractions.ContainerAbstractions;
 using BackEndDriven.Diagnostics;
 using Share.EventBindingOrchestrator.Abstractions;
 using Share.EventBindingOrchestrator.Adapters;
+using Modules.Parsing.Invocation;
+using TConfig.ContainerAssertions;
 // F3.1：删除本类内纯转发的私有 GetParamString，直接静态导入唯一权威实现。
 using static BackEndDriven.CommandExecution.ValidateSystemHelpers;
 
@@ -79,8 +81,7 @@ public class AssertSystem : CommandSystemBase
             return;
         }
 
-        var firstSpace = subAction.IndexOf(' ');
-        var subToken = firstSpace < 0 ? subAction : subAction[..firstSpace];
+        var subToken = InvocationTokens.First(subAction) ?? string.Empty;
         var sub = subToken.StartsWith("assert-", StringComparison.OrdinalIgnoreCase)
             ? subToken["assert-".Length..].ToLowerInvariant()
             : subToken.ToLowerInvariant();
@@ -266,15 +267,18 @@ public class AssertSystem : CommandSystemBase
     /// </summary>
     private void AssertContainer(Entity entity, CommandMetaComponent meta)
     {
-        var rest = ExtractSubTarget(meta, "container") ?? "";
-        var parts = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        // 非容器可寻址空间：名字属于这些空间却按容器断言 ⇒ NotAContainer（类别可读，不再误报 HostNotResolved）。
+        NameSpaceId[] s_nonContainerSpaces = [NameSpaceId.Scope, NameSpaceId.ConfigFile, NameSpaceId.Form];
+        // 目标串切分唯一实现（InvocationTokens）：命令层不再手写 Split(' ')/IndexOf(' ')。
+        var rest = InvocationTokens.TailAfter(meta.Target, "container") ?? "";
+        var tokens = InvocationTokens.Tokenize(rest);
 
         string hostName;
         string countExpr;
-        if (parts.Length >= 2)
+        if (tokens.Count >= 2)
         {
-            hostName = parts[0];
-            countExpr = parts[1];
+            hostName = tokens[0];
+            countExpr = tokens[1];
         }
         else
         {
@@ -299,6 +303,21 @@ public class AssertSystem : CommandSystemBase
 
         // 判定语义与失败文案全部由断言内核产出（类别机读、文案单一源），命令层只做语法适配。
         var diagnosis = service.AssertContainer(hostName, countExpr);
+
+        // E2：名字存在但不是容器 ⇒ 报 NotAContainer（只在「名字属于非容器可寻址空间」时改写；
+        // 面板容器（Panel/GroupBox）由断言内核的第二段寻址直接判定，不再走这里）。
+        if (!diagnosis.IsSuccess && diagnosis.Kind == ContainerFailureKind.HostNotResolved)
+        {
+            foreach (var space in s_nonContainerSpaces)
+            {
+                if (!NameSpaceRegistry.Resolve(space, hostName).Found) continue;
+                diagnosis = ContainerDiagnosis.Of(
+                    ContainerFailureKind.NotAContainer,
+                    subject: hostName, host: hostName, expected: countExpr);
+                break;
+            }
+        }
+
         if (!diagnosis.IsSuccess)
         {
             SetFailure(entity, AssertionDiagnosisLog.Report("assert-container", diagnosis));
@@ -311,27 +330,7 @@ public class AssertSystem : CommandSystemBase
 
 
     private static string? ExtractSubTarget(CommandMetaComponent meta, string subName)
-    {
-        var target = meta.Target;
-        if (string.IsNullOrWhiteSpace(target))
-            return null;
-
-        var prefix = subName + " ";
-        if (target.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            var rest = target[prefix.Length..].Trim();
-            return string.IsNullOrWhiteSpace(rest) ? null : rest;
-        }
-
-        var fullPrefix = "assert-" + subName + " ";
-        if (target.StartsWith(fullPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            var rest = target[fullPrefix.Length..].Trim();
-            return string.IsNullOrWhiteSpace(rest) ? null : rest;
-        }
-
-        return null;
-    }
+        => InvocationTokens.TailAfter(meta.Target, subName);
 
 }
 
@@ -503,7 +502,7 @@ public class ValidateMountSystem : CommandSystemBase
                 return;
             }
 
-            BackEndLog.Log("Command_Validate_Mount_Success", new { target, parent = parent ?? "(form)" });
+            BackEndLog.Log("Command_Validate_Mount_Success", new { target, parent = parent ?? "(form)", visible = requireVisible });
             SetSuccess(entity, target);
         }
         catch (Exception ex)

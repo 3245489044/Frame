@@ -182,7 +182,9 @@ function Initialize-GateModule {
       Baseline 棘轮基线（Mode=target/le；缺省 soft 目标比较的硬阈）
       Target   soft 目标（非 -Final 时：Actual > Target 且 ≤ Baseline ⇒ 待消除；-Final 时升为硬阈）
       Mode     eq | le | ge | target（缺省：有 Target/Baseline ⇒ target；有 Expected ⇒ eq；否则 le）
-      Kind     count | attest（attest 只可见化，不判失败）
+      Kind     count | control | attest
+               control = 正/负对照自证（Id/Predicate/Good/Bad），委托 Assert-GateControls；
+               attest 只可见化，不判失败
       Batch    批次号（待消除/运行期文案）
       Pattern  检索词（Actual=-1 时回显）
 
@@ -199,6 +201,8 @@ function Initialize-GateModule {
     逐条打印实测/阈值。
 .PARAMETER NoHeader
     不打印 Write-GateHeader（调用方已自绘标题时）。
+.PARAMETER FixtureRoot
+    `Kind=control` 的文件型对照样本落盘目录（逐条可用 FixtureRoot 覆盖）。
 .PARAMETER Violations
     既有违规清单（`$ctx.Violations`）；本批违规追加进去。
 .PARAMETER Hint
@@ -228,7 +232,8 @@ function Invoke-GateCountChecks {
         # 自动检索取数的调用级默认（断言可逐条覆盖）。
         [string]$RepoRoot = '',
         [string]$SearchEntry = '',
-        [string]$ShellExe = ''
+        [string]$ShellExe = '',
+        [string]$FixtureRoot = ''
     )
 
     $found = [System.Collections.Generic.List[string]]::new()
@@ -236,6 +241,7 @@ function Invoke-GateCountChecks {
     $attest = [System.Collections.Generic.List[string]]::new()
     $passed = 0
     $search = 0
+    $control = 0
     $total = 0
     $label = if ([string]::IsNullOrWhiteSpace($Key)) { 'GateCountChecks' } else { $Key }
 
@@ -255,6 +261,16 @@ function Invoke-GateCountChecks {
 
         if ($kind -eq 'attest') {
             $attest.Add("$id $title$batchText")
+            continue
+        }
+        if ($kind -eq 'control') {
+            # 正/负对照并入同一张断言表（T7：与被测判据共享 Predicate；缺 Good/Bad 即违规）。
+            $caseFixture = [string](Get-GateJsonProperty $c 'FixtureRoot')
+            if ([string]::IsNullOrWhiteSpace($caseFixture)) { $caseFixture = $FixtureRoot }
+            foreach ($v in @(Assert-GateControls -Cases @($c) -Label $label -FixtureRoot $caseFixture)) {
+                $found.Add([string]$v)
+            }
+            $control++
             continue
         }
         $search++
@@ -318,7 +334,9 @@ function Invoke-GateCountChecks {
         elseif ($null -ne $baselineRaw) { $expected = [int]$baselineRaw }
 
         # 判据活性（防恒绿）：阈值为正却实测 0 ⇒ 载体不可能命中（pattern 写坏/被转义）。
-        if ($null -ne $expected -and $expected -gt 0 -and $actual -eq 0) {
+        # 仅对 eq/ge 生效：le/target 下实测 0 是「棘轮降到 0」的合法终态，
+        # 若一并判红，收敛成功反被判失败（D 组 G5 接线事故）。le/target 的缺证保护见下方 -1 / 缺基线分支。
+        if (($mode -eq 'eq' -or $mode -eq 'ge') -and $null -ne $expected -and $expected -gt 0 -and $actual -eq 0) {
             $found.Add("$id $title：判据面失效（阈值 $expected 但实测 0）—— 恒绿断言")
             if ($Detail) { Write-Host ("  [失效] {0,-4} {1,-46} {2,3}" -f $id, $title, $actual) -ForegroundColor Yellow }
             continue
@@ -361,7 +379,7 @@ function Invoke-GateCountChecks {
             }
             $passed++
         }
-        else {
+        elseif ($mode -eq 'target') {
             # target：非 Final = 基线内待消除；Final = Target 硬阈。
             $baseline = if ($null -ne $baselineRaw) { [int]$baselineRaw } else { $expected }
             $target = if ($null -ne $targetRaw) { [int]$targetRaw } else { $null }
@@ -389,14 +407,18 @@ function Invoke-GateCountChecks {
             $passed++
             if ($Detail) { Write-Host ("  [实测] {0,-4} {1,-46} {2,3}  (基线 {3} / 目标 {4})" -f $id, $title, $actual, $baseline, $target) -ForegroundColor DarkGray }
         }
+        else {
+            # 未知 Mode（如拼写 gte/target）不得静默降级为 target（那会改变硬/软分流口径）。
+            $found.Add("$id $title：未知 Mode '$mode'（允许 eq/le/ge/target）—— 判别不可执行")
+        }
     }
 
     if ($total -eq 0) { $found.Add("$label 无断言（判据无标的 ⇒ 不可采信）") }
 
     $modeText = if ($Final) { '终态模式 (-Final)' } else { '基线模式（拦新增重复点）' }
     Write-Host ("[$label] 计数断言表 · $modeText")
-    Write-Host ("[$label] 断言 {0} 条（搜索 {1} / 运行期 {2}） | 通过 {3} | 待消除 {4} | 违规 {5}" -f `
-        $total, $search, $attest.Count, $passed, $pending.Count, $found.Count)
+    Write-Host ("[$label] 断言 {0} 条（搜索 {1} / 对照 {2} / 运行期 {3}） | 通过 {4} | 待消除 {5} | 违规 {6}" -f `
+        $total, $search, $control, $attest.Count, $passed, $pending.Count, $found.Count)
 
     if ($pending.Count -gt 0) {
         Write-Host "[$label] --- 待消除（基线已锁定，批完成后转 Target 判据） ---"
@@ -426,6 +448,7 @@ function Invoke-GateCountChecks {
         Key            = $Key
         Total          = $total
         Search         = $search
+        Control        = $control
         Attest         = $attest.Count
         Passed         = $passed
         Pending        = $pending
@@ -524,10 +547,20 @@ function Write-GateVerdict {
     基线核减判据（只减不增）：新增键（不在基线表中）或计数上涨即违规。
 .DESCRIPTION
     上提自 Modules\Node\NodeGateCommon.ps1（全局化后 Node 侧可复用）。
+    两种参数集（互斥）：
+      · Table（默认）：`-Counts` + `-Baselines` 计数表；
+      · Scalar：`-Actual` + `-Expected [-Key]`，内部自动构成单行计数表（14 个棘轮门零样板）。
+    未给 `-Expected` ⇒ 基线不可解析（fail-closed），不得当作「未增长」放行。
 .PARAMETER Counts
     实测计数（键 → 计数）。
 .PARAMETER Baselines
     基线表（键 → 冻结值）。
+.PARAMETER Actual
+    标量实测值（Scalar 参数集；必填）。
+.PARAMETER Expected
+    标量基线值（Scalar 参数集；缺省 ⇒ BaselineInvalid）。
+.PARAMETER Key
+    标量键名（默认 'count'；用于违规文案与结果回显）。
 .PARAMETER Label
     违规文案前缀（如「AgentFrameworkSingleSource」）。
 .PARAMETER BaselineError
@@ -539,14 +572,34 @@ function Write-GateVerdict {
     默认 `List[string]` 违规清单；`-AsResult` 时返回结构化对象。
 #>
 function Test-BaselineNoIncrease {
+    [CmdletBinding(DefaultParameterSetName = 'Table')]
     param(
-        [AllowNull()][hashtable]$Counts,
-        [AllowNull()][hashtable]$Baselines,
+        [Parameter(ParameterSetName = 'Table')][AllowNull()][hashtable]$Counts,
+        [Parameter(ParameterSetName = 'Table')][AllowNull()][hashtable]$Baselines,
+
+        # 标量路径（14 个棘轮门的零样板入口）：单值 actual/expected 自动构成单行计数表。
+        [Parameter(ParameterSetName = 'Scalar', Mandatory = $true)][int]$Actual,
+        [Parameter(ParameterSetName = 'Scalar')][AllowNull()][Nullable[int]]$Expected,
+        [Parameter(ParameterSetName = 'Scalar')][string]$Key = 'count',
+
         [string]$Label = '',
         [string]$BaselineError = '',
         [switch]$AsResult
     )
     $violations = [System.Collections.Generic.List[string]]::new()
+
+    if ($PSCmdlet.ParameterSetName -eq 'Scalar') {
+        $Counts = @{ $Key = [int]$Actual }
+        if ($null -eq $Expected) {
+            $Baselines = $null
+            if ([string]::IsNullOrWhiteSpace($BaselineError)) {
+                $BaselineError = "标量基线缺失（-Expected 未提供，key=$Key）"
+            }
+        }
+        else {
+            $Baselines = @{ $Key = [int]$Expected }
+        }
+    }
 
     # 基线不可解析 ≠ 未增长：此前 Check-ZeroRetry 把解析异常吞成 fail-open，这里改为 fail-closed。
     $baselineInvalid = ($null -eq $Baselines) -or (-not [string]::IsNullOrWhiteSpace($BaselineError))
@@ -842,16 +895,32 @@ function Assert-GatePrerequisite {
       Good/Bad 若为含 `Path` + `Content` 的字典/对象，框架把 Content 写到 `<FixtureRoot>\<Path>`
       （UTF-8，必要时建目录），并把目标**绝对路径**传给 Predicate；其余样本原样透传。
       框架不删除已写文件（目录由调用方持有/清理）。
+
+    批量采用契约（T7）：
+      · **必须同时给 Good 与 Bad**（缺任一即违规：无自证不可采信）；只做正对照不算负对照。
+      · Predicate 必须是**门禁实际判据本身**（同一脚本块/正则），不得另写一份合成检测逻辑。
+      · Predicate 抛异常 = 违规（不是放行）；统一走 `-Violations` 收集 + `Write-GateVerdict`，禁 `throw` 收口。
+      · `-Checks -Kind control` 可把 Case 直接并入 `Invoke-GateCountChecks` 的同一张断言表。
+.PARAMETER Cases
+    判据自证表（Id/Predicate/Good/Bad）。
+.PARAMETER Label
+    违规文案前缀。
+.PARAMETER FixtureRoot
+    文件型样本落盘目录（可选）。
+.PARAMETER Violations
+    既有违规清单（`$ctx.Violations`）；本批问题追加进去。
 #>
 function Assert-GateControls {
     param(
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$Cases,
         [string]$Label = '判据自证',
-        [string]$FixtureRoot = ''
+        [string]$FixtureRoot = '',
+        [System.Collections.Generic.List[string]]$Violations
     )
     $issues = [System.Collections.Generic.List[string]]::new()
     if (@($Cases).Count -eq 0) {
         $issues.Add("$Label 无对照样本（判据无自证 ⇒ 不可采信）")
+        if ($null -ne $Violations) { foreach ($i in $issues) { $Violations.Add([string]$i) } }
         return $issues
     }
     foreach ($c in @($Cases)) {
@@ -897,8 +966,11 @@ function Assert-GateControls {
 
         $hasGood = & $hasMember 'Good'
         $hasBad = & $hasMember 'Bad'
-        if (-not $hasGood -and -not $hasBad) {
-            $issues.Add("$Label [$id] 缺正/负对照样本（无自证 ⇒ 不可采信）")
+        if (-not $hasGood -or -not $hasBad) {
+            $missing = @()
+            if (-not $hasGood) { $missing += 'Good' }
+            if (-not $hasBad) { $missing += 'Bad' }
+            $issues.Add("$Label [$id] 缺对照样本（$($missing -join '/')）：无自证 ⇒ 不可采信")
             continue
         }
         if ($hasGood) {
@@ -912,6 +984,7 @@ function Assert-GateControls {
             if (-not $bad) { $issues.Add("$Label [$id] 负对照失败：违规样本未被捕获（判据空转）") }
         }
     }
+    if ($null -ne $Violations) { foreach ($i in $issues) { $Violations.Add([string]$i) } }
     return $issues
 }
 

@@ -228,11 +228,232 @@ function Read-TextFile {
 New-Alias -Name Get-Count -Value Get-RegexCount
 New-Alias -Name Read-Text -Value Read-TextFile
 
+<#
+.SYNOPSIS
+    剥离代码注释（行注释 + 块注释；字符串/字符字面量内不剥），保留换行。
+.DESCRIPTION
+    动机（GC §5.1 T6）：EntityExistenceSingleSource / RenderNoStringConcat 各自用两条正则
+    `/\*.*?\*/` + `//[^\r\n]*`，既不区分字符串字面量，也不保留行号；本函数是「注释剥离」单源。
+
+    行为：
+      · 行注释（默认 '//'）从标记删到行尾（换行保留）；
+      · 块注释（默认 '/*' … '*/'）跨行删除（块内换行保留，行号不漂移）；
+      · `"` / `'` 字面量内的标记不剥；支持 `\` 转义与 `""` / `''` 双写；
+      · 块注释被删后以单空格占位（避免 `a/*x*/b` 粘连成 `ab`）。
+.PARAMETER Text
+    源文本（$null 视为空串）
+.PARAMETER LineMarker
+    行注释标记（默认 '//'）
+.PARAMETER BlockOpen
+    块注释开标记（默认 '/*'）
+.PARAMETER BlockClose
+    块注释闭标记（默认 '*/'）
+.OUTPUTS
+    [string] 去注释文本（行数与原文本一致）
+.EXAMPLE
+    Remove-CodeComments -Text $src
+#>
+function Remove-CodeComments {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)]
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$Text,
+
+        [string]$LineMarker = '//',
+        [string]$BlockOpen = '/*',
+        [string]$BlockClose = '*/'
+    )
+
+    if ($null -eq $Text -or $Text.Length -eq 0) { return '' }
+    if ([string]::IsNullOrEmpty($LineMarker)) { $LineMarker = '//' }
+    if ([string]::IsNullOrEmpty($BlockOpen)) { $BlockOpen = '/*' }
+    if ([string]::IsNullOrEmpty($BlockClose)) { $BlockClose = '*/' }
+
+    $sb = [System.Text.StringBuilder]::new()
+    $state = 'code'   # code | line | block | dq | sq
+    $i = 0
+    while ($i -lt $Text.Length) {
+        $ch = $Text[$i]
+
+        # 换行在任何状态都原样保留（保证行号不漂移）。
+        if ($ch -eq "`r" -or $ch -eq "`n") {
+            [void]$sb.Append($ch)
+            if ($state -eq 'line') { $state = 'code' }
+            $i++
+            continue
+        }
+
+        switch ($state) {
+            'line' { $i++; continue }
+
+            'block' {
+                if ($ch -eq $BlockClose[0] -and $Text.Substring($i).StartsWith($BlockClose, [System.StringComparison]::Ordinal)) {
+                    [void]$sb.Append(' ')
+                    $i += $BlockClose.Length
+                    $state = 'code'
+                    continue
+                }
+                $i++
+                continue
+            }
+
+            'dq' {
+                if ($ch -eq '\' -and ($i + 1) -lt $Text.Length) {
+                    [void]$sb.Append($ch).Append($Text[$i + 1])
+                    $i += 2
+                    continue
+                }
+                if ($ch -eq '"') {
+                    if (($i + 1) -lt $Text.Length -and $Text[$i + 1] -eq '"') {
+                        [void]$sb.Append('""')
+                        $i += 2
+                        continue
+                    }
+                    [void]$sb.Append($ch)
+                    $state = 'code'
+                    $i++
+                    continue
+                }
+                [void]$sb.Append($ch)
+                $i++
+                continue
+            }
+
+            'sq' {
+                if ($ch -eq '\' -and ($i + 1) -lt $Text.Length) {
+                    [void]$sb.Append($ch).Append($Text[$i + 1])
+                    $i += 2
+                    continue
+                }
+                if ($ch -eq "'") {
+                    if (($i + 1) -lt $Text.Length -and $Text[$i + 1] -eq "'") {
+                        [void]$sb.Append("''")
+                        $i += 2
+                        continue
+                    }
+                    [void]$sb.Append($ch)
+                    $state = 'code'
+                    $i++
+                    continue
+                }
+                [void]$sb.Append($ch)
+                $i++
+                continue
+            }
+
+            default {
+                if ($ch -eq $BlockOpen[0] -and $Text.Substring($i).StartsWith($BlockOpen, [System.StringComparison]::Ordinal)) {
+                    $i += $BlockOpen.Length
+                    $state = 'block'
+                    continue
+                }
+                if ($ch -eq $LineMarker[0] -and $Text.Substring($i).StartsWith($LineMarker, [System.StringComparison]::Ordinal)) {
+                    $i += $LineMarker.Length
+                    $state = 'line'
+                    continue
+                }
+                if ($ch -eq '"') { [void]$sb.Append($ch); $state = 'dq'; $i++; continue }
+                if ($ch -eq "'") { [void]$sb.Append($ch); $state = 'sq'; $i++; continue }
+                [void]$sb.Append($ch)
+                $i++
+                continue
+            }
+        }
+    }
+
+    return $sb.ToString()
+}
+
+<#
+.SYNOPSIS
+    代码行视图：行号 + 去注释后的行文本（注释剥离 + 空行过滤）。
+.DESCRIPTION
+    下限自 Modules\Parsing\Check-KeyGrammar.ps1 的 Get-CodeLines（原返回 `{Line; Text}`）；
+    同时覆盖 GD Check-ConversationConversion / Check-FactStandard、GP Check-TextKernelPurity 的行视图变体。
+
+    默认 = 原 KeyGrammar 语义：块/行注释剥离、跳过空白行、Text 去首尾空白；
+    额外提供 `-KeepComment`（保留注释）、`-KeepBlank`（保留空白行）、`-KeepIndent`（保留缩进）三个变体开关。
+    返回对象同时带 `Line`（原属性）与 `Number`（与 Get-GateCodeLine 对齐），调用方二选一即可。
+.PARAMETER Path
+    文件路径（优先；UTF-8 显式读取；缺件 ⇒ 空结果）
+.PARAMETER Text
+    裸文本（未给 Path/Lines 时使用）
+.PARAMETER Lines
+    行数组（优先于 Path/Text；用于已读入内存的调用方）
+.PARAMETER KeepBlank
+    保留空白行（默认跳过）
+.PARAMETER KeepComment
+    保留注释行（默认剥离注释）
+.PARAMETER KeepIndent
+    保留行首缩进（默认去首尾空白）
+.PARAMETER LineMarker
+    行注释标记（默认 '//'）
+.PARAMETER BlockOpen
+    块注释开标记（默认 '/*'）
+.PARAMETER BlockClose
+    块注释闭标记（默认 '*/'）
+.OUTPUTS
+    [{ Line; Number; Text }] 行号（1 起）与行文本
+.EXAMPLE
+    foreach ($code in (Get-CodeLines -Path $file.FullName)) { $code.Line; $code.Text }
+#>
+function Get-CodeLines {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)]
+        [string]$Path = '',
+
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$Text = '',
+
+        [string[]]$Lines,
+
+        [switch]$KeepBlank,
+        [switch]$KeepComment,
+        [switch]$KeepIndent,
+
+        [string]$LineMarker = '//',
+        [string]$BlockOpen = '/*',
+        [string]$BlockClose = '*/'
+    )
+
+    $source = $null
+    if ($null -ne $Lines -and @($Lines).Count -gt 0) {
+        $source = (@($Lines) -join "`n")
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($Path)) {
+        if (-not (Test-Path -LiteralPath $Path)) { return }
+        $source = Read-TextFile -Path $Path
+    }
+    else {
+        $source = $Text
+    }
+    if ($null -eq $source) { return }
+
+    if (-not $KeepComment) {
+        $source = Remove-CodeComments -Text $source -LineMarker $LineMarker -BlockOpen $BlockOpen -BlockClose $BlockClose
+    }
+
+    $number = 0
+    foreach ($line in ($source -split "`r?`n")) {
+        $number++
+        $trim = $line.Trim()
+        if (-not $KeepBlank -and $trim.Length -eq 0) { continue }
+        $lineText = if ($KeepIndent) { $line } else { $trim }
+        [pscustomobject]@{ Line = $number; Number = $number; Text = $lineText }
+    }
+}
+
 Export-ModuleMember -Function @(
     'Get-Sha256Hex',
     'ConvertFrom-CommaList',
     'Remove-LineComment',
     'Get-RepoRelativePath',
     'Get-RegexCount',
-    'Read-TextFile'
+    'Read-TextFile',
+    'Remove-CodeComments',
+    'Get-CodeLines'
 ) -Alias @('Get-Count', 'Read-Text')

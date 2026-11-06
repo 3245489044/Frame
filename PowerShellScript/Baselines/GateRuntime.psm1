@@ -127,6 +127,316 @@ function Import-GateRuntime {
 
 <#
 .SYNOPSIS
+    进程内引导：GateRuntime 已导入时规范化仓库根（可顺带导入伴生模块）。
+.DESCRIPTION
+    与 Baselines\Initialize-GateModule.ps1 同名同义：
+      · .ps1 负责**跨进程自举**（定位 GateRuntime + 导入 + 返回根）；
+      · 本函数负责**已导入后的进程内**分支（不再重复定位/导入）。
+    域侧独立进程用 .ps1；已 import 的编排器/组合门可直接调用本函数。
+.PARAMETER ScriptRoot
+    调用方脚本目录（缺省 = 本文件目录）。
+.PARAMETER CompanionModule
+    随同导入的 Baselines 模块文件名（如 'GateFileIndex.psm1'），导入到 Global 作用域。
+.PARAMETER Force
+    伴生模块强制重建。
+.OUTPUTS
+    [string] 仓库根（已 TrimEnd 分隔符）
+#>
+function Initialize-GateModule {
+    param(
+        [string]$ScriptRoot = '',
+        [string[]]$CompanionModule = @(),
+        [switch]$Force
+    )
+
+    $root = if (-not [string]::IsNullOrWhiteSpace($ScriptRoot)) { Get-GateRepoRoot -ScriptRoot $ScriptRoot }
+            else { Get-GateRepoRoot }
+    if ([string]::IsNullOrWhiteSpace([string]$root)) { throw 'Initialize-GateModule 未定位仓库根（Get-GateRepoRoot 返回空）' }
+    $root = ([string]$root).TrimEnd([char[]]@('\', '/'))
+
+    foreach ($name in @($CompanionModule)) {
+        if ([string]::IsNullOrWhiteSpace($name)) { continue }
+        $path = Join-Path $root ("Frame\PowerShellScript\Baselines\$name")
+        if (-not (Test-Path -LiteralPath $path)) { throw "Initialize-GateModule 伴生模块缺失：$path" }
+        Import-Module $path -Scope Global -DisableNameChecking -Force:$Force | Out-Null
+    }
+    return $root
+}
+
+<#
+.SYNOPSIS
+    计数断言表（表驱动 + [待消除] 渲染 + 硬/软分流）—— 6 个 Data 计数表门的统一执行器。
+.DESCRIPTION
+    动机（GC §5.1 T2）：Check-StorageWriteEntries / GraphPathSingleSource / ReadIdentitySingleSource /
+    ConversationReadSingleSource / SelectionContract / SessionDuplication 各自复制「逐条比数 → 拼违规 →
+    打印待消除」循环，硬/软分流与「检索不可用 = 缺证即违规」口径还各自漂移。
+
+    每条断言（hashtable 或 pscustomobject）：
+      Id       判据编号（必填；直接作为违规文案前缀，不加方括号）
+      Title    判据标题（Name 亦可）
+      Actual   实测值（int；-1 表示检索不可用）
+      Measure  取数脚本块（未给 Actual 时调用，须返回 int）
+      Pattern / PathSpec / Repo / Regex / Untracked / SearchEntry / ShellExe
+               未给 Actual/Measure 时的自动检索取数（委托 Get-GateSearchFileCount；-RepoRoot 可把 Repo 名解析为绝对路径）
+      Expected 期望值（Mode=eq/le/ge）
+      Baseline 棘轮基线（Mode=target/le；缺省 soft 目标比较的硬阈）
+      Target   soft 目标（非 -Final 时：Actual > Target 且 ≤ Baseline ⇒ 待消除；-Final 时升为硬阈）
+      Mode     eq | le | ge | target（缺省：有 Target/Baseline ⇒ target；有 Expected ⇒ eq；否则 le）
+      Kind     count | attest（attest 只可见化，不判失败）
+      Batch    批次号（待消除/运行期文案）
+      Pattern  检索词（Actual=-1 时回显）
+
+    退出码：本函数**不 exit**（除 -Verdict）；返回结构化结果，调用方交给 Write-GateVerdict。
+.PARAMETER Checks
+    断言表（可空；空表判违规「无断言不可采信」）。
+.PARAMETER Key
+    门名（标题/摘要/违规文案前缀）。
+.PARAMETER Check
+    判定模式：结果 Exit = 1（有违规）；仅影响返回值与 -Verdict。
+.PARAMETER Final
+    终态模式：Actual 超过 Target 即硬违规（否则为待消除）。
+.PARAMETER Detail
+    逐条打印实测/阈值。
+.PARAMETER NoHeader
+    不打印 Write-GateHeader（调用方已自绘标题时）。
+.PARAMETER Violations
+    既有违规清单（`$ctx.Violations`）；本批违规追加进去。
+.PARAMETER Hint
+    -Verdict 时传给 Write-GateVerdict 的修复口径。
+.PARAMETER Verdict
+    本批结束后直接调用 Write-GateVerdict 并 exit（终止式；与旧门禁尾巴等价）。
+.OUTPUTS
+    { Key; Total; Search; Attest; Passed; Pending; Violations; ViolationCount; Exit }
+#>
+function Invoke-GateCountChecks {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [AllowEmptyCollection()]
+        [object[]]$Checks,
+
+        [string]$Key = '',
+        [switch]$Check,
+        [switch]$Final,
+        [switch]$Detail,
+        [switch]$NoHeader,
+
+        [System.Collections.Generic.List[string]]$Violations,
+        [string]$Hint = '',
+        [switch]$Verdict,
+
+        # 自动检索取数的调用级默认（断言可逐条覆盖）。
+        [string]$RepoRoot = '',
+        [string]$SearchEntry = '',
+        [string]$ShellExe = ''
+    )
+
+    $found = [System.Collections.Generic.List[string]]::new()
+    $pending = [System.Collections.Generic.List[string]]::new()
+    $attest = [System.Collections.Generic.List[string]]::new()
+    $passed = 0
+    $search = 0
+    $total = 0
+    $label = if ([string]::IsNullOrWhiteSpace($Key)) { 'GateCountChecks' } else { $Key }
+
+    if (-not $NoHeader) { Write-GateHeader "$label（计数断言表）" }
+
+    foreach ($c in @($Checks)) {
+        if ($null -eq $c) { continue }
+        $total++
+
+        $id = [string](Get-GateJsonProperty $c 'Id')
+        $title = [string](Get-GateJsonProperty $c 'Title')
+        if ([string]::IsNullOrWhiteSpace($title)) { $title = [string](Get-GateJsonProperty $c 'Name') }
+        $batch = [string](Get-GateJsonProperty $c 'Batch')
+        $kind = [string](Get-GateJsonProperty $c 'Kind')
+        if ([string]::IsNullOrWhiteSpace($kind)) { $kind = 'count' }
+        $batchText = if ([string]::IsNullOrWhiteSpace($batch)) { '' } else { "（批 $batch）" }
+
+        if ($kind -eq 'attest') {
+            $attest.Add("$id $title$batchText")
+            continue
+        }
+        $search++
+
+        # 取数：Actual 优先；否则 Measure 脚本块。
+        $actual = -1
+        $hasActual = $false
+        $actualRaw = Get-GateJsonProperty $c 'Actual'
+        if ($null -ne $actualRaw) { $actual = [int]$actualRaw; $hasActual = $true }
+        else {
+            $measure = Get-GateJsonProperty $c 'Measure'
+            if ($measure -is [scriptblock]) { $actual = [int](& $measure); $hasActual = $true }
+            else {
+                # 自动检索：Pattern + PathSpec + Repo ⇒ 委托 Get-GateSearchFileCount（不可用仍返回 -1）。
+                $pattern = [string](Get-GateJsonProperty $c 'Pattern')
+                $pathSpec = [string](Get-GateJsonProperty $c 'PathSpec')
+                $repo = [string](Get-GateJsonProperty $c 'Repo')
+                if (-not [string]::IsNullOrWhiteSpace($pattern) -and -not [string]::IsNullOrWhiteSpace($pathSpec) -and -not [string]::IsNullOrWhiteSpace($repo)) {
+                    $entry = [string](Get-GateJsonProperty $c 'SearchEntry')
+                    if ([string]::IsNullOrWhiteSpace($entry)) { $entry = $SearchEntry }
+                    $shell = [string](Get-GateJsonProperty $c 'ShellExe')
+                    if ([string]::IsNullOrWhiteSpace($shell)) { $shell = $ShellExe }
+                    $repoPath = $repo
+                    if (-not [string]::IsNullOrWhiteSpace($RepoRoot) -and -not [System.IO.Path]::IsPathRooted($repo)) {
+                        $repoPath = Join-Path $RepoRoot $repo
+                    }
+                    $actual = Get-GateSearchFileCount -Pattern $pattern -PathSpec $pathSpec -Repo $repoPath `
+                        -Regex:([bool](Get-GateJsonProperty $c 'Regex')) `
+                        -Untracked:([bool](Get-GateJsonProperty $c 'Untracked')) `
+                        -SearchEntry $entry -ShellExe $shell
+                    $hasActual = $true
+                }
+            }
+        }
+        if (-not $hasActual) {
+            $found.Add("$id $title：缺 Actual/Measure（判据不可执行）")
+            continue
+        }
+
+        # 检索不可用 ≠ 0 命中：缺证即违规（对齐 EmptyResultGate）。
+        if ($actual -lt 0) {
+            $pattern = [string](Get-GateJsonProperty $c 'Pattern')
+            $found.Add("$id 检索不可用（pattern='$pattern'）—— 判据缺证即违规")
+            continue
+        }
+
+        $mode = [string](Get-GateJsonProperty $c 'Mode')
+        $expectedRaw = Get-GateJsonProperty $c 'Expected'
+        $baselineRaw = Get-GateJsonProperty $c 'Baseline'
+        $targetRaw = Get-GateJsonProperty $c 'Target'
+
+        if ([string]::IsNullOrWhiteSpace($mode)) {
+            if ($null -ne $targetRaw -or $null -ne $baselineRaw) { $mode = 'target' }
+            elseif ($null -ne $expectedRaw) { $mode = 'eq' }
+            else { $mode = 'le' }
+        }
+        $mode = $mode.ToLowerInvariant()
+
+        $expected = $null
+        if ($null -ne $expectedRaw) { $expected = [int]$expectedRaw }
+        elseif ($null -ne $baselineRaw) { $expected = [int]$baselineRaw }
+
+        # 判据活性（防恒绿）：阈值为正却实测 0 ⇒ 载体不可能命中（pattern 写坏/被转义）。
+        if ($null -ne $expected -and $expected -gt 0 -and $actual -eq 0) {
+            $found.Add("$id $title：判据面失效（阈值 $expected 但实测 0）—— 恒绿断言")
+            if ($Detail) { Write-Host ("  [失效] {0,-4} {1,-46} {2,3}" -f $id, $title, $actual) -ForegroundColor Yellow }
+            continue
+        }
+
+        if ($mode -eq 'eq') {
+            if ($null -eq $expected) {
+                $found.Add("$id $title：缺 Expected/Baseline（判别不可执行）")
+                continue
+            }
+            if ($actual -ne $expected) {
+                $found.Add("$id $title：实测 $actual，期望 = $expected")
+                if ($Detail) { Write-Host ("  [超阈] {0,-4} {1,-46} {2,3} (期望 {3})" -f $id, $title, $actual, $expected) -ForegroundColor Yellow }
+                continue
+            }
+            $passed++
+        }
+        elseif ($mode -eq 'le') {
+            if ($null -eq $expected) {
+                $found.Add("$id $title：缺 Expected/Baseline（判别不可执行）")
+                continue
+            }
+            $ratchet = Test-BaselineNoIncrease -Counts @{ $id = $actual } -Baselines @{ $id = $expected } -Label "$label $id $title" -AsResult
+            if ($ratchet.Status -eq 'Increase') {
+                foreach ($v in @($ratchet.Violations)) { $found.Add([string]$v) }
+                if ($Detail) { Write-Host ("  [超阈] {0,-4} {1,-46} {2,3} (基线 {3})" -f $id, $title, $actual, $expected) -ForegroundColor Yellow }
+                continue
+            }
+            $passed++
+        }
+        elseif ($mode -eq 'ge') {
+            if ($null -eq $expected) {
+                $found.Add("$id $title：缺 Expected/Baseline（判别不可执行）")
+                continue
+            }
+            if ($actual -lt $expected) {
+                $found.Add("$id $title：实测 $actual < 期望 $expected（下限不满足）")
+                if ($Detail) { Write-Host ("  [欠阈] {0,-4} {1,-46} {2,3} (期望 {3})" -f $id, $title, $actual, $expected) -ForegroundColor Yellow }
+                continue
+            }
+            $passed++
+        }
+        else {
+            # target：非 Final = 基线内待消除；Final = Target 硬阈。
+            $baseline = if ($null -ne $baselineRaw) { [int]$baselineRaw } else { $expected }
+            $target = if ($null -ne $targetRaw) { [int]$targetRaw } else { $null }
+
+            $limit = $null
+            if ($Final -and $null -ne $target) { $limit = $target }
+            elseif ($null -ne $baseline) { $limit = $baseline }
+            elseif ($null -ne $target) { $limit = $target }
+            if ($null -eq $limit) {
+                $found.Add("$id $title：缺 Baseline/Target（判别不可执行）")
+                continue
+            }
+
+            if ($actual -gt $limit) {
+                $limitLabel = if ($Final -and $null -ne $target) { "目标 $target" } else { "基线 $baseline" }
+                $found.Add("$id $title：实测 $actual > $limitLabel$batchText —— 重复点新增/未收敛")
+                if ($Detail) { Write-Host ("  [超阈] {0,-4} {1,-46} {2,3}  ({3})" -f $id, $title, $actual, $limitLabel) -ForegroundColor Yellow }
+                continue
+            }
+            if (-not $Final -and $null -ne $target -and $actual -gt $target) {
+                $pending.Add("$id $title：实测 $actual → 目标 $target$batchText")
+                if ($Detail) { Write-Host ("  [待消除] {0,-4} {1,-46} {2,3}  (基线 {3} / 目标 {4})" -f $id, $title, $actual, $baseline, $target) -ForegroundColor DarkGray }
+                continue
+            }
+            $passed++
+            if ($Detail) { Write-Host ("  [实测] {0,-4} {1,-46} {2,3}  (基线 {3} / 目标 {4})" -f $id, $title, $actual, $baseline, $target) -ForegroundColor DarkGray }
+        }
+    }
+
+    if ($total -eq 0) { $found.Add("$label 无断言（判据无标的 ⇒ 不可采信）") }
+
+    $modeText = if ($Final) { '终态模式 (-Final)' } else { '基线模式（拦新增重复点）' }
+    Write-Host ("[$label] 计数断言表 · $modeText")
+    Write-Host ("[$label] 断言 {0} 条（搜索 {1} / 运行期 {2}） | 通过 {3} | 待消除 {4} | 违规 {5}" -f `
+        $total, $search, $attest.Count, $passed, $pending.Count, $found.Count)
+
+    if ($pending.Count -gt 0) {
+        Write-Host "[$label] --- 待消除（基线已锁定，批完成后转 Target 判据） ---"
+        foreach ($p in $pending) { Write-Host "  - $p" }
+    }
+    if ($attest.Count -gt 0) {
+        Write-Host "[$label] --- 运行期判据（不判失败） ---"
+        foreach ($a in $attest) { Write-Host "  - $a" }
+    }
+    if ($found.Count -gt 0) {
+        Write-Host "[$label] 违规 $($found.Count) 项："
+        foreach ($v in $found) { Write-Host "  - $v" }
+    }
+
+    if ($Verdict) {
+        Write-GateVerdict -Violations $found -Check:$Check -Key $Key -Hint $Hint
+        return
+    }
+
+    if ($null -ne $Violations) {
+        foreach ($v in $found) { $Violations.Add($v) }
+    }
+
+    $exit = 0
+    if ($found.Count -gt 0 -and $Check) { $exit = 1 }
+    return [pscustomobject]@{
+        Key            = $Key
+        Total          = $total
+        Search         = $search
+        Attest         = $attest.Count
+        Passed         = $passed
+        Pending        = $pending
+        Violations     = $found
+        ViolationCount = $found.Count
+        Exit           = $exit
+    }
+}
+
+<#
+.SYNOPSIS
     显性「未验证」裁决出口（SKIP 不许算绿）。
 .DESCRIPTION
     目标缺失 / 无对照对象 → 输出 `[SKIPPED_NO_TARGET]`，与 PASS 的 `[PASS]`/`OK` 字样严格区分。
@@ -717,6 +1027,8 @@ Export-ModuleMember -Function @(
     'New-GateContext',
     'Get-GateExitCodePolicy',
     'Import-GateRuntime',
+    'Initialize-GateModule',
+    'Invoke-GateCountChecks',
     'Test-GatePrerequisite',
     'Assert-GatePrerequisite',
     'Add-GateViolation',

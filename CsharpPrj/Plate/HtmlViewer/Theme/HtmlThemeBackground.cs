@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Text.RegularExpressions;
+using UiBackend;
 
 namespace Plate.HtmlViewer;
 
@@ -18,7 +19,7 @@ public static class HtmlThemeBackground
             return null;
         var value = mode == ThemeMode.Dark ? ExtractBg(css, dark: true) : null;
         value ??= ExtractBg(css, dark: false);
-        return ParseHex(value);
+        return ParseColor(value);
     }
 
     private static string? ExtractBg(string css, bool dark)
@@ -34,30 +35,11 @@ public static class HtmlThemeBackground
                     segment = css.Substring(idx, end - idx + 1);
             }
         }
-        var m = Regex.Match(segment, "--bg\\s*:\\s*(#[0-9a-fA-F]{3,8})\\b");
+        var m = Regex.Match(segment, "--bg\\s*:\\s*(#[0-9a-fA-F]{3,8}|transparent|none)\\b", RegexOptions.IgnoreCase);
         return m.Success ? m.Groups[1].Value : null;
     }
 
-    private static Color? ParseHex(string? s)
-    {
-        if (string.IsNullOrWhiteSpace(s) || s[0] != '#')
-            return null;
-        var hex = s.Substring(1);
-        if (hex.Length == 3)
-            hex = string.Concat(hex.Select(c => new string(c, 2)));
-        if (hex.Length != 6 && hex.Length != 8)
-            return null;
-        try
-        {
-            var r = Convert.ToByte(hex.Substring(0, 2), 16);
-            var g = Convert.ToByte(hex.Substring(2, 2), 16);
-            var b = Convert.ToByte(hex.Substring(4, 2), 16);
-            var a = hex.Length == 8 ? Convert.ToByte(hex.Substring(6, 2), 16) : 255;
-            return Color.FromArgb(a, r, g, b);
-        }
-        catch
-        {
-            return null;
-        }
-    }
+    /// <summary>色值 ⇒ Color：统一走 <see cref="SurfaceColor"/>（CSS 8 位 = RRGGBBAA，禁在此另写一套）。</summary>
+    private static Color? ParseColor(string? s)
+        => SurfaceColor.TryParseCssColor(s, out var argb) ? Color.FromArgb(argb) : null;
 }

@@ -25,6 +25,9 @@ public static class SkinDecorator
 
     private static readonly ConditionalWeakTable<Control, SkinState> States = new();
 
+    /// <summary>属性级换肤的已应用指纹（幂等；避免每次 Apply 重复写颜色）。</summary>
+    private static readonly ConditionalWeakTable<Control, string> FallbackThemes = new();
+
     /// <summary>按描述符挂载/更新绘制（幂等；未启用/无材质/不支持 ⇒ 卸除，禁残留旧绘制）。</summary>
     public static void Attach(Control? control, ControlDescriptor descriptor)
     {
@@ -45,11 +48,18 @@ public static class SkinDecorator
             return;
         }
 
-        // 只对「背景由父绘制」的容器类控件启用；其余控件自绘内容，挂 Paint 只会白耗缓存（可见记账）。
+        // 白名单外控件（Button/TextBox/ListBox/TreeView/TabControl…）不能 owner-draw，
+        // 但保持系统浅色会直接破坏整体玻璃观感 ⇒ 只做「属性级换肤」（底色/文字色，可逆重启）。
         if (!SupportsOwnerDraw(control))
         {
+            var themed = ApplyFallbackTheme(control, material);
             Detach(control);
-            FrontEndDrivenLog.Log("SkinDecorator_unsupported", new { type = control.GetType().Name, material = material.MaterialId });
+            // 只有「连属性级换肤也做不到」才记账（可承载的控件静默换色，避免每控件一条噪声）。
+            if (!themed)
+            {
+                FrontEndDrivenLog.Log("SkinDecorator_unsupported", new { type = control.GetType().Name, material = material.MaterialId });
+            }
+
             return;
         }
 
@@ -89,6 +99,8 @@ public static class SkinDecorator
             SkinDiagnostics.RecordAttach(true);
         }
 
+        EnsureRefreshTimer(control, state, HasBackdrop(material));
+
         control.Invalidate();
     }
 
@@ -108,6 +120,9 @@ public static class SkinDecorator
         if (control is null || !States.TryGetValue(control, out var state)) return;
         if (state.Handler is not null) control.Paint -= state.Handler;
         state.Handler = null;
+        state.RefreshTimer?.Stop();
+        state.RefreshTimer?.Dispose();
+        state.RefreshTimer = null;
         state.Cache = null;
         state.Material = null;
         state.MaterialKey = null;
@@ -129,32 +144,75 @@ public static class SkinDecorator
     private static bool SupportsOwnerDraw(Control control)
         => control is Panel or FlowLayoutPanel or TableLayoutPanel or UserControl or GroupBox or Label;
 
+    /// <summary>
+    /// 非 owner-draw 控件的属性级换肤：底 = 材质底色，文字 = 反差色；Button 去系统立体感。
+    /// <para>只写颜色，不参与绘制缓存；同材质重复调用直接跳过。</para>
+    /// </summary>
+    private static bool ApplyFallbackTheme(Control control, ResolvedMaterial material)
+    {
+        if (!SkinPaintEngine.TryGetBaseColor(material, out var baseColor)) return false;
+
+        var key = MaterialKey(material);
+        if (FallbackThemes.TryGetValue(control, out var applied)
+            && string.Equals(applied, key, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        control.BackColor = baseColor;
+        control.ForeColor = Contrast(baseColor);
+
+        if (control is Button button && button.FlatStyle == FlatStyle.Standard)
+        {
+            button.FlatStyle = FlatStyle.Flat;
+            button.FlatAppearance.BorderColor = ControlPaint.Dark(baseColor, 0.15f);
+        }
+
+        FallbackThemes.Remove(control);
+        FallbackThemes.Add(control, key);
+        return true;
+    }
+
+    /// <summary>反差文字色（按底色亮度在黑/白之间二选一）。</summary>
+    private static Color Contrast(Color background)
+    {
+        var luminance = (0.299 * background.R + 0.587 * background.G + 0.114 * background.B) / 255.0;
+        return luminance < 0.55 ? Color.FromArgb(230, 237, 243) : Color.FromArgb(30, 34, 40);
+    }
+
     private static void PaintControl(Control control, SkinState state, PaintEventArgs e)
     {
+        // 生成 backdrop 快照时，本控件会被父级 DrawToBitmap 重入；此时留白（父级背景即「背后」），防递归。
+        if (state.SuppressPaint) return;
+
         var material = state.Material;
         if (material is null) return;
 
         var bounds = new Rectangle(Point.Empty, control.ClientSize);
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
-        var key = CacheKey(material, bounds, control.DeviceDpi);
+        // 只有玻璃材质（含 backdrop）接入运行时光；普通材质外观不变。
+        var light = HasBackdrop(material) ? ResolveLight(control) : (SurfaceLightState?)null;
+        var key = CacheKey(material, bounds, control.DeviceDpi, light);
         if (state.Cache is null || state.CacheKey != key)
         {
             state.Cache?.Dispose();
-            state.Cache = Render(material, bounds);
+            state.Cache = Render(material, bounds, control, state, light);
             state.CacheKey = key;
         }
 
         if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
     }
 
-    private static Bitmap Render(ResolvedMaterial material, Rectangle bounds)
+    private static Bitmap Render(
+        ResolvedMaterial material, Rectangle bounds, Control control, SkinState state, SurfaceLightState? light)
     {
         var bitmap = new Bitmap(bounds.Width, bounds.Height);
         using var graphics = Graphics.FromImage(bitmap);
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.Clear(Color.Transparent);
-        var skipped = SkinPaintEngine.Paint(graphics, new Rectangle(Point.Empty, bounds.Size), material);
+        using var backdrop = TryCaptureBehind(control, bounds, state);
+        var skipped = SkinPaintEngine.Paint(graphics, new Rectangle(Point.Empty, bounds.Size), material, backdrop, light);
         SkinDiagnostics.RecordPaint(skipped);
         if (skipped.Count > 0)
         {
@@ -163,6 +221,91 @@ public static class SkinDecorator
 
         return bitmap;
     }
+
+    /// <summary>运行时光：时间按分钟量化、光标按 8px 量化（缓存键只在肉眼可辨变化时失效）。</summary>
+    private static SurfaceLightState ResolveLight(Control control)
+    {
+        var width = control.ClientSize.Width;
+        var cursor = control.PointToClient(Cursor.Position);
+        var cursorX = Math.Clamp((cursor.X / 8) * 8, 0, Math.Max(0, width));
+        var now = DateTime.Now;
+        return SurfaceLight.Resolve(new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0), cursorX, width);
+    }
+
+    private static bool HasBackdrop(ResolvedMaterial material)
+        => material.Layers.Any(layer => layer.Primitive == "backdrop");
+
+    /// <summary>玻璃材质每秒失效一次缓存（时间/光标进缓存键，静态 Fingerprint 不变）。</summary>
+    private static void EnsureRefreshTimer(Control control, SkinState state, bool enabled)
+    {
+        if (!enabled)
+        {
+            state.RefreshTimer?.Stop();
+            return;
+        }
+
+        if (state.RefreshTimer is not null) return;
+
+        var timer = new System.Windows.Forms.Timer { Interval = 1000 };
+        timer.Tick += (_, _) => control.Invalidate();
+        timer.Start();
+        state.RefreshTimer = timer;
+    }
+
+    /// <summary>
+    /// 面板背后的快照来源（不新增合成抽象）：让父级把自身内容画到位图；本控件在快照期间留白，
+    /// 于是裁出的就是「本控件位置下方的父级背景 + 兄弟内容」。
+    /// <para>边界：不穿越窗口/WebView2 HWND ⇒ 不做元素级看穿桌面（与 01 文档可达上限一致）。</para>
+    /// </summary>
+    private static Image? TryCaptureBehind(Control control, Rectangle bounds, SkinState state)
+    {
+        if (_capturingBackdrop) return null; // 父级也挂玻璃材质时，避免逐层向上递归
+
+        var parent = control.Parent;
+        if (parent is null || !parent.IsHandleCreated) return null;
+
+        var parentSize = parent.ClientSize;
+        if (parentSize.Width <= 0 || parentSize.Height <= 0) return null;
+
+        var target = new Rectangle(control.Location, bounds.Size);
+        var source = Rectangle.Intersect(target, new Rectangle(Point.Empty, parentSize));
+        if (source.Width <= 0 || source.Height <= 0) return null;
+
+        Bitmap? parentBitmap = null;
+        _capturingBackdrop = true;
+        state.SuppressPaint = true;
+        try
+        {
+            parentBitmap = new Bitmap(parentSize.Width, parentSize.Height);
+            parent.DrawToBitmap(parentBitmap, new Rectangle(Point.Empty, parentSize));
+
+            var crop = new Bitmap(bounds.Width, bounds.Height);
+            using (var graphics = Graphics.FromImage(crop))
+            {
+                graphics.DrawImage(
+                    parentBitmap,
+                    new Rectangle(source.X - target.X, source.Y - target.Y, source.Width, source.Height),
+                    source, GraphicsUnit.Pixel);
+            }
+
+            return crop;
+        }
+        catch (Exception ex)
+        {
+            FrontEndDrivenLog.Log("SkinDecorator_backdrop_snapshot_failed", new { message = ex.Message });
+            return null;
+        }
+        finally
+        {
+            parentBitmap?.Dispose();
+            state.SuppressPaint = false;
+            _capturingBackdrop = false;
+        }
+    }
+
+    /// <summary>快照生成期间的线程级重入闸（父级 owner-draw 不得再取快照）。</summary>
+    [ThreadStatic]
+    private static bool _capturingBackdrop;
 
     /// <summary>槽优先选择：<c>*_surface</c>（背景槽）→ 其余按声明序（禁以枚举顺序当语义）。</summary>
     private static ResolvedMaterial? SelectMaterial(IReadOnlyDictionary<string, ResolvedMaterial>? materials)
@@ -177,8 +320,9 @@ public static class SkinDecorator
         return materials.Values.FirstOrDefault();
     }
 
-    private static string CacheKey(ResolvedMaterial material, Rectangle bounds, int dpi)
-        => $"{MaterialKey(material)}:{bounds.Width}x{bounds.Height}@dpi{dpi}";
+    private static string CacheKey(ResolvedMaterial material, Rectangle bounds, int dpi, SurfaceLightState? light)
+        => $"{MaterialKey(material)}:{bounds.Width}x{bounds.Height}@dpi{dpi}"
+           + (light is { } state ? "|light:" + state.CacheToken : string.Empty);
 
     /// <summary>材质指纹：含层参数摘要（同材质换色必须失效，否则换肤永不重绘）。</summary>
     private static string MaterialKey(ResolvedMaterial material)
@@ -198,5 +342,7 @@ public static class SkinDecorator
         internal PaintEventHandler? Handler { get; set; }
         internal Bitmap? Cache { get; set; }
         internal string? CacheKey { get; set; }
+        internal bool SuppressPaint { get; set; }
+        internal System.Windows.Forms.Timer? RefreshTimer { get; set; }
     }
 }

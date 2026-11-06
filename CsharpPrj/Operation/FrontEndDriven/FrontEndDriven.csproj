@@ -101,6 +101,10 @@
          ★ 2026-08-24 HTML 后端逻辑并入 HtmlViewer（IUiElementNode/IDomBridge 等类型驻留 Plate.HtmlViewer），WinFormsElementNode 复用 -->
     <ProjectReference Include="$(Proj_HtmlViewer)" />
 
+    <!-- 2026-11-07 新增：表面色值编解码单点（UiBackend.SurfaceColor，Plate.Surface，BCL-only）——
+         CSS 8 位 hex（RRGGBBAA）与 GDI+ ARGB（AARRGGBB）的错位只在那一处转换，WinForms 画笔不再自行解释 -->
+    <ProjectReference Include="$(Proj_Plate_Surface)" />
+
     <!-- ★ 2026-09 依赖倒置（DIP）连接层：HtmlViewerBridge（Observe 收敛写 ObservedHtmlChannel/WebView2Transport + Conversation
          会话渲染 HtmlStreamRenderer 的真实宿主落点）——本层作为「能同时看见 HtmlViewer × Observe × Conversation 的中性连接层/组合根」，
          倒转 plate→上游 污染为 上层(FrontEndDriven)→plate 抽象。Observe/Share.Conversation 均为 leaf 子项目，无环。 -->

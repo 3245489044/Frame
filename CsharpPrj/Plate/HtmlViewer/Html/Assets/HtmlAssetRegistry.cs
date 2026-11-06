@@ -112,10 +112,36 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
     }
 
     /// <summary>通用组件生效样式 = 通用模块按固定序拼接（顺序固定 ⇒ 级联稳定；模块可被域覆盖）
-    /// + 声明投影模块（<see cref="DeclarationStyleModule"/>，最后追加 ⇒ 声明优先）。</summary>
+    /// + 声明投影模块（<see cref="DeclarationStyleModule"/>，最后追加 ⇒ 声明优先）
+    /// + 表面运行期模块（<c>surface-*</c>，声明之后追加 ⇒ 可覆盖 <c>:root</c> 变量并携带 <c>.material-*</c> 规则）。</summary>
     internal static string FrameworkComponentCss =>
         string.Join("\n", ComponentStyles.Value.Order.Select(GetStyleModule))
-        + "\n" + GetStyleModule(DeclarationStyleModule);
+        + "\n" + GetStyleModule(DeclarationStyleModule)
+        + SurfaceRuntimeCss();
+
+    /// <summary>表面运行期模块前缀：<c>surface-materials-&lt;hash&gt;</c>（材质类）与 <c>surface-runtime-*</c>（玻璃模式等）。</summary>
+    private const string SurfaceRuntimeModulePrefix = "surface-";
+
+    /// <summary>
+    /// 已注册的 surface-* 模块 → 文档样式。按模块名序拼接（幂等、级联稳定）；
+    /// 之前这些模块只进覆盖字典、不进档，导致 <c>.material-*</c> 成为死规则（本修复即入档点）。
+    /// </summary>
+    private static string SurfaceRuntimeCss()
+    {
+        var names = StyleModuleOverrides.Keys
+            .Where(name => name.StartsWith(SurfaceRuntimeModulePrefix, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(name => name, StringComparer.Ordinal);
+
+        var builder = new StringBuilder();
+        foreach (var name in names)
+        {
+            var css = StyleModuleOverrides[name];
+            if (css.Length == 0) continue;
+            builder.Append('\n').Append(css);
+        }
+
+        return builder.ToString();
+    }
 
     /// <summary>声明投影样式模块名（由 <c>SurfaceCssProjector</c> 注册；未注册 ⇒ 空串，零回归）。</summary>
     internal const string DeclarationStyleModule = "ui-declaration";

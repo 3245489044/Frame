@@ -252,7 +252,8 @@ public sealed class ComputeVm
 
     private ComputeVm(ComputeProgram program, IComputeHost host, IReadOnlyList<ComputeFrameState> frames,
         IReadOnlyList<ComputeValue> stack, long steps, IReadOnlyList<ComputeEffectRecord> effects,
-        ComputeStatus status, string code, string message, ComputeValue? output)
+        IReadOnlyList<ComputeConversionTrace> conversions, ComputeStatus status, string code, string message,
+        ComputeValue? output)
     {
         _program = program;
         _host = host;
@@ -260,6 +261,7 @@ public sealed class ComputeVm
         _frames.AddRange(frames);
         _stack.AddRange(stack);
         _effects.AddRange(effects);
+        _conversions.AddRange(conversions);
         _steps = steps;
         _status = status;
         _code = code;
@@ -810,10 +812,10 @@ public sealed class ComputeVm
         var args = new ComputeValue?[instruction.Count];
         for (var i = instruction.Count - 1; i >= 0; i--) args[i] = Pop();
 
-        if (_frames.Count >= callee.Depth)
+        if (callee.Depth.HasValue && _frames.Count >= callee.Depth.Value)
         {
             Fail(ComputeStatus.StackResourceExceeded, ComputeCodes.StackResourceExceeded,
-                $"调用深度超过单元 '{callee.CalcId}' 的 depth={callee.Depth}");
+                $"调用深度超过单元 '{callee.CalcId}' 的 depth={callee.Depth.Value}");
             return false;
         }
 
@@ -1308,10 +1310,11 @@ public sealed class ComputeVm
             _program.Hash,
             _status,
             _steps,
-            _frames.Select(f => new ComputeSnapshotFrame(f.Unit.CalcId, f.Pc, f.StackBase, f.ReturnPc,
-                f.Steps, f.Locals.ToArray())).ToList(),
+            _frames.Select((f, index) => new ComputeSnapshotFrame(index, f.Unit.CalcId, f.Pc, f.StackBase,
+                f.ReturnPc, f.Steps, f.Locals.ToArray())).ToList(),
             _stack.ToList(),
-            _effects.ToList());
+            _effects.ToList(),
+            _conversions.ToList());
 
     public static ComputeSnapshotLoadResult TryResume(ComputeProgram program, IComputeHost? host,
         string snapshotJson, out ComputeVm? vm)
@@ -1326,11 +1329,16 @@ public sealed class ComputeVm
 
         var snapshot = decoded.Snapshot!;
         var frames = new List<ComputeFrameState>();
-        foreach (var saved in snapshot.Frames)
+        for (var index = 0; index < snapshot.Frames.Count; index++)
         {
+            var saved = snapshot.Frames[index];
             var unit = program.FindUnit(saved.Unit);
-            if (unit is null || saved.Pc < 0 || saved.Pc > unit.Code.Count
-                || saved.Locals.Count != unit.Arguments.Count + unit.LocalCount)
+            if (saved.Index != index || unit is null || saved.Pc < 0 || saved.Pc > unit.Code.Count
+                || saved.Locals.Count != unit.Arguments.Count + unit.LocalCount
+                || saved.StackBase < 0 || saved.StackBase > snapshot.Stack.Count
+                || (index > 0 && saved.StackBase < snapshot.Frames[index - 1].StackBase)
+                || (index > 0 && saved.ReturnPc < 0
+                    || (index > 0 && saved.ReturnPc > program.FindUnit(snapshot.Frames[index - 1].Unit)!.Code.Count)))
             {
                 return new ComputeSnapshotLoadResult(false, null, ComputeCodes.StateDiscarded,
                     "快照结构与程序不一致（拒绝并标记）", ComputeCodes.StateDiscarded);
@@ -1347,27 +1355,28 @@ public sealed class ComputeVm
             });
         }
 
-        if (frames.Count == 0)
+        if (frames.Count == 0 || frames[0].Unit.CalcId != program.RootId)
         {
             return new ComputeSnapshotLoadResult(false, null, ComputeCodes.StateDiscarded,
-                "快照没有活动帧（拒绝并标记）", ComputeCodes.StateDiscarded);
+                "快照没有活动根帧（拒绝并标记）", ComputeCodes.StateDiscarded);
         }
 
         var status = snapshot.Status == ComputeStatus.Ready ? ComputeStatus.Suspended : snapshot.Status;
         vm = new ComputeVm(program, host ?? ComputeHost.Empty, frames, snapshot.Stack, snapshot.Steps,
-            snapshot.Effects, status, "", "", null);
+            snapshot.Effects, snapshot.Conversions, status, "", "", null);
         return new ComputeSnapshotLoadResult(true, snapshot, "", "", null);
     }
 }
 
 public sealed record ComputeSnapshot(int SnapshotVersion, int VmVersion, int BytecodeVersion,
     string ProgramHash, ComputeStatus Status, long Steps, IReadOnlyList<ComputeSnapshotFrame> Frames,
-    IReadOnlyList<ComputeValue> Stack, IReadOnlyList<ComputeEffectRecord> Effects)
+    IReadOnlyList<ComputeValue> Stack, IReadOnlyList<ComputeEffectRecord> Effects,
+    IReadOnlyList<ComputeConversionTrace> Conversions)
 {
-    public const int LatestVersion = 1;
+    public const int LatestVersion = 2;
 }
 
-public sealed record ComputeSnapshotFrame(string Unit, int Pc, int StackBase, int ReturnPc,
+public sealed record ComputeSnapshotFrame(int Index, string Unit, int Pc, int StackBase, int ReturnPc,
     long Steps, IReadOnlyList<ComputeValue?> Locals);
 
 public sealed record ComputeSnapshotLoadResult(bool Accepted, ComputeSnapshot? Snapshot, string Code,

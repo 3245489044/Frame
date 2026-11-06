@@ -1,10 +1,13 @@
 @{
-    # ===== TestLayout 结构基线（FA1 路径镜像 / TD1 债务到期）=====
+    # ===== TestLayout 结构基线（FA1 路径镜像 / FA6 spec 源有效性 / TD1 债务到期）=====
     # 语义：不是「测试→源码」归属表；只登记**结构面存量缺口**（集合棘轮：只减不增）。
-    #   消费方：Environment\CentralTest\Tools\Gate\TestLayout\Check-TestPathMirror.ps1 ∧ Check-TestLayoutDebt.ps1
-    #   纪律：Allowed 为一次性冻结存量；集合外新增未映射工程 ⇒ 立即红（改名/换位置同样被捕获）。
-    #   口径：Lane ∈ {Strict, SpecOnly} 的测试工程目录；已由 L0 映射 / 命名变体 / Adapters.NonTestPattern 覆盖的不计入；
-    #        车道根目录与辅助工程不判（待 U12 逐项归类）。
+    #   消费方：Environment\CentralTest\Tools\Gate\TestLayout\Check-TestPathMirror.ps1
+    #           ∧ Check-TestSpecsSource.ps1 ∧ Check-TestLayoutDebt.ps1
+    #   纪律：Allowed 为一次性冻结存量；集合外新增 ⇒ 立即红（改名/换位置同样被捕获）。
+    #   口径 1：PathMirrorUnmapped = Lane ∈ {Strict, SpecOnly} 的测试工程目录；
+    #           已由 L0 映射 / 命名变体 / Adapters.NonTestPattern 覆盖的不计入；车道根与辅助工程不判（待 U12 归类）。
+    #   口径 2：SpecsMigrateSourceDangling = `.specs` 的 `migrate source` 指向不存在的目标（U7）；
+    #           键 = `<spec 仓库相对路径> => <声明目标原文>`；目标补齐存在/删除悬空声明后该项才可移出集合。
     Schema  = 'test-layout-structure-v1'
     Derived = '2026-11-06'
 
@@ -46,6 +49,105 @@
             'Environment\CentralTest\CSharpTest\Sync.SpecTests'
             'Environment\CentralTest\UsharpTests\Usharp.Adapters.Tests'
             'Environment\CentralTest\UsharpTests\Usharp.Tests'
+        )
+    }
+
+    SpecsMigrateSourceDangling = @{
+        Value   = 91
+        Origin  = 'Debt'
+        DueWhen = '2027-03-31 migrate source 逐项补存在目标或删除悬空声明后归零'
+        Allowed = @(
+            'Environment\CentralTest\AgentTest\Agent.Api.Contract.Tests\Cases\contract.error-envelope\contract.error-envelope.specs => Environment/CentralTest/AgentTest/Agent.Api.Contract.Tests/AgentErrorEnvelopeTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Api.Tests\Cases\api.intent-source\api.intent-source.specs => Environment/CentralTest/AgentTest/Agent.Api.Tests/AgentApiIntentSourceTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Api.Tests\Cases\api.port\api.port.specs => Environment/CentralTest/AgentTest/Agent.Api.Tests/AgentApiPortTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Api.Tests\Cases\api.run-action-map\api.run-action-map.specs => Environment/CentralTest/AgentTest/Agent.Api.Tests/RunActionMapTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Axioms.Tests\Cases\axioms.llm-route-routing\axioms.llm-route-routing.specs => Environment/CentralTest/AgentTest/Agent.Axioms.Tests/LlmRouteRoutingTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Axioms.Tests\Cases\axioms.skill-catalog\axioms.skill-catalog.specs => Environment/CentralTest/AgentTest/Agent.Axioms.Tests/SkillCatalogTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Axioms.Tests\Cases\axioms.strategy-guard\axioms.strategy-guard.specs => Environment/CentralTest/AgentTest/Agent.Axioms.Tests/StrategyGuardTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\assembly\core.agent-assembly\core.agent-assembly.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AgentAssemblyTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\assembly\core.agent-config-external\core.agent-config-external.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AgentConfigExternalConfigTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\assembly\core.agent-runner-factory\core.agent-runner-factory.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AgentRunnerFactoryTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\assembly\core.agent-runner-fold\core.agent-runner-fold.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AgentRunnerFoldIntegrationTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\assembly\core.agent-runner-state-projection\core.agent-runner-state-projection.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AgentRunnerStateProjectionTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\assembly\core.dependency-direction\core.dependency-direction.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/DependencyDirectionTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\assembly\core.skill-assembly\core.skill-assembly.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AgentSkillAssemblyTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\assembly\core.skill-injector\core.skill-injector.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/SkillInjectorTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.conversation-chat-kernel\core.conversation-chat-kernel.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/ConversationChatKernelTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.conversation-finalize-single-write\core.conversation-finalize-single-write.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/ConversationFinalizeSingleWriteTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.conversation-mapping\core.conversation-mapping.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/Conversation/ConversationMappingTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.conversation-page-renderer\core.conversation-page-renderer.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/ConversationPageRendererTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.fold-conversation-runner\core.fold-conversation-runner.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/FoldConversationRunnerTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.governance-round-run-state\core.governance-round-run-state.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/RunState/GovernanceRoundRunStateSourceTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.signal-workflow-runner\core.signal-workflow-runner.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/SignalWorkflowRunnerTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.sk-conversation-fold-operator\core.sk-conversation-fold-operator.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/SkConversationFoldOperatorTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.standard-context-builder\core.standard-context-builder.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/StandardContextBuilderTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.standard-context-contract\core.standard-context-contract.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/StandardContextContractTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\context\core.task-item-persistence\core.task-item-persistence.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/Persistence/AgentTaskItemPersistenceTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.answer-acceptance\core.answer-acceptance.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AnswerAcceptancePolicyTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.decision-point-a-flip\core.decision-point-a-flip.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/DecisionPointPathAFlippingTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.decision-point-guard\core.decision-point-guard.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/DecisionPointGuardTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.decision-recorder-audit\core.decision-recorder-audit.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/DecisionRecorderAuditSinkTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.decision-rules\core.decision-rules.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/DecisionRulesEngineTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.decision-session-anchor\core.decision-session-anchor.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AgentDecisionAndSessionScopeAnchorTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.decision-surface-words\core.decision-surface-words.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/DecisionSurfaceWordCoverageTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.json-rule-engine\core.json-rule-engine.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/JsonRuleEngineTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.rule-decision\core.rule-decision.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/RuleDecisionEvaluatorTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.semantic-verdict-director\core.semantic-verdict-director.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/SemanticVerdictDirectorTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\decision\core.semantic-verdict-observation\core.semantic-verdict-observation.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/SemanticVerdictObservationTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\guard\core.consistency-guard\core.consistency-guard.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/CoreConsistencyGuardTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\guard\core.input-safety-guard\core.input-safety-guard.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/InputSafetyGuardTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.agent-loop-function\core.agent-loop-function.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/DynamicWorkflow/AgentLoopFunctionTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.agent-run-stage-bodies\core.agent-run-stage-bodies.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AgentRunStageBodiesTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.hybrid-scheduler\core.hybrid-scheduler.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/HybridSchedulerTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.loop-config-hot-reload\core.loop-config-hot-reload.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/LoopConfigHotReloadTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.loop-termination\core.loop-termination.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AgentLoopTerminationTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.round-backend-seam\core.round-backend-seam.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/RoundExecutionBackendSeamTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.round-fact-source\core.round-fact-source.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/AgentRoundFactSourceTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.round-flow-spec-mapper\core.round-flow-spec-mapper.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/RoundFlowSpecMapperTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.round-spec-chain\core.round-spec-chain.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/RoundSpecToChainMapperTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.round-step-invoker\core.round-step-invoker.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/RoundStepInvokerTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.snapshot-loop-engine\core.snapshot-loop-engine.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/SnapshotLoopEngineTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.step-exec\core.step-exec.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/StepExecTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\loop\core.task-orchestrator\core.task-orchestrator.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/TaskOrchestratorTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.call-async-regression\core.call-async-regression.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/CallAsyncRegressionTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.dynamic-workflow-builder\core.dynamic-workflow-builder.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/DynamicWorkflow/DynamicWorkflowBuilderTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.dynamic-workflow-merger-shorthand-compat\core.dynamic-workflow-merger-shorthand-compat.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/DynamicWorkflowMerger.ShorthandCompatTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.dynamic-workflow-merger\core.dynamic-workflow-merger.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/DynamicWorkflow/DynamicWorkflowMergerTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.extract-props\core.extract-props.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/ExtractPropsTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.node-execution-record-factory\core.node-execution-record-factory.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/Nodes/NodeExecutionRecordFactoryTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.node-process-data-link\core.node-process-data-link.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/NodeProcessDataLinkIntegrationTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.node-process-executor-adapter\core.node-process-executor-adapter.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/NodeProcessExecutorAdapterTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.node-process-round-backend\core.node-process-round-backend.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/NodeProcessRoundBackendTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.node-process-stage-bridge\core.node-process-stage-bridge.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/NodeProcessExecutionStageBridgeTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.node-process-step-skeleton\core.node-process-step-skeleton.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/NodeProcessStepSkeletonTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.node-result-extractor-parity\core.node-result-extractor-parity.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/NodeResultExtractorParityTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.node-task-linker\core.node-task-linker.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/NodeTaskLinkerTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\node\core.workflow-result-deriver\core.workflow-result-deriver.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/WorkflowResultDeriverTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\prompt\core.prompt-assembly-convergence\core.prompt-assembly-convergence.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/PromptAssemblyConvergenceTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\prompt\core.prompt-composer\core.prompt-composer.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/PromptComposerTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\prompt\core.prompt-node-projector\core.prompt-node-projector.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/PromptNodeProjectorTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\routing\core.routing\core.routing.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/RoutingTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\routing\core.trigger-arbiter\core.trigger-arbiter.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/BoundaryTriggerArbiterTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\toolface\core.stateless-answer-tool-face\core.stateless-answer-tool-face.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/StatelessAnswerToolFaceTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\toolface\core.tconfig-return-type\core.tconfig-return-type.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/TConfigReturnTypeTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\toolface\core.tool-face-display\core.tool-face-display.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/ToolFaceDisplayTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Core.Tests\Cases\toolface\core.tool-face-host\core.tool-face-host.specs => Environment/CentralTest/AgentTest/Agent.Core.Tests/ToolFaceHostTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.bootstrap-llm-intent\launcher.bootstrap-llm-intent.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/BootstrapLlmIntentTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.build-point\launcher.build-point.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentBuildPointTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.framework-assembly-pipeline\launcher.framework-assembly-pipeline.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/FrameworkAssemblyPipelineTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.framework-injected-root\launcher.framework-injected-root.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentFrameworkInjectedRootTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.invocation-router\launcher.invocation-router.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentInvocationRouterTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.llm-hosting-resolve\launcher.llm-hosting-resolve.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/LlmHostingResolveTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.query-target-router\launcher.query-target-router.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentQueryTargetRouterTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.runtime-composition\launcher.runtime-composition.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentRuntimeCompositionTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.runtime-root-fallback\launcher.runtime-root-fallback.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentRuntimeRootFallbackTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.runtime-slots\launcher.runtime-slots.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentRuntimeSlotsTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.ui-slot-root-partition\launcher.ui-slot-root-partition.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/AgentUiSlotRootPartitionTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Launcher.Tests\Cases\launcher.write-planner\launcher.write-planner.specs => Environment/CentralTest/AgentTest/Agent.Launcher.Tests/WritePlannerTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Modules.Tests\Cases\modules.executor-registry\modules.executor-registry.specs => Environment/CentralTest/AgentTest/Agent.Modules.Tests/ExecutorRegistryTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Operation.Tests\Cases\operation.coordinate-schema\operation.coordinate-schema.specs => Environment/CentralTest/AgentTest/Agent.Operation.Tests/DecisionCoordinateSchemaTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Operation.Tests\Cases\operation.round-signal\operation.round-signal.specs => Environment/CentralTest/AgentTest/Agent.Operation.Tests/RoundSignalTests.cs'
+            'Environment\CentralTest\AgentTest\Agent.Operation.Tests\Cases\operation.surface-parity\operation.surface-parity.specs => Environment/CentralTest/AgentTest/Agent.Operation.Tests/DecisionSurfaceParityTests.cs'
         )
     }
 }

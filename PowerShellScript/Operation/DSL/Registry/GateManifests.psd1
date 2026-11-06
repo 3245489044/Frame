@@ -1433,6 +1433,22 @@
         Note   = 'TD1 债务到期巡检：扫描 reachability/structure 基线事实行 + 账本 Overrides/NamingVariants 的 DueWhen；到期未清即红，无日期 ⇒ attest（不可判定，不伪装为通过）'
     }
 
+    TestSpecsSource = @{
+        Domain = 'TestLayout'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'FA6 spec 源有效性：`.specs` 的 `migrate source` 必须指向存在的文件/目录；悬空集合棘轮（_TestLayoutStructure.psd1 的 SpecsMigrateSourceDangling.Allowed），集合外新增即红、只减不增；正负对照常跑'
+    }
+
+    TestLayoutOverride = @{
+        Domain = 'TestLayout'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'FA4 例外有效性：Kind ∈ {Edge,Waiver}（Edge: From(tst)/To(src) 存在且 Applied=true；Waiver: Scope ∈ 能力集且 Target 存在）；Origin ∈ 能力集，Debt 必带 Owner+DueWhen；Granularity 无判据消费 ⇒ 仅 attest 形状'
+    }
+
     PsCapabilityFileOnly = @{
         Domain = 'Meta'
         Args   = @{ Check = $true }

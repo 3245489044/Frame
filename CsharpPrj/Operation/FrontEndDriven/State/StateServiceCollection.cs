@@ -73,6 +73,11 @@ public static class StateServiceCollection
                 name => ordinaryControlFinder?.FindByName<System.Windows.Forms.Control>(name));
             AppServiceProvider.Register(assertionService);
 
+            // 外观判据读面（依赖倒置）：命令层（BackEndDriven）不得引用 FrontEndDriven，
+            // 故 skin-binding / skin-pixels 断言经本接口读取绑定快照与像素探针（实现唯一）。
+            AppServiceProvider.Register<FrameworkAbstractions.Skinning.ISkinInspector>(
+                new FrontEndDriven.WinForms.Paint.SkinInspector(ordinaryControlFinder));
+
             // 调用面命名空间探针：让「加载期脚本校验」与「运行期寻址」共用同一判据载体
             // （控件 / 容器宿主 / 作用域），消除「静态校验绿、运行期 HostNotResolved」的错位。
             InvocationNameSpaceProbes.Register(hostMount, ordinaryControlFinder);

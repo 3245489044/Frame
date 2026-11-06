@@ -17,6 +17,7 @@ public static class ComputeSnapshotCodec
             var locals = Cj.Arr();
             foreach (var local in frame.Locals) locals.Add(ValueNode(local));
             frames.Add(Cj.Obj()
+                .Add("index", frame.Index)
                 .Add("unit", frame.Unit)
                 .Add("pc", frame.Pc)
                 .Add("stackBase", frame.StackBase)
@@ -38,6 +39,17 @@ public static class ComputeSnapshotCodec
                 .Add("note", effect.Note));
         }
 
+        var conversions = Cj.Arr();
+        foreach (var trace in snapshot.Conversions)
+        {
+            conversions.Add(Cj.Obj()
+                .Add("from", trace.From)
+                .Add("to", trace.To)
+                .Add("scale", trace.Scale)
+                .Add("rounding", trace.Rounding)
+                .Add("note", trace.Note));
+        }
+
         return CjWriter.Write(Cj.Obj()
             .Add("snapshotVersion", snapshot.SnapshotVersion)
             .Add("vmVersion", snapshot.VmVersion)
@@ -45,9 +57,11 @@ public static class ComputeSnapshotCodec
             .Add("programHash", snapshot.ProgramHash)
             .Add("status", StatusText(snapshot.Status))
             .Add("steps", snapshot.Steps)
+            .Add("frameCount", snapshot.Frames.Count)
             .Add("frames", frames)
             .Add("stack", stack)
-            .Add("effects", effects));
+            .Add("effects", effects)
+            .Add("conversions", conversions));
     }
 
     private static CjNode ValueNode(ComputeValue? value)
@@ -116,6 +130,7 @@ public static class ComputeSnapshotCodec
                 foreach (var local in frame.GetProperty("locals").EnumerateArray())
                     locals.Add(ParseValue(local));
                 frames.Add(new ComputeSnapshotFrame(
+                    frame.GetProperty("index").GetInt32(),
                     frame.GetProperty("unit").GetString()!,
                     frame.GetProperty("pc").GetInt32(),
                     frame.GetProperty("stackBase").GetInt32(),
@@ -123,6 +138,10 @@ public static class ComputeSnapshotCodec
                     frame.GetProperty("steps").GetInt64(),
                     locals));
             }
+
+            if (!root.TryGetProperty("frameCount", out var frameCount)
+                || frameCount.GetInt32() != frames.Count)
+                return Reject("快照 frameCount 与 frames 数量不一致");
 
             var stack = new List<ComputeValue>();
             foreach (var value in root.GetProperty("stack").EnumerateArray())
@@ -142,9 +161,23 @@ public static class ComputeSnapshotCodec
                     effect.GetProperty("note").GetString()!));
             }
 
+            var conversions = new List<ComputeConversionTrace>();
+            if (root.TryGetProperty("conversions", out var conversionArray))
+            {
+                foreach (var trace in conversionArray.EnumerateArray())
+                {
+                    conversions.Add(new ComputeConversionTrace(
+                        trace.GetProperty("from").GetString()!,
+                        trace.GetProperty("to").GetString()!,
+                        trace.GetProperty("scale").GetInt32(),
+                        trace.GetProperty("rounding").GetString()!,
+                        trace.GetProperty("note").GetString()!));
+                }
+            }
+
             var snapshot = new ComputeSnapshot(snapshotVersion, vmVersion, bytecodeVersion, programHash,
                 ParseStatus(root.GetProperty("status").GetString()!), root.GetProperty("steps").GetInt64(),
-                frames, stack, effects);
+                frames, stack, effects, conversions);
             return new ComputeSnapshotLoadResult(true, snapshot, "", "", null);
         }
         catch (Exception ex)

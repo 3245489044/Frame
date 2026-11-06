@@ -2,8 +2,8 @@
 
   <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>Usharp 命令行</ModuleRule_Title>
-    <ModuleRule_Description>Usharp CLI：build（编译取数）/ lint（悬空·废弃·循环·反向引用四检）/ graph（环检测·影响域·两点路径）/ matrix（矩阵装配取数）四命令；逻辑与 IO 分离（TextWriter 注入）便于测试。</ModuleRule_Description>
-    <ModuleRule_Keywords>Usharp;CLI;lint;graph;matrix;构建校验</ModuleRule_Keywords>
+    <ModuleRule_Description>Usharp CLI：build（编译取数）/ lint（悬空·废弃·循环·反向引用四检）/ graph（环检测·影响域·两点路径）/ matrix（矩阵装配取数）/ compute（计算清单）命令；逻辑与 IO 分离（TextWriter 注入）便于测试。</ModuleRule_Description>
+    <ModuleRule_Keywords>Usharp;CLI;lint;graph;matrix;compute;构建校验</ModuleRule_Keywords>
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
@@ -23,6 +23,8 @@
     <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
     <ProjectReference Include="..\Usharp.Emit\Usharp.Emit.csproj" />
     <ProjectReference Include="..\Usharp.Matrix\Usharp.Matrix.csproj" />
+    <!-- compute 子命令：计算清单/程序的唯一编译入口。 -->
+    <ProjectReference Include="..\Usharp.Compute\Usharp.Compute.csproj" />
     <!-- 控制台命令宿主（子命令路由 / 用法 / 退出码 / 异常边界）唯一实现 -->
     <ProjectReference Include="$(Proj_HostAssembly)" />
   </ItemGroup>

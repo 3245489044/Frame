@@ -17,6 +17,9 @@ public sealed class UsharpComputePack : UsharpDomainPackSpec
 {
     public const string PackId = "usharp.compute";
 
+    /// <summary>稳定包实例：编译宿主缓存键含包身份，复用实例避免每次调用都产生新缓存条目。</summary>
+    public static readonly UsharpComputePack Instance = new();
+
     public UsharpComputePack()
         : base(PackId,
             Array.Empty<IUsharpFacetProvider>(),

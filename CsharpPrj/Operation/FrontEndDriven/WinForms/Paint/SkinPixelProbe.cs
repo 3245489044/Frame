@@ -153,7 +153,8 @@ public static class SkinPixelProbe
     private static Color FirstColor(string value)
     {
         var parts = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return parts.Length > 0 && ColorExtensions.TryParse(parts[0], out var color) ? color : Color.Transparent;
+        if (parts.Length == 0 || !SkinDiagnostics.IsLiteralColor(parts[0])) return Color.Transparent;
+        return ColorExtensions.TryParse(parts[0], out var color) ? color : Color.Transparent;
     }
 
     /// <summary>RGB 欧氏距离（与 ColorUtils.ColorDistance 同度量；阈值语义可直接对照）。</summary>

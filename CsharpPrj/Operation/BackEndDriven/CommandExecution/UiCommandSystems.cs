@@ -3,8 +3,8 @@ using System.Windows.Forms;
 using ECS.Core;
 using FrameworkAbstractions.ComponentRegistry;
 using FrameworkAbstractions.ContainerAbstractions;
+using FrameworkAbstractions.Skinning;
 using BackEndDriven.Diagnostics;
-using FrontEndDriven.WinForms.Paint;
 using Share.EventBindingOrchestrator.Abstractions;
 using Share.EventBindingOrchestrator.Adapters;
 using Modules.Parsing.Invocation;
@@ -59,6 +59,10 @@ public class AssertSystem : CommandSystemBase
 {
     private readonly FrameworkAbstractions.WinFormsAbstractions.IControlFinder? _controlFinder;
     private readonly FrameworkAbstractions.WinFormsAbstractions.IEcsStateAccessor? _stateAccessor;
+    private ISkinInspector? _skinInspector;
+
+    /// <summary>外观读面（惰性解析：装配顺序由宿主决定，命令构造期可能尚未注册）。</summary>
+    private ISkinInspector? SkinInspector => _skinInspector ??= AppServiceProvider.Resolve<ISkinInspector>();
 
     public AssertSystem(EntityManager entityManager)
         : base(entityManager, "assert")
@@ -275,7 +279,7 @@ public class AssertSystem : CommandSystemBase
     /// S3：语义移交 ContainerAssertionService（唯一断言权威），命令层仅做薄语法适配。
     /// </summary>
     /// <summary>
-    /// 外观绑定断言（L1，必要不充分）：读 <see cref="SkinDiagnostics.Current"/> 的装配结构事实。
+    /// 外观绑定断言（L1，必要不充分）：读 <see cref="ISkinInspector"/> 的装配结构事实。
     /// 语法：<c>assert skin-binding enabled=true profile=glass_dark carrier=winforms catalog>=1 layers>=1 unresolvedTokens=0</c>
     /// </summary>
     private void AssertSkinBinding(Entity entity, CommandMetaComponent meta)
@@ -288,49 +292,43 @@ public class AssertSystem : CommandSystemBase
             return;
         }
 
-        var snapshot = SkinDiagnostics.Current;
+        var inspector = SkinInspector;
+        if (inspector is null)
+        {
+            SetFailure(entity, "assert-skin-binding: ISkinInspector 未注册（FrontEndDriven 皮肤服务未装配）");
+            return;
+        }
+
         var failures = new List<string>();
         foreach (var condition in conditions)
         {
-            var failure = CheckSkinCondition(snapshot, condition);
-            if (failure is not null) failures.Add(failure);
+            if (!TrySplitCondition(condition, out var key, out var op, out var expected))
+            {
+                failures.Add($"无法解析条件 '{condition}'（应为 key<op>value）");
+                continue;
+            }
+
+            if (!inspector.TryGetBinding(key, out var actual))
+            {
+                failures.Add($"未知条件键 '{key}'");
+                continue;
+            }
+
+            if (!Satisfies(actual, op, expected)) failures.Add($"{key}{op}{expected} 不成立（实际 {actual}）");
         }
 
+        var state = inspector.DescribeBinding();
         if (failures.Count > 0)
         {
-            var unresolved = SkinDiagnostics.DescribeUnresolved();
+            var unresolved = inspector.DescribeUnresolved();
             SetFailure(entity, "assert-skin-binding: " + string.Join("; ", failures)
-                               + " | " + SkinDiagnostics.Describe()
+                               + " | " + state
                                + (unresolved.Length > 0 ? " " + unresolved : string.Empty));
             return;
         }
 
-        BackEndLog.Log("Command_Assert_SkinBinding", new { conditions = rest, state = SkinDiagnostics.Describe() });
-        SetSuccess(entity, SkinDiagnostics.Describe());
-    }
-
-    private static string? CheckSkinCondition(SkinDiagnosticsSnapshot snapshot, string condition)
-    {
-        if (!TrySplitCondition(condition, out var key, out var op, out var expected))
-            return $"无法解析条件 '{condition}'（应为 key<op>value）";
-
-        string? actual = key switch
-        {
-            "enabled" => snapshot.Enabled ? "true" : "false",
-            "profile" => snapshot.Profile,
-            "carrier" => snapshot.Carrier,
-            "catalog" or "catalogcount" => snapshot.CatalogCount.ToString(),
-            "layers" or "globallayers" => snapshot.GlobalLayerCount.ToString(),
-            "unresolvedtokens" or "unresolved" => snapshot.UnresolvedTokenCount.ToString(),
-            "attached" => snapshot.AttachedControls.ToString(),
-            "painted" => snapshot.PaintCount.ToString(),
-            "global" or "material" => snapshot.GlobalMaterial,
-            "fingerprint" => snapshot.Fingerprint,
-            _ => null,
-        };
-
-        if (actual is null) return $"未知条件键 '{key}'";
-        return Satisfies(actual, op, expected) ? null : $"{key}{op}{expected} 不成立（实际 {actual}）";
+        BackEndLog.Log("Command_Assert_SkinBinding", new { conditions = rest, state });
+        SetSuccess(entity, state);
     }
 
     /// <summary>条件切分（运算符按长度降序匹配，避免 "&gt;=1" 被 "&gt;" 抢断）。</summary>
@@ -404,51 +402,21 @@ public class AssertSystem : CommandSystemBase
             else if (key == "tolerance" && int.TryParse(value, out var parsedTolerance)) tolerance = parsedTolerance;
         }
 
-        var control = _controlFinder?.FindByName<Control>(controlName);
-        if (control is null)
+        var inspector = SkinInspector;
+        if (inspector is null)
         {
-            SetFailure(entity, $"assert-skin-pixels: 未找到控件 '{controlName}'");
+            SetFailure(entity, "assert-skin-pixels: ISkinInspector 未注册（FrontEndDriven 皮肤服务未装配）");
             return;
         }
 
-        if (!SkinDecorator.IsOwnerDrawSupported(control))
+        if (inspector.TryInspectPixels(controlName, minDelta, tolerance, out var evidence))
         {
-            SetFailure(entity,
-                $"assert-skin-pixels: 控件 '{controlName}' 类型 {control.GetType().Name} 不在 owner-draw 白名单（永不换肤）");
+            BackEndLog.Log("Command_Assert_SkinPixels", new { controlName, evidence });
+            SetSuccess(entity, evidence);
             return;
         }
 
-        var material = SkinDecorator.MaterialOf(control);
-        if (material is null)
-        {
-            SetFailure(entity, $"assert-skin-pixels: 控件 '{controlName}' 未挂载材质（{SkinDiagnostics.Describe()}）");
-            return;
-        }
-
-        var report = SkinPixelProbe.Inspect(control, material, tolerance);
-        if (report.Samples.Count == 0)
-        {
-            SetFailure(entity, $"assert-skin-pixels: 控件 '{controlName}' 无法采样（尺寸为 0 或绘制失败）— {report.Describe()}");
-            return;
-        }
-
-        if (report.MaxDelta < minDelta)
-        {
-            SetFailure(entity,
-                $"assert-skin-pixels: 控件 '{controlName}' 材质未落像素（maxDelta={report.MaxDelta:0.0} < {minDelta:0.0}；疑似 token 未换值或开关关闭）— "
-                + report.Describe() + " " + SkinDiagnostics.DescribeUnresolved());
-            return;
-        }
-
-        if (report.Matched == 0)
-        {
-            SetFailure(entity,
-                $"assert-skin-pixels: 控件 '{controlName}' 像素与解析材质不符（无采样点落在容差 {tolerance} 内）— " + report.Describe());
-            return;
-        }
-
-        BackEndLog.Log("Command_Assert_SkinPixels", new { controlName, report = report.Describe() });
-        SetSuccess(entity, report.Describe());
+        SetFailure(entity, $"assert-skin-pixels: 控件 '{controlName}' 未通过 — {evidence}");
     }
 
     private void AssertContainer(Entity entity, CommandMetaComponent meta)

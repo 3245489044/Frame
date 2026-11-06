@@ -38,7 +38,8 @@ public sealed class ComputeInstruction
 
 public sealed record ComputeSourceMapEntry(int Pc, int Line);
 
-public sealed record ComputeLoopMeta(int Line, long? From, long? To, long Step, long? Iterations);
+public sealed record ComputeLoopMeta(int Line, long? From, long? To, long Step, long? Iterations,
+    string Kind = "loop");
 
 public sealed class ComputeUnitIr
 {
@@ -52,13 +53,35 @@ public sealed class ComputeUnitIr
     public required long? Budget { get; init; }
     public required long Slice { get; init; }
     public required long Heap { get; init; }
-    public required long Depth { get; init; }
+    public required long? Depth { get; init; }
     public required int LocalCount { get; init; }
     public required string SourceFile { get; init; }
     public required int LineNumber { get; init; }
     public required IReadOnlyList<ComputeInstruction> Code { get; init; }
     public required IReadOnlyList<ComputeSourceMapEntry> SourceMap { get; init; }
     public required IReadOnlyList<ComputeLoopMeta> Loops { get; init; }
+
+    /// <summary>effects 沿调用图传播后重写（分析层唯一改写点）。</summary>
+    public ComputeUnitIr WithEffects(IReadOnlyList<ComputeEffect> effects) => new()
+    {
+        CalcId = CalcId,
+        Kind = Kind,
+        Arguments = Arguments,
+        ReturnType = ReturnType,
+        HasReturn = HasReturn,
+        Purity = Purity,
+        Effects = effects,
+        Budget = Budget,
+        Slice = Slice,
+        Heap = Heap,
+        Depth = Depth,
+        LocalCount = LocalCount,
+        SourceFile = SourceFile,
+        LineNumber = LineNumber,
+        Code = Code,
+        SourceMap = SourceMap,
+        Loops = Loops
+    };
 }
 
 public sealed class ComputeProgram
@@ -144,7 +167,7 @@ public static class ComputeProgramCodec
         var loops = Cj.Arr();
         foreach (var loop in unit.Loops)
         {
-            var item = Cj.Obj().Add("line", loop.Line).Add("step", loop.Step);
+            var item = Cj.Obj().Add("kind", loop.Kind).Add("line", loop.Line).Add("step", loop.Step);
             if (loop.From.HasValue) item.Add("from", loop.From.Value);
             if (loop.To.HasValue) item.Add("to", loop.To.Value);
             if (loop.Iterations.HasValue) item.Add("iterations", loop.Iterations.Value);
@@ -160,13 +183,15 @@ public static class ComputeProgramCodec
             .Add("effects", effects)
             .Add("slice", unit.Slice)
             .Add("heap", unit.Heap)
-            .Add("depth", unit.Depth)
             .Add("locals", unit.LocalCount)
             .Add("source", Cj.Obj().Add("file", unit.SourceFile).Add("line", unit.LineNumber))
             .Add("code", code)
             .Add("sourceMap", sourceMap)
             .Add("loops", loops);
+        if (unit.Depth.HasValue) obj.Add("depth", unit.Depth.Value);
+        else obj.Add("depth", "unbounded");
         if (unit.Budget.HasValue) obj.Add("budget", unit.Budget.Value);
+        else obj.Add("budget", "unbounded");
         return obj;
     }
 
@@ -348,7 +373,8 @@ public static class ComputeProgramCodec
                 loop.TryGetProperty("from", out var from) ? from.GetInt64() : null,
                 loop.TryGetProperty("to", out var to) ? to.GetInt64() : null,
                 loop.GetProperty("step").GetInt64(),
-                loop.TryGetProperty("iterations", out var iterations) ? iterations.GetInt64() : null));
+                loop.TryGetProperty("iterations", out var iterations) ? iterations.GetInt64() : null,
+                loop.TryGetProperty("kind", out var kind) ? kind.GetString()! : "loop"));
         }
 
         if (!ComputeTypeParser.TryParse(element.GetProperty("returns").GetString(), out var returnType,
@@ -365,10 +391,10 @@ public static class ComputeProgramCodec
             HasReturn = ParseKind(element.GetProperty("kind").GetString()!) != ComputeUnitKind.Proc,
             Purity = ParsePurity(element.GetProperty("pure").GetString()!),
             Effects = effects,
-            Budget = element.TryGetProperty("budget", out var budget) ? budget.GetInt64() : null,
+            Budget = ReadLimit(element, "budget"),
             Slice = element.GetProperty("slice").GetInt64(),
             Heap = element.GetProperty("heap").GetInt64(),
-            Depth = element.GetProperty("depth").GetInt64(),
+            Depth = ReadLimit(element, "depth"),
             LocalCount = element.GetProperty("locals").GetInt32(),
             SourceFile = source.GetProperty("file").GetString()!,
             LineNumber = source.GetProperty("line").GetInt32(),
@@ -376,6 +402,21 @@ public static class ComputeProgramCodec
             SourceMap = sourceMap,
             Loops = loops
         };
+    }
+
+    private static long? ReadLimit(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value)) return null;
+        if (value.ValueKind == JsonValueKind.String)
+        {
+            if (!string.Equals(value.GetString(), "unbounded", StringComparison.Ordinal))
+                throw new InvalidOperationException($"字段 '{name}' 的字符串取值只接受 'unbounded'");
+            return null;
+        }
+
+        if (value.ValueKind != JsonValueKind.Number)
+            throw new InvalidOperationException($"字段 '{name}' 必须是整数或 'unbounded'");
+        return value.GetInt64();
     }
 
     private static ComputeInstruction ParseInstruction(JsonElement element)

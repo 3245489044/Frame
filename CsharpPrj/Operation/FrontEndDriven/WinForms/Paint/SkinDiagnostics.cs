@@ -2,9 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
-using Modules.Common.Drawing;
 using Share.Conversation.Rendering.Surface;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -169,7 +170,7 @@ public static class SkinDiagnostics
 
                 foreach (var part in parts)
                 {
-                    if (IsNumeric(part) || ColorExtensions.TryParse(part, out _)) continue;
+                    if (IsLiteralColor(part)) continue;
                     unresolved.Add(material.MaterialId + "/" + layer.Role + "=" + part);
                 }
             }
@@ -203,7 +204,38 @@ public static class SkinDiagnostics
 
     private static string Value(string text) => string.IsNullOrWhiteSpace(text) ? "-" : text;
 
+    /// <summary>
+    /// 是否字面色值（#hex / rgb 三元组 / 已知色名 / 纯数值）。
+    /// <para>为什么不用 <c>ColorExtensions.TryParse</c>：它对任意名字（如 <c>surface_plain</c>）经
+    /// <see cref="Color.FromName"/> 返回 IsNamedColor=true ⇒ 会把未换值的 token 误判成合法颜色。</para>
+    /// </summary>
+    /// <param name="text">层值文本。</param>
+    public static bool IsLiteralColor(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var value = text.Trim();
+
+        if (value[0] == '#' && value.Length is 4 or 7 or 9)
+        {
+            for (var i = 1; i < value.Length; i++)
+            {
+                if (!Uri.IsHexDigit(value[i])) return false;
+            }
+
+            return true;
+        }
+
+        if (IsNumeric(value)) return true;
+
+        if (value.Contains(','))
+        {
+            var parts = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return parts.Length >= 3 && parts.All(IsNumeric);
+        }
+
+        return Color.FromName(value).IsKnownColor;
+    }
+
     private static bool IsNumeric(string text)
-        => double.TryParse(text, System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out _);
+        => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out _);
 }

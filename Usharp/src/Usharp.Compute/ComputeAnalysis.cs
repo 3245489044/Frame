@@ -96,8 +96,12 @@ public static class ComputeAnalysisRunner
             if (result.Program is not null) lowered[unit.CalcId] = result.Program;
         }
 
-        ReportCycles(callGraph, headers, diagnostics);
-        ReportBudget(units, callGraph, diagnostics);
+        var effectiveEffects = PropagateEffects(units, headers, callGraph, diagnostics);
+        foreach (var id in lowered.Keys.ToList())
+        {
+            lowered[id] = lowered[id].WithEffects(effectiveEffects[id]);
+        }
+
         ReportShare(documents, units, diagnostics);
 
         var programs = new List<ComputeProgram>();
@@ -112,87 +116,74 @@ public static class ComputeAnalysisRunner
         return new ComputeAnalysis(units, diagnostics, programs, callGraph);
     }
 
-    private static void ReportCycles(IReadOnlyDictionary<string, IReadOnlyList<string>> graph,
-        IReadOnlyDictionary<string, ComputeUnitHeader> headers, List<ComputeDiagnostic> diagnostics)
+    private static readonly ComputeEffect[] EffectOrder =
     {
-        var inCycle = new HashSet<string>(StringComparer.Ordinal);
-        var visiting = new HashSet<string>(StringComparer.Ordinal);
-        var visited = new HashSet<string>(StringComparer.Ordinal);
-        var path = new List<string>();
+        ComputeEffect.KeyRead, ComputeEffect.KeyWrite, ComputeEffect.Emit,
+        ComputeEffect.Clock, ComputeEffect.Random
+    };
 
-        foreach (var root in graph.Keys)
-        {
-            Visit(root);
-        }
-
-        foreach (var calcId in inCycle.OrderBy(id => headers[id].LineNumber))
-        {
-            var header = headers[calcId];
-            diagnostics.Add(new ComputeDiagnostic(ComputeCodes.RecursionNotEnabled,
-                $"调用图存在环，{calcId} 属于递归强连通分量（递归属第 4 步，本阶段未启用）",
-                header.SourceFile, header.LineNumber));
-        }
-
-        return;
-
-        void Visit(string node)
-        {
-            if (visited.Contains(node)) return;
-            if (!visiting.Add(node))
-            {
-                var index = path.IndexOf(node);
-                if (index >= 0)
-                {
-                    foreach (var item in path.Skip(index)) inCycle.Add(item);
-                }
-
-                return;
-            }
-
-            path.Add(node);
-            foreach (var next in graph.GetValueOrDefault(node, Array.Empty<string>()))
-            {
-                if (graph.ContainsKey(next)) Visit(next);
-            }
-
-            path.RemoveAt(path.Count - 1);
-            visiting.Remove(node);
-            visited.Add(node);
-        }
-    }
-
-    private static void ReportBudget(IReadOnlyList<ComputeUnit> units,
+    /// <summary>
+    /// effects 沿调用图做不动点传播：调用者必须声明被调方（含间接）的全部效果。
+    /// 传播只用于「调用者必须声明」的静态校验；运行时仍按执行帧单元自身的效果集判定。
+    /// </summary>
+    private static Dictionary<string, IReadOnlyList<ComputeEffect>> PropagateEffects(
+        IReadOnlyList<ComputeUnit> units, IReadOnlyDictionary<string, ComputeUnitHeader> headers,
         IReadOnlyDictionary<string, IReadOnlyList<string>> graph, List<ComputeDiagnostic> diagnostics)
     {
+        var declared = new Dictionary<string, IReadOnlyList<ComputeEffect>>(StringComparer.Ordinal);
+        var effective = new Dictionary<string, IReadOnlyList<ComputeEffect>>(StringComparer.Ordinal);
         foreach (var unit in units)
         {
-            var hasLoop = ContainsLoop(unit.Body);
-            var cyclic = graph.TryGetValue(unit.CalcId, out var callees)
-                         && callees.Contains(unit.CalcId, StringComparer.Ordinal);
-            if (!hasLoop && !cyclic) continue;
-            if (unit.Header.Budget.HasValue) continue;
-            diagnostics.Add(new ComputeDiagnostic(ComputeCodes.BudgetMissing,
-                $"含 loop 或调用图成环的单元 '{unit.CalcId}' 必须声明 budget", unit.Header.SourceFile,
-                unit.Header.LineNumber));
+            declared[unit.CalcId] = unit.Header.Effects;
+            effective[unit.CalcId] = unit.Header.Effects;
         }
-    }
 
-    private static bool ContainsLoop(IReadOnlyList<ComputeStatement> statements)
-    {
-        foreach (var statement in statements)
+        var changed = true;
+        while (changed)
         {
-            switch (statement)
+            changed = false;
+            foreach (var unit in units)
             {
-                case ComputeLoopStatement:
-                    return true;
-                case ComputeIfStatement branch:
-                    if (ContainsLoop(branch.Then)) return true;
-                    if (branch.Else is not null && ContainsLoop(branch.Else)) return true;
-                    break;
+                var set = new HashSet<ComputeEffect>(declared[unit.CalcId]);
+                foreach (var callee in graph.GetValueOrDefault(unit.CalcId, Array.Empty<string>()))
+                {
+                    var calleeEffects = effective.GetValueOrDefault(callee);
+                    if (calleeEffects is not null) set.UnionWith(calleeEffects);
+                }
+
+                var expanded = EffectOrder.Where(set.Contains).ToList();
+                if (!expanded.SequenceEqual(effective[unit.CalcId]))
+                {
+                    effective[unit.CalcId] = expanded;
+                    changed = true;
+                }
             }
         }
 
-        return false;
+        foreach (var unit in units)
+        {
+            var missing = effective[unit.CalcId]
+                .Where(effect => !declared[unit.CalcId].Contains(effect))
+                .ToList();
+            if (missing.Count == 0) continue;
+
+            var header = headers[unit.CalcId];
+            var text = string.Join(", ", missing.Select(ComputeProgramCodec.EffectText));
+            if (header.Purity == ComputePurityPolicy.Strict)
+            {
+                diagnostics.Add(new ComputeDiagnostic(ComputeCodes.PurityInvalid,
+                    $"pure=strict 单元 '{unit.CalcId}' 沿调用图传播了效果 [{text}]（strict 不得有任何效果）",
+                    header.SourceFile, header.LineNumber));
+            }
+            else
+            {
+                diagnostics.Add(new ComputeDiagnostic(ComputeCodes.EffectUndeclared,
+                    $"单元 '{unit.CalcId}' 未声明沿调用图传播的效果 [{text}]（effects 必须覆盖被调单元）",
+                    header.SourceFile, header.LineNumber));
+            }
+        }
+
+        return effective;
     }
 
     private static void ReportShare(IReadOnlyList<DslDocument> documents, IReadOnlyList<ComputeUnit> units,

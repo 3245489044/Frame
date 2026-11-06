@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -71,6 +72,18 @@ public static class SkinAppearanceInstaller
         SkinDecorator.Enabled = global is not null;
         SkinDiagnostics.RecordInstall(
             SkinDecorator.Enabled, profile, carrierId, program.Fingerprint, byKey.Count, global);
+        // 装配可见化：unresolvedTokens>0 表示层值仍是 token 名（运行期会解析成透明），
+        // 由 assert skin-binding 判红；此处落日志便于在「框架日志」直接看到。
+        FrontEndDrivenLog.Log("SkinAppearance_Install", new
+        {
+            enabled = SkinDecorator.Enabled,
+            profile,
+            carrier = carrierId,
+            catalog = byKey.Count,
+            global = global?.MaterialId,
+            layers = global?.Layers.Count ?? 0,
+            unresolvedTokens = SkinDiagnostics.Current.UnresolvedTokenCount,
+        });
         return SkinDecorator.Enabled;
     }
 

@@ -98,12 +98,25 @@ public static class DslParser
                 }
 
                 // ③ 通用续行：紧随的缩进非空行并入（Gate/Bind 字段续行 / SM 状态机步骤）
+                // [Compute] 例外：计算体按缩进连续性界定，空行不截断；空行以 "" 占位以保留原始行号。
+                var computeBody = string.Equals(decl2.Prefix, "[Compute]", StringComparison.Ordinal);
                 var cont = new List<string>();
                 int j = i + 1;
                 while (j < lines.Length)
                 {
                     var l = lines[j];
-                    if (string.IsNullOrWhiteSpace(l)) break;
+                    if (string.IsNullOrWhiteSpace(l))
+                    {
+                        if (computeBody)
+                        {
+                            cont.Add("");
+                            j++;
+                            continue;
+                        }
+
+                        break;
+                    }
+
                     if (l.Length == l.TrimStart().Length) break; // 非缩进
                     cont.Add(l.Trim());
                     j++;

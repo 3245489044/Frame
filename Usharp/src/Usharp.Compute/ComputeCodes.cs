@@ -17,13 +17,16 @@ public static class ComputeCodes
     public const string WriteImmutable = "US8007";
     public const string ReadBeforeDefine = "US8008";
     public const string CalleeInvalid = "US8009";
+    /// <summary>第 4 步起停用（预算不再前置强制）；保留码位，不复用。</summary>
     public const string BudgetMissing = "US8010";
     public const string BudgetInvalid = "US8011";
     public const string PurityInvalid = "US8012";
     public const string EffectUndeclared = "US8013";
     public const string ShareExceeded = "US8014";
     public const string LoopInvalid = "US8015";
+    /// <summary>第 4 步起停用（递归已放开）；保留码位，不复用。</summary>
     public const string RecursionBudgetMissing = "US8016";
+    /// <summary>第 4 步起停用（递归已放开）；保留码位，不复用。</summary>
     public const string RecursionNotEnabled = "US8017";
     public const string ProgramNotProducible = "US8020";
 

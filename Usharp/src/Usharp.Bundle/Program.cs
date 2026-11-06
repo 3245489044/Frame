@@ -7,6 +7,7 @@ using Usharp.Bundle;
 // 声明单点编译工具（G1）：<configRoot> <outDir> → manifest / round-spec / reference-schema / keyspace / commands。
 // UI 声明（专用闭包）：ui <configRoot> <outFile> → ui-declaration.generated.json
 //                     uiregions <configRoot> <outFile> → ui-regions.json（兼容视图，带生成标记）
+// 计算清单：compute <configRoot> <outFile> → compute.manifest.json（仅含 [Compute] 的单元/程序/attest 面）
 // 唯一编译点 = DeclaredBundleBuilder；本工具只做参数解析与产出上报。
 // selfcheck：值映射反例自检（E-4；零测试工程，退出码 0/1 供回归套件断言）。
 // 子命令路由 / 位置参数个数 / 退出码 / 异常边界 = 控制台命令宿主（Share.HostAssembly.Commands.ConsoleCommandHost）单实现。
@@ -139,6 +140,20 @@ var host = new ConsoleCommandHost(Usage)
         output.WriteLine($"surface-map: errors={emitted.Errors}");
         return ConsoleCommandHost.ExitOk;
     }) { ErrorLabel = "surface-map" })
+    .Register(new CommandSpec("compute", "<configRoot> <outFile>", 2, (rest, output) =>
+    {
+        var emitted = DeclaredBundleBuilder.BuildComputeManifest(rest[0]);
+        if (emitted.Errors > 0)
+        {
+            foreach (var diagnostic in emitted.Diagnostics) Console.Error.WriteLine("  " + diagnostic);
+            Console.Error.WriteLine($"compute-manifest 不可产出：errors={emitted.Errors}");
+            return ConsoleCommandHost.ExitFailed;
+        }
+
+        File.WriteAllText(rest[1], emitted.Json);
+        output.WriteLine($"compute-manifest: units={emitted.Units} errors={emitted.Errors}");
+        return ConsoleCommandHost.ExitOk;
+    }) { ErrorLabel = "compute-manifest" })
     // 无子命令：<configRoot> <outDir> 位置参数模式（既有调用面，参数名口径不变）。
     .WithFallback(new CommandSpec("declared-bundle", "<configRoot> <outDir>", 2, (rest, output) =>
     {

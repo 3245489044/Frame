@@ -1,6 +1,7 @@
 using Plate.DslMethod;
 using Plate.DslMethod.Schema;
 using Share.HostAssembly.Commands;
+using Usharp.Compute;
 using Usharp.Matrix;
 using Usharp.Semantics;
 
@@ -25,6 +26,7 @@ public static class UsharpCliCommands
           lint   <file|dir>                                         四检：悬空 / 废弃 / 循环 / 反向引用
           graph  <file|dir> [--reachable <n>] [--path <a> <b>]       引用图查询（环检测 / 影响域 / 两点路径）
           matrix <file|dir>                                         矩阵装配取数（值域矩阵 / 转移表）
+          compute <file|dir>                                        计算清单（[Compute] → compute.manifest.json）
           obs    <file|dir>                                         观测取数（[Obs] 闸A + manifest；未装配后端 → US9002）
           relation-plan <file|dir>                                  关系计划发射（operations / invariants / derivations）
           verify <file|dir> [--emit-flows]                         框架一致性审计（码表/严重度/重复 id/前缀表；--emit-flows 追加发射期诊断）
@@ -50,6 +52,7 @@ public static class UsharpCliCommands
                 (rest, writer) => RunGraph(rest, writer, backend)))
             .Register(new CommandSpec("obs", "<file|dir>", 1, (rest, writer) => Obs(rest[0], writer, obsBackend)) { MaxArgs = 1 })
             .Register(new CommandSpec("relation-plan", "<file|dir>", 1, (rest, writer) => RelationPlan(rest[0], writer)) { MaxArgs = 1 })
+            .Register(new CommandSpec("compute", "<file|dir>", 1, (rest, writer) => Compute(rest[0], writer)) { MaxArgs = 1 })
             .Register(new CommandSpec("verify", "<file|dir> | --suite <dir>", 0,
                 (rest, writer) => RunVerify(rest, writer)));
 
@@ -402,6 +405,32 @@ public static class UsharpCliCommands
         if (result.Json is null) return ExitFailed;
 
         output.WriteLine(result.Json);
+        return ExitOk;
+    }
+
+    /// <summary>
+    /// 计算清单发射：<c>[Compute]</c> → 规范化 <c>compute.manifest.json</c>（stdout）。
+    /// <para>计算包在此命令内显式装载（其余命令保持默认包，纯声明零差异）；有计算诊断 ⇒ 退出码 1，不产出清单。</para>
+    /// </summary>
+    public static int Compute(string path, TextWriter output)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !UsharpSourceLoader.Exists(path))
+        {
+            output.WriteLine($"路径不存在：{path}");
+            return ExitUsage;
+        }
+
+        var packs = new IUsharpDomainPack[] { UsharpDomainPack.Instance, UsharpComputePack.Instance };
+        var compilation = UsharpCompilation.CompileSources(UsharpSourceLoader.FromPath(path), packs);
+        WriteDiagnostics(compilation.Diagnostics, output);
+        if (compilation.HasErrors) return ExitFailed;
+
+        var result = UsharpComputeCompiler.Compile(compilation.Documents);
+        output.WriteLine($"计算单元 {result.Units.Count} / 程序 {result.Programs.Count} / 诊断 {result.Diagnostics.Count}");
+        foreach (var diagnostic in result.Diagnostics) output.WriteLine($"   · {diagnostic}");
+        if (result.Diagnostics.Count > 0) return ExitFailed;
+
+        output.WriteLine(ComputeManifest.ToCanonicalJson(compilation.Documents, result));
         return ExitOk;
     }
 

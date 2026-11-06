@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Plate.DslMethod.Schema;
 using Usharp.Adapters.UniversalReference;
+using Usharp.Compute;
 using Usharp.Emit;
 using Usharp.Semantics;
 using Usharp.Syntax;
@@ -26,6 +27,8 @@ namespace Usharp.Adapters.Declarations;
 /// <param name="SourceFingerprint">源指纹（全部声明文档内容 SHA256；用于新鲜度对账）。</param>
 /// <param name="Errors">编译 error 数（闸A 判据；&gt;0 ⇒ 产物不可信）。</param>
 /// <param name="Files">参与本次编译的声明文件（路径序）。</param>
+/// <param name="Diagnostics">编译诊断（含键空间发射诊断）。</param>
+/// <param name="ComputeManifestJson">计算清单 JSON（仅当闭包含 <c>[Compute]</c> 时非空；纯声明闭包为 null）。</param>
 public sealed record DeclaredBundleArtifacts(
     string ManifestJson,
     string RoundSpecJson,
@@ -35,7 +38,8 @@ public sealed record DeclaredBundleArtifacts(
     string SourceFingerprint,
     int Errors,
     IReadOnlyList<string> Files,
-    IReadOnlyList<UsharpDiagnostic> Diagnostics);
+    IReadOnlyList<UsharpDiagnostic> Diagnostics,
+    string? ComputeManifestJson = null);
 
 /// <summary>
 /// <b>声明单点编译器</b>（G1）：对声明面（<c>Config\nodes\*.ushar</c> + <c>Config\workflows\*.ushar</c>）执行
@@ -144,11 +148,19 @@ public static class DeclaredBundleBuilder
     public static DeclaredBundleArtifacts Build(IReadOnlyList<(string Path, string Text)> documents)
         => BuildCore(DeclarationClosures.FromDocuments(documents), null);
 
+    /// <summary>计算层包集（与默认包组合；只在闭包含 <c>[Compute]</c> 时使用，纯声明闭包仍走默认包路径）。</summary>
+    private static readonly IReadOnlyList<IUsharpDomainPack> ComputePacks =
+        new IUsharpDomainPack[] { UsharpDomainPack.Instance, UsharpComputePack.Instance };
+
     private static DeclaredBundleArtifacts BuildCore(DeclarationClosure closure, string? configRoot)
     {
         ArgumentNullException.ThrowIfNull(closure);
 
-        var compilation = UsharpCompilationHost.Shared.Resolve(closure);
+        var hasCompute = closure.Sources.Any(s =>
+            s.Text.Contains(UsharpComputeClassifier.ComputePrefix, StringComparison.Ordinal));
+        var compilation = hasCompute
+            ? UsharpCompilationHost.Shared.Resolve(closure, ComputePacks)
+            : UsharpCompilationHost.Shared.Resolve(closure);
         var fingerprint = closure.Fingerprint;
         var nodes = UsharpNodePortReader.Read(compilation.Declarations);
         var manifest = BuildManifest(compilation, nodes, fingerprint);
@@ -162,6 +174,13 @@ public static class DeclaredBundleBuilder
             ? compilation.Diagnostics
             : compilation.Diagnostics.Concat(keySpace.Diagnostics).ToList();
 
+        string? computeManifest = null;
+        if (hasCompute)
+        {
+            var compute = UsharpComputeCompiler.Compile(compilation.Documents);
+            computeManifest = ComputeManifest.ToCanonicalJson(compilation.Documents, compute);
+        }
+
         return new DeclaredBundleArtifacts(
             JsonSerializer.Serialize(manifest, ManifestOptions),
             JsonSerializer.Serialize(roundSpec, ManifestOptions),
@@ -171,7 +190,8 @@ public static class DeclaredBundleBuilder
             fingerprint,
             compilation.Errors.Count,
             closure.Sources.Select(s => s.Path).ToList(),
-            diagnostics);
+            diagnostics,
+            computeManifest);
     }
 
     /// <summary>写出三份产物到目录（存在即覆盖；产物名 = 各 <c>FileName</c> 常量）。</summary>
@@ -188,7 +208,32 @@ public static class DeclaredBundleBuilder
         File.WriteAllText(Path.Combine(outputDir, ReferenceSchemaFileName), artifacts.ReferenceSchemaJson, Encoding.UTF8);
         File.WriteAllText(Path.Combine(outputDir, KeySpaceFileName), artifacts.KeySpaceJson, Encoding.UTF8);
         File.WriteAllText(Path.Combine(outputDir, CommandsFileName), artifacts.CommandsJson, Encoding.UTF8);
+        if (artifacts.ComputeManifestJson is not null)
+            File.WriteAllText(Path.Combine(outputDir, ComputeManifest.FileName),
+                artifacts.ComputeManifestJson, Encoding.UTF8);
         WriteGzip(Path.Combine(outputDir, ManifestCompressedFileName), artifacts.ManifestJson);
+    }
+
+    /// <summary>
+    /// 由配置根构建计算清单（<c>compute.manifest.json</c>）：编译闭包 + 计算分析，返回规范化 JSON 与诊断计数。
+    /// <para>纯声明闭包也可调用（产出空 files 列表）；本方法不写盘，落盘由调用方决定（CLI/Bundle/生成器）。</para>
+    /// </summary>
+    public static (string Json, int Units, int Errors, IReadOnlyList<ComputeDiagnostic> Diagnostics)
+        BuildComputeManifest(string configRoot)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
+        var closure = DeclarationClosures.Resolve(DeclarationLayout.FromRoot(configRoot).Spec("core", configRoot));
+        return BuildComputeManifest(closure);
+    }
+
+    private static (string Json, int Units, int Errors, IReadOnlyList<ComputeDiagnostic> Diagnostics)
+        BuildComputeManifest(DeclarationClosure closure)
+    {
+        ArgumentNullException.ThrowIfNull(closure);
+        var compilation = UsharpCompilationHost.Shared.Resolve(closure, ComputePacks);
+        var result = UsharpComputeCompiler.Compile(compilation.Documents);
+        var json = ComputeManifest.ToCanonicalJson(compilation.Documents, result);
+        return (json, result.Units.Count, result.Diagnostics.Count, result.Diagnostics);
     }
 
     /// <summary>源指纹：委托 <see cref="DeclarationArtifactFingerprint"/>（唯一实现）。</summary>

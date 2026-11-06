@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -53,7 +54,8 @@ public static class UsharpSurfaceProgramEmitter
 
     /// <summary>发射（结构不闭合 ⇒ 不产出 + 诊断）。</summary>
     /// <param name="compilation">声明编译结果。</param>
-    public static UsharpSurfaceProgramResult Emit(UsharpCompilation compilation)
+    /// <param name="tokens">token/皮肤表（null ⇒ 不做值替换，与历史产物等价）。</param>
+    public static UsharpSurfaceProgramResult Emit(UsharpCompilation compilation, SurfaceTokenTable? tokens = null)
     {
         ArgumentNullException.ThrowIfNull(compilation);
         var file = compilation.Documents.FirstOrDefault()?.FilePath ?? "(memory)";
@@ -172,7 +174,8 @@ public static class UsharpSurfaceProgramEmitter
                 {
                     ["name"] = name,
                     ["primitive"] = UsharpRecordJson.Str(record.Body, "primitive", string.Empty),
-                    ["z"] = UsharpRecordJson.Str(record.Body, "z", "0"),
+                    // z 发数字：读取侧按 JSON 数字解析层序，发字符串会让所有层 z 退化为 0（描边被填充覆盖）。
+                    ["z"] = LayerZ(record.Body, diagnostics, file, name),
                     ["params"] = Nested(record.Body, "params"),
                 };
             }
@@ -235,6 +238,9 @@ public static class UsharpSurfaceProgramEmitter
                 };
             }
         }
+
+        // token 值落地（发射期）：层参数换字面值；档位 → values.ui_skin → 皮肤覆盖。
+        if (tokens is not null) ApplyTokens(layers, profiles, settings, tokens, diagnostics, file);
 
         if (containers.Count == 0)
         {
@@ -410,4 +416,125 @@ public static class UsharpSurfaceProgramEmitter
 
     private static UsharpDiagnostic Error(string file, string message)
         => UsharpDiagnostic.Error(UsharpCodes.UiDeclarationNotProducible, message, file, 1);
+
+    /// <summary>参与色值落地的图元（其余图元用 asset / 纯数值）。</summary>
+    private static readonly HashSet<string> ColorPrimitives =
+        new(StringComparer.Ordinal) { "fill", "gradient", "stroke", "shadow", "innerShadow", "backdrop", "specular" };
+
+    /// <summary>层参数换字面值 + 色值落地校验（未解析且非字面色值 ⇒ 诊断）。</summary>
+    private static void ApplyTokens(
+        JsonObject layers,
+        JsonObject profiles,
+        JsonObject settings,
+        SurfaceTokenTable tokens,
+        List<UsharpDiagnostic> diagnostics,
+        string file)
+    {
+        var profile = settings["active_profile"]?.GetValue<string>();
+        var skin = EffectiveValue(profiles, profile, "ui_skin");
+        if (!string.IsNullOrWhiteSpace(skin) && !tokens.Skins.ContainsKey(skin!))
+        {
+            diagnostics.Add(Error(file, $"Profile '{profile}' 的 ui_skin='{skin}' 未在皮肤表声明（禁悬空皮肤）"));
+            return;
+        }
+
+        var values = tokens.For(skin);
+        foreach (var pair in layers)
+        {
+            if (pair.Value is not JsonObject layer || layer["params"] is not JsonObject parameters) continue;
+
+            foreach (var parameter in parameters.ToList())
+            {
+                var raw = parameter.Value?.GetValue<string>();
+                if (raw is null) continue;
+                parameters[parameter.Key] = ResolveValue(raw, values);
+            }
+
+            var primitive = layer["primitive"]?.GetValue<string>() ?? string.Empty;
+            if (!ColorPrimitives.Contains(primitive)) continue;
+
+            var value = parameters["value"]?.GetValue<string>() ?? string.Empty;
+            foreach (var part in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (IsLiteralValue(part) || values.ContainsKey(part)) continue;
+                diagnostics.Add(Error(file, $"层 '{pair.Key}' 的色值无法落地：{part}（非字面色值且非已声明 token）"));
+                break;
+            }
+        }
+    }
+
+    /// <summary>按逗号分段换 token（gradient 多色值；其余参数原样单值）。</summary>
+    private static string ResolveValue(string raw, IReadOnlyDictionary<string, string> values)
+    {
+        if (values.TryGetValue(raw, out var direct)) return direct;
+
+        var parts = raw.Split(',');
+        if (parts.Length < 2) return raw;
+
+        for (var i = 0; i < parts.Length; i++)
+        {
+            var part = parts[i].Trim();
+            if (values.TryGetValue(part, out var value)) parts[i] = value;
+        }
+
+        return string.Join(",", parts);
+    }
+
+    /// <summary>档位值沿 <c>extends</c> 链合并（父先子后；子覆盖父）。</summary>
+    private static string? EffectiveValue(JsonObject profiles, string? profileName, string key)
+    {
+        if (string.IsNullOrWhiteSpace(profileName)) return null;
+
+        var chain = new List<string>();
+        string? current = profileName;
+        for (var guard = 0; guard < 16 && !string.IsNullOrWhiteSpace(current); guard++)
+        {
+            if (profiles[current!] is not JsonObject node) break;
+            chain.Add(current!);
+            current = node["extends"]?.GetValue<string>();
+        }
+
+        for (var i = chain.Count - 1; i >= 0; i--)
+        {
+            if (profiles[chain[i]] is JsonObject node
+                && node["values"] is JsonObject values
+                && values[key]?.GetValue<string>() is { Length: > 0 } value)
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>字面值判定（#hex / 数值 / 非标识符形态如 rgb(...)；不承担色名解析）。</summary>
+    private static bool IsLiteralValue(string text)
+    {
+        if (text.Length == 0) return false;
+        if (text[0] == '#')
+        {
+            return text.Length is 4 or 7 or 9 && text.Skip(1).All(Uri.IsHexDigit);
+        }
+
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out _)) return true;
+        return !IsIdentifier(text);
+    }
+
+    private static bool IsIdentifier(string text)
+        => (char.IsLetter(text[0]) || text[0] == '_')
+           && text.All(c => char.IsLetterOrDigit(c) || c == '_');
+
+    /// <summary>层 z（发 JSON 数字：读取侧按数字解析层序）。</summary>
+    private static JsonNode LayerZ(
+        UsharpRecord record, List<UsharpDiagnostic> diagnostics, string file, string name)
+    {
+        var raw = UsharpRecordJson.Str(record, "z", "0");
+        if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var z))
+        {
+            return JsonValue.Create(z)!;
+        }
+
+        diagnostics.Add(Error(file, $"层 '{name}' 的 z 非法：{raw}（须整数）"));
+        return JsonValue.Create(0)!;
+    }
 }

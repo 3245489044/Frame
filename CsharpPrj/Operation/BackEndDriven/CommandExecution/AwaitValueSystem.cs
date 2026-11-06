@@ -5,6 +5,7 @@ using ECS.Core;
 using BackEndDriven.Diagnostics;
 using Modules.ComponentData.Extensions;
 using Modules.Threading;
+using Modules.Parsing.Invocation;
 using System.Reactive.Linq;
 
 namespace BackEndDriven.CommandExecution;
@@ -20,7 +21,8 @@ public class AwaitValueSystem : CommandSystemBase, IAsyncCommandSystem
 {
     public const string ControlKeyPrefix = "control.";
 
-    public const int DefaultTimeoutMs = 60_000;
+    /// <summary>默认等待预算（缺省单源 = 调用面声明表）。</summary>
+    public static readonly int DefaultTimeoutMs = InvocationSpecCatalog.DefaultTimeoutMs ?? 60_000;
 
     public AwaitValueSystem(EntityManager entityManager)
         : base(entityManager, "await", "waitfor")
@@ -52,7 +54,13 @@ public class AwaitValueSystem : CommandSystemBase, IAsyncCommandSystem
             return;
         }
 
-        var timeoutMs = ResolveTimeout(meta);
+        var (timeoutMs, timeoutError) = ResolveTimeout(meta);
+        if (timeoutError is not null)
+        {
+            SetFailure(entity, $"await: {timeoutError}");
+            return;
+        }
+
         var key = ControlKeyPrefix + target;
 
         // M2·AEF 收编：完成信号经 AsyncOp 单一终结（op.Complete 于发布非空值时触发），替代手建 TCS + Wait()。
@@ -83,7 +91,10 @@ public class AwaitValueSystem : CommandSystemBase, IAsyncCommandSystem
         }
     }
 
-    // 参数解析收敛到 Share.CommandParameters（A-1 单源）；parsed <= 0 → 不设总时限（无限等待）。
-    private static int ResolveTimeout(CommandMetaComponent meta)
-        => CommandParameters.GetInt(meta.Parameters, "timeout", DefaultTimeoutMs);
+    // 参数解析收敛到调用面唯一读取器（三态）；parsed <= 0 → 不设总时限（无限等待）。
+    private static (int TimeoutMs, string? Error) ResolveTimeout(CommandMetaComponent meta)
+    {
+        var read = InvocationArgs.Timeout(meta.Parameters, DefaultTimeoutMs);
+        return read.Error is null ? (read.BudgetMs ?? 0, null) : (0, read.Error);
+    }
 }

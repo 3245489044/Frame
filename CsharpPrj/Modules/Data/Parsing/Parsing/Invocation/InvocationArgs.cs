@@ -9,6 +9,22 @@ namespace Modules.Parsing.Invocation;
 public readonly record struct IntArg(bool Present, bool Valid, int Value, string? Raw);
 
 /// <summary>
+/// 参数读取的唯一返回值形态（三态）：缺失 / 存在且合法 / 存在但非法。
+/// <para>值内嵌在返回里——不提供「返回 bool + out 回传值」的第二通道（该形态会产生
+/// 「判定为存在、回传却为 null」的分裂，正是空引用崩溃的结构来源）。</para>
+/// </summary>
+public readonly record struct ArgValue(bool Present, bool Valid, object? Value, string? Raw, string? InvalidReason)
+{
+    public static readonly ArgValue Missing = new(false, true, null, null, null);
+
+    public static ArgValue Of(object value, string raw) => new(true, true, value, raw, null);
+
+    public static ArgValue Invalid(object? value, string? raw, string reason) => new(true, false, value, raw, reason);
+
+    public bool IsUsable => Present && Valid;
+}
+
+/// <summary>
 /// 命令参数读取（唯一实现，供内核与命令层共用）：缺省值/存在性/数值解析语义只在这里定义。
 /// 与 <c>CommandFramework.CommandParameters</c> 的差别：本类把「存在但非法」显式暴露（Present=true, Valid=false），
 /// 调用方不得把它静默降级成缺省值。
@@ -17,13 +33,26 @@ public static class InvocationArgs
 {
     public const string TimeoutKey = "timeout";
 
-    /// <summary>原始文本；键缺失/空白 ⇒ null。</summary>
-    public static string? Raw(IReadOnlyDictionary<string, object?>? args, string key)
+    /// <summary>读取唯一入口：缺失 / 存在且合法 / 存在但非法三态（值内嵌，无 out 第二通道）。</summary>
+    public static ArgValue Read(IReadOnlyDictionary<string, object?>? args, string key)
     {
-        if (args is null || string.IsNullOrWhiteSpace(key)) return null;
-        if (!args.TryGetValue(key, out var raw) || raw is null) return null;
-        var text = raw.ToString();
-        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        if (args is null || string.IsNullOrWhiteSpace(key)) return ArgValue.Missing;
+        if (!args.TryGetValue(key, out var value) || value is null) return ArgValue.Missing;
+        var text = value.ToString();
+        if (string.IsNullOrWhiteSpace(text)) return ArgValue.Missing;
+        return ArgValue.Of(value, text.Trim());
+    }
+
+    /// <summary>原始文本；键缺失/空白 ⇒ null。</summary>
+    public static string? Raw(IReadOnlyDictionary<string, object?>? args, string key) => Read(args, key).Raw;
+
+    /// <summary>long 读取；缺失/非法 ⇒ null（不抛）。</summary>
+    public static long? Long(IReadOnlyDictionary<string, object?>? args, string key)
+    {
+        var read = Read(args, key);
+        if (!read.Present) return null;
+        if (read.Value is long l) return l;
+        return long.TryParse(read.Raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
     }
 
     /// <summary>整数读取（三态；非法不抛）。</summary>

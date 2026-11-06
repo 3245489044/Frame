@@ -27,6 +27,10 @@ public static class InvocationContractVerify
         passed &= Case("命名空间·清单命中/未命中/无来源三态", NameSpaceTriState, results);
         passed &= Case("契约门·干净序列 ⇒ 放行（不阻断）", GateClean, results);
         passed &= Case("契约门·违约序列 ⇒ 报告非空", GateViolation, results);
+        passed &= Case("参数读取·声明键可读（值内嵌无第二通道）", ParamReadable, results);
+        passed &= Case("参数读取·空白视为缺失", ParamBlankIsMissing, results);
+        passed &= Case("判据·回显恒真被守卫拦截", EchoGuardBlocks, results);
+        passed &= Case("声明面·未列子动作回退动作级声明", SubActionFallback, results);
 
         summary = $"InvocationContractVerify: {(passed ? "PASS" : "FAIL")}{Environment.NewLine}"
                   + string.Join(Environment.NewLine, results);
@@ -113,6 +117,41 @@ public static class InvocationContractVerify
         var report = InvocationContractGate.Evaluate([Command("ghost-action", "x")], nameof(GateViolation));
         return !report.IsClean && report.Issues.Any(i => i.ReasonCode == InvocationReasonCodes.ActionNotDeclared);
     }
+
+    /// <summary>可读性自证：每个声明键经唯一读取器必须可读（曾出现「声明存在但读取即崩」的空引用缺陷）。</summary>
+    private static bool ParamReadable()
+    {
+        foreach (var spec in InvocationSpecCatalog.All)
+        {
+            if (spec.Args is null) continue;
+            foreach (var key in spec.Args)
+            {
+                var args = new Dictionary<string, object?> { [key] = "x1" };
+                var read = InvocationArgs.Read(args, key);
+                if (!read.IsUsable || !string.Equals(read.Raw, "x1", StringComparison.Ordinal)) return false;
+                if (!string.Equals(InvocationArgs.Text(args, key), "x1", StringComparison.Ordinal)) return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ParamBlankIsMissing()
+    {
+        var args = new Dictionary<string, object?> { ["k"] = "   " };
+        return !InvocationArgs.Read(args, "k").Present && InvocationArgs.Text(args, "k") is null;
+    }
+
+    private static bool EchoGuardBlocks()
+    {
+        var args = new Dictionary<string, object?> { ["taskKey"] = "tp_x" };
+        return ProbeEchoGuard.IsTautological("tp_x", "AgentUi_TaskPoolGetStatus", args)
+               && !ProbeEchoGuard.IsTautological("CLINE_READ_FILE_OK", "AgentUi_RunJson", args);
+    }
+
+    private static bool SubActionFallback()
+        => InvocationSpecCatalog.TryResolve("assert", "skin-binding skin", out var spec)
+           && spec.Action == "assert";
 
     private static MetaCommand Command(string action, string? target)
         => new()

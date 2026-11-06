@@ -24,8 +24,8 @@ namespace BackEndDriven.CommandExecution;
 /// </summary>
 public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
 {
-    /// <summary>默认总预算（真实 LLM/daemon 链路 ≥ 固定 sleep 90000 的历史实测上界）。</summary>
-    public const int DefaultTimeoutMs = 300_000;
+    /// <summary>默认总预算（真实 LLM/daemon 链路 ≥ 固定 sleep 90000 的历史实测上界）；缺省单源 = 调用面声明表。</summary>
+    public static readonly int DefaultTimeoutMs = InvocationSpecCatalog.DefaultTimeoutMs ?? 300_000;
 
     /// <summary>默认轮询间隔（只读探测，避免高频打库）。</summary>
     public const int DefaultIntervalMs = 2_000;
@@ -42,7 +42,14 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
     public override void Execute(Entity entity, CommandMetaComponent meta)
         => ExecuteAsync(entity, meta).GetAwaiter().GetResult();
 
-    public async Task ExecuteAsync(Entity entity, CommandMetaComponent meta)
+    public Task ExecuteAsync(Entity entity, CommandMetaComponent meta)
+        => ExecuteCoreAsync(entity, meta, CancellationToken.None);
+
+    /// <summary>预算感知重载：命令级 deadline 的取消令牌直达轮询（原实现丢弃该令牌）。</summary>
+    public Task ExecuteAsync(Entity entity, CommandMetaComponent meta, CancellationToken cancellationToken)
+        => ExecuteCoreAsync(entity, meta, cancellationToken);
+
+    private async Task ExecuteCoreAsync(Entity entity, CommandMetaComponent meta, CancellationToken cancellationToken)
     {
         var probe = meta.Target;
         if (string.IsNullOrWhiteSpace(probe))
@@ -51,7 +58,7 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             return;
         }
 
-        if (!TryParse(meta, out var parameters, out var expectedContains, out var timeoutMs, out var intervalMs, out var outputTarget, out var failTokens, out var parseError))
+        if (!TryParse(meta, probe, out var parameters, out var expectedContains, out var timeoutMs, out var intervalMs, out var outputTarget, out var failTokens, out var parseError))
         {
             SetFailure(entity, $"wait-until: {parseError}");
             return;
@@ -59,7 +66,11 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
 
         var scope = TerminationScope.Current;
         var deadline = timeoutMs > 0 ? Environment.TickCount64 + timeoutMs : long.MaxValue;
-        var token = scope?.Token ?? CancellationToken.None;
+        // 双源合一：命令级预算令牌 ∪ 外层终止令牌 → 单一观察面（任一即停），预算 ct 不再被丢弃。
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            scope?.Token ?? CancellationToken.None);
+        var token = linked.Token;
         string? lastText = null;
         var matched = false;
         var failedByTerminal = false;
@@ -214,15 +225,14 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             or InvocationOutcome.SignalLost
             or InvocationOutcome.ReconcileFault;
 
-    /// <summary>终态失败判据（纯函数）：探测文本命中任一失败词即真（空词表/空文本恒假）。</summary>
+    /// <summary>终态失败判据（纯函数，唯一判据内核）：探测文本命中任一失败词即真（空词表/空文本恒假）。</summary>
     public static bool MatchesFailure(string? text, IReadOnlyList<string> failTokens)
-        => !string.IsNullOrWhiteSpace(text)
-           && failTokens is { Count: > 0 }
-           && failTokens.Any(token => text.Contains(token, StringComparison.OrdinalIgnoreCase));
+        => Criterion.AnyContains(text, failTokens);
 
     /// <summary>解析命令面：expectedContains/contains（条件）、timeout/interval/output（命令级），其余为探测函数参数。</summary>
     private static bool TryParse(
         CommandMetaComponent meta,
+        string probe,
         out Dictionary<string, object?> parameters,
         out string expectedContains,
         out int timeoutMs,
@@ -262,6 +272,13 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             return false;
         }
 
+        // 恒真判据守卫（结构事实）：期望词命中探针名/入参回显 ⇒ 0 轮必然命中，不是等待而是回显。
+        if (ProbeEchoGuard.IsTautological(expectedContains, probe, parameters))
+        {
+            error = $"expectedContains '{expectedContains}' 命中探针输入回显（恒真判据），请改用状态判据/expectedStatus";
+            return false;
+        }
+
         // 数值参数读取唯一实现（InvocationArgs 三态）：非法值显式失败，不再静默落默认。
         var timeout = InvocationArgs.Timeout(parameters, DefaultTimeoutMs);
         if (timeout.Error is not null)
@@ -286,7 +303,7 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             parameters.Remove("interval");
         }
 
-        if (CommandParameters.GetString(parameters, "output") is { } o)
+        if (InvocationArgs.Text(parameters, "output") is { } o)
         {
             outputTarget = o;
             parameters.Remove("output");
@@ -298,7 +315,7 @@ public class WaitUntilSystem : CommandSystemBase, IAsyncCommandSystem
             : null;
         if (failKey is not null)
         {
-            failTokens = CommandParameters.GetTokens(parameters, failKey);
+            failTokens = InvocationArgs.Tokens(parameters, failKey);
             parameters.Remove(failKey);
         }
 

@@ -61,7 +61,8 @@ public class ExecutionResult : IExecutionResult
             Success = false,
             TotalCommands = totalCommands,
             SuccessCount = 0,
-            FailCount = totalCommands > 0 ? totalCommands : 1,
+            // 失败数不得超过总数：total=0 的失败表达为「零执行 + 未成功」，不与 TotalCommands 自相矛盾。
+            FailCount = totalCommands > 0 ? totalCommands : 0,
             ErrorMessage = errorMessage,
             Mode = mode,
             ExecutionTime = TimeSpan.Zero
@@ -73,7 +74,10 @@ public class ExecutionResult : IExecutionResult
         TimeSpan executionTime, string? mode, string? batchId)
         => new()
         {
-            Success = failCount == 0,
+            // 判定式：零执行 ≠ 成功（恒绿路径）；必须全部声明命令都成功。
+            Success = totalCommands > 0
+                      && failCount == 0
+                      && successCount == totalCommands,
             TotalCommands = totalCommands,
             SuccessCount = successCount,
             FailCount = failCount,

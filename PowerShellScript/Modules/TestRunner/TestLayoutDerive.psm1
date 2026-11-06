@@ -1028,12 +1028,18 @@ function Measure-TestLayoutAlignment {
         }
 
         $rec = [pscustomobject]@{
-            Path      = $t.Rel
-            Class     = $t.Class
-            Project   = $(if ($projDir) { $projDir } else { '' })
-            SourceDir = $sourceDir
-            Sources   = @($found)
-            Evidence  = @($evidence)
+            Path           = $t.Rel
+            Rel            = $t.Rel
+            Stem           = $t.Stem
+            Dir            = $t.Dir
+            Kind           = $t.Kind
+            Class          = $t.Class
+            Project        = $(if ($projDir) { $projDir } else { '' })
+            ProjectName    = $t.ProjectName
+            MigrateSources = @($t.MigrateSources)
+            SourceDir      = $sourceDir
+            Sources        = @($found)
+            Evidence       = @($evidence)
         }
         $testRecords[$t.Rel] = $rec
         foreach ($s in $found) {

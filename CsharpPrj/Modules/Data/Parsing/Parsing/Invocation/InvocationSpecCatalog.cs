@@ -49,7 +49,9 @@ public static class InvocationSpecCatalog
         }
 
         var sub = InvocationTokens.First(target);
-        var hit = candidates.FirstOrDefault(c => string.Equals(c.SubAction, sub, StringComparison.OrdinalIgnoreCase));
+        // 子动作未列 ⇒ 回退到动作级声明（catch-all），避免把「新增子动作」误判成「动作未声明」。
+        var hit = candidates.FirstOrDefault(c => string.Equals(c.SubAction, sub, StringComparison.OrdinalIgnoreCase))
+                  ?? candidates.FirstOrDefault(c => c.SubAction is null);
         if (hit is null) return false;
 
         spec = hit;
@@ -145,7 +147,8 @@ public static class InvocationSpecCatalog
                 entry.Args is { Count: > 0 } ? entry.Args : null,
                 entry.AllowProbeArgs ?? false,
                 argSpaces,
-                entry.MinTargetTokens ?? 1));
+                entry.MinTargetTokens ?? 1,
+                entry.HaltOnFailure ?? true));
         }
 
         return (specs, issues, document.DefaultTimeoutMs);

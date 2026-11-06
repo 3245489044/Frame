@@ -3,11 +3,12 @@
   "comment": "调用面声明（唯一来源）。C# 校验器 / 门禁 / 文档共读此文件；新增或改命令必须先改这里。",
   "defaultTimeoutMs": 300000,
   "specs": [
-    { "action": "assert", "subAction": "container", "targetSpace": "ContainerHost", "minTargetTokens": 3 },
-    { "action": "assert", "subAction": "text-contains", "targetSpace": "Control", "minTargetTokens": 3 },
-    { "action": "assert", "subAction": "text-empty", "targetSpace": "Control", "args": ["control", "target"], "minTargetTokens": 2 },
-    { "action": "assert", "subAction": "event-bound", "targetSpace": "Control", "args": ["button", "target"], "minTargetTokens": 2 },
-    { "action": "assert", "subAction": "openforms", "targetSpace": "None", "args": ["count", "expected"], "minTargetTokens": 2 },
+    { "action": "assert", "subAction": "container", "targetSpace": "ContainerHost", "minTargetTokens": 3, "haltOnFailure": false },
+    { "action": "assert", "subAction": "text-contains", "targetSpace": "Control", "minTargetTokens": 3, "haltOnFailure": false },
+    { "action": "assert", "subAction": "text-empty", "targetSpace": "Control", "args": ["control", "target"], "minTargetTokens": 2, "haltOnFailure": false },
+    { "action": "assert", "subAction": "event-bound", "targetSpace": "Control", "args": ["button", "target"], "minTargetTokens": 2, "haltOnFailure": false },
+    { "action": "assert", "subAction": "openforms", "targetSpace": "None", "args": ["count", "expected"], "minTargetTokens": 2, "haltOnFailure": false },
+    { "action": "assert", "targetSpace": "None", "allowProbeArgs": true, "haltOnFailure": false },
 
     { "action": "validate", "targetSpace": "Control", "args": ["expectedText", "expectedX", "expectedY", "scope"] },
     { "action": "validate-mount", "targetSpace": "Control", "args": ["parent", "visible"], "argSpaces": { "parent": "ContainerHost" } },
@@ -22,7 +23,7 @@
     { "action": "sideload", "targetSpace": "ConfigFile", "args": ["modifier"] },
     { "action": "discover", "targetSpace": "Control" },
 
-    { "action": "wait-until", "targetSpace": "ProbeFunction", "args": ["expectedContains", "contains", "timeout", "interval", "output", "failWhen", "failContains"] },
+    { "action": "wait-until", "targetSpace": "ProbeFunction", "args": ["expectedContains", "contains", "timeout", "interval", "output", "failWhen", "failContains"], "allowProbeArgs": true },
     { "action": "exec", "targetSpace": "ProbeFunction", "args": ["expectedContains", "expectedJson", "parameters", "timeout", "output"], "allowProbeArgs": true },
     { "action": "await", "targetSpace": "ProbeFunction", "args": ["timeout"] },
 

@@ -178,15 +178,18 @@ public static class SkinDecorator
     }
 
     private static string CacheKey(ResolvedMaterial material, Rectangle bounds, int dpi)
-    {
-        var layers = string.Join("/", material.Layers.Select(layer =>
-            layer.Primitive + ":" + layer.Role + ":" + layer.Z));
-        return $"{material.MaterialId}:{material.FallbackUsed}:{layers}:{bounds.Width}x{bounds.Height}@dpi{dpi}";
-    }
+        => $"{MaterialKey(material)}:{bounds.Width}x{bounds.Height}@dpi{dpi}";
 
-    /// <summary>材质指纹（不含尺寸/DPI：尺寸与 DPI 已进渲染缓存键）。</summary>
+    /// <summary>材质指纹：含层参数摘要（同材质换色必须失效，否则换肤永不重绘）。</summary>
     private static string MaterialKey(ResolvedMaterial material)
-        => material.MaterialId + "|" + (material.FallbackUsed ?? string.Empty) + "|" + material.Layers.Count;
+        => material.MaterialId + "|" + (material.FallbackUsed ?? string.Empty) + "|" + ParamDigest(material);
+
+    /// <summary>层参数摘要（角色/图元/z/全部参数；参数按键序，禁枚举顺序当语义）。</summary>
+    private static string ParamDigest(ResolvedMaterial material)
+        => string.Join("/", material.Layers.Select(layer =>
+            layer.Role + ":" + layer.Primitive + ":" + layer.Z + ":" +
+            string.Join(",", layer.Params.OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair => pair.Key + "=" + pair.Value))));
 
     private sealed class SkinState
     {

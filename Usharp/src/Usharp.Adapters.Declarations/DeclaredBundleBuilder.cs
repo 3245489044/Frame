@@ -334,15 +334,26 @@ public static class DeclaredBundleBuilder
 
     /// <summary>由 <c>Config\ui</c> 闭包构建表面程序（surface-v1：容器/映射/视图单一产物）。</summary>
     /// <param name="configRoot">配置根（含 <c>ui</c> 子目录）。</param>
+    /// <param name="tokensFile">token/皮肤来源（<c>ui.generated.json</c>；缺失 ⇒ 不做值替换，保持旧行为）。</param>
     public static (string? Json, string Fingerprint, int Errors, IReadOnlyList<UsharpDiagnostic> Diagnostics)
-        BuildSurfaceProgram(string configRoot)
+        BuildSurfaceProgram(string configRoot, string? tokensFile = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configRoot);
         var closure = DeclarationClosures.Resolve(DeclarationLayout.FromRoot(configRoot).Spec("ui", configRoot));
         var compilation = UsharpCompilationHost.Shared.Resolve(closure);
-        var emitted = Usharp.Emit.UsharpSurfaceProgramEmitter.Emit(compilation);
-        var errors = compilation.Errors.Count + emitted.Diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
-        return (emitted.Json, emitted.Fingerprint ?? string.Empty, errors, emitted.Diagnostics);
+        var tokenTable = SurfaceTokenTableLoader.Load(tokensFile, out var tokenError);
+        var emitted = Usharp.Emit.UsharpSurfaceProgramEmitter.Emit(compilation, tokenTable);
+
+        IReadOnlyList<UsharpDiagnostic> diagnostics = emitted.Diagnostics;
+        if (tokenError is not null)
+        {
+            diagnostics = diagnostics
+                .Append(UsharpDiagnostic.Error(UsharpCodes.UiDeclarationNotProducible, tokenError, tokensFile ?? string.Empty, 1))
+                .ToArray();
+        }
+
+        var errors = compilation.Errors.Count + diagnostics.Count(d => d.Severity == UsharpSeverity.Error);
+        return (emitted.Json, emitted.Fingerprint ?? string.Empty, errors, diagnostics);
     }
 
     /// <summary>写出 UI 声明产物（UTF-8 无 BOM；目录不存在则创建）。</summary>

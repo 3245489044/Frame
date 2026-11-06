@@ -5,6 +5,7 @@ using FrameworkAbstractions.ComponentRegistry;
 using FrameworkAbstractions.WinFormsAbstractions;
 using BackEndDriven.Diagnostics;
 using Modules.Threading;
+using Modules.Parsing.Invocation;
 
 namespace BackEndDriven.CommandExecution;
 

@@ -33,7 +33,7 @@ $definitions = @(
     @{ Target = 'fields';      Kind = 'fields';      Root = $configRoot; Out = (Join-Path $configRoot 'nodes\fields.generated.json') }
     @{ Target = 'surfacemap';  Kind = 'surfacemap';  Root = $configRoot; Out = (Join-Path $configRoot 'ui\surface-map.generated.json') }
     @{ Target = 'uiprogram';   Kind = 'uiprogram';   Root = $configRoot; Out = (Join-Path $configRoot 'ui\ui.generated.json') }
-    @{ Target = 'surface';     Kind = 'surface';     Root = $sharedConfigRoot; Out = (Join-Path $sharedConfigRoot 'ui\surface.generated.json') }
+    @{ Target = 'surface';     Kind = 'surface';     Root = $sharedConfigRoot; Out = (Join-Path $sharedConfigRoot 'ui\surface.generated.json'); Tokens = (Join-Path $configRoot 'ui\ui.generated.json') }
 )
 
 if ($OutFile -and $Target -eq 'all') {
@@ -58,7 +58,10 @@ foreach ($definition in $selected) {
     $destination = if ($OutFile) { $OutFile } else { $definition.Out }
     $tempFile = Join-Path ([System.IO.Path]::GetTempPath()) ($definition.Target + '-' + [Guid]::NewGuid().ToString('N') + '.json')
     try {
-        & dotnet $toolDll $definition.Kind $definition.Root $tempFile
+        # token/皮肤来源（ui.generated.json）作可选第 3 参：存在才传，缺失保持旧行为（不做值替换）。
+        $toolArgs = @($definition.Kind, $definition.Root, $tempFile)
+        if ($definition.Tokens -and (Test-Path -LiteralPath $definition.Tokens)) { $toolArgs += $definition.Tokens }
+        & dotnet $toolDll @toolArgs
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $tempFile)) {
             Write-Error "$($definition.Target) 声明编译失败（声明缺项/形态非法，明细见上）"
             exit 1

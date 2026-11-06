@@ -32,7 +32,8 @@
               "enum": ["Control", "ContainerHost", "Scope", "ProbeFunction", "ConfigFile", "Form"]
             }
           },
-          "minTargetTokens": { "type": "integer" }
+          "minTargetTokens": { "type": "integer" },
+          "haltOnFailure": { "type": "boolean" }
         }
       }
     }

@@ -113,9 +113,9 @@ var host = new ConsoleCommandHost(Usage)
         output.WriteLine($"ui-program: errors={emitted.Errors} fingerprint={emitted.Fingerprint}");
         return ConsoleCommandHost.ExitOk;
     }) { ErrorLabel = "ui-program" })
-    .Register(new CommandSpec("surface", "<configRoot> <outFile>", 2, (rest, output) =>
+    .Register(new CommandSpec("surface", "<configRoot> <outFile> [tokensFile]", 2, (rest, output) =>
     {
-        var emitted = DeclaredBundleBuilder.BuildSurfaceProgram(rest[0]);
+        var emitted = DeclaredBundleBuilder.BuildSurfaceProgram(rest[0], rest.Count > 2 ? rest[2] : null);
         if (emitted.Json is null)
         {
             Console.Error.WriteLine($"surface-program 不可产出：errors={emitted.Errors}");

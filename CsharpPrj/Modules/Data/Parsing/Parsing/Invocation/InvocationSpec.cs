@@ -13,7 +13,8 @@ public sealed record InvocationSpec(
     IReadOnlyList<string>? Args = null,
     bool AllowProbeArgs = false,
     IReadOnlyDictionary<string, NameSpaceId>? ArgSpaces = null,
-    int MinTargetTokens = 1)
+    int MinTargetTokens = 1,
+    bool HaltOnFailure = true)
 {
     /// <summary>参数键是否被本命令接受（声明键 ∪ 探测参数 ∪ 具名参数空间）。</summary>
     public bool AcceptsArg(string key)
@@ -71,4 +72,8 @@ public sealed class InvocationSpecEntry
 
     [JsonPropertyName("minTargetTokens")]
     public int? MinTargetTokens { get; set; }
+
+    /// <summary>失败是否熔断本批（缺省 true）。证据类命令（如 assert）声明 false：取证不短路后续取证。</summary>
+    [JsonPropertyName("haltOnFailure")]
+    public bool? HaltOnFailure { get; set; }
 }

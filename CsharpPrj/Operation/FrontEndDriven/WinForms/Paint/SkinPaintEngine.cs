@@ -61,7 +61,12 @@ public static class SkinPaintEngine
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             foreach (var layer in material.Layers)
             {
-                if (!PaintLayer(graphics, bounds, layer, skipped)) skipped.Add(layer.Primitive + ":" + layer.Role);
+                // 明细由 PaintLayer 记账（unresolved-value:<raw>）；只有未记账的失败才补通用项。
+                var before = skipped.Count;
+                if (!PaintLayer(graphics, bounds, layer, skipped) && skipped.Count == before)
+                {
+                    skipped.Add(layer.Primitive + ":" + layer.Role);
+                }
             }
         }
         finally
@@ -74,18 +79,19 @@ public static class SkinPaintEngine
 
     private static bool PaintLayer(Graphics graphics, Rectangle bounds, ResolvedLayer layer, List<string> skipped)
     {
-        var value = Param(layer, "value");
-        var color = ParseColor(value, 255);
         switch (layer.Primitive)
         {
             case "fill":
-                using (var brush = new SolidBrush(color)) graphics.FillRectangle(brush, bounds);
+            {
+                if (!TryColor(layer, skipped, out var color)) return false;
+                using var brush = new SolidBrush(color);
+                graphics.FillRectangle(brush, bounds);
                 return true;
+            }
 
             case "gradient":
             {
-                var colors = SplitColors(value);
-                if (colors.Length == 0) return false;
+                if (!TrySplitColors(Param(layer, "value"), layer, skipped, out var colors)) return false;
                 using var brush = new LinearGradientBrush(
                     bounds, colors[0], colors.Length > 1 ? colors[1] : colors[0], Angle(layer));
                 graphics.FillRectangle(brush, bounds);
@@ -94,6 +100,7 @@ public static class SkinPaintEngine
 
             case "stroke":
             {
+                if (!TryColor(layer, skipped, out var color)) return false;
                 var width = Math.Max(1, IntParam(layer, "width", 1));
                 using var pen = new Pen(color, width);
                 var inset = width / 2f;
@@ -104,6 +111,7 @@ public static class SkinPaintEngine
 
             case "shadow":
             {
+                if (!TryColor(layer, skipped, out var color)) return false;
                 var blur = Math.Max(0, IntParam(layer, "blur", 0));
                 var offset = Offset(layer);
                 var rect = new Rectangle(bounds.X + offset.X, bounds.Y + offset.Y,
@@ -115,6 +123,7 @@ public static class SkinPaintEngine
 
             case "innerShadow":
             {
+                if (!TryColor(layer, skipped, out var color)) return false;
                 using var pen = new Pen(Color.FromArgb(90, color), 2);
                 graphics.DrawRectangle(pen, bounds.X + 1, bounds.Y + 1,
                     Math.Max(1, bounds.Width - 3), Math.Max(1, bounds.Height - 3));
@@ -123,6 +132,7 @@ public static class SkinPaintEngine
 
             case "backdrop":
             {
+                if (!TryColor(layer, skipped, out var color)) return false;
                 using var brush = new SolidBrush(Color.FromArgb(96, color));
                 graphics.FillRectangle(brush, bounds);
                 skipped.Add("backdrop:emulated");
@@ -131,6 +141,7 @@ public static class SkinPaintEngine
 
             case "specular":
             {
+                if (!TryColor(layer, skipped, out var color)) return false;
                 var sheen = new Rectangle(bounds.X, bounds.Y, bounds.Width, Math.Max(1, bounds.Height / 3));
                 using var brush = new LinearGradientBrush(
                     sheen, Color.FromArgb(70, color), Color.FromArgb(0, color), LinearGradientMode.Vertical);
@@ -274,37 +285,70 @@ public static class SkinPaintEngine
             ? angle
             : 180f;
 
-    private static Color[] SplitColors(string value)
+    /// <summary>层色值解析（失败 ⇒ 记账并返回 false；禁静默画成透明）。</summary>
+    private static bool TryColor(ResolvedLayer layer, List<string> skipped, out Color color)
     {
-        var raw = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var colors = new Color[raw.Length];
-        for (var i = 0; i < raw.Length; i++) colors[i] = ParseColor(raw[i], 255);
-        return colors;
+        var raw = Param(layer, "value");
+        if (TryParseColor(raw, 255, out color)) return true;
+        skipped.Add("unresolved-value:" + (raw.Length == 0 ? layer.Primitive : raw));
+        return false;
     }
 
-    private static Color ParseColor(string value, int alpha)
+    private static bool TryParseColor(string value, int alpha, out Color color)
     {
-        if (string.IsNullOrWhiteSpace(value)) return Color.Transparent;
+        color = Color.Transparent;
+        if (string.IsNullOrWhiteSpace(value)) return false;
         var text = value.Trim();
         try
         {
-            if (text.StartsWith('#')) return ColorTranslator.FromHtml(text);
-            if (Color.FromName(text) is { IsKnownColor: true } named) return named;
+            if (text.StartsWith('#'))
+            {
+                color = ColorTranslator.FromHtml(text);
+                return true;
+            }
+
+            if (Color.FromName(text) is { IsKnownColor: true } named)
+            {
+                color = named;
+                return true;
+            }
+
             var parts = text.Split(',');
             if (parts.Length >= 3
                 && int.TryParse(parts[0], out var r)
                 && int.TryParse(parts[1], out var g)
                 && int.TryParse(parts[2], out var b))
             {
-                return Color.FromArgb(alpha, Clamp(r), Clamp(g), Clamp(b));
+                color = Color.FromArgb(alpha, Clamp(r), Clamp(g), Clamp(b));
+                return true;
             }
         }
         catch (Exception)
         {
-            // 非法色值 ⇒ Transparent（图元仍记账，禁抛给绘制路径）。
+            // 非法色值 ⇒ 未解析（调用方记账，禁抛给绘制路径）。
         }
 
-        return Color.Transparent;
+        return false;
+    }
+
+    private static bool TrySplitColors(string value, ResolvedLayer layer, List<string> skipped, out Color[] colors)
+    {
+        var raw = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        colors = new Color[raw.Length];
+        if (raw.Length == 0)
+        {
+            skipped.Add("unresolved-value:" + layer.Primitive);
+            return false;
+        }
+
+        for (var i = 0; i < raw.Length; i++)
+        {
+            if (TryParseColor(raw[i], 255, out colors[i])) continue;
+            skipped.Add("unresolved-value:" + raw[i]);
+            return false;
+        }
+
+        return true;
     }
 
     private static int Clamp(int value) => Math.Min(255, Math.Max(0, value));

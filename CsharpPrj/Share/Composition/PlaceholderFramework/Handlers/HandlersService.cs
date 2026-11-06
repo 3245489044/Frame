@@ -77,6 +77,9 @@ namespace Common.PlaceholderFramework.Integrated.Handlers
 
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _recentlyLogged = new();
 
+        // 定义缺失负缓存：同一 (keyPrefix|msgId) 只上报一次；后续 Log 直接短路（不再每次查表重报 30+ 行）。
+        private static readonly ConcurrentDictionary<string, byte> _missingDefinitions = new();
+
         // LOG-6 载荷预算：单条日志文本上限（超限截断并显式标注原文长度；禁整段模型输出内联）。
         private const int MaxMessageChars = 2048;
 
@@ -109,11 +112,18 @@ namespace Common.PlaceholderFramework.Integrated.Handlers
             }
             if (!loader.TryGetMessage(msgId, out msgDef))
             {
+                // 负缓存：同类缺失已上报过 ⇒ 静默返回 false（返回语义不变，只是不再重复刷日志）。
+                if (!_missingDefinitions.TryAdd($"{keyPrefix}|{msgId}", 0))
+                {
+                    msgDef = null;
+                    return false;
+                }
+
                 var callerInfo = GetCallerInfo();
                 var jsonFile = loader.JsonFilePath ?? "(未知)";
                 PlaceholderFramework.Diagnostics.PlaceholderFrameworkDiagnosticContext.Record("placeholder.log.message_not_found", new { msgId, keyPrefix, callerInfo });
                 LogRepository.Write("WARN", "System", moduleName,
-                    $"日志消息定义未找到: msgId='{msgId}', keyPrefix='{keyPrefix}', 应添加到文件 '{jsonFile}' 的 messages 节点中.{callerInfo}");
+                    $"日志消息定义未找到（同类缺失后续静默）: msgId='{msgId}', keyPrefix='{keyPrefix}', 应添加到文件 '{jsonFile}' 的 messages 节点中.{callerInfo}");
                 return false;
             }
             return true;

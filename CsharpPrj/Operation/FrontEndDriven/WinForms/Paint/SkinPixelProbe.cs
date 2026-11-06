@@ -52,22 +52,11 @@ public sealed record SkinPixelReport(string Material, int Tolerance, IReadOnlyLi
 /// <summary>
 /// 像素探针（**唯一像素判定实现**）：把控件真实绘制结果与「未换肤基线 / 已解析材质期望」拟合。
 /// <para>判据载体 = 像素值（结构事实），不是 Enabled/Count 等代理指标：Enabled=true 但层值不是色值时，这里必红。</para>
-/// <para>复用：<see cref="Control.DrawToBitmap"/>（真实绘制路径）、<see cref="ColorExtensions.TryParse"/> /
-/// <see cref="ColorExtensions.Blend"/>（颜色解析与合成）、<see cref="SkinDecorator.MaterialOf"/>（实际生效材质，单一来源）。</para>
+/// <para>复用：<see cref="Control.DrawToBitmap"/>（真实绘制路径）、<see cref="SkinPaintEngine.Paint"/>（期望位图的单一绘制实现）、
+/// <see cref="SkinDecorator.MaterialOf"/>（实际生效材质，单一来源）。</para>
 /// </summary>
 public static class SkinPixelProbe
 {
-    /// <summary>参与像素拟合的图元与覆盖率（其余图元走 asset 或仅边缘）。</summary>
-    private static readonly Dictionary<string, double> Coverage = new(StringComparer.Ordinal)
-    {
-        ["fill"] = 1.0,
-        ["gradient"] = 0.5,
-        ["backdrop"] = 96.0 / 255.0,
-        ["shadow"] = 0.35,
-        ["innerShadow"] = 0.35,
-        ["specular"] = 0.27,
-    };
-
     /// <summary>采样并拟合（不抛：绘制异常 ⇒ 空样本，由调用方判红）。</summary>
     /// <param name="control">目标控件（须已创建/可见）。</param>
     /// <param name="material">该控件实际生效材质（<see cref="SkinDecorator.MaterialOf"/>）。</param>
@@ -83,7 +72,8 @@ public static class SkinPixelProbe
         var height = control.ClientSize.Height > 0 ? control.ClientSize.Height : control.Height;
         if (width <= 0 || height <= 0) return new SkinPixelReport(materialId, tolerance, Array.Empty<SkinPixelSample>());
 
-        var expected = Composite(material, baseline);
+        // 期望位图 = 预填基线上跑同一绘制实现（禁手工覆盖率，否则与实际算法不一致 ⇒ 假红）。
+        using var expectedBitmap = ExpectedBitmap(material, baseline, width, height);
 
         using var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
         try
@@ -99,6 +89,7 @@ public static class SkinPixelProbe
         foreach (var (label, point) in Points(width, height))
         {
             var actual = bitmap.GetPixel(point.X, point.Y);
+            var expected = expectedBitmap.GetPixel(point.X, point.Y);
             samples.Add(new SkinPixelSample(
                 label, actual, baseline, expected, Distance(actual, baseline), Distance(actual, expected)));
         }
@@ -131,30 +122,14 @@ public static class SkinPixelProbe
         return control.Parent is { } parent && parent.BackColor.A != 0 ? parent.BackColor : SystemColors.Control;
     }
 
-    /// <summary>按层序把材质合成到基线上（与 <see cref="SkinPaintEngine"/> 的层序/透明度语义对齐）。</summary>
-    private static Color Composite(ResolvedMaterial material, Color baseline)
+    /// <summary>期望位图：预填未换肤基线后跑同一绘制实现（<see cref="SkinPaintEngine.Paint"/>），采样与算法天然一致。</summary>
+    private static Bitmap ExpectedBitmap(ResolvedMaterial material, Color baseline, int width, int height)
     {
-        var result = baseline;
-        foreach (var layer in material.Layers)
-        {
-            if (!Coverage.TryGetValue(layer.Primitive, out var coverage)) continue;
-            if (!layer.Params.TryGetValue("value", out var value) || string.IsNullOrWhiteSpace(value)) continue;
-
-            var color = FirstColor(value);
-            if (color.A == 0) continue; // 未解析值 ⇒ 透明 ⇒ 不改变基线（由 SkinDiagnostics.unresolvedTokens 可见化）
-
-            var ratio = (float)Math.Clamp(coverage * (color.A / 255.0), 0.0, 1.0);
-            result = result.Blend(color, ratio);
-        }
-
-        return result;
-    }
-
-    private static Color FirstColor(string value)
-    {
-        var parts = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0 || !SkinDiagnostics.IsLiteralColor(parts[0])) return Color.Transparent;
-        return ColorExtensions.TryParse(parts[0], out var color) ? color : Color.Transparent;
+        var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.Clear(baseline);
+        SkinPaintEngine.Paint(graphics, new Rectangle(0, 0, width, height), material);
+        return bitmap;
     }
 
     /// <summary>RGB 欧氏距离（与 ColorUtils.ColorDistance 同度量；阈值语义可直接对照）。</summary>

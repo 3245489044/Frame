@@ -8,6 +8,7 @@ using FrameworkAbstractions.ComponentRegistry;
 using BackEndDriven.Diagnostics;
 using BackEndDriven.CommandExecution.Context;
 using Modules.Parsing.Parsing;
+using Modules.Parsing.Invocation;
 using CommandFramework.Utilities;
 using CommandFramework.Execution;
 using TConfig;
@@ -523,18 +524,16 @@ public class CommandSystemCoordinator
     /// 命令级失败熔断（单写者：终止作用域）。命令体可经 <c>SetFailure</c> 自行标记失败而不经
     /// <see cref="MarkFailed"/>，此处统一补齐终止语义；<c>FILEDRIVEN_HALT_ON_FAILURE=off</c> 可回滚。
     /// </summary>
-    /// <summary>证据类命令（失败只记账、不短路后续）：断言用于取证，其 FAIL 不应吞掉后续断言证据。</summary>
-    private static bool IsEvidenceAction(string? action)
-        => string.Equals(action, "assert", StringComparison.OrdinalIgnoreCase);
+    /// <summary>证据类命令（haltOnFailure=false）：失败只记账、不短路后续（声明面单源，禁硬编码动作名）。</summary>
+    private static bool ShouldHaltOnFailure(CommandMetaComponent meta)
+        => !InvocationSpecCatalog.TryResolve(meta.Action, meta.Target, out var spec) || spec.HaltOnFailure;
 
     private void ApplyFailureHalt(Entity entity, CommandMetaComponent meta, CommandPipelineContext? ctx)
     {
         if (!HaltOnFailure) return;
 
-        // 证据类命令（assert）失败不熔断：断言是「取证」不是「门」，首条 FAIL 若短路后续断言，
-        // 报告只会剩 1 条红而实际有 N 条未验（本次 glass/agent 两脚本均被此吞掉证据）。
-        // 门类命令（validate/validate-mount/exec/wait-until…）保持 fail-fast。
-        if (IsEvidenceAction(meta.Action)) return;
+        // 声明面判据：haltOnFailure=false（如 assert 取证）失败不熔断；未声明动作 default-deny（保持 fail-fast）。
+        if (!ShouldHaltOnFailure(meta)) return;
 
         if (!_entityManager.TryGetComponent<CommandStatusComponent>(entity, out var status)
             || status.State != CommandState.Failed)

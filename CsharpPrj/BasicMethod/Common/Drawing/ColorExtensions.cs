@@ -40,7 +40,9 @@ namespace Modules.Common.Drawing
                 throw new ArgumentException("颜色名称不能为空", nameof(name));
 
             var color = Color.FromName(name);
-            if (!color.IsKnownColor && !color.IsNamedColor && color.A == 0 && color.R == 0 && color.G == 0 && color.B == 0)
+            // 只有已知色名才是颜色：FromName 对任意标识符也返回 IsNamedColor=true（ARGB=0），
+            // 会把未换值的 token（如 surface_plain）误判成合法颜色，导致「装了主题但看不见」。
+            if (!color.IsKnownColor)
             {
                 throw new ArgumentException($"未知的颜色名称: {name}", nameof(name));
             }

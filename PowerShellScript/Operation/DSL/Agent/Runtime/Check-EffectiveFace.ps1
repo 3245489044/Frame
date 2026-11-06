@@ -229,6 +229,11 @@ if (-not $declHash) {
 # ---- [E5] 声明面 P↔S 对账（视图内容域 / 读路径域 ⊆ 聚拢声明域） ----
 $uiRegionsPath = Join-Path $configRoot 'ui\ui-regions.json'
 $gatherPath   = Join-Path $configRoot 'nodes\node-gather.ushar'
+if (-not (Test-Path -LiteralPath $gatherPath)) {
+    # 目录收拢后声明面移入 nodes\gather；两处只取实际存在者（缺失 ⇒ 下方 E5 判据不可判）。
+    $nestedGather = Join-Path $configRoot 'nodes\gather\node-gather.ushar'
+    if (Test-Path -LiteralPath $nestedGather) { $gatherPath = $nestedGather }
+}
 $readPathsPath = Join-Path $configRoot 'nodes\read-paths.json'
 if ((Test-Path -LiteralPath $gatherPath) -and (Test-Path -LiteralPath $uiRegionsPath)) {
     $gatherText = Get-Content -LiteralPath $gatherPath -Raw

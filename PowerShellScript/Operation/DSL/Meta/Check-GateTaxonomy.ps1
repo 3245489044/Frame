@@ -39,7 +39,11 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # 门禁运行时（委托 PScriptManager\Framework\DirectoryMap）：根定位 + 落点派生**单源**。
-Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+# 根定位（深度无关）：以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects')))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
 if ([string]::IsNullOrWhiteSpace($Root)) {
     # 仓库超根（与目录深度无关；由目录映射框架 marker 上溯解析）
@@ -49,8 +53,8 @@ if ([string]::IsNullOrWhiteSpace($Root)) {
 # DSL 根（Check-*.ps1 的分类根；按名递归发现用，与具体 <Domain> 子目录布局解耦）
 $DslRoot = Get-MappedPath -Key 'DSL'
 
-$manifestPath = Join-Path $PSScriptRoot '..\Registry\GateManifests.psd1'
-$indexPath    = Join-Path $PSScriptRoot '..\Registry\index.generated.md'
+$manifestPath = Join-Path (Get-MappedPath -Key 'GateRegistry') 'GateManifests.psd1'
+$indexPath    = Join-Path (Get-MappedPath -Key 'GateRegistry') 'index.generated.md'
 
 # 分类轴枚举（唯一定义点；与 Build-GateIndex.ps1 的 Domain 值域一致）
 $domainEnum = @('Meta', 'Agent', 'Node', 'Parsing', 'Data', 'Spec', 'Process', 'Usharp', 'Declarations', 'Build', 'KeySpace')

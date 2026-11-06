@@ -27,10 +27,15 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-if ([string]::IsNullOrWhiteSpace($Root))
-{
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
-}
+
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects'))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Detail:$ShowDetail -Key 'SemanticCentralization'
+$Root = $ctx.Root
+$violations = $ctx.Violations
 
 # 基线单源 = Baselines\Meta\SemanticCentralization.psd1（禁内联数值基线；守卫 = Operation\DSL\Meta\Check-GateBaselines.ps1）
 Import-Module (Join-Path $Root 'Frame\PowerShellScript\Baselines\GateBaseline.psm1') -Force
@@ -43,7 +48,7 @@ Write-Host "============================================================" -Foreg
 Write-Host "  语义集中守卫（边类型词汇单源 / 域内只减不增）" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
-$csRoot = Join-Path $Root 'Frame\CsharpPrj'
+$csRoot = Join-Path (Get-MappedPath -Key 'Frame') 'CsharpPrj'
 $allCs = @(Get-ChildItem -Path $csRoot -Recurse -Filter *.cs -File -ErrorAction SilentlyContinue |
     Where-Object { $_.FullName -notmatch '\\obj\\|\\bin\\|\\BuildOutput\\' })
 

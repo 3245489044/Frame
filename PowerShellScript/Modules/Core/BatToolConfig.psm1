@@ -18,6 +18,9 @@
         - Root      : 项目根目录
 #>
 
+# 根解析单源 = PScriptManager\Framework\DirectoryMap.ps1
+. (Join-Path $PSScriptRoot '..\..\PScriptManager\Framework\DirectoryMap.ps1')
+
 # ============================================
 #  路径别名管理
 # ============================================
@@ -85,32 +88,10 @@ function Show-BatToolAliases {
 function Get-ProjectRoot {
     <#
     .SYNOPSIS
-        获取项目根目录路径
+        获取项目根目录路径（委托目录映射框架的超根解析）
     #>
 
-    # 优先使用 $MyInvocation.MyCommand.Path（模块正常加载时）
-    $scriptPath = $null
-    if ($MyInvocation.MyCommand.Path) {
-        $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-    }
-    # 回退：通过 $PSScriptRoot（模块导入时自动设置）
-    elseif ($PSScriptRoot) {
-        $scriptPath = $PSScriptRoot
-    }
-    # 最终回退：通过模块路径推断
-    else {
-        $module = Get-Module BatToolConfig
-        if ($module -and $module.Path) {
-            $scriptPath = Split-Path -Parent $module.Path
-        }
-    }
-
-    if (-not $scriptPath) {
-        throw "无法确定模块路径"
-    }
-
-    # Script\Modules\Core\ -> Script\ -> 项目根目录
-    return (Get-Item (Join-Path $scriptPath "..\..\..")).FullName
+    return Get-SuperRoot -StartPath $PSScriptRoot
 }
 
 function Get-DynamicOutputPath {

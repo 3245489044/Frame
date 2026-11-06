@@ -18,28 +18,30 @@
          附正/负对照。
 
 .PARAMETER Root
-    仓库根（缺省由本脚本位置上溯四级推导）。
-
-.PARAMETER Write
-    生成模式：仅重写 instances\nodes.json 的 placements[]（按声明并集排序）；placement.ushar 的 [Space] LocPlacement / [Matrix] LocToPlacement 键行（节头与注释原样保留）；默认对账不改写。
+    仓库根（缺省由 GateRuntime 的 Get-GateRepoRoot 按脚本位置深度无关解析）。
 
 .PARAMETER ShowDetail
     输出全部明细（含通过项与棘轮读数）。
+
+.NOTES
+    生成模式已拆至产品侧生成器 Operation\DSL\Node\New-NodePlacementDeclaration.ps1（本件只读对账，零侧写）。
 #>
 [CmdletBinding()]
 param(
     [string]$Root = '',
-    [switch]$Write,
     [switch]$ShowDetail
 )
 
 $ErrorActionPreference = 'Stop'
 
-Import-Module (Join-Path $PSScriptRoot '..\Meta\TextOps.psm1') -Force -DisableNameChecking
+$__gateRoot = $PSScriptRoot
+while ($__gateRoot -and -not (Test-Path -LiteralPath (Join-Path $__gateRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1'))) { $__gateRoot = Split-Path -Parent $__gateRoot }
+if (-not $__gateRoot) { throw '未定位 GateRuntime（Frame\PowerShellScript\Baselines\GateRuntime.psm1）' }
+Import-Module (Join-Path $__gateRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
-}
+if ([string]::IsNullOrWhiteSpace($Root)) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
+
+Import-Module (Join-Path $Root 'Frame\PowerShellScript\Operation\DSL\Meta\TextOps.psm1') -Force -DisableNameChecking
 
 $nodesDir      = Join-Path $Root 'Projects\Plug\Agent\Config\nodes'
 $instancesFile = Join-Path $Root 'Projects\Plug\Agent\Config\instances\nodes.json'
@@ -109,17 +111,6 @@ if (-not (Test-Path -LiteralPath $instancesFile)) {
     if ($missing.Count -gt 0) { $violations.Add("D1a instances\nodes.json 缺位置声明: [$($missing -join ',')]") }
     if ($extra.Count -gt 0)   { $violations.Add("D1a instances\nodes.json 多位置声明: [$($extra -join ',')]") }
 
-    if ($Write -and ($missing.Count -gt 0 -or $extra.Count -gt 0)) {
-        $ordered = @($union | Sort-Object)
-        $json = Get-Content -LiteralPath $instancesFile -Raw
-        $newBlock = ($ordered | ForEach-Object { '    "' + $_ + '"' }) -join ",`r`n"
-        $json = [regex]::Replace(
-            $json,
-            '(?s)("placements"\s*:\s*\[).*?(\])',
-            { param($m) $m.Groups[1].Value + "`r`n" + $newBlock + "`r`n  " + $m.Groups[2].Value })
-        Set-Content -LiteralPath $instancesFile -Value $json -NoNewline -Encoding utf8
-        Write-Host '  [WRITE] instances\nodes.json placements 已按声明并集重写' -ForegroundColor Yellow
-    }
 }
 
 # ── D1b: placement.ushar 派生面 ──────────────────────────────────────────────
@@ -154,23 +145,6 @@ if (-not (Test-Path -LiteralPath $placementFile)) {
     if ($missMatrix.Count -gt 0) { $violations.Add("D1b placement.ushar LocToPlacement 缺位置行: [$($missMatrix -join ',')]") }
     if ($extraMatrix.Count -gt 0) { $violations.Add("D1b placement.ushar LocToPlacement 多位置行: [$($extraMatrix -join ',')]") }
 
-    if ($Write -and ($missLoc.Count -gt 0 -or $extraLoc.Count -gt 0 -or $missMatrix.Count -gt 0 -or $extraMatrix.Count -gt 0)) {
-        # 生成 = 声明并集（wire 形）重写节内**键行**：仅替换节头后连续的缩进行，
-        # 节间注释与后续节头原样保留（避免整块替换吞掉注释）。
-        $text = Get-Content -LiteralPath $placementFile -Raw
-        $locBody = ((@('  agent_round') + @($expectedWire | ForEach-Object { '  ' + $_ })) -join "`r`n") + "`r`n"
-        $text = [regex]::Replace(
-            $text,
-            '(?m)^(\[Space\]\s*LocPlacement[^\r\n]*\r?\n)(?:[ \t]+\S[^\r\n]*\r?\n)*',
-            { param($m) $m.Groups[1].Value + $locBody })
-        $mxBody = ((@($expectedWire | ForEach-Object { '  ' + $_ + ' = agent_round' })) -join "`r`n") + "`r`n"
-        $text = [regex]::Replace(
-            $text,
-            '(?m)^(\[Matrix\]\s*LocToPlacement[^\r\n]*\r?\n)(?:[ \t]+\S[^\r\n]*\r?\n)*',
-            { param($m) $m.Groups[1].Value + $mxBody })
-        Set-Content -LiteralPath $placementFile -Value $text -NoNewline -Encoding utf8
-        Write-Host '  [WRITE] placement.ushar LocPlacement/LocToPlacement 键行已按声明并集重写' -ForegroundColor Yellow
-    }
 }
 
 # ── D2: 散弹点棘轮（报告模式） ────────────────────────────────────────────────

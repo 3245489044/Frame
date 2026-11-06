@@ -25,9 +25,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-if (-not $Root) {
-    $Root = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')
-}
+$__gateRoot = $PSScriptRoot
+while ($__gateRoot -and -not (Test-Path -LiteralPath (Join-Path $__gateRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1'))) { $__gateRoot = Split-Path -Parent $__gateRoot }
+if (-not $__gateRoot) { throw '未定位 GateRuntime（Frame\PowerShellScript\Baselines\GateRuntime.psm1）' }
+Import-Module (Join-Path $__gateRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
+if (-not $Root) { $Root = Get-GateRepoRoot -ScriptRoot $PSScriptRoot }
 
 # C# 归属边字面量判据已并入 NoRelationLiteral（DUP-11：同判据门禁数 = 1）。
 $violations = New-Object System.Collections.Generic.List[string]

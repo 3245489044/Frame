@@ -17,12 +17,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# 根定位（深度无关）：GateRuntime → DirectoryMap 以「Frame\ + Projects\」marker 上溯（迁 Environment 后不依赖脚本深度）
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects')))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    # 脚本位于 Frame\PowerShellScript\Operation\DSL\，上溯四级即仓库根
-    $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..')).Path
+    $ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'GateRegistry'
+    $Root = $ctx.Root
 }
 
-$registryPath = Join-Path $PSScriptRoot '..\Registry\GateRegistry.psd1'
+$registryPath = Join-Path (Get-MappedPath -Key 'GateRegistry') 'GateRegistry.psd1'
 $formulaPath = Join-Path $Root '.clinerules\formula.md'
 
 if (-not (Test-Path -LiteralPath $registryPath)) { Write-Error "门禁注册表不存在：$registryPath"; exit 2 }

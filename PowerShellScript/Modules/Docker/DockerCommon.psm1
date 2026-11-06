@@ -16,6 +16,9 @@
     依赖: BasicMethod-Output, BasicMethod-Docker, BasicMethod-Json, BasicMethod-Diagnostic
 #>
 
+# 根解析单源 = PScriptManager\Framework\DirectoryMap.ps1
+. (Join-Path $PSScriptRoot '..\..\PScriptManager\Framework\DirectoryMap.ps1')
+
 # ============================================================
 # 导入 BasicMethod 模块（提供 Write-Header, Write-Success, Test-CommandExists 等）
 # ============================================================
@@ -205,8 +208,8 @@ function Initialize-DockerCommon {
         初始化公共模块路径
     #>
     if (-not $Script:ProjectRoot) {
-        $moduleDir = Split-Path -Parent $PSScriptRoot
-        $Script:ProjectRoot = Resolve-Path (Join-Path $moduleDir "..\..")
+        # Docker 构建上下文以 Frame 为锚点（与容器内 /workspace 映射一致）。
+        $Script:ProjectRoot = Get-FrameRoot -StartPath $PSScriptRoot
     }
     Initialize-DockerConfig
 }

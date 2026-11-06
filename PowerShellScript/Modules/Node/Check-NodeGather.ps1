@@ -48,7 +48,7 @@ Write-GateHeader '节点聚拢通用框架门禁（G1–G3：声明闭合 / 零�
 
 # ---------------- G1 声明闭合（U9：真源 = node-gather.ushar；族闭合判据由语言闸A GatherGateRule US7101–US7106 承担） ----------------
 # U9 退役 node-gather-*.json ⇒ 本段仅保留**正对照**（声明真源在册）；闭合/塑形判据不在此重写（复用闸A）。
-$declFiles = @(Get-ChildItem -Path $agentNodesDir -Filter 'node-gather.ushar' -File -ErrorAction SilentlyContinue)
+$declFiles = @(Get-ChildItem -Path $agentNodesDir -Filter 'node-gather.ushar' -File -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\_deprecated\\' })
 if ($declFiles.Count -lt 1)
 {
     $violations.Add("G1 正对照失效：未找到 Config\nodes\gather\node-gather.ushar（聚拢声明真源缺失 / 扫描面失效）")

@@ -91,6 +91,9 @@
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Node\Check-NodeEdgeIntegrity.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-OrchestrationKernel.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=2）；到期：R1 收尾时改用 Get-GateFiles' }
         @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-SpecExempt.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Node\Check-RelationGather.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Node\Check-UsharpFirst.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
+        @{ Value = 'Frame\PowerShellScript\Operation\DSL\Process\Check-UiSingleEntry.ps1'; Origin = 'Debt'; DueWhen = 'R1 分批迁移中（MaxHits=1）；到期：R1 收尾时改用 Get-GateFiles' }
     )
 }
 

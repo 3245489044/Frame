@@ -434,11 +434,7 @@ function Get-FileDrivenDir {
         [string]$ProjectRoot = ""
     )
 
-    if (-not $ProjectRoot) {
-        $ProjectRoot = Get-ProjectRoot
-    }
-
-    return Join-Path $ProjectRoot "FileDriven"
+    return Get-MappedPath -Key 'FileDriven'
 }
 
 function Get-ScriptModulesDir {
@@ -458,9 +454,5 @@ function Get-ScriptModulesDir {
         [string]$ProjectRoot = ""
     )
 
-    if (-not $ProjectRoot) {
-        $ProjectRoot = Get-ProjectRoot
-    }
-
-    return Join-Path $ProjectRoot "PowerShellScript\Modules"
+    return Get-MappedPath -Key 'Modules'
 }

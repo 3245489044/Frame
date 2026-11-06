@@ -11,10 +11,8 @@ NodeGateCommon.ps1 —— 门禁**公共扫描器/基线库**（§8 门禁框架
   . (Join-Path $PSScriptRoot 'NodeGateCommon.ps1')
 #>
 
-function Get-GateRepoRoot {
-    param([string]$ScriptRoot)
-    return (Resolve-Path (Join-Path $ScriptRoot '..\..\..\..')).Path
-}
+# 根定位/落点解析单源 = 门禁运行时（本文件不再自算固定深度）。
+Import-Module (Join-Path $PSScriptRoot '..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 
 # ---------------- 取数：C# 常量 ----------------
 

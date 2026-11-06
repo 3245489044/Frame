@@ -12,6 +12,9 @@
         Get-FileEncoding -Path "test.txt"
 #>
 
+# 根解析单源 = PScriptManager\Framework\DirectoryMap.ps1
+. (Join-Path $PSScriptRoot '..\..\PScriptManager\Framework\DirectoryMap.ps1')
+
 # ============================================================
 # 模块内部辅助：获取项目根目录
 # ============================================================
@@ -45,42 +48,9 @@ function Get-ProjectRoot {
         return $Script:BasicMethodFileUtils_ProjectRoot
     }
 
-    # ★ 优先委托给 ProjectPaths 模块（如果已加载）
-    $projectPathsModule = Get-Module -Name ProjectPaths -ErrorAction SilentlyContinue
-    if ($projectPathsModule -and (Get-Command -Module ProjectPaths -Name Get-ProjectRoot -ErrorAction SilentlyContinue)) {
-        $root = Get-ProjectRoot -StartPath $PSScriptRoot
-        $Script:BasicMethodFileUtils_ProjectRoot = $root
-        return $root
-    }
-
-    # ★ 自包含实现（作为回退，避免循环依赖）
-    $currentDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
-    $maxDepth = 10
-    $depth = 0
-
-    while ($currentDir -and $depth -lt $maxDepth) {
-        if (Test-Path (Join-Path $currentDir ".git") -PathType Container) {
-            $Script:BasicMethodFileUtils_ProjectRoot = $currentDir
-            return $currentDir
-        }
-        if (Test-Path (Join-Path $currentDir ".gitignore") -PathType Leaf) {
-            $Script:BasicMethodFileUtils_ProjectRoot = $currentDir
-            return $currentDir
-        }
-        $parent = Split-Path $currentDir -Parent
-        if ($parent -eq $currentDir) { break }
-        $currentDir = $parent
-        $depth++
-    }
-
-    # 回退：返回 PowerShellScript 的上级目录
-    $fallback = Resolve-Path "$PSScriptRoot\..\.." -ErrorAction SilentlyContinue
-    if ($fallback) {
-        $Script:BasicMethodFileUtils_ProjectRoot = $fallback.Path
-        return $fallback.Path
-    }
-
-    return $PSScriptRoot
+    $root = Get-SuperRoot -StartPath $PSScriptRoot
+    $Script:BasicMethodFileUtils_ProjectRoot = $root
+    return $root
 }
 
 # ============================================================

@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-06T05:45:22.9325392Z",
+  "builtAt": "2026-11-06T05:52:19.9464249Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -285,10 +285,10 @@
       "kind": "KeyFamily",
       "pattern": "#R",
       "note": "事实 id 前缀",
-      "total": 124,
+      "total": 130,
       "truncated": false,
       "byRole": {
-        "Gate": 2,
+        "Gate": 8,
         "Test": 43,
         "Declaration": 0,
         "Code": 22,
@@ -1137,6 +1137,48 @@
           "text": "#Requires -Version 7.0"
         },
         {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Data/Check-FactStandard.ps1",
+          "line": 12,
+          "role": "Gate",
+          "text": "生产源码的**代码行**不得出现 \"#R\" / \"@\" 轮键拼接串（禁新增键拼接点）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Data/Check-FactStandard.ps1",
+          "line": 117,
+          "role": "Gate",
+          "text": "if ($line -match '\"#R\"' -or $line -match '\"@(\\d|\\{)')"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Data/Check-FactStandard.ps1",
+          "line": 125,
+          "role": "Gate",
+          "text": "$newSamples     = @('default#R1', 'default#R6/cline_execute#1', 'default#R1/cline_execute#1/2/call_00_FJLmIZn')"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Data/Check-FactStandard.ps1",
+          "line": 126,
+          "role": "Gate",
+          "text": "$retiredSamples = @('default@1', 'default#1#1', 'defaultR1', 'conv_1790222300189_vu045ho', 'default#R0')"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Data/Check-FactStandard.ps1",
+          "line": 127,
+          "role": "Gate",
+          "text": "$anyPattern   = '^[A-Za-z0-9_.\\-]+#R[1-9][0-9]*(?:\\/[A-Za-z0-9_.\\-]+#[1-9][0-9]*(?:\\/[1-9][0-9]*\\/[A-Za-z0-9_.\\-]+)?)?$'"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Data/Check-SessionDuplication.ps1",
+          "line": 131,
+          "role": "Gate",
+          "text": "[pscustomobject]@{ Id = 'A3i'; Title = '轮次键字面量·#R（D3；唯一生成器 FactIds.Round）'; Pattern = '\"#R\"'; PathSpec = $agentAll; Repo = 'Projects'; Baseline = 0; Target = 0; Batch = 'C-1'; Kind = 'search' }"
+        },
+        {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/Runtime/AgentInstance.cs",
           "line": 36,
@@ -1465,8 +1507,8 @@
       "total": 400,
       "truncated": true,
       "byRole": {
-        "Gate": 3,
-        "Test": 35,
+        "Gate": 2,
+        "Test": 36,
         "Declaration": 1,
         "Code": 18,
         "Doc": 261,
@@ -2067,13 +2109,6 @@
           "line": 4,
           "role": "Gate",
           "text": "#   [P1] 过程键族字面量 \"proc.\" 只允许出现在 Agent.Contract\\NodeDomain\\ProcessKeys.cs（键文法单源）；"
-        },
-        {
-          "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/KeySpace/Check-KeyDeclSingleSource.ps1",
-          "line": 75,
-          "role": "Gate",
-          "text": "if ('const string P = \"proc.\";' -notmatch $pattern) { $violations.Add('负对照失败：字面量样本未命中') }"
         },
         {
           "repo": "Frame",
@@ -4272,6 +4307,13 @@
           "line": 88,
           "role": "Test",
           "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.task.r2.step37\", out var container, out var round, out var kind, out var ordinal),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
+          "line": 95,
+          "role": "Test",
+          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.a.b.r1.step1\", out var dotted, out _, out _, out _));"
         }
       ]
     },
@@ -4280,10 +4322,10 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 174,
+      "total": 176,
       "truncated": false,
       "byRole": {
-        "Gate": 7,
+        "Gate": 9,
         "Test": 5,
         "Declaration": 9,
         "Code": 87,
@@ -5139,6 +5181,20 @@
           "text": "Assert.AreEqual(\"relations.wf1.rel1\", NodeStoreKeyGrammars.BuildRelation(\"wf1\", \"rel1\"));"
         },
         {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Data/Check-RelationGraphParity.ps1",
+          "line": 64,
+          "role": "Gate",
+          "text": "foreach ($name in $relations.Keys) {"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Data/Check-RelationGraphParity.ps1",
+          "line": 86,
+          "role": "Gate",
+          "text": "if (-not $relations.Contains($operation)) {"
+        },
+        {
           "repo": "Projects",
           "file": "Information/datas/timershaft/lara-matrix.ushar",
           "line": 415,
@@ -5231,14 +5287,14 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
+          "file": "Plug/Agent/Config/keyspaces/agent/agent.keyspace.ushar",
           "line": 119,
           "role": "Declaration",
           "text": "family graph.declaration | template=relations.{workflowId}.{relationId} | prefix=relations. | relation=Member | cardinality=Many | orderKeys= | identity= | derivedPrefixes="
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
+          "file": "Plug/Agent/Config/keyspaces/agent/agent.keyspace.ushar",
           "line": 120,
           "role": "Declaration",
           "text": "surface graph.declaration/Storage | templates=relations.{workflowId}.{relationId} | prefix=relations. | readOnly="
@@ -5519,11 +5575,11 @@
       "total": 400,
       "truncated": true,
       "byRole": {
-        "Gate": 3,
+        "Gate": 2,
         "Test": 0,
         "Declaration": 11,
         "Code": 156,
-        "Doc": 227,
+        "Doc": 228,
         "Other": 3
       },
       "hits": [
@@ -6936,13 +6992,6 @@
         },
         {
           "repo": "Frame",
-          "file": "PowerShellScript/Operation/DSL/KeySpace/Check-KeyOpsClosedSet.ps1",
-          "line": 122,
-          "role": "Gate",
-          "text": "$probe2 = 'var q = $\"session.{session}.r{round}.\";'"
-        },
-        {
-          "repo": "Frame",
           "file": "PowerShellScript/Share/Data/Invoke-GraphDoctor.ps1",
           "line": 60,
           "role": "Other",
@@ -8326,6 +8375,13 @@
           "line": 53,
           "role": "Doc",
           "text": "- **旧行观察期口径**：**读侧前缀包容**（示范 = `AgentUiLibraryHistoryOps.NextMessageSeqAsync`：前缀收窄到 `session.{s}.r{r}.`，取**末段**数值 ⇒ 新旧形态同治）；`SessionMessageKeys` 的 legacy 模板供键反解容错"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
+          "line": 167,
+          "role": "Doc",
+          "text": "| **S1** | **D2 的\"退役 `session-message`\"必须从 W2-A 推迟到 W4** | `RoundMessageSettlement.SettleAsync` 仍经 `HistoryMaterializeService.ForMessages(framework)` 物化 `session.{container}.r{round}.msg.{seq}`（`proje"
         }
       ]
     },
@@ -10846,14 +10902,14 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/agent.keyspace.ushar",
+          "file": "Plug/Agent/Config/keyspaces/agent/agent.keyspace.ushar",
           "line": 99,
           "role": "Declaration",
           "text": "axis domain.process/kind | shape=text | required=False | allowed=stage,endpoint,llm-call,tool,cost,workflow-plan,workflow-step,llm-iteration,llm-text,llm-output,llm-reasoning,tool-call,tool-progress,t"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/contract-consts.ushar",
+          "file": "Plug/Agent/Config/keyspaces/contract/contract-consts.ushar",
           "line": 226,
           "role": "Declaration",
           "text": "ToolCall = \"tool-call\""
@@ -10902,119 +10958,119 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 12,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 31,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 55,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 66,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 78,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc | role=call"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 97,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 109,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc | role=call"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 132,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 146,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 161,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 207,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 218,
           "role": "Declaration",
           "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/node-gather.ushar",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 319,
           "role": "Declaration",
           "text": "family tools = tool, tool-call, tool-progress, tool-result"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/observability.ushar",
+          "file": "Plug/Agent/Config/nodes/observability/observability.ushar",
           "line": 14,
           "role": "Declaration",
           "text": "tools = kind in (tool;tool-call;tool-progress;tool-result)"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/process.ushar",
+          "file": "Plug/Agent/Config/nodes/task/process.ushar",
           "line": 14,
           "role": "Declaration",
           "text": "tools = kind in (tool;tool-call;tool-progress;tool-result)"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/task-node.ushar",
+          "file": "Plug/Agent/Config/nodes/task/task-node.ushar",
           "line": 36,
           "role": "Declaration",
           "text": "role.tool-call = 6"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/task-node.ushar",
+          "file": "Plug/Agent/Config/nodes/task/task-node.ushar",
           "line": 61,
           "role": "Declaration",
           "text": "owns-tool = \"role.tool-call\""
@@ -11333,126 +11389,126 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 29,
           "role": "Declaration",
           "text": "agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 33,
           "role": "Declaration",
           "text": "agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 53,
           "role": "Declaration",
           "text": "archive_node = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 54,
           "role": "Declaration",
           "text": "archive_raw = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 55,
           "role": "Declaration",
           "text": "archive_raw_legacy = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 56,
           "role": "Declaration",
           "text": "legacy_history = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 57,
           "role": "Declaration",
           "text": "observability_node = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 58,
           "role": "Declaration",
           "text": "process_node = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 59,
           "role": "Declaration",
           "text": "raw_node = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 60,
           "role": "Declaration",
           "text": "resource_node = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 61,
           "role": "Declaration",
           "text": "segment_context = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 62,
           "role": "Declaration",
           "text": "segment_node = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 63,
           "role": "Declaration",
           "text": "segment_stream_node = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 64,
           "role": "Declaration",
           "text": "session_message = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 65,
           "role": "Declaration",
           "text": "session_message_node = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 66,
           "role": "Declaration",
           "text": "session_view = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 67,
           "role": "Declaration",
           "text": "session_view_node = agent_round"
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/placement.ushar",
+          "file": "Plug/Agent/Config/nodes/foundation/placement.ushar",
           "line": 68,
           "role": "Declaration",
           "text": "task_node = agent_round"
@@ -11460,14 +11516,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/WorkflowFunction/GeneratedDeclaredContracts.g.cs",
-          "line": 455,
+          "line": 459,
           "role": "Code",
           "text": "[\"Loc\"] = [\"agent_round\"],"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/WorkflowFunction/GeneratedDeclaredContracts.g.cs",
-          "line": 456,
+          "line": 460,
           "role": "Code",
           "text": "[\"LocPlacement\"] = [\"agent_round\", \"archive_node\", \"archive_raw\", \"archive_raw_legacy\", \"legacy_history\", \"observability_node\", \"process_node\", \"raw_node\", \"resource_node\", \"segment_context\", \"segment"
         }
@@ -11729,14 +11785,14 @@
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/keyspaces/contract-consts.ushar",
+          "file": "Plug/Agent/Config/keyspaces/contract/contract-consts.ushar",
           "line": 202,
           "role": "Declaration",
           "text": "PlacementId = \"process-node\""
         },
         {
           "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/process.ushar",
+          "file": "Plug/Agent/Config/nodes/task/process.ushar",
           "line": 10,
           "role": "Declaration",
           "text": "id=process-node | level=node | carrier=sql-nodes-process | key=proc.{container} | form=stream | retention=presentational | selection=all | writer=writer-process | record-type=event | thread-coordinate"
@@ -11781,13 +11837,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1656.0,
+    "hitCount": 1664.0,
     "byRole": {
-      "Gate": 32,
-      "Test": 192,
+      "Gate": 38,
+      "Test": 193,
       "Declaration": 104,
       "Code": 341,
-      "Doc": 891,
+      "Doc": 892,
       "Other": 96
     },
     "truncatedFacts": [
@@ -11798,7 +11854,7 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 468
+        "lines": 466
       },
       {
         "repo": "Projects",
@@ -11806,7 +11862,7 @@
       },
       {
         "repo": "Main",
-        "lines": 1364
+        "lines": 1381
       }
     ]
   }

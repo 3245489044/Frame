@@ -1,0 +1,118 @@
+# Check-GenerationLayout.ps1
+# VM-R1 · 代目录布局守卫 —— 校验 <GenRoot>\gen-<n> 的产物契约（对齐
+# Docs\analysis\2026\10\10.8\2026-10-09-Vm框架-换代路线收敛-构建到新目录-换ALC-重装配.md §4.1/§8-1/§8-2）。
+#
+# 代目录**按需存在**（B′ · 2026-10-14）：无代 = **就地态**（默认/冷启动），属正常，不判失败；
+#   有代则须合规（逐代目录判据如下）。
+#
+# 判据（逐代目录）：
+#   [L1] 目录名格式 gen-<n>（n ≥ 1）
+#   [L2] 含 Agent.*.dll，且计数 ≥ 就地产物面参照计数（覆盖同一集合）
+#   [L3] 含 Agent.Launcher.deps.json（AssemblyDependencyResolver 基座 = 本目录）
+#   [L4] 含 vm-program.json（VM 清单）
+#   [L5] current 指针（存在时）须指向合法 gen-<n> 且该代目录在位（热更新态生效代单源；缺指针 = 该模式回落最高代）
+#   [L6] 含 CsharpPrj 核心域闭包（Share.HostAssembly / Share.Conversation / Plate.HtmlViewer / WorkFlowMethod）——
+#        热更新态默认 ALC 共享面运行期来源 = 生效代目录（与 Agent.* 同批）；缺件 ⇒ 共享面回落构建期目录，与 Agent.* 混载风险
+# 说明：落点**禁** BuildOutput\<Config>（被运行进程锁定）；本脚本只读校验，不构建。
+#
+#   - 报告模式（默认）：列出各代目录事实与命中，不设退出码。
+#   - 校验模式（-Check）：违规 > 0 → 退出码 1（CI 门禁）。无代（就地态）不违规。
+#
+# 用法：pwsh Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-GenerationLayout.ps1 [-Root <repo>] [-GenRoot <path>] [-Check]
+
+[CmdletBinding()]
+param(
+    [string]$Root = '',
+    [string]$GenRoot = '',
+    [switch]$Check
+)
+
+$ErrorActionPreference = 'Stop'
+
+# 门禁运行时（根定位/落点/裁决单源；向上查找仓库超根，与目录分层解耦）
+$GateRuntimeRoot = $PSScriptRoot
+while ($GateRuntimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $GateRuntimeRoot 'Projects')))) { $GateRuntimeRoot = Split-Path -Parent $GateRuntimeRoot }
+if (-not $GateRuntimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+
+# 上下文/裁决（根定位 + 违规清单 + 统一出口）
+$ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Key 'GenerationLayout'
+$Root = $ctx.Root
+$agentRoot = Join-Path $Root 'Projects\Plug\Agent'
+$inPlace = Join-Path $agentRoot 'BuildOutput\Debug'
+if ([string]::IsNullOrWhiteSpace($GenRoot)) {
+    $GenRoot = Join-Path $agentRoot 'BuildOutput\Generations'
+}
+
+$referenceCount = 0
+if (Test-Path $inPlace) {
+    $referenceCount = @(Get-ChildItem $inPlace -Filter 'Agent.*.dll' -File -ErrorAction SilentlyContinue).Count
+}
+
+# [L6] CsharpPrj 核心域闭包关键件（B · 统一装载面：默认 ALC 共享面运行期来源 = 生效代目录）
+$coreProbe = @('Share.HostAssembly.dll', 'Share.Conversation.dll', 'Plate.HtmlViewer.dll', 'WorkFlowMethod.dll')
+
+$violations = $ctx.Violations
+$gens = @()
+
+Write-Host '=== [VM-R1] 代目录布局契约（gen-<n> 产物面） ==='
+Write-Host ("代根: {0}" -f $GenRoot)
+Write-Host ("就地参照: Agent dll {0} 件（{1}）" -f $referenceCount, $inPlace)
+
+# B′（2026-10-14）：代目录**按需存在** —— 无代 = 就地态（默认/冷启动），属正常，不再判失败。
+if (-not (Test-Path $GenRoot)) {
+    Write-Host '[INFO] 代根不存在 —— 就地态（默认/冷启动）：非运行期 dotnet build 即生效，无代属正常（PASS）。'
+    exit 0
+}
+
+$dirs = @(Get-ChildItem $GenRoot -Directory -ErrorAction SilentlyContinue | Sort-Object Name)
+if ($dirs.Count -eq 0) {
+    Write-Host '[INFO] 代根为空 —— 就地态（默认/冷启动），无代属正常（PASS）。'
+    exit 0
+}
+
+foreach ($dir in $dirs) {
+    if ($dir.Name -notmatch '^gen-([1-9]\d*)$') {
+        $violations.Add(("[L1] 目录名非 gen-<n>：{0}" -f $dir.Name))
+        continue
+    }
+
+    $dlls = @(Get-ChildItem $dir.FullName -Filter 'Agent.*.dll' -File -ErrorAction SilentlyContinue)
+    $hasDeps = Test-Path (Join-Path $dir.FullName 'Agent.Launcher.deps.json')
+    $hasManifest = Test-Path (Join-Path $dir.FullName 'vm-program.json')
+    $coreMissing = @($coreProbe | Where-Object { -not (Test-Path (Join-Path $dir.FullName $_)) })
+
+    $gens += [pscustomobject]@{ Gen = $dir.Name; Dlls = $dlls.Count; Deps = $hasDeps; Manifest = $hasManifest; CoreMissing = $coreMissing.Count }
+
+    if ($dlls.Count -eq 0) { $violations.Add(("[L2] {0}：无 Agent.*.dll" -f $dir.Name)) }
+    elseif ($referenceCount -gt 0 -and $dlls.Count -lt $referenceCount) {
+        $violations.Add(("[L2] {0}：Agent dll 计数 {1} < 参照 {2}" -f $dir.Name, $dlls.Count, $referenceCount))
+    }
+    if (-not $hasDeps)     { $violations.Add(("[L3] {0}：缺 Agent.Launcher.deps.json" -f $dir.Name)) }
+    if (-not $hasManifest) { $violations.Add(("[L4] {0}：缺 vm-program.json" -f $dir.Name)) }
+    if ($coreMissing.Count -gt 0) {
+        $violations.Add(("[L6] {0}：缺 CsharpPrj 核心域闭包（{1}）——共享面将回落构建期目录，与 Agent.* 混载风险" -f $dir.Name, ($coreMissing -join ', ')))
+    }
+}
+
+foreach ($g in $gens) {
+    Write-Host ("  {0}: Agent dll {1} | deps {2} | manifest {3} | 核心域缺件 {4}" -f $g.Gen, $g.Dlls, $g.Deps, $g.Manifest, $g.CoreMissing)
+}
+
+# [L5] 生效代指针（V1 单源）：存在则须指向合法 gen-<n> 且该代目录在位。
+$pointerPath = Join-Path $GenRoot 'current'
+if (Test-Path -LiteralPath $pointerPath) {
+    $pointerName = (Get-Content -LiteralPath $pointerPath -Raw -ErrorAction SilentlyContinue).Trim()
+    if ($pointerName -notmatch '^gen-[1-9]\d*$') {
+        $violations.Add(("[L5] current 指针内容非法：'{0}'（应形如 gen-<n>）" -f $pointerName))
+    } elseif (-not (Test-Path -LiteralPath (Join-Path $GenRoot $pointerName))) {
+        $violations.Add(("[L5] current 指针指向不存在代目录：{0}" -f $pointerName))
+    } else {
+        Write-Host ("  current 指针: {0}" -f $pointerName)
+    }
+} else {
+    Write-Host '  current 指针: (缺 —— 装载面回落「最高代」枚举；建议经 Build-AgentGeneration.ps1 产出以固化生效代)'
+}
+
+Write-Host ("代目录数: {0} | 违规命中: {1}" -f $gens.Count, $violations.Count)
+Write-GateVerdict -Violations $violations -Check:$Check -Key 'GenerationLayout'

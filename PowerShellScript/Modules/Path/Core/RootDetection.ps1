@@ -20,6 +20,9 @@
     标记目录：.git
 #>
 
+# 根解析单源 = PScriptManager\Framework\DirectoryMap.ps1
+. (Join-Path $PSScriptRoot '..\..\..\PScriptManager\Framework\DirectoryMap.ps1')
+
 $script:RD_CachedProjectRoot = $null
 
 $script:RD_MarkerDirs = @(
@@ -55,46 +58,11 @@ function Get-ProjectRoot {
     }
 
     if (-not $StartPath) {
-        $callStack = Get-PSCallStack
-        if ($callStack.Count -ge 2) {
-            $callerScript = $callStack[1].ScriptName
-            if ($callerScript) {
-                $StartPath = Split-Path -Parent $callerScript
-            }
-        }
-    }
-
-    if (-not $StartPath) {
         $StartPath = $PSScriptRoot
     }
 
-    $current = $StartPath
-    while ($current) {
-        foreach ($marker in $script:RD_MarkerDirs) {
-            if (Test-Path (Join-Path $current $marker)) {
-                $script:RD_CachedProjectRoot = $current
-                return $current
-            }
-        }
-
-        $parent = Split-Path $current -Parent
-        if ($parent -eq $current) { break }
-        $current = $parent
-    }
-
-    $fallback = $PSScriptRoot
-    for ($i = 0; $i -lt 10; $i++) {
-        $fallback = Split-Path $fallback -Parent
-        foreach ($marker in $script:RD_MarkerDirs) {
-            if (Test-Path (Join-Path $fallback $marker)) {
-                $script:RD_CachedProjectRoot = $fallback
-                return $fallback
-            }
-        }
-        if ($fallback -eq (Split-Path $fallback -Parent)) { break }
-    }
-    $script:RD_CachedProjectRoot = $fallback
-    return $fallback
+    $script:RD_CachedProjectRoot = Get-SuperRoot -StartPath $StartPath
+    return $script:RD_CachedProjectRoot
 }
 
 function Reset-ProjectRootCache {

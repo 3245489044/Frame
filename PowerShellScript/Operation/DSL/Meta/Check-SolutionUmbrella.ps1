@@ -47,7 +47,7 @@ while ($runtimeRoot -and -not ((Test-Path -LiteralPath (Join-Path $runtimeRoot '
 }
 if (-not $runtimeRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
 Import-Module (Join-Path $runtimeRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
-Import-Module (Join-Path $runtimeRoot 'Frame\PowerShellScript\Share\Solution\ModulePaths.Common.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path (Get-MappedPath -Key 'PowerShellScript') 'Share\Solution\ModulePaths.Common.psm1') -Force -DisableNameChecking
 
 $ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Check:$Check -Detail:$ShowDetail -Key 'SolutionUmbrella'
 $Root = $ctx.Root
@@ -58,7 +58,7 @@ Write-Host '============================================================'
 Write-Host '  伞工程解决方案守卫（SolutionUmbrella）'
 Write-Host '============================================================'
 
-$csharpPrj = Join-Path $Root 'Frame\CsharpPrj'
+$csharpPrj = Join-Path (Get-MappedPath -Key 'Frame') 'CsharpPrj'
 $manifestPath = Join-Path $csharpPrj 'modules.json'
 if ([string]::IsNullOrWhiteSpace($SolutionPath)) { $SolutionPath = Join-Path $csharpPrj 'MainProj.sln' }
 

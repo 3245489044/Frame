@@ -18,6 +18,9 @@
         Import-ModuleByPath -ModulePath ".\MyModule.psm1"
 #>
 
+# 根解析单源 = PScriptManager\Framework\DirectoryMap.ps1
+. (Join-Path $PSScriptRoot '..\..\PScriptManager\Framework\DirectoryMap.ps1')
+
 # ============================================================
 # 权限检测
 # ============================================================
@@ -163,10 +166,9 @@ function Get-ProjectRoot {
     .SYNOPSIS
         从任意脚本路径推导项目根目录
     .DESCRIPTION
-        从脚本所在目录向上回溯两层（Build/ → PowerShellScript/ → 项目根），
-        兼容通过 PScriptManager 调用时 $PSScriptRoot 为空的情况。
+        委托目录映射框架的超根解析（与目录深度无关）。
     .PARAMETER Path
-        脚本文件路径（可选，默认使用调用者路径）
+        起始路径（可选，默认使用调用者路径）
     .OUTPUTS
         [string] 项目根目录绝对路径
     .EXAMPLE
@@ -180,7 +182,7 @@ function Get-ProjectRoot {
     if (-not $Path) {
         $Path = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
     }
-    return Resolve-Path (Join-Path $Path "..\..")
+    return Get-SuperRoot -StartPath $Path
 }
 
 # ============================================================

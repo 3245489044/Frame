@@ -21,6 +21,12 @@
 #>
 
 # ============================================
+#  根/落点解析单源 = PScriptManager\Framework\DirectoryMap.ps1
+# ============================================
+
+. (Join-Path $PSScriptRoot '..\..\PScriptManager\Framework\DirectoryMap.ps1')
+
+# ============================================
 #  内部常量
 # ============================================
 
@@ -57,25 +63,9 @@ $script:RPC_CsharpRoot = ''
 function Get-CanonicalRepoRoot {
     <#
     .SYNOPSIS
-        返回当前仓库根（Main）——含 Projects\ 与 Frame\ 的目录。CWD 无关，无固定层数魔法数。
+        返回当前仓库根（Main）——委托目录映射框架的超根解析（与目录深度无关）。
     #>
-    $d = $PSScriptRoot          # ...\Frame\PowerShellScript\Modules\Core
-    while ($d) {
-        if ((Test-Path (Join-Path $d 'Projects')) -and (Test-Path (Join-Path $d 'Frame'))) {
-            return $d
-        }
-        $p = Split-Path $d -Parent
-        if ($p -eq $d -or -not $p) { break }
-        $d = $p
-    }
-    # 回退：Modules\Core 上移 4 级到 Main
-    $fallback = $PSScriptRoot
-    for ($i = 0; $i -lt 6; $i++) {
-        $parent = Split-Path $fallback -Parent
-        if (-not $parent) { break }
-        $fallback = $parent
-    }
-    return $fallback
+    return Get-SuperRoot -StartPath $PSScriptRoot
 }
 
 $script:RPC_RepoRoot       = Get-CanonicalRepoRoot
@@ -125,27 +115,10 @@ function Get-ProjectRoot {
         return $script:RPC_CachedProjectRoot
     }
 
-    # 默认根 = 新拓扑仓库根 Main（含 Projects\ 与 Frame\，消除了 .git 子模块歧义）
-    if (-not $StartPath) {
-        $script:RPC_CachedProjectRoot = $script:RPC_RepoRoot
-        return $script:RPC_CachedProjectRoot
-    }
-
-    # 显式起始路径：向上找到含 Projects\ 与 Frame\ 的目录（即 Main 仓库根）
-    $current = $StartPath
-    while ($current) {
-        if ((Test-Path (Join-Path $current 'Projects')) -and (Test-Path (Join-Path $current 'Frame'))) {
-            $script:RPC_CachedProjectRoot = $current
-            return $current
-        }
-        $parent = Split-Path $current -Parent
-        if ($parent -eq $current -or -not $parent) { break }
-        $current = $parent
-    }
-
-    # 未能命中仓库根：原样返回起始路径（保留调用方自定义根语义）
-    $script:RPC_CachedProjectRoot = $StartPath
-    return $StartPath
+    # 根解析单源：显式起始路径按 marker 上溯；缺省 = 本文件位置的超根。
+    $start = if ($StartPath) { $StartPath } else { $PSScriptRoot }
+    $script:RPC_CachedProjectRoot = Get-SuperRoot -StartPath $start
+    return $script:RPC_CachedProjectRoot
 }
 
 function Reset-ProjectRootCache {
@@ -572,8 +545,8 @@ function Get-FileDrivenDir {
         $ProjectRoot = Get-ProjectRoot
     }
 
-    # ★ 新拓扑单一真源：FileDriven 固定位于 Main\Projects\FileDriven
-    return $script:RPC_FileDrivenRoot
+    # ★ 落点单源：FileDriven 固定位于 Main\Projects\FileDriven（directory-map 键 FileDriven）
+    return Get-MappedPath -Key 'FileDriven'
 }
 
 function Get-ScriptModulesDir {
@@ -600,5 +573,5 @@ function Get-ScriptModulesDir {
         $ProjectRoot = Get-ProjectRoot
     }
 
-    return Join-Path $script:RPC_FrameRoot "PowerShellScript\Modules"
+    return Get-MappedPath -Key 'Modules'
 }

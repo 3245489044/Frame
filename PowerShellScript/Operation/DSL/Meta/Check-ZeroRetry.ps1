@@ -40,21 +40,21 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# ---- 路径定位（禁硬编码绝对路径）----
+# ---- 路径定位（深度无关；GateRuntime → DirectoryMap 单源）----
+$__repoRoot = $PSScriptRoot
+while ($__repoRoot -and -not ((Test-Path -LiteralPath (Join-Path $__repoRoot 'Frame')) -and (Test-Path -LiteralPath (Join-Path $__repoRoot 'Projects'))) { $__repoRoot = Split-Path -Parent $__repoRoot }
+if (-not $__repoRoot) { throw '仓库超根定位失败（未命中同时含 Frame\ 与 Projects\ 的目录）' }
+Import-Module (Join-Path $__repoRoot 'Frame\PowerShellScript\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
 if ([string]::IsNullOrWhiteSpace($Root)) {
-    $cur = $PSScriptRoot
-    while ($cur -and $cur -ne (Split-Path $cur -Parent)) {
-        if ((Test-Path (Join-Path $cur 'Frame')) -and (Test-Path (Join-Path $cur 'Projects'))) { break }
-        $cur = Split-Path $cur -Parent
-    }
-    $Root = $cur
+    $ctx = New-GateContext -ScriptRoot $PSScriptRoot -Root $Root -Key 'ZeroRetry'
+    $Root = $ctx.Root
 }
 if ([string]::IsNullOrWhiteSpace($BaselinePath)) {
-    $BaselinePath = Join-Path $PSScriptRoot '..\Registry\zero-retry-baseline.json'
+    $BaselinePath = Join-Path (Get-MappedPath -Key 'GateRegistry') 'zero-retry-baseline.json'
 }
 
-$agentRoot = Join-Path $Root 'Projects\Plug\Agent\src'
-$frameRoot = Join-Path $Root 'Frame\CsharpPrj'
+$agentRoot = Get-MappedPath -Key 'AgentSrc'
+$frameRoot = Join-Path (Get-MappedPath -Key 'Frame') 'CsharpPrj'
 $scanRoots = @()
 if (Test-Path -LiteralPath $agentRoot) { $scanRoots += (Resolve-Path -LiteralPath $agentRoot).Path }
 if (Test-Path -LiteralPath $frameRoot) { $scanRoots += (Resolve-Path -LiteralPath $frameRoot).Path }

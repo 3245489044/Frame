@@ -466,6 +466,10 @@ public static class SurfaceResolver
         var layers = new List<ResolvedLayer>(resolution.Layers.Count);
         foreach (var layer in resolution.Layers)
         {
+            // 全透明层（#RRGGBB00）在解析期剔除，不进入渲染栈：它本来就不可见，
+            // 但 GDI+ 抗锯齿仍会在圆角边缘留下 1 通道级的合成残差。剔除后
+            // 「某档把 token 置为全透明」= 该档像素与没有此层时逐像素一致（深档等价判据）。
+            if (IsInvisible(layer)) continue;
             layers.Add(new ResolvedLayer(layer.Role, layer.Primitive, layer.Z, layer.Params));
         }
 
@@ -482,6 +486,13 @@ public static class SurfaceResolver
         return new ResolvedMaterial(slot, materialId, resolution.FallbackUsed, layers, issues)
             with { FallbackStep = step };
     }
+
+    /// <summary>层不可见 = 主色 alpha 为 00（只识别 <c>#RRGGBBAA</c> 的完全透明，其余原样保留）。</summary>
+    private static bool IsInvisible(Modules.CapabilityResolution.ResolvedLayer layer)
+        => layer.Params.TryGetValue("value", out var value)
+           && value.Length == 9
+           && value[0] == '#'
+           && string.Equals(value.Substring(7, 2), "00", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>层栈是否含可承载的实心面（fill/gradient）。</summary>
     private static bool HasFill(System.Collections.Generic.IReadOnlyList<Modules.CapabilityResolution.ResolvedLayer> layers)

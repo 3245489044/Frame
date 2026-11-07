@@ -62,6 +62,116 @@ public sealed class SurfaceRenderPipeline
     public bool IsRegistered(string carrierId)
         => !string.IsNullOrEmpty(carrierId) && _factories.ContainsKey(carrierId);
 
+    /// <summary>家族是否已登记（单一实现；调用方免直连 <c>ProjectionRegistry</c> 类型）。</summary>
+    /// <param name="family">家族键。</param>
+    public bool IsFamilyRegistered(string family)
+        => !string.IsNullOrEmpty(family) && Registry.CarrierIds.Contains(family);
+
+    /// <summary>
+    /// 载体注册表（**家族注册面**）：非页面家族（scene 等）在此外登记并自取，
+    /// 与 <see cref="Register"/> 的工厂表并存但互不替代（禁另起注册面）。
+    /// </summary>
+    public ProjectionRegistry Registry { get; } = new();
+
+    /// <summary>
+    /// 按既有计划投影（家族路径）：复用**同一个** <see cref="ProjectionHost"/> 实例，
+    /// 纯新增，不重建宿主、不改既有重载语义。
+    /// </summary>
+    /// <param name="carrier">已解析的载体（通常取自 <see cref="Registry"/>）。</param>
+    /// <param name="plan">已合成的渲染计划（调用方负责合成/折叠）。</param>
+    /// <param name="family">家族名（进投影上下文；空 ⇒ surface）。</param>
+    /// <param name="foldViewKey">折叠视图键（仅入上下文供下游诊断；折叠已在计划内完成）。</param>
+    public SurfacePipelineResult Render(
+        IProjectionCarrier<RenderPlan, object> carrier,
+        RenderPlan plan,
+        string family,
+        string? foldViewKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(carrier);
+        ArgumentNullException.ThrowIfNull(plan);
+
+        var failures = new List<string>();
+        var familyName = string.IsNullOrWhiteSpace(family) ? "surface" : family;
+        var parameters = foldViewKey is { Length: > 0 }
+            ? new Dictionary<string, string?>(StringComparer.Ordinal) { ["foldViewKey"] = foldViewKey }
+            : null;
+
+        var projectionPlan = new ProjectionPlan(
+            familyName,
+            new[] { new ProjectionStepSpec("compose", typeof(RenderPlan), typeof(RenderPlan)) },
+            carrier.CarrierId);
+        var context = new ProjectionContext(familyName, carrier.CarrierId, parameters);
+        var result = _host.Project(
+            plan,
+            projectionPlan,
+            context,
+            new PassThroughStep(),
+            carrier);
+
+        foreach (var diagnostic in result.Diagnostics)
+        {
+            failures.Add(diagnostic.Detail is { Length: > 0 } detail
+                ? $"{diagnostic.Code}:{detail}"
+                : diagnostic.Code);
+        }
+
+        foreach (var unsupported in result.Unsupported)
+        {
+            failures.Add($"unsupported:{unsupported.Slot}:{unsupported.Reason}");
+        }
+
+        var artifact = result.Artifact;
+        if (artifact is null) failures.Add($"{ArtifactNullCode}:{carrier.CarrierId}");
+        return new SurfacePipelineResult(plan, carrier.CarrierId, artifact, failures);
+    }
+
+    /// <summary>
+    /// 家族注册（载体由内核创建）：非 C# 契约侧的家族只提供**纯投影委托**，
+    /// 不必引用投影内核类型；注册面仍是 <see cref="Registry"/>（禁另起）。
+    /// </summary>
+    /// <param name="family">家族键（= 载体 id）。</param>
+    /// <param name="projector">计划 → 产物（纯函数；null 产物按空态）。</param>
+    public SurfaceRenderPipeline RegisterFamily(string family, Func<RenderPlan, object?> projector)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(family);
+        ArgumentNullException.ThrowIfNull(projector);
+        Registry.Register<RenderPlan, object>(new DelegateCarrier(family, projector));
+        return this;
+    }
+
+    /// <summary>家族投影（从 <see cref="Registry"/> 取载体，走同一宿主）；未登记 ⇒ null。</summary>
+    /// <param name="family">家族键。</param>
+    /// <param name="plan">已合成计划。</param>
+    /// <param name="foldViewKey">折叠视图键（仅入上下文）。</param>
+    public SurfacePipelineResult? RenderFamily(
+        string family, RenderPlan plan, string? foldViewKey = null)
+    {
+        if (!Registry.TryGet<RenderPlan, object>(family, out var carrier) || carrier is null) return null;
+        return Render(carrier, plan, family, foldViewKey);
+    }
+
+    /// <summary>委托载体（内核侧实现 <see cref="IProjectionCarrier{TPlan,TArtifact}"/>）。</summary>
+    private sealed class DelegateCarrier : IProjectionCarrier<RenderPlan, object>
+    {
+        private readonly Func<RenderPlan, object?> _projector;
+
+        internal DelegateCarrier(string carrierId, Func<RenderPlan, object?> projector)
+        {
+            CarrierId = carrierId;
+            _projector = projector;
+        }
+
+        public string CarrierId { get; }
+
+        public ProjectionResult<object> Project(RenderPlan plan, ProjectionContext context)
+        {
+            var artifact = _projector(plan);
+            return artifact is null
+                ? ProjectionResult<object>.Empty(new object())
+                : ProjectionResult<object>.Ok(artifact);
+        }
+    }
+
     /// <summary>仅合成计划（不投影；供门禁/对拍复用同一 compose 实现）。</summary>
     /// <param name="items">渲染项（源序）。</param>
     /// <param name="policy">帧语义策略（可空）。</param>

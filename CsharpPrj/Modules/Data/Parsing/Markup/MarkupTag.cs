@@ -13,6 +13,7 @@ public static class MarkupTag
     /// <param name="attrs">属性批（null ⇒ 无属性）。</param>
     /// <param name="inner">已渲染内容片段。</param>
     /// <param name="dialect">方言；null ⇒ <paramref name="attrs"/> 的方言或 HTML 预置。</param>
+    [Obsolete("内容位请改用 UiMarkup 重载（空内容用 UiMarkup.Empty）", error: false)]
     public static string Element(string tag, MarkupAttrBatch? attrs, string? inner, MarkupDialect? dialect = null)
     {
         var d = dialect ?? attrs?.Dialect ?? MarkupDialects.Html;

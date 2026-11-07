@@ -137,7 +137,12 @@ public static class SkinDecorator
         state.RefreshTimer?.Stop();
         state.RefreshTimer?.Dispose();
         state.RefreshTimer = null;
+        state.Cache?.Dispose();
         state.Cache = null;
+        state.CacheKey = null;
+        state.BackdropVersion = 0;
+        state.CacheBackdropVersion = 0;
+        state.LastBackdropTick = 0;
         state.Material = null;
         state.MaterialKey = null;
         state.Pinned = null;
@@ -188,28 +193,45 @@ public static class SkinDecorator
         var bounds = new Rectangle(Point.Empty, control.ClientSize);
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
+        var paintBegin = SkinRenderProfile.Begin();
         try
         {
-            // 冻结态（探针/诊断）优先：实际绘制与期望拟合必须吃同一份 light/backdrop，否则像素断言假红。
-            var light = state.Pinned is { } pinned
-                ? pinned.Light
-                : HasBackdrop(material) ? ResolveLight(control) : (SurfaceLightState?)null;
-            var backdropVersion = state.Pinned?.BackdropVersion ?? 0;
-            var key = CacheKey(material, bounds, control.DeviceDpi, light, backdropVersion);
-            if (state.Cache is null || state.CacheKey != key)
-            {
-                state.Cache?.Dispose();
-                state.Cache = Render(material, bounds, control, state, light);
-                state.CacheKey = key;
-            }
+            // 静态/动态拆分：backdrop+fill+edge 只随「分钟光 + 背后快照」变化，缓存成底图；
+            // 只有 specular 随秒级时间/光标变化，逐帧重画（一次渐变填充，成本恒定）。
+            var pinned = state.Pinned;
+            var baseLight = pinned is { } frozen
+                ? frozen.Light
+                : HasBackdrop(material) ? ResolveBaseLight() : (SurfaceLightState?)null;
+            var now = Environment.TickCount64;
+            var backdropDue = pinned is null && HasBackdrop(material)
+                && (state.Cache is null || now - state.LastBackdropTick >= BackdropRefreshMs);
+            var backdropVersion = pinned?.BackdropVersion ?? state.BackdropVersion;
+            var key = CacheKey(material, bounds, control.DeviceDpi, baseLight, backdropVersion);
+            var hit = state.Cache is not null
+                      && !backdropDue
+                      && string.Equals(state.CacheKey, key, StringComparison.Ordinal);
+            if (!hit) RebuildBase(control, material, bounds, state, pinned, baseLight);
 
             if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
+
+            var light = pinned is { } frozenLight
+                ? frozenLight.Light
+                : HasBackdrop(material) ? ResolveLight(control) : (SurfaceLightState?)null;
+            var dynamicSkipped = SkinPaintEngine.PaintDynamic(e.Graphics, bounds, material, light);
+            if (dynamicSkipped.Count > 0)
+            {
+                SkinDiagnostics.RecordPaint(dynamicSkipped);
+                FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", dynamicSkipped) });
+            }
+
+            SkinRenderProfile.RecordPaint(paintBegin, hit);
             state.PaintVersion++;
         }
         catch (Exception ex)
         {
             // 绘制失败必须可见（带堆栈），且不得把异常抛回 UI 线程中断整棵重绘。
             state.PaintFailures++;
+            SkinRenderProfile.RecordFailure();
             FrontEndDrivenLog.Log("SkinDecorator_paint_failed", new
             {
                 type = control.GetType().Name,
@@ -219,28 +241,60 @@ public static class SkinDecorator
         }
     }
 
-    private static Bitmap Render(
-        ResolvedMaterial material, Rectangle bounds, Control control, SkinState state, SurfaceLightState? light)
+    /// <summary>重建静态底图：backdrop（快照+模糊）+ fill + edge；specular 不进入底图。</summary>
+    private static void RebuildBase(
+        Control control, ResolvedMaterial material, Rectangle bounds, SkinState state,
+        SkinRenderInputs? pinned, SurfaceLightState? baseLight)
     {
-        var bitmap = new Bitmap(bounds.Width, bounds.Height);
-        using var graphics = Graphics.FromImage(bitmap);
-        graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        graphics.Clear(Color.Transparent);
-        // 未冻结 ⇒ 本帧自取快照（旧行为）；已冻结 ⇒ 只用传入快照，禁二次取（同源且防止探针路径嵌套 DrawToBitmap）。
-        using var owned = state.Pinned is null && HasBackdrop(material)
-            ? BuildRenderInputs(control, material, light)
-            : null;
-        var inputs = state.Pinned ?? owned;
-        var skipped = SkinPaintEngine.Paint(
-            graphics, new Rectangle(Point.Empty, bounds.Size), material, inputs?.Backdrop, inputs?.Light);
-        SkinDiagnostics.RecordPaint(skipped);
-        if (skipped.Count > 0)
+        var renderBegin = SkinRenderProfile.Begin();
+        SkinRenderInputs? owned = null;
+        var inputs = pinned;
+        if (inputs is null && HasBackdrop(material))
         {
-            FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", skipped) });
+            owned = BuildRenderInputs(control, material, baseLight);
+            inputs = owned;
+            // 快照失败的帧保留上一张底图（否则会把 emulated 近似永久缓存，出现整栏变黑/变灰）。
+            if (inputs.Backdrop is null && state.Cache is not null)
+            {
+                owned.Dispose();
+                state.LastBackdropTick = Environment.TickCount64;
+                return;
+            }
         }
 
-        return bitmap;
+        var bitmap = new Bitmap(bounds.Width, bounds.Height);
+        using (var graphics = Graphics.FromImage(bitmap))
+        {
+            graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.Clear(Color.Transparent);
+            var skipped = SkinPaintEngine.Paint(
+                graphics, bounds, material, inputs?.Backdrop, inputs?.Light, includeSpecular: false);
+            SkinDiagnostics.RecordPaint(skipped);
+            if (skipped.Count > 0)
+            {
+                FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", skipped) });
+            }
+        }
+
+        state.Cache?.Dispose();
+        state.Cache = bitmap;
+        state.CacheBackdropVersion = inputs?.BackdropVersion ?? 0;
+        if (pinned is null && inputs is not null) state.BackdropVersion = inputs.BackdropVersion;
+        state.CacheKey = CacheKey(material, bounds, control.DeviceDpi, baseLight, state.CacheBackdropVersion);
+        state.LastBackdropTick = Environment.TickCount64;
+        owned?.Dispose();
+        SkinRenderProfile.RecordRender(renderBegin);
     }
+
+    /// <summary>底图用的「静态光」：只按分钟量化，不带光标偏移（光标只影响动态 sheen）。</summary>
+    private static SurfaceLightState ResolveBaseLight()
+    {
+        var now = DateTime.Now;
+        return SurfaceLight.Resolve(new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0), 0, 0);
+    }
+
+    /// <summary>背后快照的刷新周期：背后内容变化是低频事件，2s 足够，避免每帧全父级 DrawToBitmap。</summary>
+    private const int BackdropRefreshMs = 2000;
 
     /// <summary>
     /// 构建一帧的动态输入（运行时光 + 背后快照）。在绘制循环外调用时可安全取父级快照；
@@ -254,7 +308,9 @@ public static class SkinDecorator
         if (!HasBackdrop(material)) return SkinRenderInputs.Create(null, null, 0);
 
         var bounds = new Rectangle(Point.Empty, control.ClientSize);
+        var snapshotBegin = SkinRenderProfile.Begin();
         var backdrop = TryCaptureBehind(control, bounds, state);
+        SkinRenderProfile.RecordSnapshot(snapshotBegin);
         var version = backdrop is null ? 0 : Interlocked.Increment(ref _backdropSerial);
         return SkinRenderInputs.Create(resolvedLight, backdrop, version);
     }
@@ -306,6 +362,7 @@ public static class SkinDecorator
     /// <summary>运行时光：时间按分钟量化、光标按 8px 量化（缓存键只在肉眼可辨变化时失效）。</summary>
     private static SurfaceLightState ResolveLight(Control control)
     {
+        if (LightOverride is { } over) return over(control);
         var width = control.ClientSize.Width;
         var cursor = control.PointToClient(Cursor.Position);
         var cursorX = Math.Clamp((cursor.X / 8) * 8, 0, Math.Max(0, width));
@@ -313,10 +370,16 @@ public static class SkinDecorator
         return SurfaceLight.Resolve(new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0), cursorX, width);
     }
 
+    /// <summary>
+    /// 测试/诊断用可控光源（null ⇒ 按时间+光标解析）。只替换动态光解析，不改变静态底光的分钟量化，
+    /// 以便在「同一张静态底图」上复现光标 ±12° 的动态变化。
+    /// </summary>
+    internal static Func<Control, SurfaceLightState>? LightOverride { get; set; }
+
     private static bool HasBackdrop(ResolvedMaterial material)
         => material.Layers.Any(layer => layer.Primitive == "backdrop");
 
-    /// <summary>玻璃材质每秒失效一次缓存（时间/光标进缓存键，静态 Fingerprint 不变）。</summary>
+    /// <summary>玻璃材质每秒重画动态 sheen；静态底图只在分钟光/背后快照（2s）变化时重建。</summary>
     private static void EnsureRefreshTimer(Control control, SkinState state, bool enabled)
     {
         if (!enabled)
@@ -416,6 +479,9 @@ public static class SkinDecorator
         internal PaintEventHandler? Handler { get; set; }
         internal Bitmap? Cache { get; set; }
         internal string? CacheKey { get; set; }
+        internal int BackdropVersion { get; set; }
+        internal int CacheBackdropVersion { get; set; }
+        internal long LastBackdropTick { get; set; }
         internal bool SuppressPaint { get; set; }
         internal System.Windows.Forms.Timer? RefreshTimer { get; set; }
         internal SkinRenderInputs? Pinned { get; set; }

@@ -54,9 +54,21 @@ public static class SkinPaintEngine
     /// <param name="bounds">目标矩形。</param>
     /// <param name="material">已解析材质（null ⇒ 不绘制）。</param>
     /// <param name="backdrop">面板背后的快照（宿主提供；null ⇒ backdrop 层走旧近似并记账）。</param>
+    /// <param name="light">运行时光（只作用于 specular）。</param>
+    /// <param name="includeSpecular">false ⇒ 只画静态层（backdrop/fill/edge…），供静态底图缓存复用。</param>
     public static IReadOnlyList<string> Paint(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, Image? backdrop = null,
-        SurfaceLightState? light = null)
+        SurfaceLightState? light = null, bool includeSpecular = true)
+        => PaintCore(graphics, bounds, material, backdrop, light, includeSpecular, dynamicOnly: false);
+
+    /// <summary>只画随时间/光标变化的层（当前仅 specular）；静态层由缓存底图提供。</summary>
+    public static IReadOnlyList<string> PaintDynamic(
+        Graphics graphics, Rectangle bounds, ResolvedMaterial? material, SurfaceLightState? light)
+        => PaintCore(graphics, bounds, material, null, light, includeSpecular: true, dynamicOnly: true);
+
+    private static IReadOnlyList<string> PaintCore(
+        Graphics graphics, Rectangle bounds, ResolvedMaterial? material, Image? backdrop,
+        SurfaceLightState? light, bool includeSpecular, bool dynamicOnly)
     {
         ArgumentNullException.ThrowIfNull(graphics);
         if (material is null || bounds.Width <= 0 || bounds.Height <= 0) return Array.Empty<string>();
@@ -77,9 +89,17 @@ public static class SkinPaintEngine
 
             foreach (var layer in material.Layers)
             {
+                if (dynamicOnly ? layer.Primitive != "specular" : (!includeSpecular && layer.Primitive == "specular"))
+                {
+                    continue;
+                }
+
                 // 明细由 PaintLayer 记账（unresolved-value:<raw>）；只有未记账的失败才补通用项。
                 var before = skipped.Count;
-                if (!PaintLayer(graphics, bounds, layer, materialRadius, skipped, backdrop, light) && skipped.Count == before)
+                var layerBegin = SkinRenderProfile.Begin();
+                var painted = PaintLayer(graphics, bounds, layer, materialRadius, skipped, backdrop, light);
+                SkinRenderProfile.RecordLayer(layer.Primitive, layerBegin);
+                if (!painted && skipped.Count == before)
                 {
                     skipped.Add(layer.Primitive + ":" + layer.Role);
                 }
@@ -168,7 +188,9 @@ public static class SkinPaintEngine
                     try
                     {
                         if (path is not null) graphics.SetClip(path);
+                        var blurBegin = SkinRenderProfile.Begin();
                         using var blurred = Blur(backdrop, IntParam(layer, "blur", 0));
+                        SkinRenderProfile.RecordBlur(blurBegin);
                         graphics.DrawImage(blurred, bounds);
 
                         // 复用 backdrop 的 value 做轻染色：强度随时点光变化（不新增合成通道）。
@@ -204,16 +226,23 @@ public static class SkinPaintEngine
                 if (!TryColor(layer, skipped, out var color)) return false;
                 if (light is { } state)
                 {
-                    // 运行时光：angle/value 已由 SurfaceLight 插值，按同一角度画一条窄高光带。
-                    var peakAlpha = Math.Clamp((int)Math.Round(70 * state.Intensity), 0, 200);
+                    // 运行时光：角度/强度已由 SurfaceLight 插值；带宽按像素而不是按面板归一化，
+                    // 否则 600px 面板会得到 ~170px 宽的整版斜带（不再像局部高光）。
+                    var peakAlpha = Math.Clamp((int)Math.Round(38 * state.Intensity), 0, 200);
                     var litColor = Warm(color, state.Warmth);
+                    var bandPx = Math.Clamp(Math.Min(bounds.Width, bounds.Height) * 0.12, 28, 64);
+                    var radians = state.Angle * Math.PI / 180.0;
+                    var extent = Math.Max(1.0, Math.Abs(bounds.Width * Math.Cos(radians)) + Math.Abs(bounds.Height * Math.Sin(radians)));
+                    var half = Math.Clamp(bandPx / 2.0 / extent, 0.012, 0.12);
+                    var low = (float)(0.5 - half);
+                    var high = (float)(0.5 + half);
                     using var brush = new LinearGradientBrush(
                         bounds, Color.FromArgb(0, litColor), Color.FromArgb(0, litColor), state.Angle);
                     brush.InterpolationColors = new ColorBlend
                     {
                         // GDI+ 契约：InterpolationColors 的位置数组必须覆盖完整 [0,1]（首 0、末 1），
                         // 否则 setter 抛 ArgumentException("Parameter is not valid.")。
-                        // 高光带只占 0.38–0.62，两端补全为同色透明停靠点，带位置与宽度不变。
+                        // 高光带占 [low, high]（固定像素宽），两端补全为同色透明停靠点。
                         Colors = new[]
                         {
                             Color.FromArgb(0, litColor),
@@ -222,7 +251,7 @@ public static class SkinPaintEngine
                             Color.FromArgb(0, litColor),
                             Color.FromArgb(0, litColor),
                         },
-                        Positions = new[] { 0f, 0.38f, 0.5f, 0.62f, 1f },
+                        Positions = new[] { 0f, low, 0.5f, high, 1f },
                     };
                     using var lightPath = CreateRoundedPath(bounds, RadiusOf(layer, bounds, materialRadius));
                     if (lightPath is null) graphics.FillRectangle(brush, bounds);

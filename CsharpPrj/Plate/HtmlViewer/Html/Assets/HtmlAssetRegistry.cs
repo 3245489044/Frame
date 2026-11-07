@@ -109,7 +109,17 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         StyleModuleOverrides[name] = css ?? string.Empty;
         if (name.StartsWith(SurfaceRuntimeModulePrefix, StringComparison.OrdinalIgnoreCase))
-            SurfaceFamilies[SurfaceFamily(name)] = name;
+        {
+            // 同族只保留最新一个：直接卸掉旧 hash 档，避免模块集合里堆积旧规则（只在文档层不拼是不够的）。
+            var family = SurfaceFamily(name);
+            if (SurfaceFamilies.TryGetValue(family, out var previous)
+                && !string.Equals(previous, name, StringComparison.OrdinalIgnoreCase))
+            {
+                StyleModuleOverrides.TryRemove(previous, out _);
+            }
+
+            SurfaceFamilies[family] = name;
+        }
     }
 
     /// <summary>卸载样式模块（换肤/换表面重投影时清旧档，防旧规则继续参与级联）。</summary>

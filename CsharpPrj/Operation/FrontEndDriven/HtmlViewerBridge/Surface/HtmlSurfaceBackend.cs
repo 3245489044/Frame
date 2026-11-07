@@ -153,10 +153,14 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         if (theme is null) return;
 
         var structure = theme.Structure(BackendId);
-        if (structure is not null && structure.TryGetValue("cls", out var cls)
-            && cls.Length > 0 && !attributes.ContainsKey("class"))
+        if (structure is not null && structure.TryGetValue("cls", out var cls) && cls.Length > 0)
         {
-            attributes["class"] = cls;
+            // 4 类来源合并（映射 cls / 容器结构 cls / 材质类 / 声明 cls）：声明 cls 不再被静默丢弃。
+            // 类选择器具体性相同，词序不改变级联结果；重复词只去重，不覆盖。
+            var existing = attributes.TryGetValue("class", out var current) ? current : string.Empty;
+            attributes["class"] = string.Join(" ",
+                (existing + " " + cls).Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Distinct(StringComparer.Ordinal));
         }
 
         var stateId = StateId(state);

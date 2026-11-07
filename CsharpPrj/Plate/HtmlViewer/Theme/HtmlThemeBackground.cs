@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Text;
 using System.Text.RegularExpressions;
 using UiBackend;
 
@@ -22,19 +23,65 @@ public static class HtmlThemeBackground
         return ParseColor(value);
     }
 
+    private const string DarkMedia = "@media (prefers-color-scheme: dark)";
+
     private static string? ExtractBg(string css, bool dark)
     {
-        string segment = css;
         if (dark)
         {
-            int idx = css.IndexOf("@media (prefers-color-scheme: dark)", StringComparison.OrdinalIgnoreCase);
-            if (idx >= 0)
+            var start = css.IndexOf(DarkMedia, StringComparison.OrdinalIgnoreCase);
+            if (start < 0) return null;
+            var end = BlockEnd(css, start);
+            return LastBg(css.Substring(start, end - start));
+        }
+
+        // 非深色档：先移除深色媒体块，再按级联取**最后一条** `--bg`。
+        // 组件样式（如玻璃档的 `:root{--bg:transparent}`）可能排在媒体块之后覆盖基础档，不能只截取媒体块之前的前缀。
+        return LastBg(StripDarkMedia(css));
+    }
+
+    /// <summary>移除全部深色媒体块（花括号配对扫描，不做 `IndexOf('}')` 截断）。</summary>
+    private static string StripDarkMedia(string css)
+    {
+        var builder = new StringBuilder(css.Length);
+        var index = 0;
+        while (true)
+        {
+            var start = css.IndexOf(DarkMedia, index, StringComparison.OrdinalIgnoreCase);
+            if (start < 0)
             {
-                int end = css.IndexOf('}', idx);
-                if (end > idx)
-                    segment = css.Substring(idx, end - idx + 1);
+                builder.Append(css, index, css.Length - index);
+                break;
+            }
+
+            builder.Append(css, index, start - index);
+            index = BlockEnd(css, start);
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>从 at-rule 起点返回配对 `{…}` 之后的下标（未闭合 ⇒ 串尾）。</summary>
+    private static int BlockEnd(string css, int start)
+    {
+        var open = css.IndexOf('{', start);
+        if (open < 0) return css.Length;
+        var depth = 0;
+        for (var i = open; i < css.Length; i++)
+        {
+            if (css[i] == '{') depth++;
+            else if (css[i] == '}')
+            {
+                depth--;
+                if (depth == 0) return i + 1;
             }
         }
+
+        return css.Length;
+    }
+
+    private static string? LastBg(string segment)
+    {
         // CSS 级联：同一段内后声明的 `--bg` 覆盖先声明的；取**最后一条**（旧实现只取第一条，
         // 换肤后变量重定义不生效，窗口底与页面底色因此不同源）。
         var matches = Regex.Matches(

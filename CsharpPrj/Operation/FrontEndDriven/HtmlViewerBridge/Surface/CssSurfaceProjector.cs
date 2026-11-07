@@ -96,31 +96,24 @@ public static class CssSurfaceProjector
 
                 case "specular":
                 {
-                    // 尊重 mode/strength/width/radius（HTML 侧不再退化成固定 40%–60% 对角亮带）。
-                    // 定论：几何按 WinForms 权威升级；仅「光随光标实时移动」在 HTML 侧显式降级记账。
+                    // 尊重 mode：edge = 内高光（inset shadow）；spot = 径向光斑；缺省保留旧对角带。
                     var mode = Param(layer, "mode", string.Empty);
-                    var strength = Strength(layer);
-                    var tint = Tint(value, strength);
                     if (string.Equals(mode, "edge", StringComparison.Ordinal))
                     {
-                        shadows.Add($"inset 0 {Px(layer, "width", "2")} 0 {tint}");
+                        shadows.Add($"inset 0 {Px(layer, "width", "2")} 0 {value}");
                     }
                     else if (string.Equals(mode, "spot", StringComparison.Ordinal))
                     {
                         var (x, y) = SpotCenter(layer);
-                        var radiusPct = Math.Clamp(RadiusRatio(layer) * 100, 8, 100);
                         backgrounds.Add(
-                            $"radial-gradient(circle at {x}% {y}%, {tint} 0%, transparent {radiusPct:0.#}%)");
+                            $"radial-gradient(circle at {x}% {y}%, {value} 0%, transparent 70%)");
                     }
                     else
                     {
-                        // band：带宽取声明 width（缺省按面板比例 12%），强度取声明 strength。
-                        var half = BandHalf(layer);
                         backgrounds.Add(
-                            $"linear-gradient({Deg(layer)}deg, transparent calc(50% - {half}), {tint} 50%, transparent calc(50% + {half})");
+                            $"linear-gradient({Deg(layer)}deg, transparent 40%, {value} 50%, transparent 60%)");
                     }
 
-                    skipped.Add("specular:degraded(static-light)");
                     break;
                 }
 
@@ -362,36 +355,6 @@ public static class CssSurfaceProjector
 
     private static bool HasSlice(ResolvedLayer layer)
         => layer.Params.TryGetValue("slice", out var slice) && slice.Length > 0;
-
-    private static float Strength(ResolvedLayer layer)
-    {
-        var raw = Param(layer, "strength", "0.7");
-        return float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-            ? Math.Clamp(parsed, 0f, 1f)
-            : 0.7f;
-    }
-
-    private static string Tint(string value, float strength)
-    {
-        var percent = Math.Clamp((int)Math.Round(strength * 100), 0, 100);
-        return $"color-mix(in srgb, {value} {percent}%, transparent)";
-    }
-
-    private static string BandHalf(ResolvedLayer layer)
-    {
-        var raw = Param(layer, "width", string.Empty);
-        if (raw.Length > 0 && float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var width))
-            return FormatPx(Math.Max(1f, width));
-        return "12%";
-    }
-
-    private static float RadiusRatio(ResolvedLayer layer)
-    {
-        var raw = Param(layer, "radius", "0.55");
-        return float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-            ? Math.Clamp(parsed, 0.25f, 1.2f)
-            : 0.55f;
-    }
 
     private static KeyValuePair<string, string> Pair(string property, string value) => new(property, value);
 

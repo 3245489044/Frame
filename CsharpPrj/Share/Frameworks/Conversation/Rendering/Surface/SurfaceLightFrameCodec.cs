@@ -62,16 +62,31 @@ public static class SurfaceLightFrameCodec
                     (int)values[offset + 5]);
             }
 
+            var coverageSpec = new SurfaceLightCoverage(
+                coverage[0].GetSingle(),
+                coverage[1].GetSingle(),
+                coverage[2].GetSingle(),
+                coverage[3].GetSingle());
+
+            // 可选扩展：anchor[4] = 锚点 X/Y、光斑半径、判定半径（屏幕 DIP）。
+            SurfaceLightAnchor? anchor = null;
+            if (root.TryGetProperty("anchor", out var anchorElement)
+                && anchorElement.ValueKind == JsonValueKind.Array
+                && anchorElement.GetArrayLength() >= 4)
+            {
+                anchor = new SurfaceLightAnchor(
+                    anchorElement[0].GetSingle(),
+                    anchorElement[1].GetSingle(),
+                    anchorElement[2].GetSingle(),
+                    anchorElement[3].GetSingle());
+            }
+
             return new SurfaceLightFrame(
                 signature: root.GetProperty("sig").GetInt64(),
                 worldSignature: root.GetProperty("world").GetInt64(),
                 configSignature: root.GetProperty("config").GetInt64(),
                 epoch: root.GetProperty("epoch").GetInt64(),
-                coverage: new SurfaceLightCoverage(
-                    coverage[0].GetSingle(),
-                    coverage[1].GetSingle(),
-                    coverage[2].GetSingle(),
-                    coverage[3].GetSingle()),
+                coverage: coverageSpec,
                 columns: columns,
                 rows: rows,
                 sun: new SurfaceLightDirection(sun[0].GetSingle(), sun[1].GetSingle(), sun[2].GetSingle()),
@@ -79,7 +94,10 @@ public static class SurfaceLightFrameCodec
                 ambient: sun[4].GetSingle(),
                 warmth: sun[5].GetSingle(),
                 tintArgb: root.GetProperty("tint").GetInt32(),
-                cells: cells);
+                cells: cells)
+            {
+                Anchor = anchor ?? SurfaceLightAnchor.FromCoverage(coverageSpec),
+            };
         }
         catch (JsonException)
         {

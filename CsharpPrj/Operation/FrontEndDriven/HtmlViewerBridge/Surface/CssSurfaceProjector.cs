@@ -14,7 +14,11 @@ namespace FrontEndDriven.HtmlViewerBridge.Surface;
 /// <summary>CSS 投影产物（文本 + 未落地图元清单）。</summary>
 /// <param name="Css">样式文本。</param>
 /// <param name="Skipped">未投影的图元（可见清单，禁静默丢弃）。</param>
-public sealed record SurfaceStyleSheet(string Css, IReadOnlyList<string> Skipped);
+public sealed record SurfaceStyleSheet(string Css, IReadOnlyList<string> Skipped)
+{
+    /// <summary>需要光谱 <c>::after</c> 的材质类名（样式正文由独立光谱模块文件产出）。</summary>
+    public IReadOnlyList<string> SpectralClasses { get; init; } = Array.Empty<string>();
+}
 
 /// <summary>
 /// 表面 → CSS 投影器（**唯一材质类生成点**）：消费 <see cref="ResolvedSurface"/>，产出 <c>.material-*</c> 规则。
@@ -54,6 +58,7 @@ public static class CssSurfaceProjector
         var builder = new CssDocumentBuilder();
         var skipped = new List<string>();
         var emitted = new HashSet<string>(StringComparer.Ordinal);
+        var spectral = new List<string>();
 
         if (light is { HasValue: true } sample)
         {
@@ -69,19 +74,25 @@ public static class CssSurfaceProjector
                 var className = ClassName(material.FallbackUsed ?? material.MaterialId);
                 if (!emitted.Add(className)) continue;
 
-                builder.Rule("." + className, MaterialToCss(material, skipped));
+                builder.Rule("." + className, MaterialToCss(material, skipped, out var isSpectral));
+                if (isSpectral) spectral.Add(className);
             }
         }
 
-        return new SurfaceStyleSheet(builder.Build(), skipped.Distinct(StringComparer.Ordinal).ToArray());
+        return new SurfaceStyleSheet(builder.Build(), skipped.Distinct(StringComparer.Ordinal).ToArray())
+        {
+            SpectralClasses = spectral.ToArray(),
+        };
     }
 
     /// <summary>单个材质 → 声明列表（阴影/背景多值合并；边框走 BorderSpec）。</summary>
     private static List<KeyValuePair<string, string>> MaterialToCss(
-        ResolvedMaterial material, List<string> skipped)
+        ResolvedMaterial material, List<string> skipped, out bool spectral)
     {
+        spectral = false;
         var declarations = new List<KeyValuePair<string, string>>();
         var backgrounds = new List<string>();
+        var backgroundAttachments = new List<string>();
         var shadows = new List<string>();
         var extra = new List<KeyValuePair<string, string>>();
 
@@ -106,6 +117,7 @@ public static class CssSurfaceProjector
                     }
 
                     backgrounds.Add($"linear-gradient({Deg(layerSpec.Angle)}deg, {GradientStopsCss(layerSpec.Gradient)})");
+                    backgroundAttachments.Add("scroll");
                     break;
 
                 case LayerPrimitive.Backdrop:
@@ -128,6 +140,7 @@ public static class CssSurfaceProjector
                     }
 
                     backgrounds.Add($"url(\"{layerSpec.Asset}\")");
+                    backgroundAttachments.Add("scroll");
                     extra.Add(Pair("background-repeat", layerSpec.Repeat.Length > 0 ? layerSpec.Repeat : "repeat"));
                     if (layerSpec.Anchor.Length > 0) extra.Add(Pair("background-position", layerSpec.Anchor));
                     break;
@@ -143,6 +156,7 @@ public static class CssSurfaceProjector
                     }
 
                     backgrounds.Add($"url(\"{layerSpec.Asset}\")");
+                    backgroundAttachments.Add("scroll");
                     extra.Add(Pair("background-repeat", "no-repeat"));
                     extra.Add(Pair("background-position", layerSpec.Anchor.Length > 0 ? layerSpec.Anchor : "center"));
                     extra.Add(Pair("background-size", layerSpec.Size.Length > 0 ? layerSpec.Size : "contain"));
@@ -189,16 +203,26 @@ public static class CssSurfaceProjector
 
         foreach (var sheen in spec.Sheens)
         {
+            if (string.Equals(sheen.Mode, "spectral", StringComparison.Ordinal))
+            {
+                // 光谱正文由独立样式模块（SpectralStyleModule）产出：这里只标记类名，不写 ::after。
+                spectral = true;
+                continue;
+            }
+
             if (string.Equals(sheen.Mode, "spot", StringComparison.Ordinal))
             {
                 var (x, y) = SpotCenter(sheen.Angle);
+                // 光斑中心 = 视口固定锚点（px）；background-attachment:fixed 使定位区 = 视口 ⇒ 面板移动光斑不动。
                 backgrounds.Add(
-                    $"radial-gradient(circle at var(--sl-x, {x}%) var(--sl-y, {y}%), var(--sl-tint, {CssColor(sheen.Argb)}) 0%, transparent 70%)");
+                    $"radial-gradient(circle var(--sl-spot-r, 120px) at var(--sl-anchor-x, {x}%) var(--sl-anchor-y, {y}%), var(--sl-tint, {CssColor(sheen.Argb)}) 0%, transparent 70%)");
+                backgroundAttachments.Add("fixed");
             }
             else
             {
                 backgrounds.Add(
                     $"linear-gradient(var(--sl-angle, {Deg(sheen.Angle)}deg), transparent 40%, var(--sl-tint, {CssColor(sheen.Argb)}) 50%, transparent 60%)");
+                backgroundAttachments.Add("scroll");
             }
         }
 
@@ -223,8 +247,19 @@ public static class CssSurfaceProjector
         if (backgrounds.Count > 0)
         {
             var ordered = new List<string>(backgrounds.Count);
-            for (var i = backgrounds.Count - 1; i >= 0; i--) ordered.Add(backgrounds[i]);
+            var orderedAttachments = new List<string>(backgroundAttachments.Count);
+            for (var i = backgrounds.Count - 1; i >= 0; i--)
+            {
+                ordered.Add(backgrounds[i]);
+                orderedAttachments.Add(backgroundAttachments[i]);
+            }
+
             declarations.Add(Pair("background-image", string.Join(", ", ordered)));
+            // 只有存在「屏幕固定」层时才写 attachment 列表（顺序与 background-image 对齐）。
+            if (orderedAttachments.Contains("fixed", StringComparer.Ordinal))
+            {
+                declarations.Add(Pair("background-attachment", string.Join(", ", orderedAttachments)));
+            }
         }
         foreach (var pair in extra) declarations.Add(pair);
         if (shadows.Count > 0) declarations.Add(Pair("box-shadow", string.Join(", ", shadows)));
@@ -281,25 +316,22 @@ public static class CssSurfaceProjector
     private static List<KeyValuePair<string, string>> LightVariables(SurfaceLightSample sample)
     {
         var angle = (int)Math.Round(sample.Angle);
-        var spotX = Math.Clamp((int)Math.Round(sample.SpotX * 100), 0, 100);
-        var spotY = Math.Clamp((int)Math.Round(sample.SpotY * 100), 0, 100);
         // 高光强度同样由光态驱动（与 WinForms 的 SheenPeak 同一判据：矩阵镜面权重 → alpha）；
         // --sl-tint 只被 sheen/spot 背景层使用，故把强度直接编码进它的 alpha，避免 CSS 侧再做光数学。
         var specular = Math.Clamp(sample.Specular, 0f, 1f);
         var sheenAlpha = (int)Math.Round(255 * (0.25 + 0.75 * specular));
         var sheenTint = unchecked((sheenAlpha << 24) | (sample.TintArgb & 0x00FFFFFF));
+        // 虹彩相位只随太阳方向变化（IridescenceRamp.PhaseOf），CSS 侧只消费角度值。
+        var iridAngle = (int)Math.Round(Math.Clamp(sample.IridescencePhase, 0f, 1f) * 360) % 360;
         return new List<KeyValuePair<string, string>>
         {
             Pair("--sl-angle", angle.ToString(CultureInfo.InvariantCulture) + "deg"),
-            Pair("--sl-x", spotX.ToString(CultureInfo.InvariantCulture) + "%"),
-            Pair("--sl-y", spotY.ToString(CultureInfo.InvariantCulture) + "%"),
+            // 锚点是**视口坐标 px**（世界固定），不是面板百分比：固定背景层据此在屏幕上定位。
+            Pair("--sl-anchor-x", FormatPx(sample.Anchor.X)),
+            Pair("--sl-anchor-y", FormatPx(sample.Anchor.Y)),
+            Pair("--sl-spot-r", FormatPx(sample.SpotRadiusDips)),
             Pair("--sl-tint", CssColor(sheenTint)),
-            Pair("--sl-intensity", sample.Intensity.ToString("F2", CultureInfo.InvariantCulture)),
-            Pair("--sl-spec", specular.ToString("F2", CultureInfo.InvariantCulture)),
-            Pair("--sl-edge-top", sample.EdgeTop.ToString("F2", CultureInfo.InvariantCulture)),
-            Pair("--sl-edge-left", sample.EdgeLeft.ToString("F2", CultureInfo.InvariantCulture)),
-            Pair("--sl-edge-right", sample.EdgeRight.ToString("F2", CultureInfo.InvariantCulture)),
-            Pair("--sl-edge-bottom", sample.EdgeBottom.ToString("F2", CultureInfo.InvariantCulture)),
+            Pair("--sl-irid-angle", iridAngle.ToString(CultureInfo.InvariantCulture) + "deg"),
         };
     }
 

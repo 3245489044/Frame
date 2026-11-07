@@ -358,8 +358,10 @@ public static class SkinPaintEngine
                         return true;
                     }
 
-                    if (spec.Mode == "edge")
+                    if (spec.Mode == "edge" || spec.Mode == "spectral")
                     {
+                        // spectral 与 edge 共用同一落笔路径（每边 1 次 FillRectangle，绘制调用数不增）；
+                        // 是否走色相环由 PaintEdgeHighlight 依据 Mode/SpectralSpan 判定。
                         PaintEdgeHighlight(graphics, bounds, spec, state, materialRadius);
                         return true;
                     }
@@ -379,8 +381,18 @@ public static class SkinPaintEngine
                     var half = Math.Clamp(bandPx / 2.0 / extent, 0.012, 0.12);
                     var low = (float)(0.5 - half);
                     var high = (float)(0.5 + half);
+                    // 条带中心 = 世界固定锚点（屏幕 DIP）：把渐变几何整体平移，填充仍裁剪在面板内。
+                    var dpiScale = graphics.DpiX / 96f;
+                    var shiftX = state.SpotRadiusDips > 0f
+                        ? (int)Math.Round(state.SpotLocalX * dpiScale - bounds.Width * 0.5f)
+                        : 0;
+                    var shiftY = state.SpotRadiusDips > 0f
+                        ? (int)Math.Round(state.SpotLocalY * dpiScale - bounds.Height * 0.5f)
+                        : 0;
+                    var bandBounds = new Rectangle(
+                        bounds.X + shiftX, bounds.Y + shiftY, bounds.Width, bounds.Height);
                     using var brush = new LinearGradientBrush(
-                        bounds, Color.FromArgb(0, litColor), Color.FromArgb(0, litColor), state.Angle);
+                        bandBounds, Color.FromArgb(0, litColor), Color.FromArgb(0, litColor), state.Angle);
                     brush.InterpolationColors = new ColorBlend
                     {
                         Colors = new[]
@@ -504,6 +516,8 @@ public static class SkinPaintEngine
         if (peak <= 0) return;
 
         var lit = LitColor(color, state);
+        // spectral：颜色来源换成色相环（ColorBlend 多停靠点），仍为每条边 1 次 FillRectangle。
+        var spectral = spec.Mode == "spectral" && spec.SpectralSpan > 0f;
         var thickness = Math.Clamp((int)Math.Round(spec.Width), 1, 6);
         var inset = 1;
         var saved = graphics.Save();
@@ -516,50 +530,87 @@ public static class SkinPaintEngine
             var top = EdgeAlpha(peak, state.EdgeTop);
             if (top > 0)
             {
-                // 顶边：中间亮、两端透明（沿倒角渐隐）。
+                // 顶边：中间亮、两端透明（沿倒角渐隐）。周长参数 t 顺时针 0→0.25。
                 var rect = new Rectangle(bounds.X + inset, bounds.Y + inset, Math.Max(1, bounds.Width - inset * 2), thickness);
-                using var brush = new LinearGradientBrush(
-                    rect, Color.FromArgb(0, lit), Color.FromArgb(0, lit), LinearGradientMode.Horizontal);
-                brush.InterpolationColors = new ColorBlend
+                if (spectral)
                 {
-                    Colors = new[] { Color.FromArgb(0, lit), Color.FromArgb(top, lit), Color.FromArgb(0, lit) },
-                    Positions = new[] { 0f, 0.5f, 1f },
-                };
-                graphics.FillRectangle(brush, rect);
+                    FillSpectral(graphics, rect, LinearGradientMode.Horizontal,
+                        SpectralColors(state, spec.SpectralSpan, 0f, 0.25f, top,
+                            new[] { 0f, 0.75f, 1f, 0.75f, 0f }));
+                }
+                else
+                {
+                    using var brush = new LinearGradientBrush(
+                        rect, Color.FromArgb(0, lit), Color.FromArgb(0, lit), LinearGradientMode.Horizontal);
+                    brush.InterpolationColors = new ColorBlend
+                    {
+                        Colors = new[] { Color.FromArgb(0, lit), Color.FromArgb(top, lit), Color.FromArgb(0, lit) },
+                        Positions = new[] { 0f, 0.5f, 1f },
+                    };
+                    graphics.FillRectangle(brush, rect);
+                }
             }
 
             var left = EdgeAlpha(peak, state.EdgeLeft);
             if (left > 0)
             {
-                // 左倒角：上亮下隐，长度取面板高度的 1/3，避免形成纵向整条。
+                // 左倒角：上亮下隐，长度取面板高度的 1/3，避免形成纵向整条。周长 t 由 1（上）到 0.75（下）。
                 var rect = new Rectangle(bounds.X + inset, bounds.Y + inset, thickness, Math.Max(1, bounds.Height / 3));
-                using var brush = new LinearGradientBrush(
-                    rect, Color.FromArgb(left, lit), Color.FromArgb(0, lit), LinearGradientMode.Vertical);
-                graphics.FillRectangle(brush, rect);
+                if (spectral)
+                {
+                    FillSpectral(graphics, rect, LinearGradientMode.Vertical,
+                        SpectralColors(state, spec.SpectralSpan, 1f, 0.75f, left,
+                            new[] { 1f, 0.7f, 0.3f, 0f, 0f }));
+                }
+                else
+                {
+                    using var brush = new LinearGradientBrush(
+                        rect, Color.FromArgb(left, lit), Color.FromArgb(0, lit), LinearGradientMode.Vertical);
+                    graphics.FillRectangle(brush, rect);
+                }
             }
 
             var right = EdgeAlpha(peak, state.EdgeRight);
             if (right > 0)
             {
-                // 右倒角与左侧镜像：顶部最亮、向下渐隐（光源同在上方）。
+                // 右倒角与左侧镜像：顶部最亮、向下渐隐（光源同在上方）。周长 t 由 0.25（上）到 0.5（下）。
                 var rect = new Rectangle(bounds.Right - inset - thickness, bounds.Y + inset, thickness, Math.Max(1, bounds.Height / 3));
-                using var brush = new LinearGradientBrush(
-                    rect, Color.FromArgb(right, lit), Color.FromArgb(0, lit), LinearGradientMode.Vertical);
-                graphics.FillRectangle(brush, rect);
+                if (spectral)
+                {
+                    FillSpectral(graphics, rect, LinearGradientMode.Vertical,
+                        SpectralColors(state, spec.SpectralSpan, 0.25f, 0.5f, right,
+                            new[] { 1f, 0.7f, 0.3f, 0f, 0f }));
+                }
+                else
+                {
+                    using var brush = new LinearGradientBrush(
+                        rect, Color.FromArgb(right, lit), Color.FromArgb(0, lit), LinearGradientMode.Vertical);
+                    graphics.FillRectangle(brush, rect);
+                }
             }
 
             var bottom = EdgeAlpha(peak, state.EdgeBottom);
             if (bottom > 0)
             {
+                // 底边周长反向：左端 t=0.75、右端 t=0.5。
                 var rect = new Rectangle(bounds.X + inset, bounds.Bottom - inset - thickness, Math.Max(1, bounds.Width - inset * 2), thickness);
-                using var brush = new LinearGradientBrush(
-                    rect, Color.FromArgb(0, lit), Color.FromArgb(0, lit), LinearGradientMode.Horizontal);
-                brush.InterpolationColors = new ColorBlend
+                if (spectral)
                 {
-                    Colors = new[] { Color.FromArgb(0, lit), Color.FromArgb(bottom, lit), Color.FromArgb(0, lit) },
-                    Positions = new[] { 0f, 0.5f, 1f },
-                };
-                graphics.FillRectangle(brush, rect);
+                    FillSpectral(graphics, rect, LinearGradientMode.Horizontal,
+                        SpectralColors(state, spec.SpectralSpan, 0.75f, 0.5f, bottom,
+                            new[] { 0f, 0.75f, 1f, 0.75f, 0f }));
+                }
+                else
+                {
+                    using var brush = new LinearGradientBrush(
+                        rect, Color.FromArgb(0, lit), Color.FromArgb(0, lit), LinearGradientMode.Horizontal);
+                    brush.InterpolationColors = new ColorBlend
+                    {
+                        Colors = new[] { Color.FromArgb(0, lit), Color.FromArgb(bottom, lit), Color.FromArgb(0, lit) },
+                        Positions = new[] { 0f, 0.5f, 1f },
+                    };
+                    graphics.FillRectangle(brush, rect);
+                }
             }
         }
         finally
@@ -569,9 +620,41 @@ public static class SkinPaintEngine
         }
     }
 
+    /// <summary>沿周长参数 t0→t1 取色相环颜色，并按 alpha 剖面调制（不含额外绘制）。</summary>
+    private static Color[] SpectralColors(
+        SurfaceLightState state, float span, float t0, float t1, int peak, float[] alphaProfile)
+    {
+        var colors = new Color[alphaProfile.Length];
+        var last = alphaProfile.Length - 1;
+        for (var i = 0; i <= last; i++)
+        {
+            var t = t0 + (t1 - t0) * (i / (float)last);
+            var argb = IridescenceRamp.ArgbAt(state.IridescencePhase, t, span);
+            colors[i] = Color.FromArgb(
+                Math.Clamp((int)Math.Round(peak * alphaProfile[i]), 0, 255),
+                Color.FromArgb(argb));
+        }
+
+        return colors;
+    }
+
+    /// <summary>把色相环停靠点装进 <see cref="ColorBlend"/>，一次填充整条边。</summary>
+    private static void FillSpectral(Graphics graphics, Rectangle rect, LinearGradientMode mode, Color[] colors)
+    {
+        using var brush = new LinearGradientBrush(rect, colors[0], colors[^1], mode);
+        var positions = new float[colors.Length];
+        for (var i = 0; i < colors.Length; i++)
+        {
+            positions[i] = i / (float)(colors.Length - 1);
+        }
+
+        brush.InterpolationColors = new ColorBlend { Colors = colors, Positions = positions };
+        graphics.FillRectangle(brush, rect);
+    }
+
     /// <summary>
-    /// 径向聚光：中心与形状来自端口（<see cref="SurfaceLightState.SpotX"/>/<see cref="SurfaceLightState.SpotY"/>），
-    /// 强度来自矩阵镜面权重；中心亮、随距离衰减到 0，不产生「一束光柱」。
+    /// 径向聚光：中心来自世界锚点在控件本地的位置（<see cref="SurfaceLightState.SpotLocalX"/>/<see cref="SurfaceLightState.SpotLocalY"/>），
+    /// 半径来自 <see cref="SurfaceLightState.SpotRadiusDips"/>；强度来自矩阵镜面权重；中心亮、随距离衰减到 0。
     /// </summary>
     private static void PaintSpotHighlight(
         Graphics graphics, Rectangle bounds, ResolvedLayerSpec spec, SurfaceLightState state, float materialRadius)
@@ -581,12 +664,27 @@ public static class SkinPaintEngine
         if (peak <= 0) return;
 
         var lit = LitColor(color, state);
-        var radius = Math.Max(8f, Math.Min(bounds.Width, bounds.Height) * Math.Clamp(spec.Radius, 0.25f, 1.2f));
-        // 光场已给出光斑中心（左上光源 ⇒ 归一化 y < 0.5），载体不再按角度自行推算。
-        var centerX = bounds.X + bounds.Width * Math.Clamp(state.SpotX, 0.05f, 0.95f);
-        var centerY = bounds.Y + bounds.Height * Math.Clamp(state.SpotY, 0.05f, 0.95f);
+        var dpiScale = graphics.DpiX / 96f;
+        var radius = state.SpotRadiusDips > 0f
+            ? Math.Max(8f, state.SpotRadiusDips * dpiScale * Math.Clamp(spec.Radius, 0.25f, 1.2f))
+            : Math.Max(8f, Math.Min(bounds.Width, bounds.Height) * Math.Clamp(spec.Radius, 0.25f, 1.2f));
+        // 光斑中心 = 世界固定锚点在**控件本地坐标系**下的位置（DIP，非百分比）；
+        // 控件移动时 SpotLocal 同步反向变化，屏幕上光斑不动。
+        var centerX = state.SpotRadiusDips > 0f
+            ? bounds.X + state.SpotLocalX * dpiScale
+            : bounds.X + bounds.Width * Math.Clamp(state.SpotX, 0.05f, 0.95f);
+        var centerY = state.SpotRadiusDips > 0f
+            ? bounds.Y + state.SpotLocalY * dpiScale
+            : bounds.Y + bounds.Height * Math.Clamp(state.SpotY, 0.05f, 0.95f);
         var size = (int)Math.Round(radius * 2);
         var target = new Rectangle((int)Math.Round(centerX - radius), (int)Math.Round(centerY - radius), size, size);
+
+        // 光斑完全落在面板外 ⇒ 不落笔（避免无谓的大位图/Matrix 运算）。
+        if (target.Right < bounds.Left || target.Left > bounds.Right
+            || target.Bottom < bounds.Top || target.Top > bounds.Bottom)
+        {
+            return;
+        }
 
         var saved = graphics.Save();
         GraphicsPath? clip = null;
@@ -669,7 +767,9 @@ public static class SkinPaintEngine
         var specular = Math.Clamp(state.Specular, 0f, 1f);
         var gain = 0.25f + 0.75f * specular;
         var cap = Math.Clamp(declaredStrength, 0f, 1f);
-        return Math.Clamp((int)Math.Round(baseAlpha * gain * cap), 0, 200);
+        // 照度权重（到世界锚点的距离衰减）：超出判定半径的组件不应再叠边缘光/条带。
+        var lit = Math.Clamp(state.Shade, 0f, 1f);
+        return Math.Clamp((int)Math.Round(baseAlpha * gain * cap * lit), 0, 200);
     }
 
     /// <summary>单边高光 alpha（权重已由端口按最亮边归一到 1）。</summary>

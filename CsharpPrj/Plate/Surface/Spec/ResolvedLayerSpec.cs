@@ -121,6 +121,9 @@ public sealed record ResolvedLayerSpec(
     /// <summary>本层解析期问题（无问题 = 空；载体按此判定「本层是否可落笔」）。</summary>
     public IReadOnlyList<LayerIssue> Issues { get; init; } = Array.Empty<LayerIssue>();
 
+    /// <summary>spectral 高光的色相跨度（度；0 ⇒ 走普通边缘光）。两载体共用，禁各自定色。</summary>
+    public float SpectralSpan { get; init; }
+
     /// <summary>本层相位（解析期定型；载体按相位过滤/排序，不再按图元名判定）。</summary>
     public LayerPhase Phase => SurfaceLayerPhase.Of(Kind);
 
@@ -193,6 +196,7 @@ public sealed record ResolvedLayerSpec(
         var mode = isBorder ? "band" : ParseMode(parameters);
         var sides = LayerParams.Read(parameters, "sides");
         var align = LayerParams.Read(parameters, "align");
+        var spectralSpan = 0f;
 
         if (kind is not LayerPrimitive.Stroke)
         {
@@ -277,6 +281,7 @@ public sealed record ResolvedLayerSpec(
                     strength = sheen.Strength;
                     mode = sheen.Mode;
                     angle = sheen.Angle;
+                    spectralSpan = sheen.SpectralSpan;
                 }
 
                 break;
@@ -303,6 +308,7 @@ public sealed record ResolvedLayerSpec(
             LayerParams.Read(parameters, "size"))
         {
             Issues = issues,
+            SpectralSpan = spectralSpan,
         };
     }
 

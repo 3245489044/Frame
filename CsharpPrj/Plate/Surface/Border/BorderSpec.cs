@@ -61,7 +61,11 @@ public sealed record BorderInnerLight(
 /// <param name="Width">厚度（DIP；band）。</param>
 /// <param name="Strength">强度（0..1）。</param>
 /// <param name="Angle">角度（度）。</param>
-public sealed record BorderSheen(int Z, int Argb, string Mode, float Width, float Strength, float Angle);
+public sealed record BorderSheen(int Z, int Argb, string Mode, float Width, float Strength, float Angle)
+{
+    /// <summary>spectral 色相跨度（度；0 ⇒ 非光谱）。由材质 <c>spectrum</c> 归一化。</summary>
+    public float SpectralSpan { get; init; }
+}
 
 /// <summary>模型输入：材质层的最小只读视图（Share 适配层只做搬运，不解释语义）。</summary>
 public sealed record BorderLayerInput(string Role, string Primitive, int Z, IReadOnlyDictionary<string, string> Params);
@@ -181,13 +185,20 @@ public sealed record BorderSpec(
                         break;
                     }
 
-                    // spot / band（缺省按 band）：把原先散落在两载体的角度/强度归一到这里。
+                    // spot / band / spectral：把原先散落在两载体的角度/强度/色相跨度归一到这里。
+                    var spectral = string.Equals(mode, "spectral", StringComparison.Ordinal);
+                    var spectrum = Math.Clamp(FloatParam(layer, "spectrum", 140), 0, 360);
                     sheens.Add(new BorderSheen(
                         layer.Z, argb,
-                        string.Equals(mode, "spot", StringComparison.Ordinal) ? "spot" : "band",
+                        string.Equals(mode, "spot", StringComparison.Ordinal)
+                            ? "spot"
+                            : spectral ? "spectral" : "band",
                         Math.Max(0, FloatParam(layer, "width", 2)),
                         Clamp01(FloatParam(layer, "strength", 0.65f)),
-                        FloatParam(layer, "angle", 45)));
+                        FloatParam(layer, "angle", 45))
+                    {
+                        SpectralSpan = spectral ? (spectrum > 0 ? spectrum : 140) : 0f,
+                    });
                     break;
                 }
             }

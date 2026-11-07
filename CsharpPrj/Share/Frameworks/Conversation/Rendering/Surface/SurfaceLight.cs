@@ -55,6 +55,24 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// <summary>该处矩阵镜面权重（0..1）：高光/边缘光强度由它驱动，不再另定人工 strength。</summary>
     public float Specular { get; init; } = 1f;
 
+    /// <summary>世界固定锚点（屏幕 DIP）；静态/动态载体都按它在屏幕上的位置画光。</summary>
+    public SurfaceLightAnchor Anchor { get; init; } = new(0f, 0f, 0f, 0f);
+
+    /// <summary>光斑中心相对控件左上角（DIP，非百分比）；控件移动时它同步反向移动，屏幕位置不变。</summary>
+    public float SpotLocalX { get; init; }
+
+    /// <inheritdoc cref="SpotLocalX"/>
+    public float SpotLocalY { get; init; }
+
+    /// <summary>光斑半径（DIP）。</summary>
+    public float SpotRadiusDips { get; init; }
+
+    /// <summary>照度权重（0..1）：超出判定半径即 0。</summary>
+    public float Shade { get; init; } = 1f;
+
+    /// <summary>虹彩相位（0..1）：只随太阳方向变化，不随控件位置变化。</summary>
+    public float IridescencePhase { get; init; }
+
     /// <summary>光场签名（缓存失效依据）。</summary>
     public long LightSignature { get; init; }
 
@@ -64,6 +82,14 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// <summary>位图缓存键片段（含插值后的光参数；不含秒级噪声）。</summary>
     public string CacheToken => HasValue
         ? $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:{Specular:F2}:S{LightSignature}"
+        : "light-unavailable";
+
+    /// <summary>
+    /// **静态底图**缓存键片段：只含位置无关量（方向角/镜面/阴影/签名），
+    /// 不含光斑中心与照度权重 ⇒ 面板平移不再使底图失效；光斑/条带/虹彩全走动态层。
+    /// </summary>
+    public string StaticCacheToken => HasValue
+        ? $"{Angle:F1}:{Specular:F2}:{ShadowX:F2}:{ShadowY:F2}:S{LightSignature}"
         : "light-unavailable";
 
     /// <summary>采样结果 → 载体窄视图（**唯一投影点**）。</summary>
@@ -87,6 +113,12 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
             ShadowY = sample.ShadowY,
             TintArgb = sample.TintArgb,
             Specular = sample.Specular,
+            Anchor = sample.Anchor,
+            SpotLocalX = sample.SpotLocalX,
+            SpotLocalY = sample.SpotLocalY,
+            SpotRadiusDips = sample.SpotRadiusDips,
+            Shade = sample.Shade,
+            IridescencePhase = sample.IridescencePhase,
             LightSignature = sample.Signature,
         };
     }

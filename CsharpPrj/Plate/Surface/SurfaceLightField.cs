@@ -35,6 +35,28 @@ public readonly record struct SurfaceLightCoverage(float X, float Y, float Width
     public float UnitY(float y) => Height <= 1e-6f ? 0.5f : Math.Clamp((y - Y) / Height, 0f, 1f);
 }
 
+/// <summary>
+/// 全帧唯一的**世界固定**光源锚点（屏幕 DIP）：所有组件的高光中心都从它出发，
+/// 与组件自身矩形无关。锚点可变（随世界/配置签名变化），但**不参与 UI 相位求解**。
+/// </summary>
+public readonly record struct SurfaceLightAnchor(
+    float X,
+    float Y,
+    float SpotRadiusDips,
+    float LitRadiusDips)
+{
+    /// <summary>缺省锚点：覆盖区 30% × 18%，判定半径取覆盖短边的 22% / 75%。</summary>
+    public static SurfaceLightAnchor FromCoverage(SurfaceLightCoverage coverage)
+    {
+        var shortSide = Math.Min(coverage.Width, coverage.Height);
+        return new SurfaceLightAnchor(
+            coverage.X + coverage.Width * 0.30f,
+            coverage.Y + coverage.Height * 0.18f,
+            Math.Max(24f, shortSide * 0.22f),
+            Math.Max(24f, shortSide * 0.75f));
+    }
+}
+
 /// <summary>组件探针：只描述「在界面上的哪一块」，不含任何光参数。</summary>
 public readonly record struct SurfaceLightProbe(
     float X,
@@ -119,7 +141,26 @@ public sealed class SurfaceLightFrame
         Warmth = warmth;
         TintArgb = tintArgb;
         Cells = cells;
+        Anchor = SurfaceLightAnchor.FromCoverage(coverage);
     }
+
+    /// <summary>
+    /// 世界固定光源锚点（屏幕 DIP）。缺省由 <see cref="SurfaceLightCoverage"/> 推导；
+    /// 生产者可在对象初始化器中覆盖（如读取配置/世界坐标），**不得**由面板位置推导。
+    /// </summary>
+    public SurfaceLightAnchor Anchor { get; init; }
+
+    /// <summary>锚点 X（屏幕 DIP）。</summary>
+    public float AnchorX => Anchor.X;
+
+    /// <summary>锚点 Y（屏幕 DIP）。</summary>
+    public float AnchorY => Anchor.Y;
+
+    /// <summary>光斑半径（DIP）。</summary>
+    public float SpotRadiusDips => Anchor.SpotRadiusDips;
+
+    /// <summary>判定半径（DIP）：超出该半径的组件不再受光。</summary>
+    public float LitRadiusDips => Anchor.LitRadiusDips;
 
     /// <summary>合成签名（世界 ⊕ 配置 ⊕ 时间桶）。</summary>
     public long Signature { get; }
@@ -194,6 +235,30 @@ public readonly record struct SurfaceLightSample(
     /// <summary>该处矩阵镜面权重（0..1）：载体按它调制高光/边缘光强度，不再另定人工 strength。</summary>
     public float Specular { get; init; } = 1f;
 
+    /// <summary>世界固定锚点（屏幕 DIP）；载体据此把光斑/条带画在**屏幕位置**而非组件中心。</summary>
+    public SurfaceLightAnchor Anchor { get; init; } = new(0f, 0f, 0f, 0f);
+
+    /// <summary>锚点相对组件左上角的 X（DIP）：= Anchor.X − probe.X，**不是**百分比。</summary>
+    public float SpotLocalX { get; init; }
+
+    /// <summary>锚点相对组件左上角的 Y（DIP）。</summary>
+    public float SpotLocalY { get; init; }
+
+    /// <summary>光斑半径（DIP）。</summary>
+    public float SpotRadiusDips { get; init; }
+
+    /// <summary>
+    /// 到锚点距离的照度权重（0..1，平方衰减）：超出 <see cref="SurfaceLightAnchor.LitRadiusDips"/>
+    /// 即 0 ⇒ 不受光组件不得再叠边缘光/条带。仅用于静态可见的强度调制，**不入缓存键**。
+    /// </summary>
+    public float Shade { get; init; } = 1f;
+
+    /// <summary>
+    /// 虹彩相位（0..1）：由 <see cref="IridescenceRamp.PhaseOf"/> 从**太阳方向与面板固定法线**求得，
+    /// 不含屏幕矩形/控件位置 ⇒ 面板移动时相位不变。
+    /// </summary>
+    public float IridescencePhase { get; init; }
+
     /// <summary>无光场可用时的空值：载体保持声明值并记账，**不得**回落到时间表近似。</summary>
     public static readonly SurfaceLightSample Unavailable = new(
         HasValue: false,
@@ -261,9 +326,24 @@ public static class SurfaceLightPort
             0.15f, 1.25f);
         var warmth = Math.Clamp(frame.Warmth + (1f - transmission) * 0.15f, 0f, 1f);
 
-        // 高光中心必须落在**光源一侧**：方向指向光（dirY<0 = 光在上方）⇒ 光斑在上方（归一化 y 更小）。
-        var spotX = Math.Clamp(0.5f + direction.X * 0.26f, 0.05f, 0.95f);
-        var spotY = Math.Clamp(0.5f + direction.Y * 0.20f, 0.05f, 0.95f);
+        // 高光中心 = **世界固定锚点**，与组件矩形无关：组件移动时光斑在屏幕上的位置不动。
+        var anchor = frame.Anchor;
+        var spotLocalX = anchor.X - probe.X;
+        var spotLocalY = anchor.Y - probe.Y;
+        var spotX = probe.Width <= 1e-6f ? 0.5f : Math.Clamp(spotLocalX / probe.Width, 0.05f, 0.95f);
+        var spotY = probe.Height <= 1e-6f ? 0.5f : Math.Clamp(spotLocalY / probe.Height, 0.05f, 0.95f);
+
+        // 照度权重：锚点外平方衰减；超出判定半径即 0（不受光组件不得再叠边缘光/条带）。
+        var shadeX = anchor.X - probe.CenterX;
+        var shadeY = anchor.Y - probe.CenterY;
+        var distance = MathF.Sqrt(shadeX * shadeX + shadeY * shadeY);
+        var litRadius = anchor.LitRadiusDips;
+        var shade = litRadius <= 1e-6f
+            ? 1f
+            : Math.Clamp(1f - (distance / litRadius) * (distance / litRadius), 0f, 1f);
+
+        // 虹彩相位：只取太阳方向与面板固定法线，**不含**屏幕矩形/控件位置。
+        var phase = IridescenceRamp.PhaseOf(frame.Sun);
 
         var edgeTop = Math.Max(0f, -direction.Y);
         var edgeBottom = Math.Max(0f, direction.Y);
@@ -316,6 +396,12 @@ public static class SurfaceLightPort
             CacheToken: token)
         {
             Specular = specular,
+            Anchor = anchor,
+            SpotLocalX = spotLocalX,
+            SpotLocalY = spotLocalY,
+            SpotRadiusDips = anchor.SpotRadiusDips,
+            Shade = shade,
+            IridescencePhase = phase,
         };
     }
 
@@ -360,6 +446,80 @@ public static class SurfaceLightPort
 }
 
 /// <summary>
+/// 虹彩色相环（**全仓唯一**的虹彩相位/色相实现）：相位只由太阳方向与面板固定法线求得。
+/// <para>与 <see cref="SurfaceLightPort"/> 一样，本类不接收矩形/控件位置，
+/// 因此「光不跟 UI 走」与「虹彩随光向变化」可以同时成立。</para>
+/// </summary>
+public static class IridescenceRamp
+{
+    /// <summary>面板固定倾角（度）：法线朝屏幕上方倾斜 35°，使太阳方位 90°→180° 相位单调递增 ≥0.2。</summary>
+    public const float PanelTiltDegrees = 35f;
+
+    /// <summary>面板固定法线（屏幕系：x 右、y 下、z 出屏），与控件位置无关。</summary>
+    public static readonly SurfaceLightDirection PanelNormal = new(
+        0f,
+        -MathF.Sin(PanelTiltDegrees * MathF.PI / 180f),
+        MathF.Cos(PanelTiltDegrees * MathF.PI / 180f));
+
+    /// <summary>太阳方向 → 虹彩相位（0..1）；面板移动不改变相位，太阳方位/高度变化才改变。</summary>
+    public static float PhaseOf(SurfaceLightDirection sun)
+    {
+        var normalized = sun.Normalized();
+        if (normalized == SurfaceLightDirection.Empty) return 0.5f;
+        var dot = PanelNormal.X * normalized.X + PanelNormal.Y * normalized.Y + PanelNormal.Z * normalized.Z;
+        return Math.Clamp(0.5f * (1f - dot), 0f, 1f);
+    }
+
+    /// <summary>相位 + 沿轮廓/折面的参数 t（0..1）→ 色相（度）。</summary>
+    public static float HueAt(float phase, float t, float spanDegrees)
+    {
+        var span = Math.Abs(spanDegrees) <= 1e-6f ? 140f : spanDegrees;
+        var hue = 190f + phase * 360f + Math.Clamp(t, 0f, 1f) * span;
+        return (hue % 360f + 360f) % 360f;
+    }
+
+    /// <summary>相位 + t → 不透明 ARGB（供 GDI+ <c>ColorBlend</c> 直接使用）。</summary>
+    public static int ArgbAt(float phase, float t, float spanDegrees)
+        => HslToArgb(HueAt(phase, t, spanDegrees), 0.85f, 0.78f);
+
+    /// <summary>沿 t∈[0,1] 等分取样（默认 5 个停靠点），保证色相沿轮廓连续。</summary>
+    public static int[] Stops(float phase, float spanDegrees, int count = 5)
+    {
+        var n = Math.Max(2, count);
+        var stops = new int[n];
+        for (var i = 0; i < n; i++)
+        {
+            stops[i] = ArgbAt(phase, i / (float)(n - 1), spanDegrees);
+        }
+
+        return stops;
+    }
+
+    private static int HslToArgb(float hueDegrees, float saturation, float lightness)
+    {
+        var h = ((hueDegrees % 360f) + 360f) % 360f / 360f;
+        var q = lightness < 0.5f
+            ? lightness * (1f + saturation)
+            : lightness + saturation - lightness * saturation;
+        var p = 2f * lightness - q;
+        var r = Channel(p, q, h + 1f / 3f);
+        var g = Channel(p, q, h);
+        var b = Channel(p, q, h - 1f / 3f);
+        return unchecked((0xFF << 24) | (r << 16) | (g << 8) | b);
+    }
+
+    private static int Channel(float p, float q, float t)
+    {
+        if (t < 0f) t += 1f;
+        if (t > 1f) t -= 1f;
+        if (t < 1f / 6f) return (int)Math.Clamp((p + (q - p) * 6f * t) * 255f, 0f, 255f);
+        if (t < 0.5f) return (int)Math.Clamp(q * 255f, 0f, 255f);
+        if (t < 2f / 3f) return (int)Math.Clamp((p + (q - p) * (2f / 3f - t) * 6f) * 255f, 0f, 255f);
+        return (int)Math.Clamp(p * 255f, 0f, 255f);
+    }
+}
+
+/// <summary>
 /// 进程级光场发布点（整帧替换、读侧无锁）。只允许**一个生产者**（通道泵）发布；
 /// 两个载体读同一份 <see cref="Current"/>，不得各自生成帧。
 /// </summary>
@@ -374,11 +534,25 @@ public static class SurfaceLightRegistry
     /// <summary>发布代数（只增不减；用于触发重绘/缓存失效）。</summary>
     public static long Revision => Interlocked.Read(ref _revision);
 
+    /// <summary>
+    /// 帧变更通知（低频生产者线程同步触发；消费方异常不得阻断发布）。
+    /// <para>HTML 侧据此刷新 <c>:root --sl-*</c>，与 WinForms 侧同源同频。</para>
+    /// </summary>
+    public static event Action? Changed;
+
     /// <summary>整帧替换（同一 <see cref="SurfaceLightFrame.Signature"/> 可重复发布，视为幂等）。</summary>
     public static void Publish(SurfaceLightFrame? frame)
     {
         _current = frame;
         Interlocked.Increment(ref _revision);
+        try
+        {
+            Changed?.Invoke();
+        }
+        catch (Exception)
+        {
+            // 消费方（样式刷新/重绘）抛错不得让生产者失去发布能力。
+        }
     }
 
     /// <summary>清空（宿主切换/引擎退出）。</summary>

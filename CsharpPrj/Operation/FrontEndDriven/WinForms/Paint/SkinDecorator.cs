@@ -607,7 +607,7 @@ public static class SkinDecorator
         string fingerprint, Rectangle bounds, int dpi, SurfaceLightState? light, int backdropVersion)
         => SkinCacheKey.Build(
             fingerprint, bounds.Width, bounds.Height, dpi,
-            light is { } state ? state.CacheToken : null,
+            light is { } state ? state.StaticCacheToken : null,
             backdropVersion, SkinPaintEngine.AssetGeneration);
 
     /// <summary>指纹读取面：Attach 期已写 <see cref="SkinState.MaterialKey"/>；缺失才补算并按状态缓存（禁每帧重算）。</summary>

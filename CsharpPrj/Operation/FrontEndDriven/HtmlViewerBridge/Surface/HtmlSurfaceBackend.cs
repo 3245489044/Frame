@@ -61,11 +61,28 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
 
     private UiNode ProjectNode(UiSurfaceNode node, ResolvedUi? theme)
     {
+        var isFold = string.Equals(node.Role, SurfaceRoleIds.Fold, StringComparison.Ordinal);
         var props = _map.Props(BackendId, node.Role);
-        if (props is null || !props.TryGetValue("tag", out var tag) || string.IsNullOrWhiteSpace(tag))
+        var tag = string.Empty;
+        var declaredTag = string.Empty;
+        var hasStructure = props is not null
+                           && props.TryGetValue("tag", out declaredTag)
+                           && !string.IsNullOrWhiteSpace(declaredTag);
+        if (hasStructure)
         {
-            _unsupported.Add(new UnsupportedSlot(BackendId, SurfaceRoleIds.Unknown, string.Empty, "missing-structure"));
-            return UiNode.TextNode($"?{node.Role}");
+            tag = declaredTag;
+        }
+
+        if (!hasStructure)
+        {
+            if (!isFold)
+            {
+                _unsupported.Add(new UnsupportedSlot(BackendId, SurfaceRoleIds.Unknown, string.Empty, "missing-structure"));
+                return UiNode.TextNode($"{SurfaceGlyphs.MissingStructure}:{node.Role}");
+            }
+
+            // 折叠容器的载体族固定为 HTML 原生折叠；映射缺省不构成结构缺失。
+            tag = "details";
         }
 
         var attributes = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -73,18 +90,53 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
             ["data-role"] = node.Role,
             ["data-key"] = node.Key,
         };
-        if (props.TryGetValue("cls", out var cls) && cls.Length > 0) attributes["class"] = cls;
+        if (props is not null && props.TryGetValue("cls", out var cls) && cls.Length > 0)
+        {
+            attributes["class"] = cls;
+        }
         if (node.Surface != PresentationSurface.Unknown)
         {
             attributes["data-surface"] = node.Surface.ToString().ToLowerInvariant();
+        }
+
+        if (isFold)
+        {
+            attributes["data-fold"] = "1";
+            if (node.State == UiNodeState.Open) attributes["open"] = "open";
+            else attributes["data-fold-state"] = "closed";
         }
 
         // M4a：容器结构/材质类来自已解析表面（可空 ⇒ 原路径）；仅新增 class/data 属性，不改段键。
         tag = ApplySurface(attributes, node.Key, tag);
         ApplyTheme(attributes, theme?.ThemeFor(node.Role, node.Class), node.State);
 
-        var children = new List<UiNode>(node.Fields.Count + node.Children.Count);
-        foreach (var field in node.Fields) children.Add(ProjectField(field, theme));
+        var children = new List<UiNode>(node.Fields.Count + node.Children.Count + 1);
+        if (isFold)
+        {
+            var summaryProps = _map.Props(BackendId, "summary");
+            var summaryTag = summaryProps is not null && summaryProps.TryGetValue("tag", out var declaredSummary)
+                             && !string.IsNullOrWhiteSpace(declaredSummary)
+                ? declaredSummary
+                : "summary";
+            var summaryClass = summaryProps is not null && summaryProps.TryGetValue("cls", out var summaryCls)
+                ? summaryCls
+                : "fold-summary";
+            var label = node.Fields.Count > 0 ? FieldTextFormatter.Format(node.Fields[0]) : node.Class;
+            children.Add(new UiNode(
+                summaryTag,
+                $"{node.Key}:summary",
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["class"] = summaryClass },
+                label,
+                null,
+                null));
+        }
+
+        foreach (var field in node.Fields)
+        {
+            if (field.IsNotApplicable) continue;
+            children.Add(ProjectField(field, theme));
+        }
+
         foreach (var child in node.Children) children.Add(ProjectNode(child, theme));
 
         return new UiNode(tag, node.Key, attributes, null, children, null);
@@ -96,7 +148,7 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         if (props is null || !props.TryGetValue("tag", out var tag) || string.IsNullOrWhiteSpace(tag))
         {
             _unsupported.Add(new UnsupportedSlot(BackendId, field.Cell, string.Empty, "missing-structure"));
-            return UiNode.TextNode(field.IsUnknown ? $"?{field.Name}" : TextOf(field));
+            return UiNode.TextNode($"{SurfaceGlyphs.MissingStructure}:{field.Name}={TextOf(field)}");
         }
 
         var attributes = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -105,7 +157,11 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
             ["data-cell"] = field.Cell,
         };
         if (props.TryGetValue("cls", out var cls) && cls.Length > 0) attributes["class"] = cls;
-        if (field.IsUnknown) attributes["data-unknown"] = "1";
+        if (field.IsUnknown)
+        {
+            attributes["data-unknown"] = "1";
+            attributes["data-unknown-reason"] = field.UnknownReason ?? "missing-value";
+        }
 
         ApplyTheme(attributes, theme?.ThemeForCell(field.Cell), UiNodeState.Open);
 
@@ -195,5 +251,6 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
 
     /// <summary>字段值 → 文本（唯一合成点 = <see cref="FieldTextFormatter"/>）。</summary>
     /// <param name="field">字段。</param>
-    public static string TextOf(UiField field) => FieldTextFormatter.Format(field);
+    public static string TextOf(UiField field)
+        => FieldTextFormatter.Format(field, SurfaceGlyphs.Unknown);
 }

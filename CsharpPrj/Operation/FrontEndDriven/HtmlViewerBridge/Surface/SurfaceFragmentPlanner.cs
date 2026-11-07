@@ -56,17 +56,17 @@ internal static class SurfaceFragmentPlanner
 
                 case ConversationSectionKind.Head:
                     fragments.Add(new ConversationRenderFragment(section.Key, Project(
-                        backend, section.Items, projection, declarations, viewKey)));
+                        backend, section, projection, declarations, viewKey)));
                     break;
 
                 case ConversationSectionKind.Operation:
                     fragments.Add(new ConversationRenderFragment(section.Key, Project(
-                        backend, section.Items, projection, declarations, viewKey)));
+                        backend, section, projection, declarations, viewKey)));
                     break;
 
                 case ConversationSectionKind.Round:
                     fragments.Add(new ConversationRenderFragment(section.Key, Project(
-                        backend, section.Items, projection, declarations, viewKey)));
+                        backend, section, projection, declarations, viewKey)));
                     break;
             }
         }
@@ -76,12 +76,13 @@ internal static class SurfaceFragmentPlanner
 
     private static UiNode Project(
         HtmlSurfaceBackend backend,
-        IReadOnlyList<ConversationRenderItem> items,
+        ConversationSection section,
         ConversationProjectionContext projection,
         SurfaceDeclarations declarations,
         string? viewKey)
     {
-        var plan = SurfaceRenderPipeline.Compose(items, projection.Policy, declarations, viewKey ?? string.Empty);
-        return backend.Project(plan);
+        var plan = SurfaceRenderPipeline.Compose(section.Items, projection.Policy, declarations, viewKey ?? string.Empty);
+        var folded = FoldPlanner.Apply(plan, projection.Fold, section.Round, section.LatestRound);
+        return backend.Project(folded);
     }
 }

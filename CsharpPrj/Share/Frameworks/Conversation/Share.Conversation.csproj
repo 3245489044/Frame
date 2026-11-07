@@ -24,6 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 通用投影内核（Plan/Step/Carrier/Host/Result；零 ProjectReference）。 -->
+    <ProjectReference Include="$(Proj_Share_Projection)" />
     <!-- 通用能力内核（层 × 能力三态/值域 × fallback）：表面解析的层裁剪与降级委托此内核（单实现）。 -->
     <ProjectReference Include="$(Proj_CapabilityResolution)" />
     <!-- 表面色值契约（UiBackend.SurfaceColor / SurfaceColorDomain）：值域分类与不透明合成的单点。 -->

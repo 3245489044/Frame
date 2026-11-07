@@ -46,6 +46,7 @@ public sealed class HeadlessSurfaceBackend : IBackendProjector<string>
             nodeCount = plan.NodeCount,
             fieldCount = plan.FieldCount,
             unknownFieldCount = plan.UnknownFieldCount,
+            foldCount = FoldPlanner.Count(plan),
             theme = theme is null
                 ? null
                 : new { skin = theme.Skin, density = theme.Density, fingerprint = _declaration!.Fingerprint },
@@ -68,8 +69,10 @@ public sealed class HeadlessSurfaceBackend : IBackendProjector<string>
                     name = field.Name,
                     cell = field.Cell,
                     label = field.Label,
+                    visibility = field.Visibility.ToString(),
                     unknown = field.IsUnknown,
-                    value = FieldTextFormatter.Format(field),
+                    unknownReason = field.UnknownReason,
+                    value = FieldTextFormatter.Format(field, SurfaceGlyphs.Unknown),
                 });
             }
 

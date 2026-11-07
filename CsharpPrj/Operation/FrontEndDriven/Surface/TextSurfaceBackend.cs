@@ -53,14 +53,21 @@ public sealed class TextSurfaceBackend : IBackendProjector<string>
 
     private void Render(UiSurfaceNode node, int depth, StringBuilder builder, ResolvedUi? theme)
     {
+        var isFold = string.Equals(node.Role, SurfaceRoleIds.Fold, StringComparison.Ordinal);
         var props = _map.Props(BackendId, node.Role);
         var part = theme?.ThemeFor(node.Role, node.Class);
         var prefix = Props(props, "prefix");
         if (prefix.Length == 0) prefix = Structure(part, "prefix");
+        if (isFold)
+        {
+            prefix = node.State == UiNodeState.Closed ? SurfaceGlyphs.FoldClosed : SurfaceGlyphs.FoldOpen;
+        }
+
         builder.Append(' ', depth * 2).Append(prefix).Append(node.Class);
 
         foreach (var field in node.Fields)
         {
+            if (field.IsNotApplicable) continue;
             var fieldProps = _map.Props(BackendId, field.Cell);
             var fieldPart = theme?.ThemeForCell(field.Cell);
             var sep = Props(fieldProps, "sep");
@@ -95,5 +102,5 @@ public sealed class TextSurfaceBackend : IBackendProjector<string>
     private static string Props(IReadOnlyDictionary<string, string>? props, string name)
         => props is not null && props.TryGetValue(name, out var value) ? value : string.Empty;
 
-    private static string TextOf(UiField field) => FieldTextFormatter.Format(field);
+    private static string TextOf(UiField field) => FieldTextFormatter.Format(field, SurfaceGlyphs.UnknownNarrow);
 }

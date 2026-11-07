@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Share.Conversation.Presentation;
+using Share.Projection;
 
 namespace Share.Conversation.Rendering.Surface;
 
@@ -34,6 +36,8 @@ public sealed class SurfaceRenderPipeline
 
     /// <summary>产物为空的失败码前缀。</summary>
     public const string ArtifactNullCode = "artifact-null";
+
+    private readonly ProjectionHost _host = new();
 
     private readonly Dictionary<string, Func<SurfaceDeclarations, IBackendProjector<object>>> _factories =
         new(StringComparer.Ordinal);
@@ -98,17 +102,70 @@ public sealed class SurfaceRenderPipeline
             return new SurfacePipelineResult(plan, carrierId ?? string.Empty, null, failures);
         }
 
-        object? artifact = null;
-        try
+        var projectionPlan = new ProjectionPlan(
+            "surface",
+            new[] { new ProjectionStepSpec("compose", typeof(RenderPlan), typeof(RenderPlan)) },
+            carrierId);
+        var context = new ProjectionContext("surface", carrierId);
+        var result = _host.Project(
+            plan,
+            projectionPlan,
+            context,
+            new PassThroughStep(),
+            new CarrierAdapter(factory(declarations), carrierId ?? string.Empty));
+
+        foreach (var diagnostic in result.Diagnostics)
         {
-            artifact = factory(declarations).Project(plan);
-        }
-        catch (Exception ex)
-        {
-            failures.Add($"{ViolationCode}:{carrierId}:{ex.Message}");
+            failures.Add(diagnostic.Detail is { Length: > 0 } detail
+                ? $"{diagnostic.Code}:{detail}"
+                : diagnostic.Code);
         }
 
+        foreach (var unsupported in result.Unsupported)
+        {
+            failures.Add($"unsupported:{unsupported.Slot}:{unsupported.Reason}");
+        }
+
+        var artifact = result.Artifact;
         if (artifact is null) failures.Add($"{ArtifactNullCode}:{carrierId}");
         return new SurfacePipelineResult(plan, carrierId ?? string.Empty, artifact, failures);
+    }
+
+    /// <summary>入口步骤：合成已在上游完成（Plan 即产物）。</summary>
+    private sealed class PassThroughStep : IProjectionStep<RenderPlan, RenderPlan>
+    {
+        public ProjectionResult<RenderPlan> Project(RenderPlan source, ProjectionContext context)
+            => ProjectionResult<RenderPlan>.Ok(source);
+    }
+
+    /// <summary>载体适配器：把既有 <see cref="IBackendProjector{T}"/> 归一为内核算子。</summary>
+    private sealed class CarrierAdapter : IProjectionCarrier<RenderPlan, object>
+    {
+        private readonly IBackendProjector<object> _projector;
+        private readonly string _carrierId;
+
+        public CarrierAdapter(IBackendProjector<object> projector, string carrierId)
+        {
+            _projector = projector;
+            _carrierId = carrierId;
+        }
+
+        public string CarrierId => _carrierId;
+
+        public ProjectionResult<object> Project(RenderPlan plan, ProjectionContext context)
+        {
+            try
+            {
+                var artifact = _projector.Project(plan);
+                return artifact is null
+                    ? ProjectionResult<object>.Violation(ProjectionReasons.ArtifactNull, _carrierId)
+                    : ProjectionResult<object>.Ok(artifact);
+            }
+            catch (Exception ex)
+            {
+                return ProjectionResult<object>.Violation(
+                    ProjectionReasons.CarrierViolation, $"{_carrierId}:{ex.Message}");
+            }
+        }
     }
 }

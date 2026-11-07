@@ -298,6 +298,7 @@
     <Proj_Share_Llm>$(CsharpPrjDir)Share\Frameworks\Llm\Share.Llm.csproj</Proj_Share_Llm>
     <Proj_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\CircuitFramework.csproj</Proj_CircuitFramework>
     <Proj_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\Share.Conversation.csproj</Proj_Share_Conversation>
+    <Proj_Share_Projection>$(CsharpPrjDir)Share\Foundations\Projection\Share.Projection.csproj</Proj_Share_Projection>
     <Proj_Share_SurfaceModel>$(CsharpPrjDir)Share\Frameworks\SurfaceModel\SurfaceModel.csproj</Proj_Share_SurfaceModel>
     <Proj_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\Share.Messaging.csproj</Proj_Share_Messaging>
     <Proj_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\Share.ContextGeometry.csproj</Proj_Share_ContextGeometry>

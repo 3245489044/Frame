@@ -119,6 +119,7 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
         var childOrder = 0;
         foreach (var field in node.Fields)
         {
+            if (field.IsNotApplicable) continue;
             var fieldControl = ControlType(field.Cell);
             if (fieldControl is null)
             {
@@ -150,10 +151,21 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
     }
 
     private string? ControlType(string key)
-        => _map.Props(BackendId, key) is { } props && props.TryGetValue("control", out var control)
+    {
+        if (string.Equals(key, SurfaceRoleIds.Fold, StringComparison.Ordinal))
+        {
+            return _map.Props(BackendId, "attach") is { } attach
+                   && attach.TryGetValue("control", out var foldControl)
+                   && !string.IsNullOrWhiteSpace(foldControl)
+                ? foldControl
+                : "FoldPanel";
+        }
+
+        return _map.Props(BackendId, key) is { } props && props.TryGetValue("control", out var control)
             && !string.IsNullOrWhiteSpace(control)
             ? control
             : null;
+    }
 
     /// <summary>
     /// 应用声明式主题：槽位绑定 prop → 控件属性；未支持属性/槽位 → <see cref="UnsupportedCells"/>（可见降级）。
@@ -201,5 +213,5 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
     private static bool TryParseSize(string value, out float size)
         => float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out size);
 
-    private static string TextOf(UiField field) => FieldTextFormatter.Format(field);
+    private static string TextOf(UiField field) => FieldTextFormatter.Format(field, SurfaceGlyphs.Unknown);
 }

@@ -85,3 +85,17 @@ details.fold-layer[open] > .fold-summary::before { content: "▾ "; }
 .cost-table th, .cost-table td { border-bottom:1px solid var(--border); padding:2px 4px; }
 .cost-table th { text-align:left; }
 .cost-table .num { text-align:right; }
+
+/* ── 通用折叠/字段布局（RenderPlan 语义角色 → 载体外观；禁页面手写类） ── */
+details.fold { margin: 2px 6px 6px; }
+details.fold > summary.fold-summary {
+    cursor: pointer; user-select: none; font-size: 12px; color: var(--muted);
+    letter-spacing: .02em; padding: 2px 0;
+}
+details.fold > summary.fold-summary::before { content: "▸ "; }
+details.fold[open] > summary.fold-summary::before { content: "▾ "; }
+.field { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+.field > .field-label { color: var(--muted); min-width: 7em; }
+.field > .field-text { color: var(--fg); white-space: pre-wrap; word-break: break-word; }
+.field.unknown > .field-text, .unknown { color: var(--muted); font-style: italic; }
+

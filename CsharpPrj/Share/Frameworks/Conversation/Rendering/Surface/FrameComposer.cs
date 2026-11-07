@@ -31,8 +31,6 @@ public sealed record FrameComposerOptions(
 /// </summary>
 public static class FrameComposer
 {
-    private static readonly string[] FactFields = { "terminal", "archived", "presentation", "origin" };
-
     /// <summary>合成计划（items 源序；policy 可空 ⇒ 扁平）。</summary>
     public static RenderPlan Compose(
         IReadOnlyList<ConversationRenderItem> items,
@@ -157,13 +155,10 @@ public static class FrameComposer
         {
             foreach (var name in declared)
             {
-                fields.Add(BuildField(item, name, origin, options));
+                var field = BuildField(item, name, origin, options);
+                if (field.IsNotApplicable) continue;
+                fields.Add(field);
             }
-        }
-
-        foreach (var fact in FactFields)
-        {
-            fields.Add(BuildField(item, fact, origin, options));
         }
 
         if (resultText is not null)
@@ -179,7 +174,10 @@ public static class FrameComposer
     {
         var spec = options.Fields.Resolve(name);
         var value = ValueOf(item, name, origin);
-        if (value is null) return UiField.Unknown(name);
+        if (value is null)
+        {
+            return UiField.Unknown(name, spec.LabelKey, "missing-value", name);
+        }
 
         // 字段不压平：声明为 structured 的单元，其「紧凑 JSON 文本」在此反解析为结构值；
         // 形似 JSON 但解析失败 ⇒ 可见 unknown（禁把坏串当正常值继续传）。
@@ -189,7 +187,7 @@ public static class FrameComposer
         {
             return TryStructured(text, out var structured)
                 ? new UiField(name, spec.Cell, structured, spec.LabelKey, spec.Caps)
-                : UiField.Unknown(name);
+                : UiField.Unknown(name, spec.LabelKey, "structured-parse-failed", name);
         }
 
         return new UiField(name, spec.Cell, value, spec.LabelKey, spec.Caps);
@@ -233,11 +231,24 @@ public static class FrameComposer
     private static object? ValueOf(ConversationRenderItem item, string name, PresentationOrigin origin)
         => name switch
         {
-            "text" => string.IsNullOrEmpty(item.Text) ? null : item.Text,
+            "text" => !string.IsNullOrEmpty(item.Text)
+                ? item.Text
+                : FieldOf(item, "message"),
+            "message" => !string.IsNullOrEmpty(item.Text) ? item.Text : FieldOf(item, "message"),
             "terminal" => item.Terminal,
             "archived" => item.Archived,
             "presentation" => item.Presentation,
             "origin" => origin.ToString(),
-            _ => item.Fields is not null && item.Fields.TryGetValue(name, out var value) ? value : null,
+            _ => FieldOf(item, name),
         };
+
+    private static object? FieldOf(ConversationRenderItem item, string name)
+    {
+        if (item.Fields is null || !item.Fields.TryGetValue(name, out var value) || string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        return value;
+    }
 }

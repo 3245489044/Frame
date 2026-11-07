@@ -35,7 +35,7 @@ public static class BorderPainter
             BorderGeometry.ToPixels(stroke.Radii, dpi), bounds.Width, bounds.Height);
         // GDI+ 抗锯齿按像素中心采样：整数边界会各吃半像素，且位图右/下边把外沿半像素裁掉 ⇒ 左右不对称。
         // 整体平移 -0.5px，让外沿落在像素中心之间：四边各覆盖整列/行，宽度*设备倍率精确兑现。
-        var outer = new RectangleF(bounds.X - 0.5f, bounds.Y - 0.5f, bounds.Width, bounds.Height);
+        var outer = SkinGeometry.HalfPixelAlign(bounds);
         var ring = BorderGeometry.Ring(outer.Left, outer.Top, outer.Right, outer.Bottom, widths, radii);
 
         using var outerPath = SkinGeometry.Path(outer, radii);

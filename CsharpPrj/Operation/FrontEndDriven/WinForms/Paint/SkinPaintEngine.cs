@@ -216,16 +216,17 @@ public static class SkinPaintEngine
                     offsetY = shadowLight.ShadowY * magnitude;
                 }
 
-                var rect = Rectangle.Round(new RectangleF(
-                    bounds.X + offsetX,
-                    bounds.Y + offsetY,
-                    Math.Max(1f, bounds.Width - 2f + spec.Spread * 2),
-                    Math.Max(1f, bounds.Height - 2f + spec.Spread * 2)));
+                // 偏移/扩散按声明值落成浮点盒（K2：不做整数截断；不再用固定 -2 内缩吃掉声明 spread）。
+                var rect = new RectangleF(
+                    bounds.X + offsetX - spec.Spread,
+                    bounds.Y + offsetY - spec.Spread,
+                    Math.Max(1f, bounds.Width + spec.Spread * 2),
+                    Math.Max(1f, bounds.Height + spec.Spread * 2));
                 // 外阴影相位 = Underlay（先于 fill/stroke），不会盖成内部暗带；模糊仍按 alpha 近似并记账。
                 using var brush = new SolidBrush(Color.FromArgb(
                     Math.Min(120, 40 + (int)Math.Round(Math.Max(0, spec.Blur)) * 4), color));
                 using var path = SkinGeometry.Shaped(rect, RadiusOf(spec, bounds, materialRadius), graphics.DpiX);
-                if (path is null) graphics.FillRectangle(brush, rect);
+                if (path is null) graphics.FillRectangle(brush, rect.X, rect.Y, rect.Width, rect.Height);
                 else graphics.FillPath(brush, path);
                 return true;
             }
@@ -441,7 +442,7 @@ public static class SkinPaintEngine
         GraphicsPath? clip = null;
         try
         {
-            clip = SkinGeometry.Shaped(bounds, RadiusOf(spec.Radius, bounds, materialRadius), graphics.DpiX);
+            clip = SkinGeometry.Shaped(bounds, RadiusOf(spec, bounds, materialRadius), graphics.DpiX);
             if (clip is not null) graphics.SetClip(clip, CombineMode.Intersect);
 
             var top = EdgeAlpha(peak, state.EdgeTop);
@@ -523,7 +524,7 @@ public static class SkinPaintEngine
         GraphicsPath? clip = null;
         try
         {
-            clip = SkinGeometry.Shaped(bounds, RadiusOf(spec.Radius, bounds, materialRadius), graphics.DpiX);
+            clip = SkinGeometry.Shaped(bounds, RadiusOf(spec, bounds, materialRadius), graphics.DpiX);
             if (clip is not null) graphics.SetClip(clip, CombineMode.Intersect);
 
             // 预渲染的 128px 径向 alpha 掩膜 + ColorMatrix 着色：一次缩放贴图，避免每帧 PathGradientBrush。
@@ -747,15 +748,12 @@ public static class SkinPaintEngine
         }
     }
 
-    /// <summary>层生效圆角（声明优先，未声明沿用材质级最大半径；≤0 ⇒ 0 = 直角）。</summary>
+    /// <summary>层生效圆角（声明优先，未声明沿用材质级最大半径；≤0 ⇒ 0 = 直角）。唯一推导。</summary>
     private static float RadiusOf(ResolvedLayerSpec spec, Rectangle bounds, float materialRadius)
-        => RadiusOf(spec.CornerRadius(materialRadius), bounds, materialRadius);
-
-    private static float RadiusOf(float declared, Rectangle bounds, float materialRadius)
     {
-        var radius = declared > 0 ? declared : materialRadius;
+        var radius = spec.CornerRadius(materialRadius);
         if (radius <= 0) return 0f;
-        return Math.Min(radius, Math.Min(bounds.Width, bounds.Height) / 2f);
+        return radius; // DIP；设备像素上限统一由 SkinGeometry 在换算后收敛（不在 DIP/px 混算）
     }
 
     /// <summary>提亮（磨砂高光；amount 0..1）。</summary>

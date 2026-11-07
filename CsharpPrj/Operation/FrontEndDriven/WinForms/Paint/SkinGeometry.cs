@@ -20,13 +20,28 @@ internal static class SkinGeometry
     /// <param name="radiusDips">圆角半径（DIP；≤0 ⇒ 直角）。</param>
     /// <param name="dpi">设备 DPI。</param>
     internal static GraphicsPath? Shaped(Rectangle bounds, float radiusDips, float dpi)
+        => Shaped(new RectangleF(bounds.X, bounds.Y, bounds.Width, bounds.Height), radiusDips, dpi);
+
+    /// <summary>同上（浮点盒）；阴影/光斑等按声明偏移与扩散落成的层走此重载，不做整数截断。</summary>
+    /// <param name="bounds">盒边界（设备像素，允许小数）。</param>
+    /// <param name="radiusDips">圆角半径（DIP；≤0 ⇒ 直角）。</param>
+    /// <param name="dpi">设备 DPI。</param>
+    internal static GraphicsPath? Shaped(RectangleF bounds, float radiusDips, float dpi)
     {
         if (radiusDips <= 0 || bounds.Width <= 0 || bounds.Height <= 0) return null;
         var radius = BorderGeometry.Clamp(
             CornerRadii.Uniform(BorderUnits.DipsToPixels(radiusDips, dpi)),
             bounds.Width, bounds.Height);
-        return Path(new RectangleF(bounds.X, bounds.Y, bounds.Width, bounds.Height), radius);
+        return Path(bounds, radius);
     }
+
+    /// <summary>
+    /// 描边落点对齐（半像素）：GDI+ 抗锯齿按像素中心采样，整数边界会让外沿各吃半像素。
+    /// 整体平移 -0.5px，使外沿落在像素中心之间；四边宽度一致、位图右/下边不被裁掉半像素。
+    /// </summary>
+    /// <param name="bounds">逻辑盒边界（设备像素）。</param>
+    internal static RectangleF HalfPixelAlign(Rectangle bounds)
+        => new(bounds.X - 0.5f, bounds.Y - 0.5f, bounds.Width, bounds.Height);
 
     /// <summary>浮点圆角矩形路径（四角独立；radius 全 0 ⇒ 矩形路径）。</summary>
     /// <param name="rect">目标矩形（设备像素）。</param>

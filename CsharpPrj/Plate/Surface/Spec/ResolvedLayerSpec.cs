@@ -183,7 +183,8 @@ public sealed record ResolvedLayerSpec(
         var offsetY = 0f;
         var spread = 0f;
         var strength = 0.7f;
-        var mode = ParseMode(parameters);
+        // 边框类图元的形态只由 BorderSpec 归一化给出（raw `mode` 对 shadow/innerShadow 不生效，保持既有口径）。
+        var mode = isBorder ? "band" : ParseMode(parameters);
         var sides = LayerParams.Read(parameters, "sides");
         var align = LayerParams.Read(parameters, "align");
 

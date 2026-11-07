@@ -84,11 +84,10 @@ public static class WinFormsPropertyProjector
     /// <param name="material">已解析材质。</param>
     public static Color? DeclaredStroke(ResolvedMaterial material)
     {
-        foreach (var layer in material.Layers)
+        foreach (var layerSpec in ResolvedLayerSpecProjection.Parse(material.Layers).Specs)
         {
-            if (!string.Equals(layer.Primitive, "stroke", StringComparison.Ordinal)) continue;
-            if (!layer.Params.TryGetValue("value", out var value)) continue;
-            if (TryParseColor(value, out var argb)) return Color.FromArgb(argb);
+            if (layerSpec.Kind != LayerPrimitive.Stroke || !layerSpec.HasColor) continue;
+            return Color.FromArgb(layerSpec.ColorArgb);
         }
 
         return null;
@@ -116,20 +115,11 @@ public static class WinFormsPropertyProjector
     public static bool TryGetOpaqueBase(Control control, ResolvedMaterial material, out int argb)
     {
         argb = 0;
-        foreach (var layer in material.Layers)
+        foreach (var layerSpec in ResolvedLayerSpecProjection.Parse(material.Layers).Specs)
         {
-            if (!string.Equals(layer.Primitive, "fill", StringComparison.Ordinal)
-                && !string.Equals(layer.Primitive, "gradient", StringComparison.Ordinal))
-            {
-                continue;
-            }
+            if (layerSpec.Kind is not (LayerPrimitive.Fill or LayerPrimitive.Gradient) || !layerSpec.HasColor) continue;
 
-            if (!layer.Params.TryGetValue("value", out var value)) continue;
-
-            var first = layer.Primitive == "gradient"
-                ? value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault()
-                : value;
-            if (string.IsNullOrWhiteSpace(first) || !TryParseColor(first, out var foreground)) continue;
+            var foreground = layerSpec.ColorArgb;
             if (((foreground >> 24) & 0xFF) == 0) continue;
 
             argb = SurfaceColorComposition.Over(foreground, OpaqueBehind(control));
@@ -155,9 +145,6 @@ public static class WinFormsPropertyProjector
 
         return SkinMaterialCatalog.PageBackground?.ToArgb() ?? SystemColors.Control.ToArgb();
     }
-
-    /// <summary>色值解析（唯一桥：<see cref="SurfaceColorParse"/>；失败 ⇒ false）。</summary>
-    private static bool TryParseColor(string value, out int argb) => SurfaceColorParse.TryParseArgb(value, out argb);
 
     /// <summary>反差文字色（按底色亮度在黑/白之间二选一）。</summary>
     private static Color Contrast(Color background)

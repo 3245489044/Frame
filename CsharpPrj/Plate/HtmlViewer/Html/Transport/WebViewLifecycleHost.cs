@@ -66,8 +66,13 @@ public sealed class WebViewLifecycleHost
             // 必须取**完整生效 CSS**而非主题 IR tokens：运行期模块（玻璃档等）会在主题之后追加 `--bg` 覆盖，
             // token 直读重载只用于无 CSS 场景，走这里会丢运行期覆盖。
             var bg = HtmlThemeBackground.Resolve(HtmlDocumentRenderer.EffectiveCss(theme), _content.Mode);
+            // 玻璃档把 --bg 覆盖成 transparent（让 WinForms 背板透出），CSS 解析会得到 null；
+            // 此时必须回落到主题 IR 的 bg/surface_plain，否则 WebView2 沿用默认白/宿主 #F0F0F0，
+            // 透明 body 的空白区会露出浅色带（实测约 5.9 万 px #F0F0F0，占全图 63%）。
             if (bg.HasValue)
                 _host.DefaultBackgroundColor = bg.Value;
+            else if (HtmlThemeBackground.Resolve(theme, _content.Mode) is { } opaqueBg)
+                _host.DefaultBackgroundColor = opaqueBg;
 
             if (firstRun
                 && _host.Core is not null

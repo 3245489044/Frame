@@ -477,12 +477,20 @@ public static class SkinDecorator
                 prefill.Clear(page.Value);
             }
 
+            // 父级自身已是玻璃（含 backdrop 层）时，再拍进来就是「玻璃叠玻璃」：同一 fill 二次合成，
+            // 面色被抬到 #29475F、背后渐变被抹平（panel/page 由 1.66 抬到 1.95）。此时只保留页面色起底，
+            // 玻璃合成只做一层；父级非玻璃（实心/内容面）才需要拍自身表面。
+            var parentIsGlass = MaterialOf(parent) is { } parentMaterial
+                                && parentMaterial.Layers.Any(layer => layer.Primitive == "backdrop");
             if (unstyled) parent.BackColor = page!.Value;
             try
             {
                 // 只打父级自身表面（不带 PRF_CHILDREN）：子控件（尤其 WebView2 与未换肤面板的默认底）
                 // 一旦被拍进背板，就会被玻璃洗白成 #5B7386 并留下鬼影字。
-                PaintParentSurface(parent, parentBitmap);
+                if (!parentIsGlass || !page.HasValue)
+                {
+                    PaintParentSurface(parent, parentBitmap);
+                }
             }
             finally
             {

@@ -191,6 +191,9 @@ public readonly record struct SurfaceLightSample(
     long Signature,
     string CacheToken)
 {
+    /// <summary>该处矩阵镜面权重（0..1）：载体按它调制高光/边缘光强度，不再另定人工 strength。</summary>
+    public float Specular { get; init; } = 1f;
+
     /// <summary>无光场可用时的空值：载体保持声明值并记账，**不得**回落到时间表近似。</summary>
     public static readonly SurfaceLightSample Unavailable = new(
         HasValue: false,
@@ -208,7 +211,10 @@ public readonly record struct SurfaceLightSample(
         ShadowY: 0f,
         TintArgb: unchecked((int)0xFFDCEBFF),
         Signature: 0,
-        CacheToken: "light-unavailable");
+        CacheToken: "light-unavailable")
+    {
+        Specular = 0f,
+    };
 }
 
 /// <summary>
@@ -255,8 +261,9 @@ public static class SurfaceLightPort
             0.15f, 1.25f);
         var warmth = Math.Clamp(frame.Warmth + (1f - transmission) * 0.15f, 0f, 1f);
 
+        // 高光中心必须落在**光源一侧**：方向指向光（dirY<0 = 光在上方）⇒ 光斑在上方（归一化 y 更小）。
         var spotX = Math.Clamp(0.5f + direction.X * 0.26f, 0.05f, 0.95f);
-        var spotY = Math.Clamp(0.5f - direction.Y * 0.20f, 0.05f, 0.95f);
+        var spotY = Math.Clamp(0.5f + direction.Y * 0.20f, 0.05f, 0.95f);
 
         var edgeTop = Math.Max(0f, -direction.Y);
         var edgeBottom = Math.Max(0f, direction.Y);
@@ -288,7 +295,7 @@ public static class SurfaceLightPort
         var stableSignature = frame.WorldSignature ^ frame.ConfigSignature;
         var token = string.Create(
             System.Globalization.CultureInfo.InvariantCulture,
-            $"S{stableSignature}:{angle:F0}:{intensity:F2}:{warmth:F2}:{spotX:F2}:{spotY:F2}:{probe.ZOrder}");
+            $"S{stableSignature}:{angle:F0}:{intensity:F2}:{warmth:F2}:{spotX:F2}:{spotY:F2}:{specular:F2}:{probe.ZOrder}");
 
         return new SurfaceLightSample(
             HasValue: true,
@@ -306,7 +313,10 @@ public static class SurfaceLightPort
             ShadowY: shadowY,
             TintArgb: tint,
             Signature: stableSignature,
-            CacheToken: token);
+            CacheToken: token)
+        {
+            Specular = specular,
+        };
     }
 
     /// <summary>方向 → 角度（度；0°=右、90°=上，与现有 <c>SpotCenter</c> 口径一致）。</summary>

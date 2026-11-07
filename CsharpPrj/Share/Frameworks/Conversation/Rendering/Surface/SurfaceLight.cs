@@ -52,15 +52,18 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// <summary>该处环境色（0xAARRGGBB；色值解释统一由 <see cref="SurfaceColor"/> 负责）。</summary>
     public int TintArgb { get; init; }
 
+    /// <summary>该处矩阵镜面权重（0..1）：高光/边缘光强度由它驱动，不再另定人工 strength。</summary>
+    public float Specular { get; init; } = 1f;
+
     /// <summary>光场签名（缓存失效依据）。</summary>
     public long LightSignature { get; init; }
 
     /// <summary>无光场可用：载体不得据此重画光，只能保持声明值。</summary>
-    public static readonly SurfaceLightState Unavailable = new(135f, 0f, 0f) { HasValue = false };
+    public static readonly SurfaceLightState Unavailable = new(135f, 0f, 0f) { HasValue = false, Specular = 0f };
 
     /// <summary>位图缓存键片段（含插值后的光参数；不含秒级噪声）。</summary>
     public string CacheToken => HasValue
-        ? $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:S{LightSignature}"
+        ? $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:{Specular:F2}:S{LightSignature}"
         : "light-unavailable";
 
     /// <summary>采样结果 → 载体窄视图（**唯一投影点**）。</summary>
@@ -83,6 +86,7 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
             ShadowX = sample.ShadowX,
             ShadowY = sample.ShadowY,
             TintArgb = sample.TintArgb,
+            Specular = sample.Specular,
             LightSignature = sample.Signature,
         };
     }

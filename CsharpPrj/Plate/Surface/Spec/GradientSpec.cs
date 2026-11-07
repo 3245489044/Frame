@@ -70,19 +70,22 @@ public sealed record GradientSpec(IReadOnlyList<GradientStop> Stops)
         }
 
         var stops = new List<GradientStop>(parts.Length);
+        var failed = false;
         for (var i = 0; i < parts.Length; i++)
         {
             var tokens = LayerParams.SplitTokens(parts[i]);
             if (tokens.Length == 0)
             {
                 issues.Add(new LayerIssue("color-invalid", $"{role}:value[{i}]={parts[i]}"));
-                return Empty;
+                failed = true;
+                continue;
             }
 
             if (!SurfaceColor.TryParseColor(tokens[0], out var argb))
             {
                 issues.Add(new LayerIssue("color-invalid", $"{role}:value[{i}]={parts[i]}"));
-                return Empty;
+                failed = true;
+                continue;
             }
 
             var position = 0f;
@@ -98,7 +101,8 @@ public sealed record GradientSpec(IReadOnlyList<GradientStop> Stops)
                 if (!LayerParams.TryFloat(positionText, out var parsed))
                 {
                     issues.Add(new LayerIssue("param-invalid", $"{role}:value[{i}]={parts[i]}"));
-                    return Empty;
+                    failed = true;
+                    continue;
                 }
 
                 position = LayerParams.Clamp01(parsed > 1f ? parsed / 100f : parsed);
@@ -108,6 +112,7 @@ public sealed record GradientSpec(IReadOnlyList<GradientStop> Stops)
             stops.Add(new GradientStop(argb, position, hasPosition));
         }
 
-        return new GradientSpec(stops);
+        // 任一项非法 ⇒ 整层不落地（禁部分渐变），但问题要一次列全（K1：解析期一次产判据）。
+        return failed ? Empty : new GradientSpec(stops);
     }
 }

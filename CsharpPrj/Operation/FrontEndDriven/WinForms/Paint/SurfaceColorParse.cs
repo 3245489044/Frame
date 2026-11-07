@@ -6,8 +6,8 @@ using UiBackend;
 namespace FrontEndDriven.WinForms.Paint;
 
 /// <summary>
-/// 色值 → GDI+ 颜色（**WinForms 侧唯一桥**）：hex/rgb()/rgba()/transparent/none 走 <see cref="SurfaceColor"/>，
-/// 命名色由 <see cref="Color.FromName"/> 兜底（`Plate.Surface` 为 BCL-only，不引 System.Drawing）。
+/// 色值 → GDI+ 颜色（**WinForms 侧唯一桥**）：hex/rgb()/rgba()/transparent/none/命名色全部走 <see cref="SurfaceColor"/>。
+/// <para>禁 <see cref="Color.FromName"/>：它会放行未换值 token 且系统色表与 CSS 不一致；本桥只做 <c>Color.FromArgb</c> 装箱。</para>
 /// <para>绘制通道与属性通道共用本实现，禁各自再写一套字符串解析。</para>
 /// </summary>
 internal static class SurfaceColorParse
@@ -20,16 +20,9 @@ internal static class SurfaceColorParse
         color = Color.Transparent;
         if (string.IsNullOrWhiteSpace(value)) return false;
 
-        var text = value.Trim();
-        if (SurfaceColor.TryParseColor(text, out var argb))
+        if (SurfaceColor.TryParseColor(value.Trim(), out var argb))
         {
             color = Color.FromArgb(argb);
-            return true;
-        }
-
-        if (Color.FromName(text) is { IsKnownColor: true } named)
-        {
-            color = named;
             return true;
         }
 

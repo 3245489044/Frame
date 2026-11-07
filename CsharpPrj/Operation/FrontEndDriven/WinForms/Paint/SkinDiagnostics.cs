@@ -46,10 +46,6 @@ public sealed record SkinDiagnosticsSnapshot(
 /// </summary>
 public static class SkinDiagnostics
 {
-    /// <summary>参与色值解析的图元（其余图元用 asset/纯数值，不参与 token 判定）。</summary>
-    private static readonly HashSet<string> ColorPrimitives =
-        new(StringComparer.Ordinal) { "fill", "gradient", "stroke", "shadow", "innerShadow", "backdrop", "specular" };
-
     private static readonly object Gate = new();
     private static SkinDiagnosticsSnapshot _current = Empty();
     private static int _attached;
@@ -135,8 +131,9 @@ public static class SkinDiagnostics
     }
 
     /// <summary>
-    /// 统计「层值无法解析为颜色」的条目（token 未换值的结构指标）。
-    /// 判据载体 = 层值文本本身（含 <c>gradient</c> 逗号分隔），不含执行者叙述。
+    /// 统计非法/未换值的声明项（token 未换值的结构指标）。
+    /// <para>判据载体 = K1 强类型解析输出的 issues（**与运行期同源**）：扫描全部声明参数（色值与 width/radius 等数值），
+    /// 不只 <c>value</c>；不另写「像不像颜色」的第三套判定。</para>
     /// </summary>
     /// <param name="catalog">材质目录（按材质 id 去重）。</param>
     /// <param name="global">全局回退材质（可为空）。</param>
@@ -161,23 +158,32 @@ public static class SkinDiagnostics
         void Collect(ResolvedMaterial? material)
         {
             if (material is null || !seen.Add(material.MaterialId)) return;
-            foreach (var layer in material.Layers)
+
+            // 解析结果按层栈缓存（K1）：诊断与绘制读同一份 issues，禁二次解析。
+            var specSet = ResolvedLayerSpecProjection.ParseCached(material.Layers);
+            foreach (var spec in specSet.Specs)
             {
-                if (!ColorPrimitives.Contains(layer.Primitive)) continue;
-                if (!layer.Params.TryGetValue("value", out var value) || string.IsNullOrWhiteSpace(value)) continue;
-
-                var parts = string.Equals(layer.Primitive, "gradient", StringComparison.Ordinal)
-                    ? value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    : new[] { value.Trim() };
-
-                foreach (var part in parts)
+                foreach (var issue in spec.Issues)
                 {
-                    if (IsLiteralColor(part)) continue;
-                    unresolved.Add(material.MaterialId + "/" + layer.Role + "=" + part);
+                    if (!IsUnresolvedIssue(issue.Code)) continue;
+                    unresolved.Add(issue.Detail.StartsWith(spec.Role + ":", StringComparison.Ordinal)
+                        ? material.MaterialId + "/" + issue.Detail
+                        : material.MaterialId + "/" + spec.Role + "=" + issue.Detail);
                 }
             }
         }
     }
+
+    /// <summary>计入「未换值/非法声明」的问题码（缺失参数不算 token 未换值，单独由层落地判定处理）。</summary>
+    private static bool IsUnresolvedIssue(string code) => code switch
+    {
+        "unresolved-value" => true,
+        "color-invalid" => true,
+        "param-invalid" => true,
+        "border-color-invalid" => true,
+        "border-width-invalid" => true,
+        _ => false,
+    };
 
     /// <summary>单行稳定描述（断言失败证据 / 日志；键序固定）。</summary>
     public static string Describe()
@@ -207,9 +213,8 @@ public static class SkinDiagnostics
     private static string Value(string text) => string.IsNullOrWhiteSpace(text) ? "-" : text;
 
     /// <summary>
-    /// 是否字面色值（**与运行期解析器同源**：直接委托 <see cref="SurfaceColor"/>，不另写一套判据）。
-    /// <para>禁 <see cref="Color.FromName"/>：它会把未换值的 token（如 <c>surface_plain</c>）误判成合法颜色；
-    /// 也禁「纯数值算颜色」，数值是宽度/角度等参数，不是色值。</para>
+    /// 是否字面色值（**兼容别名，非第二套判定**）：直接委托 <see cref="SurfaceColor.TryParseColor"/>，
+    /// 与运行期/诊断同一实现。禁 <c>Color.FromName</c>（会放行 token 且系统色表与 CSS 不一致）。
     /// </summary>
     /// <param name="text">层值文本。</param>
     public static bool IsLiteralColor(string? text)

@@ -28,21 +28,34 @@ public static class SpectralStyleModule
     {
         if (classNames is null || classNames.Count == 0) return string.Empty;
 
-        var builder = new StringBuilder(classNames.Count * 320);
+        var builder = new StringBuilder(classNames.Count * 460);
+        // 模块级缺省（材质规则会按声明覆盖）：`--sl-spectral-w` 必须始终有值（作 border-width 使用）。
+        builder.Append(":root{--sl-spectral-w:6px;--sl-spectral-a:0.5}\n");
         foreach (var className in classNames)
         {
-            // ::after 需要定位上下文；只在本模块内给光谱材质补 position:relative（不污染其它材质）。
-            builder.Append('.').Append(className).Append("{position:relative}\n");
+            // ::after 需要定位上下文；isolation:isolate 让负层级的虹彩只压在本材质自身上（不穿透到页面）。
+            // 只在本模块内给光谱材质补定位/隔离（不污染其它材质）。
+            builder.Append('.').Append(className).Append("{position:relative;isolation:isolate}\n");
             builder.Append('.').Append(className).Append("::after{")
-                .Append("content:\"\";position:absolute;inset:0;border-radius:inherit;pointer-events:none;")
+                .Append("content:\"\";position:absolute;inset:0;box-sizing:border-box;")
+                .Append("border-radius:inherit;pointer-events:none;")
+                // 负层级：色带落在材质**内容之下、填充之上**，不再盖住文字/表格（历史表格读不出的直接原因）。
+                .Append("z-index:-1;")
+                // 环宽 = 材质声明 width（border 提供**恒定宽度**外框，不随元素长宽比变形）。
+                // 旧 `radial-gradient(closest-side …)` 椭圆环在四角会增厚（实测 6px → 23px、铺满 25.94%）。
+                .Append("border:var(--sl-spectral-w) solid transparent;")
                 // 色相环：固定起点 + 多色标，保证沿轮廓连续且跨度 ≥90°。
                 // at 用视口 px 锚点 + fixed 定位区 ⇒ 色相由「面板相对光斑的位置」决定（不是元素自身百分比）。
                 .Append("background:conic-gradient(from 135deg at var(--sl-anchor-x,30vw) var(--sl-anchor-y,18vh),")
                 .Append("#7fe9ff 0deg,#8f8cff 72deg,#ff8ae0 144deg,#ffd59a 216deg,#6f7bff 288deg,#7fe9ff 360deg);")
-                .Append("background-attachment:fixed;")
-                // 只留边缘环（中心透明），避免整面板被彩色覆盖。
-                .Append("mask-image:radial-gradient(closest-side,transparent 58%,#000 100%);")
-                .Append("-webkit-mask-image:radial-gradient(closest-side,transparent 58%,#000 100%);")
+                .Append("background-attachment:fixed;background-clip:border-box;")
+                // 只留 border 区：padding-box 挖掉 border-box ⇒ 得到声明带宽的窄环（union 相减，非径向近似）。
+                .Append("mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0) border-box;")
+                .Append("-webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0) border-box;")
+                // 标准属性写在最后：`mask` 简写会重置 composite，旧引擎只认 -webkit-。
+                .Append("-webkit-mask-composite:xor;mask-composite:exclude;")
+                // 峰值由材质声明 strength × 光态（两载体同一 SheenAlpha 公式）；不是写死的恒亮。
+                .Append("opacity:var(--sl-spectral-a);")
                 // 全局相位 = 锚点相对覆盖区的方位角，只由设施位置/光斑锚点决定。
                 .Append("filter:hue-rotate(var(--sl-irid-angle,0deg));")
                 .Append("}\n");

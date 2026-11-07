@@ -59,11 +59,14 @@ public static class CssSurfaceProjector
         var skipped = new List<string>();
         var emitted = new HashSet<string>(StringComparer.Ordinal);
         var spectral = new List<string>();
+        SurfaceLightState? lightState = null;
 
         if (light is { HasValue: true } sample)
         {
             // 两载体共用同一端口：HTML 侧只把采样结果格式化成变量，不重算光数学。
             builder.Rule(":root", LightVariables(sample));
+            // 材质级峰值/半径也走同一份窄视图（不再各自拼 alpha/radius）。
+            lightState = SurfaceLightState.From(sample);
         }
 
         foreach (var container in surface.Containers)
@@ -74,7 +77,7 @@ public static class CssSurfaceProjector
                 var className = ClassName(material.FallbackUsed ?? material.MaterialId);
                 if (!emitted.Add(className)) continue;
 
-                builder.Rule("." + className, MaterialToCss(material, skipped, out var isSpectral));
+                builder.Rule("." + className, MaterialToCss(material, lightState, skipped, out var isSpectral));
                 if (isSpectral) spectral.Add(className);
             }
         }
@@ -87,7 +90,7 @@ public static class CssSurfaceProjector
 
     /// <summary>单个材质 → 声明列表（阴影/背景多值合并；边框走 BorderSpec）。</summary>
     private static List<KeyValuePair<string, string>> MaterialToCss(
-        ResolvedMaterial material, List<string> skipped, out bool spectral)
+        ResolvedMaterial material, SurfaceLightState? light, List<string> skipped, out bool spectral)
     {
         spectral = false;
         var declarations = new List<KeyValuePair<string, string>>();
@@ -183,30 +186,47 @@ public static class CssSurfaceProjector
             shadows.Add(string.Join(" ", parts));
         }
 
-        foreach (var light in spec.InnerLights)
+        foreach (var innerLight in spec.InnerLights)
         {
-            if (string.Equals(light.Mode, "edge", StringComparison.Ordinal))
+            if (string.Equals(innerLight.Mode, "edge", StringComparison.Ordinal))
             {
                 // 顶高光；CSS 单条 inset 不能只亮左边 ⇒ 逐边语义显式降级记账。
-                shadows.Add($"inset 0 {FormatPx(light.Width)} 0 {CssColor(light.Argb)}");
-                skipped.Add("inner-light-sides-degraded:" + light.Sides);
+                shadows.Add($"inset 0 {FormatPx(innerLight.Width)} 0 {CssColor(innerLight.Argb)}");
+                skipped.Add("inner-light-sides-degraded:" + innerLight.Sides);
                 continue;
             }
 
-            if (!string.Equals(light.Sides, "all", StringComparison.Ordinal))
-                skipped.Add("inner-light-sides-degraded:" + light.Sides);
-            var inset = light.Blur > 0
-                ? $"inset {ZeroAware(light.OffsetX)} {ZeroAware(light.OffsetY)} {FormatPx(light.Blur)}"
-                : $"inset {ZeroAware(light.OffsetX)} {ZeroAware(light.OffsetY)} 0";
-            shadows.Add(inset + " " + CssColor(light.Argb));
+            if (!string.Equals(innerLight.Sides, "all", StringComparison.Ordinal))
+                skipped.Add("inner-light-sides-degraded:" + innerLight.Sides);
+            var inset = innerLight.Blur > 0
+                ? $"inset {ZeroAware(innerLight.OffsetX)} {ZeroAware(innerLight.OffsetY)} {FormatPx(innerLight.Blur)}"
+                : $"inset {ZeroAware(innerLight.OffsetX)} {ZeroAware(innerLight.OffsetY)} 0";
+            shadows.Add(inset + " " + CssColor(innerLight.Argb));
+        }
+
+        // 光斑半径乘子 = 材质声明 radius（与 GDI+ PaintSpotHighlight 的 clamp(radius, 0.25, 1.2) 同一来源）。
+        var spotRadiusFactor = 0.55f;
+        foreach (var layerSpec in parsed.Specs)
+        {
+            if (layerSpec.Kind == LayerPrimitive.Specular
+                && string.Equals(layerSpec.Mode, "spot", StringComparison.Ordinal))
+            {
+                spotRadiusFactor = Math.Clamp(layerSpec.Radius, 0.25f, 1.2f);
+                break;
+            }
         }
 
         foreach (var sheen in spec.Sheens)
         {
             if (string.Equals(sheen.Mode, "spectral", StringComparison.Ordinal))
             {
-                // 光谱正文由独立样式模块（SpectralStyleModule）产出：这里只标记类名，不写 ::after。
+                // 光谱正文由独立样式模块（SpectralStyleModule）产出：这里只标记类名 + 带宽/峰值变量。
                 spectral = true;
+                // 带宽 = 材质声明 width（不再由模块写死 6px）；峰值与 GDI+ 走同一公式。
+                declarations.Add(Pair("--sl-spectral-w", FormatPx(sheen.Width)));
+                var spectralPeak = SurfaceLightState.SheenAlpha(
+                    150f, sheen.Strength, light?.Specular ?? 1f, light?.Shade ?? 1f);
+                declarations.Add(Pair("--sl-spectral-a", FormatRatio(spectralPeak / 255f)));
                 continue;
             }
 
@@ -214,9 +234,21 @@ public static class CssSurfaceProjector
             {
                 // 光斑中心 = 视口固定锚点（px）；background-attachment:fixed 使定位区 = 视口 ⇒ 面板移动光斑不动。
                 // 无帧回落也必须锚在视口：用 vw/vh/vmin，**不能**退回元素自身百分比（那是局部坐标）。
+                if (light is { SpotRadiusDips: > 0f } lit)
+                {
+                    // 半径 = 光斑半径 × 材质 radius 乘子（与 GDI+ PaintSpotHighlight 同一乘子）；
+                    // 色标走到 100% ⇒ 视觉半径不再被旧的 70% 缩成 1.27×。
+                    declarations.Add(Pair("--sl-spot-r", FormatPx(lit.SpotRadiusDips * spotRadiusFactor)));
+                    // 峰值颜色 = 材质声明色 + **两载体同一峰值公式**（不再用 --sl-tint 的 220/255 且忽略 strength/Shade）。
+                    // 注意：峰值（亮度）同源；颜色仍有一档差异 —— GDI+ 的 PaintSpotHighlight 会再叠 LitColor
+                    // 的 15% 光照 tint，CSS 侧只叠 alpha、不混 tint。这是**已知不对称**，别当成同色。
+                    var peak = SurfaceLightState.SheenAlpha(90f, sheen.Strength, lit.Specular, lit.Shade);
+                    declarations.Add(Pair("--sl-spot-color", CssColor((peak << 24) | (sheen.Argb & 0x00FFFFFF))));
+                }
+
                 backgrounds.Add(
                     "radial-gradient(circle var(--sl-spot-r, 22vmin) at var(--sl-anchor-x, 30vw) var(--sl-anchor-y, 18vh), " +
-                    $"var(--sl-tint, {CssColor(sheen.Argb)}) 0%, transparent 70%)");
+                    $"var(--sl-spot-color, {CssColor(sheen.Argb)}) 0%, transparent 100%)");
                 backgroundAttachments.Add("fixed");
             }
             else
@@ -331,7 +363,7 @@ public static class CssSurfaceProjector
             // 锚点是**视口坐标 px**（世界固定），不是面板百分比：固定背景层据此在屏幕上定位。
             Pair("--sl-anchor-x", FormatPx(sample.Anchor.X)),
             Pair("--sl-anchor-y", FormatPx(sample.Anchor.Y)),
-            Pair("--sl-spot-r", FormatPx(sample.SpotRadiusDips)),
+            // --sl-spot-r 是材质级量（SpotRadiusDips × 声明 radius），由材质规则按需输出。
             Pair("--sl-tint", CssColor(sheenTint)),
             Pair("--sl-irid-angle", iridAngle.ToString(CultureInfo.InvariantCulture) + "deg"),
         };
@@ -389,4 +421,8 @@ public static class CssSurfaceProjector
         => Math.Abs(value - Math.Round(value)) < 1e-6
             ? ((long)Math.Round(value)).ToString(CultureInfo.InvariantCulture) + "px"
             : value.ToString("0.###", CultureInfo.InvariantCulture) + "px";
+
+    /// <summary>0..1 比例 → CSS 无单位数值（最多 3 位小数，供 <c>opacity</c> 消费）。</summary>
+    private static string FormatRatio(float value)
+        => Math.Clamp(value, 0f, 1f).ToString("0.###", CultureInfo.InvariantCulture);
 }

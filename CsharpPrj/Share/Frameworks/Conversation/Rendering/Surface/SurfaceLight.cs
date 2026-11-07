@@ -92,6 +92,23 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
         ? $"{Angle:F1}:{Specular:F2}:{ShadowX:F2}:{ShadowY:F2}:S{LightSignature}"
         : "light-unavailable";
 
+    /// <summary>
+    /// 高光峰值 alpha（**两载体唯一公式**）：矩阵镜面权重 × 材质声明 <c>strength</c>（只作上限）× 照度权重
+    /// <see cref="Shade"/>，封顶 200。GDI+ 的 <c>SkinPaintEngine.SheenPeak</c> 与 CSS 的
+    /// <c>--sl-spot-color</c>/<c>--sl-spectral-a</c> 都必须走这里，禁止各写一份（否则同一份光投出不同亮度）。
+    /// </summary>
+    /// <param name="baseAlpha">载体基准峰值（GDI+ 光斑 90 / 边缘 150）。</param>
+    /// <param name="strength">材质声明强度（0..1，仅作上限）。</param>
+    /// <param name="specular">矩阵镜面权重（0..1）。</param>
+    /// <param name="shade">照度权重（0..1）。</param>
+    public static int SheenAlpha(float baseAlpha, float strength, float specular, float shade)
+    {
+        var gain = 0.25f + 0.75f * Math.Clamp(specular, 0f, 1f);
+        var cap = Math.Clamp(strength, 0f, 1f);
+        var lit = Math.Clamp(shade, 0f, 1f);
+        return Math.Clamp((int)Math.Round(baseAlpha * gain * cap * lit), 0, 200);
+    }
+
     /// <summary>采样结果 → 载体窄视图（**唯一投影点**）。</summary>
     public static SurfaceLightState From(SurfaceLightSample sample)
     {

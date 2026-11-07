@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
 using UiBackend;
 
@@ -151,6 +152,26 @@ public static class SkinDiagnostics
             };
         }
     }
+
+    /// <summary>
+    /// 一次性锚点坐标系诊断（P0-3）：虚拟屏、控件屏幕矩形、HTML 实际播出的锚点 px 各打印一次。
+    /// <para>只在坐标系换算成功时调用；进程内只写一次（不产生长期日志噪声）。</para>
+    /// </summary>
+    /// <param name="virtualScreen">虚拟屏矩形（设备 px）。</param>
+    /// <param name="controlRect">WebView 控件客户区屏幕矩形 + DPI。</param>
+    /// <param name="anchor">换算后的锚点（视口 px）与覆盖区（屏幕 DIP）。</param>
+    public static void RecordAnchorProbe(string virtualScreen, string controlRect, string anchor)
+    {
+        if (Interlocked.Exchange(ref _anchorProbeWritten, 1) == 1) return;
+        FrontEndDrivenLog.Log("SkinDiagnostics_anchor_probe", new
+        {
+            virtualScreen,
+            controlRect,
+            anchor,
+        });
+    }
+
+    private static int _anchorProbeWritten;
 
     /// <summary>
     /// 统计非法/未换值的声明项（token 未换值的结构指标）。

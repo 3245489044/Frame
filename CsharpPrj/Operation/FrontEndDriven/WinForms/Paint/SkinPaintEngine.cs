@@ -764,19 +764,21 @@ public static class SkinPaintEngine
     private static int SheenPeak(float declaredStrength, float baseAlpha, SurfaceLightState state)
     {
         if (!state.HasValue) return 0;
-        var specular = Math.Clamp(state.Specular, 0f, 1f);
-        var gain = 0.25f + 0.75f * specular;
-        var cap = Math.Clamp(declaredStrength, 0f, 1f);
-        // 照度权重（到世界锚点的距离衰减）：超出判定半径的组件不应再叠边缘光/条带。
-        var lit = Math.Clamp(state.Shade, 0f, 1f);
-        return Math.Clamp((int)Math.Round(baseAlpha * gain * cap * lit), 0, 200);
+        // 公式唯一实现：SurfaceLightState.SheenAlpha（CSS 峰值走同一方法，禁两载体各写一份）。
+        return SurfaceLightState.SheenAlpha(baseAlpha, declaredStrength, state.Specular, state.Shade);
     }
 
     /// <summary>单边高光 alpha（权重已由端口按最亮边归一到 1）。</summary>
     private static int EdgeAlpha(int peak, float weight)
         => Math.Clamp((int)Math.Round(peak * Math.Clamp(weight, 0f, 1f)), 0, 200);
 
-    /// <summary>高光色：暖度 + 环境色；两者都只做轻微偏置（材质声明仍是色彩权威）。</summary>
+    /// <summary>
+    /// 高光色：暖度 + 环境色；两者都只做轻微偏置（材质声明仍是色彩权威）。
+    /// <para>
+    /// **已知不对称**：GDI+ 会在声明色上再混 15% 光照 tint，CSS 载体只叠 <c>SheenAlpha</c> 的峰值 alpha、
+    /// 不混 tint。两载体的**峰值（亮度）同源**，颜色仍差这一档；不要把两边当作同色。
+    /// </para>
+    /// </summary>
     private static Color LitColor(Color color, SurfaceLightState state)
     {
         var lit = Warm(color, state.Warmth);

@@ -62,11 +62,6 @@ public sealed class SurfaceRenderPipeline
     public bool IsRegistered(string carrierId)
         => !string.IsNullOrEmpty(carrierId) && _factories.ContainsKey(carrierId);
 
-    /// <summary>家族是否已登记（单一实现；调用方免直连 <c>ProjectionRegistry</c> 类型）。</summary>
-    /// <param name="family">家族键。</param>
-    public bool IsFamilyRegistered(string family)
-        => !string.IsNullOrEmpty(family) && Registry.CarrierIds.Contains(family);
-
     /// <summary>
     /// 载体注册表（**家族注册面**）：非页面家族（scene 等）在此外登记并自取，
     /// 与 <see cref="Register"/> 的工厂表并存但互不替代（禁另起注册面）。

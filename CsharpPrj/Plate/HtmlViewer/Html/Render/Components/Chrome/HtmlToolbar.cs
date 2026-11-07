@@ -166,10 +166,6 @@ public static class HtmlToolbar
                 "summary",
                 new MarkupAttrBatch().Class("toolbar-more-summary", "toolbar-more-summary").Add("aria-haspopup", "menu"),
                 UiMarkup.Trusted(MarkupTag.Text(moreLabel)));
-            actions.Append(MarkupTag.Element(
-                "summary",
-                new MarkupAttrBatch().Class("toolbar-more-summary", "toolbar-more-summary").Add("aria-haspopup", "menu"),
-                UiMarkup.Trusted(MarkupTag.Text(moreLabel)));
             var panelBody = MarkupTag.Element(
                 "span",
                 new MarkupAttrBatch().Class("toolbar-more-panel", "toolbar-more-panel"),

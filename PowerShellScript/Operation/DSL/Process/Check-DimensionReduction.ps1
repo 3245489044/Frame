@@ -64,7 +64,10 @@ $writePatterns = @('SectionWriteMode\.BulkReplace', 'SectionWriteMode\.Patch')
 # 账本：同一事实的去重/版本写者（ADR-5 多账本）
 $ledgerPatterns = @('WriteLedger', 'IWriteArbiter')
 # 形态走私白名单：只有这些件允许持有 string↔node 转换（唯一转换点）
-$smugglingWhitelist = @('NodeRenderer.cs', 'HtmlNodeParser.cs')
+# - HtmlNodeParser.cs：解析器本体（转换原语实现处）。
+# - HtmlShellProjector.cs：装配边界（71c431fb 落地的「本边界一次 Parse 收敛为真元素 + 纯文本」）。
+#   该件是声明式装配的单向入口，不构成「双表示并存」；其余 Parse/ToHtml 仍按走私计数。
+$smugglingWhitelist = @('HtmlNodeParser.cs', 'HtmlShellProjector.cs')
 function Read-TextFile {
     param([string]$Path)
     if (-not (Test-Path -LiteralPath $Path)) { return '' }

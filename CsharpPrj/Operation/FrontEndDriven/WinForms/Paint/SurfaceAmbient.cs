@@ -156,7 +156,8 @@ internal static class SurfaceAmbient
             }
 
             var begin = SkinRenderProfile.Begin();
-            var image = new Bitmap(size.Width, size.Height, System.Drawing.Imaging.PixelFormat.Format32bppRgb);
+            // 页面场是全不透明像素：PArgb 让宿主贴图走 SourceCopy 快路径（与目标位图同格式，免逐像素转换）。
+            var image = new Bitmap(size.Width, size.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
             using (var graphics = Graphics.FromImage(image))
             {
                 graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -267,7 +268,8 @@ internal static class SurfaceAmbient
         inner.Width = Math.Max(1, inner.Width);
         inner.Height = Math.Max(1, inner.Height);
 
-        var bitmap = new Bitmap(bounds.Width, bounds.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        // PArgb：SourceOver 贴图的 GDI+ 快路径（同像素数下比 Argb 快约 2×）。
+        var bitmap = new Bitmap(bounds.Width, bounds.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
         var phase = light?.IridescencePhase ?? 0.5f;
         using (var graphics = Graphics.FromImage(bitmap))
         {

@@ -23,6 +23,10 @@ public sealed record SurfaceDeclarations(
     IReadOnlyDictionary<string, IReadOnlyList<string>> KindFields,
     ResolvedSurface? Resolved = null)
 {
+    /// <summary>kind → 字段契约（from/applicableWhen）；空 ⇒ 回退 <see cref="KindFields"/>。</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<FrameFieldContract>> KindFieldContracts { get; init; }
+        = new Dictionary<string, IReadOnlyList<FrameFieldContract>>(StringComparer.Ordinal);
+
     /// <summary>空声明（全部缺失：渲染走可见降级，不伪造）。</summary>
     public static readonly SurfaceDeclarations Empty = new(
         UiDeclaration.Empty,
@@ -32,5 +36,6 @@ public sealed record SurfaceDeclarations(
         new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal));
 
     /// <summary>合成用声明视图。</summary>
-    public FrameComposerOptions ComposerOptions => new(Presentation, Fields, KindFields);
+    public FrameComposerOptions ComposerOptions
+        => new(Presentation, Fields, KindFields) { FieldContracts = KindFieldContracts };
 }

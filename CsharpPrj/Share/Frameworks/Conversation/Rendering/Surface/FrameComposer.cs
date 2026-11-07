@@ -9,6 +9,28 @@ using Share.Conversation.Presentation;
 
 namespace Share.Conversation.Rendering.Surface;
 
+/// <summary>
+/// 帧字段契约（声明 <c>frame-kinds.json</c> 的 <c>fields[]</c> 单向投影）。
+/// <param name="Name">呈现字段名（字段词表的键）。</param>
+/// <param name="From">来源词形（原始观测帧字段；<c>message</c> 为 text 的唯一来源）。</param>
+/// <param name="ApplicableWhen">适用条件（受控词 <c>always / message-present / field-present</c>）。</param>
+/// </summary>
+public sealed record FrameFieldContract(string Name, string From, string ApplicableWhen)
+{
+    /// <summary>恒适用（缺失值以可见 unknown 呈现）。</summary>
+    public const string Always = "always";
+
+    /// <summary>仅当消息体存在时适用。</summary>
+    public const string MessagePresent = "message-present";
+
+    /// <summary>仅当来源字段存在时适用。</summary>
+    public const string FieldPresent = "field-present";
+
+    /// <summary>受控词（门禁与解析共用）。</summary>
+    public static readonly IReadOnlyList<string> Words =
+        new[] { Always, MessagePresent, FieldPresent };
+}
+
 /// <summary>合成用声明注入（宿主装配；框架零领域词）。</summary>
 /// <param name="Presentation">呈现声明。</param>
 /// <param name="Fields">字段词表。</param>
@@ -18,6 +40,12 @@ public sealed record FrameComposerOptions(
     FieldDeclaration Fields,
     IReadOnlyDictionary<string, IReadOnlyList<string>> KindFields)
 {
+    /// <summary>
+    /// kind → 字段契约（from/applicableWhen）。空 ⇒ 回退 <see cref="KindFields"/>（可见降级）。
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<FrameFieldContract>> FieldContracts { get; init; }
+        = new Dictionary<string, IReadOnlyList<FrameFieldContract>>(StringComparer.Ordinal);
+
     /// <summary>空声明（一切字段 unknown、无气泡面）。</summary>
     public static readonly FrameComposerOptions Empty = new(
         PresentationDeclaration.Empty,
@@ -151,11 +179,22 @@ public static class FrameComposer
     {
         var fields = new List<UiField>();
         var kind = item.Stage ?? string.Empty;
-        if (options.KindFields.TryGetValue(kind, out var declared))
+        if (options.FieldContracts.TryGetValue(kind, out var contracts))
         {
+            foreach (var contract in contracts)
+            {
+                if (!Applies(contract, item)) continue;
+                var field = BuildField(item, contract.Name, contract.From, origin, options);
+                if (field.IsNotApplicable) continue;
+                fields.Add(field);
+            }
+        }
+        else if (options.KindFields.TryGetValue(kind, out var declared))
+        {
+            // 未声明字段契约 ⇒ 旧口径（name 即来源），保持既有可见性。
             foreach (var name in declared)
             {
-                var field = BuildField(item, name, origin, options);
+                var field = BuildField(item, name, name, origin, options);
                 if (field.IsNotApplicable) continue;
                 fields.Add(field);
             }
@@ -169,11 +208,21 @@ public static class FrameComposer
         return fields;
     }
 
+    /// <summary>契约适用条件判定（不满足 ⇒ NotApplicable，不渲染）。</summary>
+    private static bool Applies(FrameFieldContract contract, ConversationRenderItem item)
+        => contract.ApplicableWhen switch
+        {
+            FrameFieldContract.MessagePresent =>
+                !string.IsNullOrEmpty(item.Text) || FieldOf(item, "message") is not null,
+            FrameFieldContract.FieldPresent => FieldOf(item, contract.From) is not null,
+            _ => true,
+        };
+
     private static UiField BuildField(
-        ConversationRenderItem item, string name, PresentationOrigin origin, FrameComposerOptions options)
+        ConversationRenderItem item, string name, string from, PresentationOrigin origin, FrameComposerOptions options)
     {
         var spec = options.Fields.Resolve(name);
-        var value = ValueOf(item, name, origin);
+        var value = ValueOf(item, from, origin);
         if (value is null)
         {
             return UiField.Unknown(name, spec.LabelKey, "missing-value", name);

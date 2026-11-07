@@ -34,9 +34,12 @@ public static class SkinPaintEngine
     /// <summary>资源根目录（宿主注入；null ⇒ 不装载，贴图层进 Skipped）。</summary>
     public static string? AssetRoot { get; private set; }
 
-    private static readonly Dictionary<string, Image?> AssetCache = new(StringComparer.Ordinal);
+    /// <summary>资产代（换根/换装载器/清缓存递增；进静态底图缓存键，防旧底图贴旧贴图）。</summary>
+    public static int AssetGeneration { get; private set; }
 
-    /// <summary>配置资源根（单一入口；变更即失效缓存，防旧根别名串味）。</summary>
+    private static readonly Dictionary<string, Image> AssetCache = new(StringComparer.Ordinal);
+
+    /// <summary>配置资源根（单一入口；变更即失效缓存与底图键，防旧根别名串味）。</summary>
     /// <param name="root">资源根绝对路径（空 ⇒ 关闭磁盘装载）。</param>
     public static void ConfigureAssetRoot(string? root)
     {
@@ -44,10 +47,15 @@ public static class SkinPaintEngine
         ClearAssetCache();
     }
 
-    /// <summary>清空资源缓存（换根/换装载器/换肤时调用）。</summary>
+    /// <summary>清空资源缓存（换根/换装载器/换肤时调用）：释放已装载图像并推进资产代。</summary>
     public static void ClearAssetCache()
     {
-        lock (AssetCache) AssetCache.Clear();
+        lock (AssetCache)
+        {
+            foreach (var image in AssetCache.Values) image.Dispose();
+            AssetCache.Clear();
+            AssetGeneration++;
+        }
     }
 
     /// <summary>绘制一次材质（背景）。</summary>
@@ -60,18 +68,30 @@ public static class SkinPaintEngine
     public static IReadOnlyList<string> Paint(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, Image? backdrop = null,
         SurfaceLightState? light = null, bool includeSpecular = true)
-        => PaintCore(graphics, bounds, material, backdrop, light, includeSpecular, dynamicOnly: false);
+        => PaintCore(graphics, bounds, material, backdrop, light, includeSpecular, dynamicOnly: false, out _);
+
+    /// <summary>绘制一次材质（背景），并回报**实际落笔图层数**（诊断「有没有画到」的唯一证据）。</summary>
+    public static IReadOnlyList<string> Paint(
+        Graphics graphics, Rectangle bounds, ResolvedMaterial? material, out int paintedLayers,
+        Image? backdrop = null, SurfaceLightState? light = null, bool includeSpecular = true)
+        => PaintCore(graphics, bounds, material, backdrop, light, includeSpecular, dynamicOnly: false, out paintedLayers);
 
     /// <summary>只画随时间/光标变化的层（当前仅 specular）；静态层由缓存底图提供。</summary>
     public static IReadOnlyList<string> PaintDynamic(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, SurfaceLightState? light)
-        => PaintCore(graphics, bounds, material, null, light, includeSpecular: true, dynamicOnly: true);
+        => PaintCore(graphics, bounds, material, null, light, includeSpecular: true, dynamicOnly: true, out _);
+
+    /// <summary>只画动态层，并回报实际落笔图层数。</summary>
+    public static IReadOnlyList<string> PaintDynamic(
+        Graphics graphics, Rectangle bounds, ResolvedMaterial? material, SurfaceLightState? light, out int paintedLayers)
+        => PaintCore(graphics, bounds, material, null, light, includeSpecular: true, dynamicOnly: true, out paintedLayers);
 
     private static IReadOnlyList<string> PaintCore(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, Image? backdrop,
-        SurfaceLightState? light, bool includeSpecular, bool dynamicOnly)
+        SurfaceLightState? light, bool includeSpecular, bool dynamicOnly, out int paintedLayers)
     {
         ArgumentNullException.ThrowIfNull(graphics);
+        paintedLayers = 0;
         if (material is null || bounds.Width <= 0 || bounds.Height <= 0) return Array.Empty<string>();
 
         var skipped = new List<string>();
@@ -81,30 +101,29 @@ public static class SkinPaintEngine
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             // 几何单源（按材质）：圆角由层声明提供，层未声明时沿用同材质内最大半径，
             // 避免「填充直角 + 描边圆角」的错位（材质 = 一个整体形状，不是各层各画各的）。
-            var materialRadius = 0;
+            var materialRadius = 0f;
             foreach (var candidate in material.Layers)
             {
-                var radius = IntParam(candidate, "radius", 0);
+                var radius = FloatParam(candidate, "radius", 0f);
                 if (radius > materialRadius) materialRadius = radius;
             }
 
-            foreach (var layer in material.Layers)
+            var painted = 0;
+            foreach (var layer in OrderedLayers(material.Layers, includeSpecular, dynamicOnly))
             {
-                if (dynamicOnly ? layer.Primitive != "specular" : (!includeSpecular && layer.Primitive == "specular"))
-                {
-                    continue;
-                }
-
-                // 明细由 PaintLayer 记账（unresolved-value:<raw>）；只有未记账的失败才补通用项。
-                var before = skipped.Count;
+                // 明细由 PaintLayer 记账（unresolved-value:<raw>）；未落笔时再补「层身份」项。
                 var layerBegin = SkinRenderProfile.Begin();
-                var painted = PaintLayer(graphics, bounds, layer, materialRadius, skipped, backdrop, light);
+                var paintedLayer = PaintLayer(graphics, bounds, layer, materialRadius, skipped, backdrop, light);
                 SkinRenderProfile.RecordLayer(layer.Primitive, layerBegin);
-                if (!painted && skipped.Count == before)
+                if (paintedLayer) painted++;
+                else
                 {
+                    // 未落笔必须同时给「层身份 + 具体原因」：身份供断言按图元定位，原因供人看。
                     skipped.Add(layer.Primitive + ":" + layer.Role);
                 }
             }
+
+            paintedLayers = painted;
         }
         finally
         {
@@ -114,96 +133,138 @@ public static class SkinPaintEngine
         return skipped;
     }
 
+    /// <summary>
+    /// 图层相位序（K3）：同相位内按 Z，跨相位按 <see cref="LayerPhase"/>。
+    /// <para>动态/静态拆分由相位判定（唯一判据），不再靠字面量 <c>"specular"</c>；shadow/backdrop 在 Underlay，不得盖住 fill/stroke。</para>
+    /// </summary>
+    private static IEnumerable<ResolvedLayer> OrderedLayers(
+        IReadOnlyList<ResolvedLayer> layers, bool includeSpecular, bool dynamicOnly)
+    {
+        var ordered = new List<ResolvedLayer>(layers.Count);
+        foreach (var layer in layers)
+        {
+            var phase = SurfaceLayerPhase.Of(layer.Primitive);
+            if (dynamicOnly ? phase != LayerPhase.Sheen : (!includeSpecular && phase == LayerPhase.Sheen))
+            {
+                continue;
+            }
+
+            ordered.Add(layer);
+        }
+
+        ordered.Sort(static (left, right) =>
+        {
+            var phaseOrder = (int)SurfaceLayerPhase.Of(left.Primitive) - (int)SurfaceLayerPhase.Of(right.Primitive);
+            return phaseOrder != 0 ? phaseOrder : left.Z - right.Z;
+        });
+        return ordered;
+    }
+
     private static bool PaintLayer(
-        Graphics graphics, Rectangle bounds, ResolvedLayer layer, int materialRadius, List<string> skipped,
+        Graphics graphics, Rectangle bounds, ResolvedLayer layer, float materialRadius, List<string> skipped,
         Image? backdrop = null, SurfaceLightState? light = null)
     {
-        switch (layer.Primitive)
+        // 描边几何走 Plate.Surface 的 BorderSpec（四边宽度/颜色/圆角/DPI 浮点都在那里归一化），
+        // 不走通用 SurfacePrimitiveSpec，避免两套 width 语义。
+        if (layer.Primitive == "stroke")
         {
-            case "fill":
+            var input = new BorderLayerInput(layer.Role, layer.Primitive, layer.Z, layer.Params);
+            var border = BorderSpec.FromLayers(new[] { input }, out var borderIssues);
+            var fatal = false;
+            foreach (var issue in borderIssues)
             {
-                if (!TryColor(layer, skipped, out var color)) return false;
-                using var brush = new SolidBrush(color);
-                using var path = CreateRoundedPath(bounds, RadiusOf(layer, bounds, materialRadius));
+                skipped.Add(issue.Code + ":" + issue.Detail);
+                if (issue.Code == "border-width-invalid" || issue.Code == "border-color-invalid") fatal = true;
+            }
+
+            if (fatal || border.Strokes.Count == 0) return false;
+            BorderPainter.DrawStroke(graphics, bounds, border.Strokes[border.Strokes.Count - 1], graphics.DpiX);
+            return true;
+        }
+
+        var spec = SurfacePrimitiveSpec.Parse(layer, out var issues);
+        foreach (var issue in issues) skipped.Add(issue.Code + ":" + issue.Detail);
+        var valid = issues.Count == 0;
+
+        switch (spec.Kind)
+        {
+            case SurfacePrimitiveKind.Fill:
+            {
+                if (!valid) return false;
+                using var brush = new SolidBrush(Color.FromArgb(spec.ColorArgb));
+                using var path = SkinGeometry.Shaped(bounds, RadiusOf(layer, bounds, materialRadius), graphics.DpiX);
                 if (path is null) graphics.FillRectangle(brush, bounds);
                 else graphics.FillPath(brush, path);
                 return true;
             }
 
-            case "gradient":
+            case SurfacePrimitiveKind.Gradient:
             {
-                if (!TrySplitColors(Param(layer, "value"), layer, skipped, out var colors)) return false;
-                using var brush = new LinearGradientBrush(
-                    bounds, colors[0], colors.Length > 1 ? colors[1] : colors[0], Angle(layer));
-                graphics.FillRectangle(brush, bounds);
+                if (!valid || spec.GradientStops.Count == 0) return false;
+                using var brush = CreateGradientBrush(bounds, spec);
+                using var path = SkinGeometry.Shaped(bounds, RadiusOf(layer, bounds, materialRadius), graphics.DpiX);
+                if (path is null) graphics.FillRectangle(brush, bounds);
+                else graphics.FillPath(brush, path);
                 return true;
             }
 
-            case "stroke":
+            case SurfacePrimitiveKind.Shadow:
             {
-                // 单一模型（Plate.Surface）：四边宽度/颜色、圆角、DPI 浮点都在 BorderSpec 归一化。
-                // 非法宽度/颜色必须显式记账并拒绝，禁止 IntParam 把小数/坏值静默回落成 1。
-                var input = new BorderLayerInput(layer.Role, layer.Primitive, layer.Z, layer.Params);
-                var spec = BorderSpec.FromLayers(new[] { input }, out var issues);
-                var fatal = false;
-                foreach (var issue in issues)
-                {
-                    skipped.Add(issue.Code + ":" + issue.Detail);
-                    if (issue.Code == "border-width-invalid" || issue.Code == "border-color-invalid") fatal = true;
-                }
-
-                if (fatal || spec.Strokes.Count == 0) return false;
-                BorderPainter.DrawStroke(graphics, bounds, spec.Strokes[spec.Strokes.Count - 1], graphics.DpiX);
-                return true;
-            }
-
-            case "shadow":
-            {
-                if (!TryColor(layer, skipped, out var color)) return false;
-                var blur = Math.Max(0, IntParam(layer, "blur", 0));
-                var offset = Offset(layer);
-                var rect = new Rectangle(bounds.X + offset.X, bounds.Y + offset.Y,
-                    Math.Max(1, bounds.Width - 2), Math.Max(1, bounds.Height - 2));
-                using var brush = new SolidBrush(Color.FromArgb(Math.Min(120, 40 + blur * 4), color));
-                using var path = CreateRoundedPath(rect, RadiusOf(layer, bounds, materialRadius));
+                if (!valid) return false;
+                var color = Color.FromArgb(spec.ColorArgb);
+                var rect = Rectangle.Round(new RectangleF(
+                    bounds.X + spec.OffsetX,
+                    bounds.Y + spec.OffsetY,
+                    Math.Max(1f, bounds.Width - 2f + spec.Spread * 2),
+                    Math.Max(1f, bounds.Height - 2f + spec.Spread * 2)));
+                // 外阴影相位 = Underlay（先于 fill/stroke），不会盖成内部暗带；模糊仍按 alpha 近似并记账。
+                using var brush = new SolidBrush(Color.FromArgb(
+                    Math.Min(120, 40 + (int)Math.Round(Math.Max(0, spec.Blur)) * 4), color));
+                using var path = SkinGeometry.Shaped(rect, RadiusOf(layer, bounds, materialRadius), graphics.DpiX);
                 if (path is null) graphics.FillRectangle(brush, rect);
                 else graphics.FillPath(brush, path);
                 return true;
             }
 
-            case "innerShadow":
+            case SurfacePrimitiveKind.InnerShadow:
             {
-                if (!TryColor(layer, skipped, out var color)) return false;
-                using var pen = new Pen(Color.FromArgb(90, color), 2);
-                graphics.DrawRectangle(pen, bounds.X + 1, bounds.Y + 1,
-                    Math.Max(1, bounds.Width - 3), Math.Max(1, bounds.Height - 3));
+                if (!valid) return false;
+                var dpi = graphics.DpiX;
+                var ringWidth = Math.Max(1f, BorderUnits.DipsToPixels(spec.Width, dpi));
+                var radiusPx = BorderUnits.DipsToPixels(RadiusOf(layer, bounds, materialRadius), dpi);
+                var outerRect = new RectangleF(bounds.X, bounds.Y, bounds.Width, bounds.Height);
+                var innerRect = new RectangleF(
+                    outerRect.X + ringWidth, outerRect.Y + ringWidth,
+                    Math.Max(0.5f, outerRect.Width - ringWidth * 2),
+                    Math.Max(0.5f, outerRect.Height - ringWidth * 2));
+                using var ring = new GraphicsPath(FillMode.Alternate);
+                using var outerPath = SkinGeometry.Path(outerRect, CornerRadii.Uniform(radiusPx));
+                using var innerPath = SkinGeometry.Path(innerRect,
+                    CornerRadii.Uniform(Math.Max(0f, radiusPx - ringWidth)));
+                ring.AddPath(outerPath, false);
+                ring.AddPath(innerPath, false);
+                using var brush = new SolidBrush(Color.FromArgb(spec.ColorArgb));
+                graphics.FillPath(brush, ring);
                 return true;
             }
 
-            case "backdrop":
+            case SurfacePrimitiveKind.Backdrop:
             {
-                if (!TryColor(layer, skipped, out var color)) return false;
-                using var path = CreateRoundedPath(bounds, RadiusOf(layer, bounds, materialRadius));
+                if (!valid) return false;
+                var color = Color.FromArgb(spec.ColorArgb);
+                using var path = SkinGeometry.Shaped(bounds, RadiusOf(layer, bounds, materialRadius), graphics.DpiX);
                 if (backdrop is not null && backdrop.Width > 0 && backdrop.Height > 0)
                 {
-                    // 真「采样背后 + 模糊」：宿主快照铺满本层，再用半透明 fill（surface_glass）染色。
-                    // 不再画自上而下自叠加渐变；磨砂外观来自背后内容本身。
+                    // 真「采样背后 + 模糊」：只做 blur（与 CSS backdrop-filter 同一权威）；
+                    // 染色由 fill 层的声明 alpha 承担，不再用固定 alpha 覆盖声明值。
                     var saved = graphics.Save();
                     try
                     {
                         if (path is not null) graphics.SetClip(path);
                         var blurBegin = SkinRenderProfile.Begin();
-                        using var blurred = Blur(backdrop, IntParam(layer, "blur", 0));
+                        using var blurred = Blur(backdrop, (int)Math.Round(Math.Max(0, spec.Blur)));
                         SkinRenderProfile.RecordBlur(blurBegin);
                         graphics.DrawImage(blurred, bounds);
-
-                        // 复用 backdrop 的 value 做轻染色：强度随时点光变化（不新增合成通道）。
-                        if (light is { } lit)
-                        {
-                            using var tint = new SolidBrush(Color.FromArgb(
-                                Math.Clamp((int)(22 * lit.Intensity), 0, 40), Warm(color, lit.Warmth)));
-                            graphics.FillRectangle(tint, bounds);
-                        }
                     }
                     finally
                     {
@@ -213,11 +274,11 @@ public static class SkinPaintEngine
                     return true;
                 }
 
-                // 无快照来源（非窗口载体/宿主未注入）：保留旧近似，并显式记账，禁伪装真模糊。
+                // 无快照来源（非窗口载体/宿主未注入）：按声明 alpha 近似，并显式记账，禁伪装真模糊。
+                var topAlpha = spec.Alpha;
+                var bottomAlpha = (int)Math.Round(topAlpha * 0.24);
                 using var brush = new LinearGradientBrush(
-                    bounds,
-                    Color.FromArgb(150, Lighten(color, 0.28)),
-                    Color.FromArgb(36, color),
+                    bounds, Color.FromArgb(topAlpha, Lighten(color, 0.28)), Color.FromArgb(bottomAlpha, color),
                     LinearGradientMode.Vertical);
                 if (path is null) graphics.FillRectangle(brush, bounds);
                 else graphics.FillPath(brush, path);
@@ -225,29 +286,26 @@ public static class SkinPaintEngine
                 return true;
             }
 
-            case "specular":
+            case SurfacePrimitiveKind.Specular:
             {
-                if (!TryColor(layer, skipped, out var color)) return false;
-                var mode = Param(layer, "mode");
+                if (!valid) return false;
+                var color = Color.FromArgb(spec.ColorArgb);
                 if (light is { } state)
                 {
-                    // 材质模型：玻璃用 mode=edge（倒角高光）+ mode=spot（径向聚光），
-                    // 不再画贯穿整面的等宽亮带；mode 缺省保留旧 band，兼容既有金属材质。
-                    if (string.Equals(mode, "edge", StringComparison.Ordinal))
+                    if (spec.Mode == "edge")
                     {
-                        PaintEdgeHighlight(graphics, bounds, layer, color, state, materialRadius);
+                        PaintEdgeHighlight(graphics, bounds, spec, state, materialRadius);
                         return true;
                     }
 
-                    if (string.Equals(mode, "spot", StringComparison.Ordinal))
+                    if (spec.Mode == "spot")
                     {
-                        PaintSpotHighlight(graphics, bounds, layer, color, state, materialRadius);
+                        PaintSpotHighlight(graphics, bounds, spec, state, materialRadius);
                         return true;
                     }
 
-                    // 运行时光：角度/强度已由 SurfaceLight 插值；带宽按像素而不是按面板归一化，
-                    // 否则 600px 面板会得到 ~170px 宽的整版斜带（不再像局部高光）。
-                    var peakAlpha = Math.Clamp((int)Math.Round(38 * state.Intensity), 0, 200);
+                    // 运行时光：角度/强度已由 SurfaceLight 插值；带宽按像素而不是按面板归一化。
+                    var peakAlpha = Math.Clamp((int)Math.Round(38 * spec.Strength * state.Intensity), 0, 200);
                     var litColor = Warm(color, state.Warmth);
                     var bandPx = Math.Clamp(Math.Min(bounds.Width, bounds.Height) * 0.12, 28, 64);
                     var radians = state.Angle * Math.PI / 180.0;
@@ -259,9 +317,6 @@ public static class SkinPaintEngine
                         bounds, Color.FromArgb(0, litColor), Color.FromArgb(0, litColor), state.Angle);
                     brush.InterpolationColors = new ColorBlend
                     {
-                        // GDI+ 契约：InterpolationColors 的位置数组必须覆盖完整 [0,1]（首 0、末 1），
-                        // 否则 setter 抛 ArgumentException("Parameter is not valid.")。
-                        // 高光带占 [low, high]（固定像素宽），两端补全为同色透明停靠点。
                         Colors = new[]
                         {
                             Color.FromArgb(0, litColor),
@@ -272,40 +327,40 @@ public static class SkinPaintEngine
                         },
                         Positions = new[] { 0f, low, 0.5f, high, 1f },
                     };
-                    using var lightPath = CreateRoundedPath(bounds, RadiusOf(layer, bounds, materialRadius));
+                    using var lightPath = SkinGeometry.Shaped(bounds, RadiusOf(layer, bounds, materialRadius), graphics.DpiX);
                     if (lightPath is null) graphics.FillRectangle(brush, bounds);
                     else graphics.FillPath(brush, lightPath);
                     return true;
                 }
 
+                // 无运行时光：静态 sheen 也按声明 strength/angle，避免固定 alpha 把高光画成暗带。
+                var sheenAlpha = Math.Clamp((int)Math.Round(70 * spec.Strength), 0, 160);
                 var sheen = new Rectangle(bounds.X, bounds.Y, bounds.Width, Math.Max(1, bounds.Height / 3));
                 using var staticBrush = new LinearGradientBrush(
-                    sheen, Color.FromArgb(70, color), Color.FromArgb(0, color), LinearGradientMode.Vertical);
-                using var path = CreateRoundedPath(sheen, Math.Max(0, RadiusOf(layer, bounds, materialRadius) - 2));
+                    sheen, Color.FromArgb(sheenAlpha, color), Color.FromArgb(0, color), spec.Angle);
+                using var path = SkinGeometry.Shaped(sheen,
+                    Math.Max(0f, RadiusOf(layer, bounds, materialRadius) - 2f), graphics.DpiX);
                 if (path is null) graphics.FillRectangle(staticBrush, sheen);
                 else graphics.FillPath(staticBrush, path);
                 return true;
             }
 
             // M6：贴图 / 贴画（资源缺失 ⇒ false ⇒ 进 Skipped，可见）
-            case "texture":
-            case "decal":
+            case SurfacePrimitiveKind.Texture:
+            case SurfacePrimitiveKind.Decal:
             {
-                var asset = Param(layer, "asset");
-                if (asset.Length == 0) return false;
-                var image = LoadAsset(asset);
+                if (spec.Asset.Length == 0) return false;
+                var image = LoadAsset(spec.Asset);
                 if (image is null) return false;
 
                 // 九宫格：slice>0 ⇒ 四角不拉伸（边框/卡片贴图的主用法）；否则整图平铺/拉伸。
-                var slice = IntParam(layer, "slice", 0);
-                if (slice > 0)
+                if (spec.Slice > 0)
                 {
-                    DrawNineSlice(graphics, image, bounds, slice);
+                    DrawNineSlice(graphics, image, bounds, spec.Slice);
                     return true;
                 }
 
-                if (string.Equals(layer.Primitive, "decal", StringComparison.Ordinal)
-                    || string.Equals(Param(layer, "repeat"), "no-repeat", StringComparison.Ordinal))
+                if (spec.Kind == SurfacePrimitiveKind.Decal || spec.NoRepeat)
                 {
                     graphics.DrawImage(image, bounds);
                     return true;
@@ -317,8 +372,35 @@ public static class SkinPaintEngine
             }
 
             default:
+                // 声明 supported 却无 case（mask/noise/未知图元）⇒ 显式记账，禁静默当已实现。
+                skipped.Add("unimplemented:" + layer.Primitive);
                 return false;
         }
+    }
+
+    /// <summary>渐变画刷（多色标走 InterpolationColors；单色退化纯色）。</summary>
+    private static Brush CreateGradientBrush(Rectangle bounds, SurfacePrimitiveSpec spec)
+    {
+        var stops = spec.GradientStops;
+        if (stops.Count <= 1)
+        {
+            return new SolidBrush(Color.FromArgb(stops.Count == 1 ? stops[0] : spec.ColorArgb));
+        }
+
+        var brush = new LinearGradientBrush(
+            bounds, Color.FromArgb(stops[0]), Color.FromArgb(stops[stops.Count - 1]), spec.Angle);
+        if (stops.Count == 2) return brush;
+
+        var colors = new Color[stops.Count];
+        var positions = new float[stops.Count];
+        for (var i = 0; i < stops.Count; i++)
+        {
+            colors[i] = Color.FromArgb(stops[i]);
+            positions[i] = i / (float)(stops.Count - 1);
+        }
+
+        brush.InterpolationColors = new ColorBlend { Colors = colors, Positions = positions };
+        return brush;
     }
 
     /// <summary>
@@ -326,20 +408,21 @@ public static class SkinPaintEngine
     /// 不画贯穿面板的亮带——任一水平行上的亮段不超过 <c>width</c> 参数。
     /// </summary>
     private static void PaintEdgeHighlight(
-        Graphics graphics, Rectangle bounds, ResolvedLayer layer, Color color, SurfaceLightState state, int materialRadius)
+        Graphics graphics, Rectangle bounds, SurfacePrimitiveSpec spec, SurfaceLightState state, float materialRadius)
     {
-        var strength = Math.Clamp(FloatParam(layer, "strength", 0.65f), 0f, 1f);
+        var color = Color.FromArgb(spec.ColorArgb);
+        var strength = Math.Clamp(spec.Strength, 0f, 1f);
         var peak = Math.Clamp((int)Math.Round(66 * strength * state.Intensity), 0, 180);
         if (peak <= 0) return;
 
         var lit = Warm(color, state.Warmth);
-        var thickness = Math.Clamp(IntParam(layer, "width", 2), 1, 6);
+        var thickness = Math.Clamp((int)Math.Round(spec.Width), 1, 6);
         var inset = 1;
         var saved = graphics.Save();
         GraphicsPath? clip = null;
         try
         {
-            clip = CreateRoundedPath(bounds, RadiusOf(layer, bounds, materialRadius));
+            clip = SkinGeometry.Shaped(bounds, RadiusOf(spec, bounds, materialRadius), graphics.DpiX);
             if (clip is not null) graphics.SetClip(clip, CombineMode.Intersect);
 
             // 顶边：中间亮、两端透明（不是等宽横贯亮带，而是沿倒角渐隐）。
@@ -371,14 +454,15 @@ public static class SkinPaintEngine
     /// 没有等宽亮带，因此不会出现「一束光柱」；半径按控件短边自适应。
     /// </summary>
     private static void PaintSpotHighlight(
-        Graphics graphics, Rectangle bounds, ResolvedLayer layer, Color color, SurfaceLightState state, int materialRadius)
+        Graphics graphics, Rectangle bounds, SurfacePrimitiveSpec spec, SurfaceLightState state, float materialRadius)
     {
-        var strength = Math.Clamp(FloatParam(layer, "strength", 0.7f), 0f, 1f);
+        var color = Color.FromArgb(spec.ColorArgb);
+        var strength = Math.Clamp(spec.Strength, 0f, 1f);
         var peak = Math.Clamp((int)Math.Round(30 * strength * state.Intensity), 0, 120);
         if (peak <= 0) return;
 
         var lit = Warm(color, state.Warmth);
-        var radius = Math.Max(8f, Math.Min(bounds.Width, bounds.Height) * Math.Clamp(FloatParam(layer, "radius", 0.55f), 0.25f, 1.2f));
+        var radius = Math.Max(8f, Math.Min(bounds.Width, bounds.Height) * Math.Clamp(spec.Radius, 0.25f, 1.2f));
         var radians = state.Angle * Math.PI / 180.0;
         var centerX = bounds.X + bounds.Width * (0.5f + (float)(Math.Cos(radians) * 0.26));
         var centerY = bounds.Y + bounds.Height * (0.5f - (float)(Math.Sin(radians) * 0.20));
@@ -389,7 +473,7 @@ public static class SkinPaintEngine
         GraphicsPath? clip = null;
         try
         {
-            clip = CreateRoundedPath(bounds, RadiusOf(layer, bounds, materialRadius));
+            clip = SkinGeometry.Shaped(bounds, RadiusOf(spec, bounds, materialRadius), graphics.DpiX);
             if (clip is not null) graphics.SetClip(clip, CombineMode.Intersect);
 
             // 预渲染的 128px 径向 alpha 掩膜 + ColorMatrix 着色：一次缩放贴图，避免每帧 PathGradientBrush。
@@ -507,16 +591,18 @@ public static class SkinPaintEngine
         }
     }
 
-    /// <summary>资源装载（进程内缓存；装载失败 ⇒ null，由调用方记账）。</summary>
+    /// <summary>资源装载（进程内缓存；装载失败 ⇒ null 且**不缓存**，文件/资源后补可重试）。</summary>
     private static Image? LoadAsset(string asset)
     {
         lock (AssetCache)
         {
             if (AssetCache.TryGetValue(asset, out var cached)) return cached;
-            var image = _assetLoader is not null ? InvokeLoader(_assetLoader, asset) : LoadFromRoot(asset);
-            AssetCache[asset] = image;
-            return image;
         }
+
+        var image = _assetLoader is not null ? InvokeLoader(_assetLoader, asset) : LoadFromRoot(asset);
+        if (image is null) return null;
+        lock (AssetCache) AssetCache[asset] = image;
+        return image;
     }
 
     private static Image? InvokeLoader(Func<string, Image?> loader, string asset)
@@ -542,7 +628,10 @@ public static class SkinPaintEngine
         try
         {
             var path = Path.GetFullPath(Path.Combine(root, asset.Replace('/', Path.DirectorySeparatorChar)));
-            return File.Exists(path) ? Image.FromFile(path) : null;
+            if (!File.Exists(path)) return null;
+            // 先读字节再解码：避免 Image.FromFile 独占文件句柄（资源被替换后旧图仍锁住磁盘文件）。
+            using var stream = new MemoryStream(File.ReadAllBytes(path));
+            return new Bitmap(stream);
         }
         catch (Exception)
         {
@@ -586,27 +675,18 @@ public static class SkinPaintEngine
     }
 
     /// <summary>层圆角半径（材质级兜底；未声明/≤0 ⇒ 0 = 直角）。夹到半边长内，防 GDI+ 弧参数非法。</summary>
-    private static int RadiusOf(ResolvedLayer layer, Rectangle bounds, int materialRadius)
-    {
-        var radius = IntParam(layer, "radius", 0);
-        if (radius <= 0) radius = materialRadius;
-        if (radius <= 0) return 0;
-        return Math.Min(radius, Math.Min(bounds.Width, bounds.Height) / 2);
-    }
+    private static float RadiusOf(ResolvedLayer layer, Rectangle bounds, float materialRadius)
+        => RadiusOf(FloatParam(layer, "radius", 0f), bounds, materialRadius);
 
-    /// <summary>圆角矩形路径（radius≤0 ⇒ null，调用方走矩形快路径）。</summary>
-    private static GraphicsPath? CreateRoundedPath(Rectangle bounds, int radius)
-    {
-        if (radius <= 0 || bounds.Width <= 0 || bounds.Height <= 0) return null;
+    /// <summary>类型化规格的圆角半径（材质级兜底；未声明/≤0 ⇒ 0 = 直角）。</summary>
+    private static float RadiusOf(SurfacePrimitiveSpec spec, Rectangle bounds, float materialRadius)
+        => RadiusOf(spec.Radius, bounds, materialRadius);
 
-        var diameter = radius * 2;
-        var path = new GraphicsPath();
-        path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
-        path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
-        path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
-        path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
-        path.CloseFigure();
-        return path;
+    private static float RadiusOf(float declared, Rectangle bounds, float materialRadius)
+    {
+        var radius = declared > 0 ? declared : materialRadius;
+        if (radius <= 0) return 0f;
+        return Math.Min(radius, Math.Min(bounds.Width, bounds.Height) / 2f);
     }
 
     /// <summary>提亮（磨砂高光；amount 0..1）。</summary>
@@ -649,56 +729,6 @@ public static class SkinPaintEngine
     private static string Param(ResolvedLayer layer, string name)
         => layer.Params.TryGetValue(name, out var value) ? value : string.Empty;
 
-    private static int IntParam(ResolvedLayer layer, string name, int fallback)
-        => layer.Params.TryGetValue(name, out var value)
-           && int.TryParse(value, System.Globalization.NumberStyles.Integer,
-               System.Globalization.CultureInfo.InvariantCulture, out var number)
-            ? number
-            : fallback;
-
-    private static Point Offset(ResolvedLayer layer)
-    {
-        var parts = Param(layer, "offset").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var x = parts.Length > 0 && int.TryParse(parts[0], out var px) ? px : 0;
-        var y = parts.Length > 1 && int.TryParse(parts[1], out var py) ? py : Math.Max(2, x / 2);
-        return new Point(x, y);
-    }
-
-    private static float Angle(ResolvedLayer layer)
-        => float.TryParse(Param(layer, "angle"), System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out var angle)
-            ? angle
-            : 180f;
-
-    /// <summary>层色值解析（失败 ⇒ 记账并返回 false；禁静默画成透明）。</summary>
-    private static bool TryColor(ResolvedLayer layer, List<string> skipped, out Color color)
-    {
-        var raw = Param(layer, "value");
-        if (TryParseColor(raw, out color)) return true;
-        skipped.Add("unresolved-value:" + (raw.Length == 0 ? layer.Primitive : raw));
-        return false;
-    }
-
-    /// <summary>层色值解析（唯一桥：<see cref="SurfaceColorParse"/>；失败 ⇒ 记账并返回 false，禁静默画成透明）。</summary>
+    /// <summary>层色值解析（唯一桥：<see cref="SurfaceColorParse"/>；失败 ⇒ false，禁静默画成透明）。</summary>
     private static bool TryParseColor(string value, out Color color) => SurfaceColorParse.TryParse(value, out color);
-
-    private static bool TrySplitColors(string value, ResolvedLayer layer, List<string> skipped, out Color[] colors)
-    {
-        var raw = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        colors = new Color[raw.Length];
-        if (raw.Length == 0)
-        {
-            skipped.Add("unresolved-value:" + layer.Primitive);
-            return false;
-        }
-
-        for (var i = 0; i < raw.Length; i++)
-        {
-            if (TryParseColor(raw[i], out colors[i])) continue;
-            skipped.Add("unresolved-value:" + raw[i]);
-            return false;
-        }
-
-        return true;
-    }
 }

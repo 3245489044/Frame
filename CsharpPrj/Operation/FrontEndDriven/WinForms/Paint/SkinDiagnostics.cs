@@ -2,11 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using Share.Conversation.Rendering.Surface;
+using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
 
@@ -37,6 +36,7 @@ public sealed record SkinDiagnosticsSnapshot(
     int AttachedControls,
     long PaintCount,
     IReadOnlyList<string> LastSkipped,
+    long PaintedLayers,
     long Revision);
 
 /// <summary>
@@ -62,7 +62,7 @@ public static class SkinDiagnostics
     /// <summary>空快照（未装配；禁伪造默认档）。</summary>
     public static SkinDiagnosticsSnapshot Empty() => new(
         false, string.Empty, string.Empty, string.Empty, 0, string.Empty, 0, 0,
-        Array.Empty<string>(), 0, 0, Array.Empty<string>(), 0);
+        Array.Empty<string>(), 0, 0, Array.Empty<string>(), 0, 0);
 
     /// <summary>装配记录（<see cref="SkinAppearanceInstaller.Install"/> 唯一调用点）。</summary>
     public static void RecordInstall(
@@ -90,6 +90,7 @@ public static class SkinDiagnostics
                 _attached,
                 Interlocked.Read(ref _paintCount),
                 Array.Empty<string>(),
+                _current.PaintedLayers,
                 _revision);
         }
     }
@@ -116,18 +117,19 @@ public static class SkinDiagnostics
         }
     }
 
-    /// <summary>绘制记录（每次 owner-draw 绘制；记跳过项用于可见降级）。</summary>
-    public static void RecordPaint(IReadOnlyList<string>? skipped)
+    /// <summary>绘制记录（每次 owner-draw 绘制；记跳过项与**实际落笔图层数**，不拿处理器次数冒充绘制覆盖）。</summary>
+    /// <param name="skipped">跳过/降级项。</param>
+    /// <param name="paintedLayers">本次实际落笔的图层数（静态+动态合计）。</param>
+    public static void RecordPaint(IReadOnlyList<string>? skipped, int paintedLayers = -1)
     {
         Interlocked.Increment(ref _paintCount);
-        if (skipped is not { Count: > 0 }) return;
-
         lock (Gate)
         {
             _current = _current with
             {
                 PaintCount = Interlocked.Read(ref _paintCount),
-                LastSkipped = skipped.ToArray(),
+                PaintedLayers = paintedLayers >= 0 ? paintedLayers : _current.PaintedLayers,
+                LastSkipped = skipped is { Count: > 0 } ? skipped.ToArray() : _current.LastSkipped,
             };
         }
     }
@@ -205,37 +207,11 @@ public static class SkinDiagnostics
     private static string Value(string text) => string.IsNullOrWhiteSpace(text) ? "-" : text;
 
     /// <summary>
-    /// 是否字面色值（#hex / rgb 三元组 / 已知色名 / 纯数值）。
-    /// <para>为什么不用 <c>ColorExtensions.TryParse</c>：它对任意名字（如 <c>surface_plain</c>）经
-    /// <see cref="Color.FromName"/> 返回 IsNamedColor=true ⇒ 会把未换值的 token 误判成合法颜色。</para>
+    /// 是否字面色值（**与运行期解析器同源**：直接委托 <see cref="SurfaceColor"/>，不另写一套判据）。
+    /// <para>禁 <see cref="Color.FromName"/>：它会把未换值的 token（如 <c>surface_plain</c>）误判成合法颜色；
+    /// 也禁「纯数值算颜色」，数值是宽度/角度等参数，不是色值。</para>
     /// </summary>
     /// <param name="text">层值文本。</param>
     public static bool IsLiteralColor(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return false;
-        var value = text.Trim();
-
-        if (value[0] == '#' && value.Length is 4 or 7 or 9)
-        {
-            for (var i = 1; i < value.Length; i++)
-            {
-                if (!Uri.IsHexDigit(value[i])) return false;
-            }
-
-            return true;
-        }
-
-        if (IsNumeric(value)) return true;
-
-        if (value.Contains(','))
-        {
-            var parts = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length >= 3 && parts.All(IsNumeric);
-        }
-
-        return Color.FromName(value).IsKnownColor;
-    }
-
-    private static bool IsNumeric(string text)
-        => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out _);
+        => !string.IsNullOrWhiteSpace(text) && SurfaceColor.TryParseColor(text.Trim(), out _);
 }

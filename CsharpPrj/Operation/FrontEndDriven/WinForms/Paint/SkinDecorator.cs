@@ -111,7 +111,7 @@ public static class SkinDecorator
             SkinDiagnostics.RecordAttach(true);
         }
 
-        EnsureRefreshTimer(control, state, HasBackdrop(material));
+        EnsureRefreshTimer(control, state, NeedsLight(material));
 
         control.Invalidate();
     }
@@ -201,12 +201,13 @@ public static class SkinDecorator
             var pinned = state.Pinned;
             var baseLight = pinned is { } frozen
                 ? frozen.Light
-                : HasBackdrop(material) ? ResolveBaseLight() : (SurfaceLightState?)null;
+                : NeedsLight(material) ? ResolveBaseLight() : (SurfaceLightState?)null;
             var now = Environment.TickCount64;
             var backdropDue = pinned is null && HasBackdrop(material)
                 && (state.Cache is null || now - state.LastBackdropTick >= BackdropRefreshMs);
             var backdropVersion = pinned?.BackdropVersion ?? state.BackdropVersion;
-            var key = CacheKey(material, bounds, control.DeviceDpi, baseLight, backdropVersion);
+            var fingerprint = state.MaterialKey ?? MaterialKey(material);
+            var key = CacheKey(fingerprint, bounds, control.DeviceDpi, baseLight, backdropVersion);
             var hit = state.Cache is not null
                       && !backdropDue
                       && string.Equals(state.CacheKey, key, StringComparison.Ordinal);
@@ -216,11 +217,12 @@ public static class SkinDecorator
 
             var light = pinned is { } frozenLight
                 ? frozenLight.Light
-                : HasBackdrop(material) ? ResolveLight(control) : (SurfaceLightState?)null;
-            var dynamicSkipped = SkinPaintEngine.PaintDynamic(e.Graphics, bounds, material, light);
+                : NeedsLight(material) ? ResolveLight(control) : (SurfaceLightState?)null;
+            var dynamicSkipped = SkinPaintEngine.PaintDynamic(e.Graphics, bounds, material, light, out var dynamicLayers);
+            // 每次都记账：painted 是「实际落笔图层数」，不是「处理器是否被调用」。
+            SkinDiagnostics.RecordPaint(dynamicSkipped, dynamicLayers);
             if (dynamicSkipped.Count > 0)
             {
-                SkinDiagnostics.RecordPaint(dynamicSkipped);
                 FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", dynamicSkipped) });
             }
 
@@ -249,12 +251,12 @@ public static class SkinDecorator
         var renderBegin = SkinRenderProfile.Begin();
         SkinRenderInputs? owned = null;
         var inputs = pinned;
-        if (inputs is null && HasBackdrop(material))
+        if (inputs is null && NeedsLight(material))
         {
             owned = BuildRenderInputs(control, material, baseLight);
             inputs = owned;
             // 快照失败的帧保留上一张底图（否则会把 emulated 近似永久缓存，出现整栏变黑/变灰）。
-            if (inputs.Backdrop is null && state.Cache is not null)
+            if (HasBackdrop(material) && inputs.Backdrop is null && state.Cache is not null)
             {
                 owned.Dispose();
                 state.LastBackdropTick = Environment.TickCount64;
@@ -268,8 +270,8 @@ public static class SkinDecorator
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             graphics.Clear(Color.Transparent);
             var skipped = SkinPaintEngine.Paint(
-                graphics, bounds, material, inputs?.Backdrop, inputs?.Light, includeSpecular: false);
-            SkinDiagnostics.RecordPaint(skipped);
+                graphics, bounds, material, out var paintedLayers, inputs?.Backdrop, inputs?.Light, includeSpecular: false);
+            SkinDiagnostics.RecordPaint(skipped, paintedLayers);
             if (skipped.Count > 0)
             {
                 FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", skipped) });
@@ -280,7 +282,8 @@ public static class SkinDecorator
         state.Cache = bitmap;
         state.CacheBackdropVersion = inputs?.BackdropVersion ?? 0;
         if (pinned is null && inputs is not null) state.BackdropVersion = inputs.BackdropVersion;
-        state.CacheKey = CacheKey(material, bounds, control.DeviceDpi, baseLight, state.CacheBackdropVersion);
+        state.CacheKey = CacheKey(state.MaterialKey ?? MaterialKey(material), bounds, control.DeviceDpi,
+            baseLight, state.CacheBackdropVersion);
         state.LastBackdropTick = Environment.TickCount64;
         owned?.Dispose();
         SkinRenderProfile.RecordRender(renderBegin);
@@ -304,8 +307,8 @@ public static class SkinDecorator
         Control control, ResolvedMaterial material, SurfaceLightState? light = null)
     {
         var state = States.GetValue(control, static _ => new SkinState());
-        SurfaceLightState? resolvedLight = HasBackdrop(material) ? light ?? ResolveLight(control) : null;
-        if (!HasBackdrop(material)) return SkinRenderInputs.Create(null, null, 0);
+        SurfaceLightState? resolvedLight = NeedsLight(material) ? light ?? ResolveLight(control) : null;
+        if (!HasBackdrop(material)) return SkinRenderInputs.Create(resolvedLight, null, 0);
 
         var bounds = new Rectangle(Point.Empty, control.ClientSize);
         var snapshotBegin = SkinRenderProfile.Begin();
@@ -379,6 +382,11 @@ public static class SkinDecorator
     private static bool HasBackdrop(ResolvedMaterial material)
         => material.Layers.Any(layer => layer.Primitive == "backdrop");
 
+    /// <summary>是否需要运行时光：backdrop 与 specular 都依赖它；只按 backdrop 判定会让金属/玻璃高光退化成固定暗带。</summary>
+    private static bool NeedsLight(ResolvedMaterial material)
+        => material.Layers.Any(layer =>
+            layer.Primitive == "backdrop" || layer.Primitive == "specular");
+
     /// <summary>玻璃材质每秒重画动态 sheen；静态底图只在分钟光/背后快照（2s）变化时重建。</summary>
     private static void EnsureRefreshTimer(Control control, SkinState state, bool enabled)
     {
@@ -416,6 +424,7 @@ public static class SkinDecorator
         if (source.Width <= 0 || source.Height <= 0) return null;
 
         Bitmap? parentBitmap = null;
+        Bitmap? crop = null;
         _capturingBackdrop = true;
         state.SuppressPaint = true;
         try
@@ -423,7 +432,7 @@ public static class SkinDecorator
             parentBitmap = new Bitmap(parentSize.Width, parentSize.Height);
             parent.DrawToBitmap(parentBitmap, new Rectangle(Point.Empty, parentSize));
 
-            var crop = new Bitmap(bounds.Width, bounds.Height);
+            crop = new Bitmap(bounds.Width, bounds.Height);
             using (var graphics = Graphics.FromImage(crop))
             {
                 graphics.DrawImage(
@@ -436,6 +445,7 @@ public static class SkinDecorator
         }
         catch (Exception ex)
         {
+            crop?.Dispose();
             FrontEndDrivenLog.Log("SkinDecorator_backdrop_snapshot_failed", new { message = ex.Message });
             return null;
         }
@@ -455,22 +465,17 @@ public static class SkinDecorator
     private static ResolvedMaterial? SelectMaterial(IReadOnlyDictionary<string, ResolvedMaterial>? materials)
         => SurfaceSlotSelection.SelectBackground(materials);
 
+    /// <summary>缓存键（唯一实现：<see cref="SkinCacheKey"/>；含资产代，防换根后旧底图假命中）。</summary>
     private static string CacheKey(
-        ResolvedMaterial material, Rectangle bounds, int dpi, SurfaceLightState? light, int backdropVersion)
-        => $"{MaterialKey(material)}:{bounds.Width}x{bounds.Height}@dpi{dpi}"
-           + (light is { } state ? "|light:" + state.CacheToken : string.Empty)
-           + (backdropVersion > 0 ? "|bg:" + backdropVersion : string.Empty);
+        string fingerprint, Rectangle bounds, int dpi, SurfaceLightState? light, int backdropVersion)
+        => SkinCacheKey.Build(
+            fingerprint, bounds.Width, bounds.Height, dpi,
+            light is { } state ? state.CacheToken : null,
+            backdropVersion, SkinPaintEngine.AssetGeneration);
 
     /// <summary>材质指纹：含层参数摘要（同材质换色必须失效，否则换肤永不重绘）。</summary>
     private static string MaterialKey(ResolvedMaterial material)
-        => material.MaterialId + "|" + (material.FallbackUsed ?? string.Empty) + "|" + ParamDigest(material);
-
-    /// <summary>层参数摘要（角色/图元/z/全部参数；参数按键序，禁枚举顺序当语义）。</summary>
-    private static string ParamDigest(ResolvedMaterial material)
-        => string.Join("/", material.Layers.Select(layer =>
-            layer.Role + ":" + layer.Primitive + ":" + layer.Z + ":" +
-            string.Join(",", layer.Params.OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                .Select(pair => pair.Key + "=" + pair.Value))));
+        => SkinCacheKey.Fingerprint(material.MaterialId, material.FallbackUsed, SkinCacheKey.ParamDigest(material.Layers));
 
     private sealed class SkinState
     {

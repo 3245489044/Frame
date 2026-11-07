@@ -38,7 +38,7 @@ public static class BorderPainter
         var outer = new RectangleF(bounds.X - 0.5f, bounds.Y - 0.5f, bounds.Width, bounds.Height);
         var ring = BorderGeometry.Ring(outer.Left, outer.Top, outer.Right, outer.Bottom, widths, radii);
 
-        using var outerPath = CreateRoundedPathF(outer, radii);
+        using var outerPath = SkinGeometry.Path(outer, radii);
         using var ringPath = new GraphicsPath(FillMode.Alternate);
         ringPath.AddPath(outerPath, false);
         if (ring.HasInner)
@@ -46,7 +46,7 @@ public static class BorderPainter
             var innerRect = new RectangleF(
                 (float)ring.InnerLeft, (float)ring.InnerTop,
                 (float)ring.InnerWidth, (float)ring.InnerHeight);
-            using var innerPath = CreateRoundedPathF(innerRect, ring.InnerRadii);
+            using var innerPath = SkinGeometry.Path(innerRect, ring.InnerRadii);
             ringPath.AddPath(innerPath, false);
         }
 
@@ -95,55 +95,4 @@ public static class BorderPainter
         graphics.FillRectangle(brush, rect);
     }
 
-    /// <summary>浮点圆角矩形路径（radius≤0 仍返回矩形路径；调用方按环差集填充）。</summary>
-    private static GraphicsPath CreateRoundedPathF(RectangleF rect, CornerRadii radii)
-    {
-        var path = new GraphicsPath();
-        if (rect.Width <= 0 || rect.Height <= 0) return path;
-        if (radii.IsZero)
-        {
-            path.AddRectangle(rect);
-            return path;
-        }
-
-        var x = rect.X;
-        var y = rect.Y;
-        var w = rect.Width;
-        var h = rect.Height;
-        var limit = (float)(Math.Min(w, h) / 2.0);
-        var topLeft = Limit(radii.TopLeft, limit);
-        var topRight = Limit(radii.TopRight, limit);
-        var bottomRight = Limit(radii.BottomRight, limit);
-        var bottomLeft = Limit(radii.BottomLeft, limit);
-
-        path.StartFigure();
-
-        // 上边：左上角弧终点 → 右上角弧起点
-        path.AddLine(x + topLeft, y, x + w - topRight, y);
-        if (topRight > 0) path.AddArc(x + w - topRight * 2, y, topRight * 2, topRight * 2, 270, 90);
-        else path.AddLine(x + w, y, x + w, y);
-
-        // 右边
-        path.AddLine(x + w, y + topRight, x + w, y + h - bottomRight);
-        if (bottomRight > 0) path.AddArc(
-            x + w - bottomRight * 2, y + h - bottomRight * 2, bottomRight * 2, bottomRight * 2, 0, 90);
-        else path.AddLine(x + w, y + h, x + w, y + h);
-
-        // 下边（右 → 左）
-        path.AddLine(x + w - bottomRight, y + h, x + bottomLeft, y + h);
-        if (bottomLeft > 0) path.AddArc(
-            x, y + h - bottomLeft * 2, bottomLeft * 2, bottomLeft * 2, 90, 90);
-        else path.AddLine(x, y + h, x, y + h);
-
-        // 左边（下 → 上）
-        path.AddLine(x, y + h - bottomLeft, x, y + topLeft);
-        if (topLeft > 0) path.AddArc(x, y, topLeft * 2, topLeft * 2, 180, 90);
-        else path.AddLine(x, y, x, y);
-
-        path.CloseFigure();
-        return path;
-    }
-
-    private static float Limit(float value, float limit)
-        => value <= 0 ? 0 : value >= limit ? limit : value;
 }

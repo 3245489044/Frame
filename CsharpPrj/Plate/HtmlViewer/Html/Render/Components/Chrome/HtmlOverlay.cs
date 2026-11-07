@@ -67,15 +67,15 @@ public static class HtmlOverlay
         var titleBand = MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class(cls + "-title", cls + "-title"),
-            MarkupTag.Element("span", null, MarkupTag.Text(title)) + closeBtn);
+            UiMarkup.Trusted(MarkupTag.Element("span", null, UiMarkup.Trusted(MarkupTag.Text(title))) + closeBtn));
         var body = MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class(cls + "-body", cls + "-body"),
-            bodyHtml ?? string.Empty);
+            UiMarkup.Trusted(bodyHtml));
         var root = MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class(cls, "floating-window").Name(name),
-            titleBand + body);
+            UiMarkup.Trusted(titleBand + body));
 
         return "<style>" + OverlayCss(cls, o.WidthCss, o.HeightCss, o.LeftCss, o.MaxWidthCss) + "</style>" + root;
     }
@@ -117,7 +117,7 @@ public static class HtmlOverlay
             .Add("data-cmd", o.CloseCmd!)
             .DataAll(o.CloseData)
             .AddIfAny("title", o.CloseLabel);
-        return MarkupTag.Element("button", attrs, MarkupTag.Text("×"));
+        return MarkupTag.Element("button", attrs, UiMarkup.Trusted(MarkupTag.Text("×")));
     }
 
     /// <summary>浮层 CSS（position:fixed 悬浮于右上，受宿主主题变量 --bg/--border/--muted/--agent-bg 控制）。

@@ -45,11 +45,11 @@ public static class HtmlControlFactory
         switch (type)
         {
             case "label":
-                return MarkupTag.Element("span", WithStyle(BaseAttrs(config), styleCss), text, ControlDialect);
+                return MarkupTag.Element("span", WithStyle(BaseAttrs(config), styleCss), UiMarkup.Trusted(text), ControlDialect);
 
             case "textbox":
                 return config.Multiline == true
-                    ? MarkupTag.Element("textarea", WithStyle(BaseAttrs(config), styleCss), text, ControlDialect)
+                    ? MarkupTag.Element("textarea", WithStyle(BaseAttrs(config), styleCss), UiMarkup.Trusted(text), ControlDialect)
                     : MarkupTag.Void(
                         "input",
                         WithStyle(BaseAttrs(config, "text"), styleCss).Add("value", config.Text ?? string.Empty),
@@ -59,28 +59,28 @@ public static class HtmlControlFactory
                 return MarkupTag.Element(
                     "button",
                     WithStyle(BaseAttrs(config, "button").AddIfAny("data-cmd", clickCmd), styleCss),
-                    text,
+                    UiMarkup.Trusted(text),
                     ControlDialect);
 
             case "listview":
                 return MarkupTag.Element(
                     "ul",
                     WithStyle(BaseAttrs(config).Class("list", "list"), styleCss),
-                    RenderItems(config.Items),
+                    UiMarkup.Trusted(RenderItems(config.Items)),
                     ControlDialect);
 
             case "combobox":
                 return MarkupTag.Element(
                     "select",
                     WithStyle(BaseAttrs(config), styleCss),
-                    RenderOptions(config.Items, config.SelectedIndex),
+                    UiMarkup.Trusted(RenderOptions(config.Items, config.SelectedIndex)),
                     ControlDialect);
 
             case "treeview":
                 return MarkupTag.Element(
                     "ul",
                     WithStyle(BaseAttrs(config).Class("tree", "tree"), styleCss),
-                    RenderItems(config.Items),
+                    UiMarkup.Trusted(RenderItems(config.Items)),
                     ControlDialect);
 
             case "checkbox":
@@ -96,7 +96,7 @@ public static class HtmlControlFactory
                 var label = MarkupTag.Element(
                     "label",
                     new MarkupAttrBatch(ControlDialect).Add("style", styleCss),
-                    MarkupTag.Void("input", WithLayout(input, config), ControlDialect) + text,
+                    UiMarkup.Trusted(MarkupTag.Void("input", WithLayout(input, config), ControlDialect) + text),
                     ControlDialect);
                 return label;
             }
@@ -116,7 +116,7 @@ public static class HtmlControlFactory
                 var attrs = BaseAttrs(config)
                     .AddIfAny("data-backend", config.Backend)
                     .Class("host", "host");
-                return MarkupTag.Element("div", WithStyle(attrs, styleCss), text, ControlDialect);
+                return MarkupTag.Element("div", WithStyle(attrs, styleCss), UiMarkup.Trusted(text), ControlDialect);
             }
 
             case "tabcontrol":
@@ -126,7 +126,7 @@ public static class HtmlControlFactory
                 return MarkupTag.Element(
                     "div",
                     WithStyle(BaseAttrs(config).Class("container", "container"), styleCss),
-                    childrenHtml,
+                    UiMarkup.Trusted(childrenHtml),
                     ControlDialect);
         }
     }
@@ -168,7 +168,7 @@ public static class HtmlControlFactory
                     .Add("type", "button")
                     .Add("class", i == 0 ? "tab active" : "tab")
                     .Add("data-tab", i.ToString(CultureInfo.InvariantCulture));
-                sb.Append(MarkupTag.Element("button", attrs, MarkupTag.Text(label), ControlDialect));
+                sb.Append(MarkupTag.Element("button", attrs, UiMarkup.Trusted(MarkupTag.Text(label)), ControlDialect));
             }
         }
 
@@ -179,7 +179,7 @@ public static class HtmlControlFactory
         sb.Append(MarkupTag.Close("div", ControlDialect));
         sb.Append('\n');
         sb.Append(MarkupTag.Element(
-            "script", null, HtmlAssetRegistry.GetScript(HtmlAssetKeys.TabSwapScript), ControlDialect));
+            "script", null, UiMarkup.Trusted(HtmlAssetRegistry.GetScript(HtmlAssetKeys.TabSwapScript)), ControlDialect));
         sb.Append('\n');
         sb.Append(MarkupTag.Close("div", ControlDialect));
         return sb.ToString();
@@ -190,7 +190,7 @@ public static class HtmlControlFactory
         if (items is null) return string.Empty;
         var sb = new StringBuilder();
         foreach (var item in items)
-            sb.Append(MarkupTag.Element("li", null, MarkupTag.Text(item), ControlDialect));
+            sb.Append(MarkupTag.Element("li", null, UiMarkup.Trusted(MarkupTag.Text(item)), ControlDialect));
         return sb.ToString();
     }
 
@@ -204,7 +204,7 @@ public static class HtmlControlFactory
             var attrs = new MarkupAttrBatch(ControlDialect)
                 .Add("value", item)
                 .Bool("selected", i == (selectedIndex ?? -1));
-            sb.Append(MarkupTag.Element("option", attrs, MarkupTag.Text(item), ControlDialect));
+            sb.Append(MarkupTag.Element("option", attrs, UiMarkup.Trusted(MarkupTag.Text(item)), ControlDialect));
             i++;
         }
 

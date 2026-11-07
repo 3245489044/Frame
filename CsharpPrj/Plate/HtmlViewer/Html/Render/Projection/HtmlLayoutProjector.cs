@@ -72,7 +72,7 @@ public sealed class HtmlLayoutProjector
         var html = MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class("ui-root", "ui-root").Add("style", style.Render()),
-            sb.ToString());
+            UiMarkup.Trusted(sb.ToString()));
         return new HtmlRenderResult(html, BaseCss);
     }
 
@@ -87,7 +87,7 @@ public sealed class HtmlLayoutProjector
         var html = MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class("ui-root flow", "ui-root"),
-            sb.ToString());
+            UiMarkup.Trusted(sb.ToString()));
         return new HtmlRenderResult(html, BaseCss);
     }
 

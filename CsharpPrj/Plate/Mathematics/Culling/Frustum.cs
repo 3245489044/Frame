@@ -31,10 +31,9 @@ public sealed class Frustum
         if (verticalFov <= 0f) throw new ArgumentOutOfRangeException(nameof(verticalFov), "FOV 必须为正");
         if (aspect <= 0f) throw new ArgumentOutOfRangeException(nameof(aspect), "宽高比必须为正");
 
-        var forward = CameraMath.BuildForward(yaw, pitch).Normalized();
-        var right = Vec3.Cross(forward, Vec3.Up);
-        right = (right == Vec3.Zero) ? new Vec3(0, 0, 1) : right.Normalized();
-        var up = Vec3.Cross(right, forward).Normalized();
+        var (forward, right, up) = CameraMath.BuildBasis(yaw, pitch);
+        if (right == Vec3.Zero) right = new Vec3(0, 0, 1);
+        up = Vec3.Cross(right, forward).Normalized();
 
         float tanV = (float)System.Math.Tan(verticalFov * 0.5f);
         float tanH = tanV * aspect;

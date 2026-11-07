@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using UiBackend;
 
 namespace Share.Conversation.Rendering.Surface;
@@ -48,10 +47,11 @@ public enum SurfacePrimitiveKind
 }
 
 /// <summary>
-/// 类型化图元参数（K1）：把 <see cref="ResolvedLayer.Params"/> 字符串袋在**一次解析**里读成强类型，
-/// 非法值产出 <see cref="SurfaceIssue"/> 而不是运行期静默 fallback。
-/// <para>颜色一律是打包 ARGB（0xAARRGGBB），解析经 <see cref="SurfaceColor"/>；本类 BCL-only，不含 GDI/CSS 方言。</para>
-/// <para>字段按图元复用（未用到的字段为默认值）：<see cref="GradientStops"/> 仅 Gradient；<see cref="Mode"/> 仅 Specular。</para>
+/// 类型化图元参数的**兼容视图**（K1 过渡层）。
+/// <para>
+/// 解析唯一实现已下移到 <see cref="ResolvedLayerSpec"/>（Plate，两载体共用）；本记录仅为既有调用点保留原字段形态，
+/// 新代码请直接消费 <see cref="ResolvedLayerSpec"/> / <see cref="ResolvedLayerSpecProjection"/>。
+/// </para>
 /// </summary>
 /// <param name="Kind">图元类型。</param>
 /// <param name="Primitive">原始图元名（未知类型时保真）。</param>
@@ -59,7 +59,7 @@ public enum SurfacePrimitiveKind
 /// <param name="GradientStops">渐变色标（≥1；仅 Gradient）。</param>
 /// <param name="Angle">角度（度；gradient / specular）。</param>
 /// <param name="Width">宽度（DIP；stroke / innerShadow / specular-edge）。</param>
-/// <param name="Radius">圆角半径（DIP；几何层共用）或 specular-spot 的半径比例。</param>
+/// <param name="Radius">圆角半径（DIP）或 specular-spot 的半径比例。</param>
 /// <param name="Blur">模糊半径（DIP）。</param>
 /// <param name="OffsetX">水平偏移（DIP）。</param>
 /// <param name="OffsetY">垂直偏移（DIP）。</param>
@@ -90,246 +90,46 @@ public sealed record SurfacePrimitiveSpec(
     /// <summary>主色 alpha（0..255）。</summary>
     public int Alpha => (ColorArgb >> 24) & 0xFF;
 
-    /// <summary>解析一层（一次成型；非法/缺失值落 Issues，缺省值取模型常量）。</summary>
+    /// <summary>解析一层（委托 <see cref="ResolvedLayerSpecProjection"/> 的唯一实现；字段形态保持不变）。</summary>
     /// <param name="layer">已解析层。</param>
     /// <param name="issues">产出问题（无则空）。</param>
     public static SurfacePrimitiveSpec Parse(ResolvedLayer layer, out IReadOnlyList<SurfaceIssue> issues)
     {
-        var kind = KindOf(layer.Primitive);
-        if (kind is SurfacePrimitiveKind.Shadow or SurfacePrimitiveKind.InnerShadow or SurfacePrimitiveKind.Specular)
-            return ParseBorderKind(layer, kind, out issues);
-
-        var list = new List<SurfaceIssue>();
-        var role = layer.Role;
-
-        var stops = kind == SurfacePrimitiveKind.Gradient
-            ? ParseStops(layer, list)
-            : Array.Empty<int>();
-        // 渐变的 value 是「色标列表」而不是单色；贴图/贴画用 asset，不参与色值判定。
-        var colorArgb = kind switch
-        {
-            SurfacePrimitiveKind.Gradient => stops.Count > 0 ? stops[0] : 0,
-            SurfacePrimitiveKind.Texture or SurfacePrimitiveKind.Decal => 0,
-            _ => ParseColor(layer, "value", list),
-        };
-
-        var angle = ParseFloat(layer, "angle", DefaultAngle(kind), list);
-        var width = ParseFloat(layer, "width", DefaultWidth(kind), list);
-        var radius = ParseFloat(layer, "radius", DefaultRadius(kind), list);
-        var blur = ParseFloat(layer, "blur", 0f, list);
-        var (offsetX, offsetY) = ParseOffset(layer, kind, list);
-        var spread = ParseFloat(layer, "spread", 0f, list);
-        var strength = ParseFloat(layer, "strength", 0.7f, list);
-        var mode = ParseMode(layer);
-        var asset = Param(layer, "asset");
-        var slice = (int)Math.Max(0, ParseFloat(layer, "slice", 0f, list));
-        var noRepeat = string.Equals(Param(layer, "repeat"), "no-repeat", StringComparison.Ordinal);
-
-        if (kind is SurfacePrimitiveKind.Texture or SurfacePrimitiveKind.Decal && asset.Length == 0)
-        {
-            list.Add(new SurfaceIssue("param-missing", role + ":asset"));
-        }
-
-        issues = list;
+        var spec = ResolvedLayerSpecProjection.Parse(layer, out issues);
         return new SurfacePrimitiveSpec(
-            kind, layer.Primitive, colorArgb, stops, angle, width, radius, blur,
-            offsetX, offsetY, spread, strength, mode, asset, slice, noRepeat);
-    }
-
-    /// <summary>
-    /// 边框类图元（shadow / innerShadow / specular）的**唯一参数解释**：直接消费 <see cref="BorderSpec"/>
-    /// 归一化产物（Glows / InnerLights / Sheens），不再在此重复读字符串袋——两载体因此不可能各解一套。
-    /// </summary>
-    private static SurfacePrimitiveSpec ParseBorderKind(
-        ResolvedLayer layer, SurfacePrimitiveKind kind, out IReadOnlyList<SurfaceIssue> issues)
-    {
-        var list = new List<SurfaceIssue>();
-        var spec = BorderSpec.FromLayers(
-            new[] { new BorderLayerInput(layer.Role, layer.Primitive, layer.Z, layer.Params) },
-            out var borderIssues);
-        foreach (var issue in borderIssues) list.Add(new SurfaceIssue(issue.Code, issue.Detail));
-
-        var angle = ParseFloat(layer, "angle", DefaultAngle(kind), list);
-        var radius = ParseFloat(layer, "radius", DefaultRadius(kind), list);
-        var mode = "band";
-        var colorArgb = 0;
-        var width = DefaultWidth(kind);
-        var blur = 0f;
-        var offsetX = 0f;
-        var offsetY = 0f;
-        var spread = 0f;
-        var strength = 0.7f;
-
-        if (kind is SurfacePrimitiveKind.Shadow && spec.Glows.Count > 0)
-        {
-            var glow = spec.Glows[0];
-            colorArgb = glow.Argb;
-            blur = glow.Blur;
-            offsetX = glow.OffsetX;
-            offsetY = glow.OffsetY;
-            spread = glow.Spread;
-            strength = 1f;
-        }
-        else if (kind is SurfacePrimitiveKind.InnerShadow && spec.InnerLights.Count > 0)
-        {
-            var light = spec.InnerLights[0];
-            colorArgb = light.Argb;
-            width = light.Width;
-            strength = light.Strength;
-            blur = light.Blur;
-            offsetX = light.OffsetX;
-            offsetY = light.OffsetY;
-            mode = light.Mode;
-        }
-        else if (kind is SurfacePrimitiveKind.Specular)
-        {
-            if (spec.InnerLights.Count > 0)
-            {
-                var light = spec.InnerLights[0];
-                colorArgb = light.Argb;
-                width = light.Width;
-                strength = light.Strength;
-                mode = light.Mode;
-            }
-            else if (spec.Sheens.Count > 0)
-            {
-                var sheen = spec.Sheens[0];
-                colorArgb = sheen.Argb;
-                width = sheen.Width;
-                strength = sheen.Strength;
-                mode = sheen.Mode;
-                angle = sheen.Angle;
-            }
-        }
-
-        issues = list;
-        return new SurfacePrimitiveSpec(
-            kind, layer.Primitive, colorArgb, Array.Empty<int>(), angle, width, radius, blur,
-            offsetX, offsetY, spread, strength, mode, string.Empty, 0, false);
+            KindOf(spec.Primitive),
+            spec.Primitive,
+            spec.ColorArgb,
+            spec.Gradient.Colors,
+            spec.Angle,
+            spec.Width,
+            spec.Radius,
+            spec.Blur,
+            spec.OffsetX,
+            spec.OffsetY,
+            spec.Spread,
+            spec.Strength,
+            spec.Mode,
+            spec.Asset,
+            spec.Slice,
+            spec.NoRepeat);
     }
 
     /// <summary>图元 → 类型（未知保留 Unknown）。</summary>
     /// <param name="primitive">图元名。</param>
-    public static SurfacePrimitiveKind KindOf(string primitive) => primitive switch
+    public static SurfacePrimitiveKind KindOf(string primitive) => ResolvedLayerSpec.KindOf(primitive) switch
     {
-        "fill" => SurfacePrimitiveKind.Fill,
-        "gradient" => SurfacePrimitiveKind.Gradient,
-        "stroke" => SurfacePrimitiveKind.Stroke,
-        "shadow" => SurfacePrimitiveKind.Shadow,
-        "innerShadow" => SurfacePrimitiveKind.InnerShadow,
-        "backdrop" => SurfacePrimitiveKind.Backdrop,
-        "specular" => SurfacePrimitiveKind.Specular,
-        "texture" => SurfacePrimitiveKind.Texture,
-        "decal" => SurfacePrimitiveKind.Decal,
-        "mask" => SurfacePrimitiveKind.Mask,
-        "noise" => SurfacePrimitiveKind.Noise,
+        LayerPrimitive.Fill => SurfacePrimitiveKind.Fill,
+        LayerPrimitive.Gradient => SurfacePrimitiveKind.Gradient,
+        LayerPrimitive.Stroke => SurfacePrimitiveKind.Stroke,
+        LayerPrimitive.Shadow => SurfacePrimitiveKind.Shadow,
+        LayerPrimitive.InnerShadow => SurfacePrimitiveKind.InnerShadow,
+        LayerPrimitive.Backdrop => SurfacePrimitiveKind.Backdrop,
+        LayerPrimitive.Specular => SurfacePrimitiveKind.Specular,
+        LayerPrimitive.Texture => SurfacePrimitiveKind.Texture,
+        LayerPrimitive.Decal => SurfacePrimitiveKind.Decal,
+        LayerPrimitive.Mask => SurfacePrimitiveKind.Mask,
+        LayerPrimitive.Noise => SurfacePrimitiveKind.Noise,
         _ => SurfacePrimitiveKind.Unknown,
     };
-
-    private static int ParseColor(ResolvedLayer layer, string name, List<SurfaceIssue> issues)
-    {
-        var raw = Param(layer, name);
-        if (raw.Length == 0)
-        {
-            issues.Add(new SurfaceIssue("param-missing", layer.Role + ":" + name));
-            return 0;
-        }
-
-        if (SurfaceColor.TryParseColor(raw, out var argb)) return argb;
-        // 统一沿用既有 `unresolved-value` 记账口径（断言/日志按此前缀判定，禁改名造成假绿）。
-        issues.Add(new SurfaceIssue("unresolved-value", raw));
-        return 0;
-    }
-
-    private static IReadOnlyList<int> ParseStops(ResolvedLayer layer, List<SurfaceIssue> issues)
-    {
-        var raw = Param(layer, "value");
-        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0)
-        {
-            issues.Add(new SurfaceIssue("param-missing", layer.Role + ":value=<empty>"));
-            return Array.Empty<int>();
-        }
-
-        var stops = new int[parts.Length];
-        for (var i = 0; i < parts.Length; i++)
-        {
-            if (!SurfaceColor.TryParseColor(parts[i], out stops[i]))
-            {
-                issues.Add(new SurfaceIssue("color-invalid", layer.Role + ":value[" + i + "]=" + parts[i]));
-                return Array.Empty<int>();
-            }
-        }
-
-        return stops;
-    }
-
-    private static float ParseFloat(ResolvedLayer layer, string name, float fallback, List<SurfaceIssue> issues)
-    {
-        var raw = Param(layer, name);
-        if (raw.Length == 0) return fallback;
-        if (TryNumber(raw, out var number)) return number;
-        issues.Add(new SurfaceIssue("param-invalid", layer.Role + ":" + name + "=" + raw));
-        return fallback;
-    }
-
-    private static (float X, float Y) ParseOffset(
-        ResolvedLayer layer, SurfacePrimitiveKind kind, List<SurfaceIssue> issues)
-    {
-        if (kind is not (SurfacePrimitiveKind.Shadow or SurfacePrimitiveKind.InnerShadow)) return (0f, 0f);
-        var raw = Param(layer, "offset");
-        if (raw.Length == 0) return (0f, DefaultOffsetY);
-
-        var parts = raw.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0) return (0f, DefaultOffsetY);
-
-        if (!TryNumber(parts[0], out var x))
-        {
-            issues.Add(new SurfaceIssue("param-invalid", layer.Role + ":offset=" + raw));
-            return (0f, DefaultOffsetY);
-        }
-
-        if (parts.Length < 2) return (x, DefaultOffsetY);
-        if (!TryNumber(parts[1], out var y))
-        {
-            issues.Add(new SurfaceIssue("param-invalid", layer.Role + ":offset=" + raw));
-            return (x, DefaultOffsetY);
-        }
-
-        return (x, y);
-    }
-
-    private static string ParseMode(ResolvedLayer layer) => Param(layer, "mode") switch
-    {
-        "edge" => "edge",
-        "spot" => "spot",
-        _ => "band",
-    };
-
-    private static bool TryNumber(string text, out float value)
-    {
-        var trimmed = text.Trim();
-        if (trimmed.EndsWith("px", StringComparison.OrdinalIgnoreCase))
-            trimmed = trimmed[..^2];
-        return float.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out value)
-               && !float.IsNaN(value) && !float.IsInfinity(value);
-    }
-
-    private static string Param(ResolvedLayer layer, string name)
-        => layer.Params.TryGetValue(name, out var value) ? value : string.Empty;
-
-    private static float DefaultAngle(SurfacePrimitiveKind kind)
-        => kind == SurfacePrimitiveKind.Specular ? 45f : 180f;
-
-    private static float DefaultWidth(SurfacePrimitiveKind kind) => kind switch
-    {
-        SurfacePrimitiveKind.InnerShadow => 1f,
-        SurfacePrimitiveKind.Specular => 2f,
-        _ => 0f,
-    };
-
-    private static float DefaultRadius(SurfacePrimitiveKind kind)
-        => kind == SurfacePrimitiveKind.Specular ? 0.55f : 0f;
-
-    private const float DefaultOffsetY = 2f;
 }

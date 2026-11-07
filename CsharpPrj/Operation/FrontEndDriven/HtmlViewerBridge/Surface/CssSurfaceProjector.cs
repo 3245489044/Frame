@@ -45,14 +45,21 @@ public static class CssSurfaceProjector
         return builder.ToString();
     }
 
-    /// <summary>按已解析表面投影材质类。</summary>
+    /// <summary>按已解析表面投影材质类（可带一份全局光态，写成 <c>:root</c> 的 <c>--sl-*</c> 变量）。</summary>
     /// <param name="surface">解析产物。</param>
-    public static SurfaceStyleSheet Project(ResolvedSurface surface)
+    /// <param name="light">全局光场采样；null ⇒ 只用材质声明值（不伪装动态）。</param>
+    public static SurfaceStyleSheet Project(ResolvedSurface surface, SurfaceLightSample? light = null)
     {
         ArgumentNullException.ThrowIfNull(surface);
         var builder = new CssDocumentBuilder();
         var skipped = new List<string>();
         var emitted = new HashSet<string>(StringComparer.Ordinal);
+
+        if (light is { HasValue: true } sample)
+        {
+            // 两载体共用同一端口：HTML 侧只把采样结果格式化成变量，不重算光数学。
+            builder.Rule(":root", LightVariables(sample));
+        }
 
         foreach (var container in surface.Containers)
         {
@@ -179,18 +186,16 @@ public static class CssSurfaceProjector
             {
                 var (x, y) = SpotCenter(sheen.Angle);
                 backgrounds.Add(
-                    $"radial-gradient(circle at {x}% {y}%, {CssColor(sheen.Argb)} 0%, transparent 70%)");
-                // 光斑位置在 HTML 侧固定（不随光标），显式降级而非伪装动态。
-                skipped.Add("specular:degraded(static-light)");
+                    $"radial-gradient(circle at var(--sl-x, {x}%) var(--sl-y, {y}%), var(--sl-tint, {CssColor(sheen.Argb)}) 0%, transparent 70%)");
             }
             else
             {
                 backgrounds.Add(
-                    $"linear-gradient({Deg(sheen.Angle)}deg, transparent 40%, {CssColor(sheen.Argb)} 50%, transparent 60%)");
+                    $"linear-gradient(var(--sl-angle, {Deg(sheen.Angle)}deg), transparent 40%, var(--sl-tint, {CssColor(sheen.Argb)}) 50%, transparent 60%)");
             }
         }
 
-        var primary = PrimaryStroke(material);
+        var primary = spec.TopStroke;
         if (primary is not null)
         {
             if (spec.Strokes.Count > 1)
@@ -198,7 +203,7 @@ public static class CssSurfaceProjector
                 skipped.Add("border-multi-stroke-emulated:" + spec.Strokes.Count);
             }
 
-            AddBorder(declarations, primary, spec);
+            AddBorder(declarations, primary);
         }
 
         if (backgroundColor.Length > 0) declarations.Add(Pair("background-color", backgroundColor));
@@ -234,79 +239,37 @@ public static class CssSurfaceProjector
         return declarations;
     }
 
-    private static void AddBorder(
-        List<KeyValuePair<string, string>> declarations, ResolvedLayer stroke, BorderSpec spec)
+    /// <summary>
+    /// 描边投影（唯一模型读取点）：宽度/颜色/半径全部来自 <see cref="BorderSpec.TopStroke"/>，
+    /// 不再重解析层参数（解析规则单源 = Plate；缺边颜色不再静默借用整体色）。
+    /// </summary>
+    private static void AddBorder(List<KeyValuePair<string, string>> declarations, BorderStroke stroke)
     {
-        var colors = Param(stroke, "colors", string.Empty);
-        var color = Param(stroke, "value", string.Empty);
-        var shorthand = Param(stroke, "widths", string.Empty);
+        declarations.Add(Pair("border-style", "solid"));
+        declarations.Add(Pair("border-top-width", FormatPx(stroke.Widths.Top)));
+        declarations.Add(Pair("border-right-width", FormatPx(stroke.Widths.Right)));
+        declarations.Add(Pair("border-bottom-width", FormatPx(stroke.Widths.Bottom)));
+        declarations.Add(Pair("border-left-width", FormatPx(stroke.Widths.Left)));
 
-        if (shorthand.Length > 0 && BorderEdgeSet.TryParseShorthand(shorthand, out var edges))
+        if (stroke.Colors.IsUniform)
         {
-            declarations.Add(Pair("border-style", "solid"));
-            declarations.Add(Pair("border-top-width", FormatPx(edges.Top)));
-            declarations.Add(Pair("border-right-width", FormatPx(edges.Right)));
-            declarations.Add(Pair("border-bottom-width", FormatPx(edges.Bottom)));
-            declarations.Add(Pair("border-left-width", FormatPx(edges.Left)));
-            if (colors.Length > 0)
-            {
-                var parts = colors.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                declarations.Add(Pair("border-top-color", parts.Length > 0 ? parts[0] : color));
-                declarations.Add(Pair("border-right-color", parts.Length > 1 ? parts[1] : color));
-                declarations.Add(Pair("border-bottom-color", parts.Length > 2 ? parts[2] : color));
-                declarations.Add(Pair("border-left-color", parts.Length > 3 ? parts[3] : color));
-            }
-            else
-            {
-                declarations.Add(Pair("border-color", color));
-            }
+            declarations.Add(Pair("border-color", CssColor(stroke.Colors.Top)));
         }
         else
         {
-            var width = Param(stroke, "width", "1");
-            if (colors.Length > 0)
-            {
-                // 四边独立颜色：CSS 单 border 简写会丢色，改 longhand（宽度仍可简写）。
-                var parts = colors.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                declarations.Add(Pair("border-style", "solid"));
-                declarations.Add(Pair("border-width", FormatPx(float.TryParse(
-                    width, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : 1)));
-                declarations.Add(Pair("border-top-color", parts.Length > 0 ? parts[0] : color));
-                declarations.Add(Pair("border-right-color", parts.Length > 1 ? parts[1] : color));
-                declarations.Add(Pair("border-bottom-color", parts.Length > 2 ? parts[2] : color));
-                declarations.Add(Pair("border-left-color", parts.Length > 3 ? parts[3] : color));
-            }
-            else
-            {
-                declarations.Add(Pair("border", width + "px solid " + color));
-            }
+            declarations.Add(Pair("border-top-color", CssColor(stroke.Colors.Top)));
+            declarations.Add(Pair("border-right-color", CssColor(stroke.Colors.Right)));
+            declarations.Add(Pair("border-bottom-color", CssColor(stroke.Colors.Bottom)));
+            declarations.Add(Pair("border-left-color", CssColor(stroke.Colors.Left)));
         }
 
-        var radius = RadiusCss(stroke, spec);
-        if (radius.Length > 0) declarations.Add(Pair("border-radius", radius));
-    }
-
-    private static string RadiusCss(ResolvedLayer stroke, BorderSpec spec)
-    {
-        var shorthand = Param(stroke, "radii", string.Empty);
-        if (shorthand.Length > 0 && CornerRadii.TryParseShorthand(shorthand, out var radii))
+        var radii = stroke.Radii;
+        if (radii.Max > 0)
         {
-            return string.Join(' ',
+            declarations.Add(Pair("border-radius", string.Join(' ',
                 FormatPx(radii.TopLeft), FormatPx(radii.TopRight),
-                FormatPx(radii.BottomRight), FormatPx(radii.BottomLeft));
+                FormatPx(radii.BottomRight), FormatPx(radii.BottomLeft))));
         }
-
-        var radius = Param(stroke, "radius", string.Empty);
-        if (radius.Length > 0)
-        {
-            return float.TryParse(radius, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-                ? FormatPx(parsed)
-                : radius + "px";
-        }
-
-        // 层未声明半径 ⇒ 沿用模型材质级兜底（与 GDI+ 同口径），避免填充圆角/描边直角错位。
-        var fallback = spec.Strokes.Count == 0 ? 0 : spec.Strokes[^1].Radii.Max;
-        return fallback > 0 ? FormatPx(fallback) : string.Empty;
     }
 
     /// <summary>材质级最大圆角半径（与 GDI+ 的材质兜底同口径）。</summary>
@@ -326,19 +289,24 @@ public static class CssSurfaceProjector
         return max;
     }
 
-    private static ResolvedLayer? PrimaryStroke(ResolvedMaterial material)
+    /// <summary>全局光态 → <c>--sl-*</c> 变量（唯一格式化的地方；不做任何光计算）。</summary>
+    private static List<KeyValuePair<string, string>> LightVariables(SurfaceLightSample sample)
     {
-        ResolvedLayer? best = null;
-        foreach (var layer in material.Layers)
+        var angle = (int)Math.Round(sample.Angle);
+        var spotX = Math.Clamp((int)Math.Round(sample.SpotX * 100), 0, 100);
+        var spotY = Math.Clamp((int)Math.Round(sample.SpotY * 100), 0, 100);
+        return new List<KeyValuePair<string, string>>
         {
-            if (string.Equals(layer.Primitive, "stroke", StringComparison.Ordinal)
-                && (best is null || layer.Z >= best.Z))
-            {
-                best = layer;
-            }
-        }
-
-        return best;
+            Pair("--sl-angle", angle.ToString(CultureInfo.InvariantCulture) + "deg"),
+            Pair("--sl-x", spotX.ToString(CultureInfo.InvariantCulture) + "%"),
+            Pair("--sl-y", spotY.ToString(CultureInfo.InvariantCulture) + "%"),
+            Pair("--sl-tint", CssColor(sample.TintArgb)),
+            Pair("--sl-intensity", sample.Intensity.ToString("F2", CultureInfo.InvariantCulture)),
+            Pair("--sl-edge-top", sample.EdgeTop.ToString("F2", CultureInfo.InvariantCulture)),
+            Pair("--sl-edge-left", sample.EdgeLeft.ToString("F2", CultureInfo.InvariantCulture)),
+            Pair("--sl-edge-right", sample.EdgeRight.ToString("F2", CultureInfo.InvariantCulture)),
+            Pair("--sl-edge-bottom", sample.EdgeBottom.ToString("F2", CultureInfo.InvariantCulture)),
+        };
     }
 
     /// <summary>光斑中心（模型角度 → 归一化坐标；GDI+ 与 CSS 同口径）。</summary>

@@ -39,6 +39,14 @@ public static class DomOps
     /// <summary>成功判定单点（消费方禁再写 <c>== "OK"</c>）。</summary>
     public static bool IsOk(string? status) => Parse(status) == DomOpStatus.Ok;
 
+    /// <summary>
+    /// 具名目标定位函数（**唯一 JS 生成点**）：按 <c>data-name</c> 属性等值匹配。
+    /// <para>禁选择器拼接：name 含引号/反斜杠/方括号时选择器会失效或注入。</para>
+    /// </summary>
+    public const string LookupFunction =
+        "function _wfFind(n){var a=document.querySelectorAll('[data-name]');" +
+        "for(var i=0;i<a.length;i++){if(a[i].getAttribute('data-name')===n){return a[i];}}return null;}";
+
     public const string Set = "set";
 
     /// <summary>流追加原语（append-only 面：日志 / 过程帧 / 气泡）：按项稳定键定点更新同名项、其余插入流首、按 cap 裁尾，

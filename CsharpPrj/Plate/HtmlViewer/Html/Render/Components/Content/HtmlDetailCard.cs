@@ -40,21 +40,21 @@ public static class HtmlDetailCard
         {
             foreach (var f in fields)
             {
-                grid.Append(MarkupTag.Element("span", null, MarkupTag.Text(f.Label)));
-                grid.Append(MarkupTag.Element("span", null, MarkupTag.Text(f.Value)));
+                grid.Append(MarkupTag.Element("span", null, UiMarkup.Trusted(MarkupTag.Text(f.Label))));
+                grid.Append(MarkupTag.Element("span", null, UiMarkup.Trusted(MarkupTag.Text(f.Value))));
             }
         }
 
         sb.Append(MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class(cls + "-grid", cls + "-grid"),
-            grid.ToString()));
+            UiMarkup.Trusted(grid.ToString())));
 
         if (!string.IsNullOrEmpty(sectionNote))
             sb.Append(MarkupTag.Element(
                 "div",
                 new MarkupAttrBatch().Class(cls + "-field", cls + "-field"),
-                MarkupTag.Element("span", null, MarkupTag.Text(sectionNote))));
+                UiMarkup.Trusted(MarkupTag.Element("span", null, UiMarkup.Trusted(MarkupTag.Text(sectionNote))))));
 
         if (!string.IsNullOrEmpty(editorDataName))
         {
@@ -62,7 +62,7 @@ public static class HtmlDetailCard
                 .Class(editorClass, "edit mono")
                 .Add("rows", editorRows.ToString(CultureInfo.InvariantCulture))
                 .Name(editorDataName);
-            sb.Append(MarkupTag.Element("textarea", attrs, MarkupTag.Text(editorValue)));
+            sb.Append(MarkupTag.Element("textarea", attrs, UiMarkup.Trusted(MarkupTag.Text(editorValue))));
         }
 
         if (commands is not null)
@@ -74,7 +74,7 @@ public static class HtmlDetailCard
         return MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class(cls + "-body", cls + "-body"),
-            sb.ToString());
+            UiMarkup.Trusted(sb.ToString()));
     }
 }
 

@@ -25,7 +25,7 @@ public static class MarkupBlock
     {
         var d = dialect ?? MarkupDialects.Html;
         var attrs = new MarkupAttrBatch(d).Class(cssClass, fallbackClass).Name(dataName);
-        return MarkupTag.Element(tag, attrs, inner, d);
+        return MarkupTag.Element(tag, attrs, UiMarkup.Trusted(inner), d);
     }
 
     /// <summary>仅类名的块（无稳定名）。</summary>

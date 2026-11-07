@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Share.Conversation.Presentation;
 using Share.Conversation.Rendering.Surface;
+using UiBackend;
 using UiBackend.Abstractions;
 
 namespace FrontEndDriven.HtmlViewerBridge.Surface;
@@ -168,10 +169,16 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         foreach (var visual in theme.Visuals(BackendId, stateId))
         {
             if (!string.Equals(visual.Bind, "cssvar", StringComparison.Ordinal)) continue;
-            style.Add($"{visual.Prop}:{WithUnit(visual.Value, visual.Unit)}");
+            style.Add($"{visual.Prop}:{CssValue.AppendUnit(visual.Value, visual.Unit)}");
         }
 
-        if (style.Count > 0) attributes["style"] = string.Join(";", style);
+        if (style.Count > 0)
+        {
+            // style 合并（不整体覆盖）：上游映射/模板已写的同名键由声明覆盖，其余保留（E-13 修复）。
+            attributes["style"] = CssValue.MergeStyle(
+                attributes.TryGetValue("style", out var existingStyle) ? existingStyle : null,
+                style);
+        }
         if (theme.Name is { Length: > 0 } partName) attributes["data-part"] = partName;
 
         // 槽位缺口只保留 DOM 属性（单一表示：供诊断读取；不进 UnsupportedCells）。
@@ -189,11 +196,4 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
     /// <summary>字段值 → 文本（唯一合成点 = <see cref="FieldTextFormatter"/>）。</summary>
     /// <param name="field">字段。</param>
     public static string TextOf(UiField field) => FieldTextFormatter.Format(field);
-
-    /// <summary>单位拼接：token 值单位less，载体声明单位（多值按空白分隔逐个追加）。</summary>
-    private static string WithUnit(string value, string unit)
-    {
-        if (unit.Length == 0) return value;
-        return string.Join(" ", value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(v => v + unit));
-    }
 }

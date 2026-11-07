@@ -32,7 +32,7 @@ public static class HtmlSelectionBar
         sb.Append(MarkupTag.Element(
             "span",
             new MarkupAttrBatch().Class("selection-summary", "selection-summary"),
-            MarkupTag.Text(model.Summary)));
+            UiMarkup.Trusted(MarkupTag.Text(model.Summary))));
         HtmlToolbar.AppendGroupSequence(sb, model.Groups, buttonClass);
 
         var attrs = new MarkupAttrBatch()
@@ -40,7 +40,7 @@ public static class HtmlSelectionBar
             .Add("role", "group")
             .AddIfAny("aria-label", model.AriaLabel)
             .Add("data-selection-count", model.Count.ToString(CultureInfo.InvariantCulture));
-        return MarkupTag.Element("div", attrs, sb.ToString());
+        return MarkupTag.Element("div", attrs, UiMarkup.Trusted(sb.ToString()));
     }
 }
 

@@ -205,75 +205,39 @@ public sealed partial class HtmlBackendRuntime
         return result;
     }
 
-    /// <summary>帧预算（B5-3 降级链）：跳叶子 → 跳流段 → 多目标按体量裁剪 → 单目标超限仍落地（留陈旧 DOM 比慢更差）；每次降级可归因。</summary>
+    /// <summary>帧预算（B5-3 降级链）：裁决单源 = <see cref="WriteBudgetPolicy.DecideTargets"/>；本层只负责记账与可见化。</summary>
     private UiWritePlan ApplyFrameBudget(UiWritePlan? plan, string trace)
     {
         if (!_options.FrameBudget || plan is null || plan.Kind == UiWriteKind.Skip) return plan!;
 
-        var ops = plan.Targets.Count;
-        var bytes = EstimateBytes(plan.Targets);
-        if (ops <= _options.MaxOpsPerFlush && bytes <= _options.MaxBytesPerFlush) return plan;
+        var decision = WriteBudgetPolicy.DecideTargets(
+            plan, _options.MaxOpsPerFlush, _options.MaxBytesPerFlush, EstimateBytes, EstimateTargetBytes);
 
-        var kept = new List<UiWriteTarget>(plan.Targets.Count);
-        var droppedLeaves = 0;
-        var droppedStreams = 0;
-        var leafPayload = plan.Kind is UiWriteKind.Leaf or UiWriteKind.Composite or UiWriteKind.TreeAndLeaf;
-        foreach (var target in plan.Targets)
+        if (decision.Kept.Count == 0)
         {
-            if (leafPayload && target.Payload is string) { droppedLeaves++; continue; }
-            if (target.Payload is UiStreamAppend or UiStreamTrim) { droppedStreams++; continue; }
-            kept.Add(target);
-        }
-
-        var reason = droppedLeaves > 0 ? "leaf-skipped" : droppedStreams > 0 ? "stream-skipped" : "over-budget";
-
-        // 多目标仍越界 ⇒ 仅按**目标数**裁剪（至少保留一个，顺序按原计划保持）；
-        // 字节超限不裁整目标：整目标丢弃会留下陈旧 DOM / 缺块，比慢更差（只记账 oversize）。
-        if (kept.Count > 1 && kept.Count > _options.MaxOpsPerFlush)
-        {
-            var dropCandidates = new HashSet<UiWriteTarget>();
-            var bySize = kept.OrderByDescending(EstimateTargetBytes).ToList();
-            while (bySize.Count > 1 && bySize.Count > _options.MaxOpsPerFlush)
-            {
-                dropCandidates.Add(bySize[0]);
-                bySize.RemoveAt(0);
-            }
-
-            if (dropCandidates.Count > 0)
-            {
-                // 从 kept 再裁剪（禁回读 plan.Targets：否则已丢弃的 leaf/stream 目标会被重新加回）。
-                kept = kept.Where(t => !dropCandidates.Contains(t)).ToList();
-                reason = "target-pruned";
-            }
-        }
-
-        if (kept.Count == 0)
-        {
-            _metrics.OnDropped(reason, ops);
+            _metrics.OnDropped(decision.DegradeReason ?? "over-budget", plan.Targets.Count);
             Report("EventBridge_writeback",
-                $"帧预算降级：整计划丢弃 kind={plan.Kind} ops={ops} bytes={bytes} reason={reason} trace={trace}");
+                $"帧预算降级：整计划丢弃 kind={plan.Kind} ops={plan.Targets.Count} reason={decision.DegradeReason} trace={trace}");
             return UiWritePlan.Skip;
         }
 
-        var dropped = ops - kept.Count;
-        if (dropped > 0) _metrics.OnDropped(reason, dropped);
+        if (decision.Dropped > 0)
+            _metrics.OnDropped(decision.DegradeReason ?? "over-budget", decision.Dropped);
 
         // 单目标超限：整区/整页写是该区域的唯一刷新手段，丢弃只会留下陈旧 DOM（比慢更差）⇒ 保留并可见化。
-        var keptBytes = EstimateBytes(kept);
-        var overAfterDegrade = kept.Count > _options.MaxOpsPerFlush || keptBytes > _options.MaxBytesPerFlush;
-        if (overAfterDegrade)
+        if (decision.OverCapAfterKeep)
         {
             _metrics.OnDegrade("oversize-single-target");
             Report("EventBridge_writeback",
-                $"帧预算超限（保留单目标落地，不丢弃）：kind={plan.Kind} kept={kept.Count} bytes={keptBytes} " +
+                $"帧预算超限（保留单目标落地，不丢弃）：kind={plan.Kind} kept={decision.Kept.Count} " +
                 $"capOps={_options.MaxOpsPerFlush} capBytes={_options.MaxBytesPerFlush} trace={trace}");
-            return plan with { Targets = kept };
+            return plan with { Targets = decision.Kept };
         }
 
-        if (dropped > 0)
+        if (decision.Dropped > 0)
             Report("EventBridge_writeback",
-                $"帧预算降级：ops {ops}→{kept.Count}（dropped={dropped}, bytes={bytes}, reason={reason}）trace={trace}");
-        return plan with { Targets = kept };
+                $"帧预算降级：ops {plan.Targets.Count}→{decision.Kept.Count}（dropped={decision.Dropped}, reason={decision.DegradeReason}）trace={trace}");
+        return plan with { Targets = decision.Kept };
     }
 
     /// <summary>单目标体量（字节；树按结构递归估算，整页/区域按正文长度）。</summary>

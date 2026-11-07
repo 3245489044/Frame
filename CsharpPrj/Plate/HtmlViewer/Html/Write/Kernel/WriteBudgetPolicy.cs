@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
@@ -14,6 +15,13 @@ public readonly record struct BudgetDecision(
     int Bytes,
     string? DegradeReason);
 
+/// <summary>帧级预算裁决结果（目标粒度）：仅回答「哪些目标本拍不写」，内容取舍由节策略负责。</summary>
+public readonly record struct TargetBudgetDecision(
+    IReadOnlyList<UiWriteTarget> Kept,
+    int Dropped,
+    bool OverCapAfterKeep,
+    string? DegradeReason);
+
 /// <summary>
 /// 每拍预算（以**节点数**为主预算，对齐设计 D4）：超限 ⇒ 先丢装饰（progressive）→ 再丢 volatile → 节点仍超才按体量裁 stable（至少留一节）→
 /// 交互拍永不丢弃（只可见化降级原因）。每次降级必带 reason（禁静默）。
@@ -22,6 +30,60 @@ public readonly record struct BudgetDecision(
 /// </summary>
 public static class WriteBudgetPolicy
 {
+    /// <summary>
+    /// 帧级预算（**时间/ops 上限**）：跳叶子 → 跳流段 → 多目标按体量裁剪 → 单目标超限仍落地（留陈旧 DOM 比慢更差）。
+    /// <para>与 <see cref="Decide"/> 分工：本方法只回答「本拍写哪些目标」，不决定节内容取舍（单源 = 本节策略文件）。</para>
+    /// </summary>
+    public static TargetBudgetDecision DecideTargets(
+        UiWritePlan plan,
+        int maxOps,
+        int maxBytes,
+        Func<IReadOnlyList<UiWriteTarget>, int> estimateBytes,
+        Func<UiWriteTarget, int> estimateTargetBytes)
+    {
+        var targets = plan.Targets;
+        var ops = targets.Count;
+        var bytes = estimateBytes(targets);
+        if (ops <= maxOps && bytes <= maxBytes)
+            return new TargetBudgetDecision(targets, 0, false, null);
+
+        var kept = new List<UiWriteTarget>(targets.Count);
+        var droppedLeaves = 0;
+        var droppedStreams = 0;
+        var leafPayload = plan.Kind is UiWriteKind.Leaf or UiWriteKind.Composite or UiWriteKind.TreeAndLeaf;
+        foreach (var target in targets)
+        {
+            if (leafPayload && target.Payload is string) { droppedLeaves++; continue; }
+            if (target.Payload is UiStreamAppend or UiStreamTrim) { droppedStreams++; continue; }
+            kept.Add(target);
+        }
+
+        var reason = droppedLeaves > 0 ? "leaf-skipped" : droppedStreams > 0 ? "stream-skipped" : "over-budget";
+
+        // 多目标仍越界 ⇒ 仅按**目标数**裁剪（至少保留一个，顺序按原计划保持）；
+        // 字节超限不裁整目标：整目标丢弃会留下陈旧 DOM / 缺块，比慢更差（只记账 oversize）。
+        if (kept.Count > 1 && kept.Count > maxOps)
+        {
+            var dropCandidates = new HashSet<UiWriteTarget>();
+            var bySize = kept.OrderByDescending(estimateTargetBytes).ToList();
+            while (bySize.Count > 1 && bySize.Count > maxOps)
+            {
+                dropCandidates.Add(bySize[0]);
+                bySize.RemoveAt(0);
+            }
+
+            if (dropCandidates.Count > 0)
+            {
+                kept = kept.Where(target => !dropCandidates.Contains(target)).ToList();
+                reason = "target-pruned";
+            }
+        }
+
+        var dropped = ops - kept.Count;
+        var overAfterKeep = kept.Count > maxOps || estimateBytes(kept) > maxBytes;
+        return new TargetBudgetDecision(kept, dropped, overAfterKeep, reason);
+    }
+
     public static BudgetDecision Decide(
         WriteBudget budget, IReadOnlyList<SectionPlan> sections, UiWriteSource source, bool progressive = true)
     {

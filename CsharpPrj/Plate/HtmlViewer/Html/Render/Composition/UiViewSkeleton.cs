@@ -31,7 +31,7 @@ public static class UiViewSkeleton
             .Add("data-view", key)
             .Add(ViewRootAttribute, key)
             .Key("view:" + key);
-        return MarkupTag.Element("section", attrs, inner);
+        return MarkupTag.Element("section", attrs, UiMarkup.Trusted(inner));
     }
 
     /// <summary>按视图程序产出「根 + 空容器」骨架（无壳；用于无壳渲染器的兜底与断言）。</summary>

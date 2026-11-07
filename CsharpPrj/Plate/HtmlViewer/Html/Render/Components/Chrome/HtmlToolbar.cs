@@ -134,8 +134,8 @@ public static class HtmlToolbar
                     + MarkupTag.Element(
                         "span",
                         new MarkupAttrBatch().Class(actionsClass, "toolbar-actions"),
-                        itemsHtml.ToString());
-        return MarkupTag.Element("div", new MarkupAttrBatch().Class(cssClass, "toolbar"), inner);
+                        UiMarkup.Trusted(itemsHtml.ToString()));
+        return MarkupTag.Element("div", new MarkupAttrBatch().Class(cssClass, "toolbar"), UiMarkup.Trusted(inner));
     }
 
     /// <summary>
@@ -158,21 +158,26 @@ public static class HtmlToolbar
             actions.Append(MarkupTag.Element(
                 "span",
                 new MarkupAttrBatch().Class("toolbar-sep toolbar-sep-strong", "toolbar-sep").Add("role", "separator"),
-                string.Empty));
+                UiMarkup.Empty));
 
             var panel = new StringBuilder();
             AppendGroupSequence(panel, model.MoreGroups, buttonClass, seen);
             var summary = MarkupTag.Element(
                 "summary",
                 new MarkupAttrBatch().Class("toolbar-more-summary", "toolbar-more-summary").Add("aria-haspopup", "menu"),
-                MarkupTag.Text(moreLabel));
+                UiMarkup.Trusted(MarkupTag.Text(moreLabel)));
+            actions.Append(MarkupTag.Element(
+                "summary",
+                new MarkupAttrBatch().Class("toolbar-more-summary", "toolbar-more-summary").Add("aria-haspopup", "menu"),
+                UiMarkup.Trusted(MarkupTag.Text(moreLabel)));
+            var panelBody = MarkupTag.Element(
+                "span",
+                new MarkupAttrBatch().Class("toolbar-more-panel", "toolbar-more-panel"),
+                UiMarkup.Trusted(panel.ToString()));
             actions.Append(MarkupTag.Element(
                 "details",
                 new MarkupAttrBatch().Class("toolbar-more", "toolbar-more").Add("data-group", "more"),
-                summary + MarkupTag.Element(
-                    "span",
-                    new MarkupAttrBatch().Class("toolbar-more-panel", "toolbar-more-panel"),
-                    panel.ToString())));
+                UiMarkup.Trusted(summary + panelBody)));
         }
 
         var leading = string.IsNullOrEmpty(leadingText)
@@ -180,12 +185,12 @@ public static class HtmlToolbar
             : MarkupTag.Element(
                 "span",
                 new MarkupAttrBatch().Class("toolbar-leading", "toolbar-leading"),
-                MarkupTag.Text(leadingText));
+                UiMarkup.Trusted(MarkupTag.Text(leadingText)));
         var body = MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class(actionsClass, "toolbar-actions"),
-            actions.ToString());
-        return MarkupTag.Element("div", new MarkupAttrBatch().Class(cssClass, "toolbar"), leading + body);
+            UiMarkup.Trusted(actions.ToString()));
+        return MarkupTag.Element("div", new MarkupAttrBatch().Class(cssClass, "toolbar"), UiMarkup.Trusted(leading + body));
     }
 
     /// <summary>渲染有序动作组序列（供工具条/选择条/筛选条共用；组间自动分隔）。</summary>
@@ -212,7 +217,7 @@ public static class HtmlToolbar
                     new MarkupAttrBatch()
                         .Class(group.SeparatedBefore ? "toolbar-sep toolbar-sep-strong" : "toolbar-sep", "toolbar-sep")
                         .Add("role", "separator"),
-                    string.Empty));
+                    UiMarkup.Empty));
             }
 
             sb.Append(MarkupTag.Open(
@@ -222,7 +227,7 @@ public static class HtmlToolbar
                 sb.Append(MarkupTag.Element(
                     "span",
                     new MarkupAttrBatch().Class("toolbar-group-label", "toolbar-group-label"),
-                    MarkupTag.Text(group.Label)));
+                    UiMarkup.Trusted(MarkupTag.Text(group.Label))));
             foreach (var item in items) AppendDescriptor(sb, item, buttonClass);
             sb.Append(MarkupTag.Close("span"));
             rendered++;
@@ -253,7 +258,7 @@ public static class HtmlToolbar
             .Bool("disabled", !a.Enabled)
             .Add("aria-disabled", a.Enabled ? null : "true");
 
-        sb.Append(MarkupTag.Element("button", attrs, MarkupTag.Text(a.Text)));
+        sb.Append(MarkupTag.Element("button", attrs, UiMarkup.Trusted(MarkupTag.Text(a.Text))));
     }
 
     /// <summary>动作视觉权重 → (样式类, 数据属性值)；样式类与语义名同一张表，禁两份映射。</summary>
@@ -279,7 +284,7 @@ public static class HtmlToolbar
             .DataAll(b.Data)
             .AddIfAny("data-input", b.InputName)
             .AddIfAny("title", b.Title);
-        sb.Append(MarkupTag.Element("button", attrs, MarkupTag.Text(b.Text)));
+        sb.Append(MarkupTag.Element("button", attrs, UiMarkup.Trusted(MarkupTag.Text(b.Text))));
     }
 
     internal static void AppendInput(StringBuilder sb, HtmlActionInput i)

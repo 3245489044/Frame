@@ -23,13 +23,13 @@ public static class MarkupPresets
     {
         var d = dialect ?? MarkupDialects.Html;
         var attrs = new MarkupAttrBatch(d).Class(StreamItemClass, StreamItemClass).Key(key);
-        return MarkupTag.Element("div", attrs, inner, d);
+        return MarkupTag.Element("div", attrs, UiMarkup.Trusted(inner), d);
     }
 
     /// <summary>具名行内标段：<c>&lt;span data-name="{name}"&gt;inner&lt;/span&gt;</c>。</summary>
     public static string LabelledSpan(string name, string? inner, MarkupDialect? dialect = null)
     {
         var d = dialect ?? MarkupDialects.Html;
-        return MarkupTag.Element("span", new MarkupAttrBatch(d).Name(name), inner, d);
+        return MarkupTag.Element("span", new MarkupAttrBatch(d).Name(name), UiMarkup.Trusted(inner), d);
     }
 }

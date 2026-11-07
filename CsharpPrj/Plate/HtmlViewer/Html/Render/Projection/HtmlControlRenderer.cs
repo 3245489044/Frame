@@ -79,7 +79,7 @@ public sealed class HtmlControlRenderer : IControlRenderer
                     new MarkupAttrBatch()
                         .Add("class", i == 0 ? "pane active" : "pane")
                         .Add("data-pane", i.ToString(CultureInfo.InvariantCulture)),
-                    part.ToString()));
+                    UiMarkup.Trusted(part.ToString())));
             }
             else
             {

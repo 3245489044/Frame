@@ -11,6 +11,7 @@ using System.Windows.Forms;
 using FrontEndDriven.Diagnostics;
 using FrontEndDriven.WinForms.Applier;
 using Share.Conversation.Rendering.Surface;
+using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
 
@@ -206,7 +207,7 @@ public static class SkinDecorator
             var pinned = state.Pinned;
             var baseLight = pinned is { } frozen
                 ? frozen.Light
-                : NeedsLight(material) ? ResolveBaseLight() : (SurfaceLightState?)null;
+                : NeedsLight(material) ? ResolveBaseLight(control) : (SurfaceLightState?)null;
             var now = Environment.TickCount64;
             var backdropDue = pinned is null && HasBackdrop(material)
                 && (state.Cache is null || now - state.LastBackdropTick >= BackdropRefreshMs);
@@ -294,12 +295,8 @@ public static class SkinDecorator
         SkinRenderProfile.RecordRender(renderBegin);
     }
 
-    /// <summary>底图用的「静态光」：只按分钟量化，不带光标偏移（光标只影响动态 sheen）。</summary>
-    private static SurfaceLightState ResolveBaseLight()
-    {
-        var now = DateTime.Now;
-        return SurfaceLight.Resolve(new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0), 0, 0);
-    }
+    /// <summary>底图用的「静态光」：同一份全局采样，缓存键已量化到肉眼可辨粒度（见 <see cref="SurfaceLightState.CacheToken"/>）。</summary>
+    private static SurfaceLightState? ResolveBaseLight(Control control) => ResolveLight(control);
 
     /// <summary>背后快照的刷新周期：背后内容变化是低频事件，2s 足够，避免每帧全父级 DrawToBitmap。</summary>
     private const int BackdropRefreshMs = 2000;
@@ -367,22 +364,39 @@ public static class SkinDecorator
         public void Dispose() { }
     }
 
-    /// <summary>运行时光：时间按分钟量化、光标按 8px 量化（缓存键只在肉眼可辨变化时失效）。</summary>
-    private static SurfaceLightState ResolveLight(Control control)
+    /// <summary>
+    /// 运行时光：只从全局光场 <see cref="SurfaceLightRegistry.Current"/> 采样；没有帧 ⇒ null（载体保持声明值）。
+    /// <para>不再读取时间/光标；组件的位置与尺寸是唯一输入。</para>
+    /// </summary>
+    private static SurfaceLightState? ResolveLight(Control control)
     {
         if (LightOverride is { } over) return over(control);
-        var width = control.ClientSize.Width;
-        var cursor = control.PointToClient(Cursor.Position);
-        var cursorX = Math.Clamp((cursor.X / 8) * 8, 0, Math.Max(0, width));
-        var now = DateTime.Now;
-        return SurfaceLight.Resolve(new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0), cursorX, width);
+
+        SurfaceLightPump.EnsureStarted(control);
+        var sample = SurfaceLightPort.Sample(SurfaceLightRegistry.Current, ProbeOf(control));
+        return sample.HasValue ? SurfaceLightState.From(sample) : null;
+    }
+
+    /// <summary>控件矩形 → 屏幕 DIP 探针（光场覆盖区使用同一坐标空间）。</summary>
+    private static SurfaceLightProbe ProbeOf(Control control)
+    {
+        var origin = control.PointToScreen(Point.Empty);
+        var dpi = control.DeviceDpi <= 0 ? 96f : control.DeviceDpi;
+        var scale = 96f / dpi;
+        return new SurfaceLightProbe(
+            origin.X * scale,
+            origin.Y * scale,
+            control.Width * scale,
+            control.Height * scale,
+            ZOrder: 0,
+            Dpi: dpi);
     }
 
     /// <summary>
     /// 测试/诊断用可控光源（null ⇒ 按时间+光标解析）。只替换动态光解析，不改变静态底光的分钟量化，
     /// 以便在「同一张静态底图」上复现光标 ±12° 的动态变化。
     /// </summary>
-    internal static Func<Control, SurfaceLightState>? LightOverride { get; set; }
+    internal static Func<Control, SurfaceLightState?>? LightOverride { get; set; }
 
     private static bool HasBackdrop(ResolvedMaterial material)
         => material.Layers.Any(layer => layer.Primitive == "backdrop");

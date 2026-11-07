@@ -84,7 +84,7 @@ public static class HtmlDataRowView
             AppendCells(inner, row.Cells);
         }
 
-        return MarkupTag.Element("div", new MarkupAttrBatch().Class(row.RowClass, "row"), inner.ToString());
+        return MarkupTag.Element("div", new MarkupAttrBatch().Class(row.RowClass, "row"), UiMarkup.Trusted(inner.ToString()));
     }
 
     private static string RenderCheckbox(HtmlRowCheckbox c)
@@ -105,7 +105,7 @@ public static class HtmlDataRowView
             .Name(c.Name)
             .DataAll(c.ExtraData);
 
-        return MarkupTag.Element("label", label, input);
+        return MarkupTag.Element("label", label, UiMarkup.Trusted(input));
     }
 
     private static void AppendAttrs(MarkupAttrBatch attrs, HtmlInteractiveAttrs? source)
@@ -124,7 +124,7 @@ public static class HtmlDataRowView
             sb.Append(MarkupTag.Element(
                 "span",
                 new MarkupAttrBatch().Class(cell.CssClass, "cell"),
-                MarkupTag.Text(cell.Text)));
+                UiMarkup.Trusted(MarkupTag.Text(cell.Text))));
         }
     }
 }

@@ -46,9 +46,8 @@ public sealed class HtmlTreeWriter : IUiTreeChannel
         var nameJson = JsonSerializer.Serialize(name);
         var treeJson = SerializeTree(tree);
         var stateJson = SerializeInteraction(interaction);
-        // 目标定位走属性等值匹配（不做 CSS 选择器拼接）：data-name 含引号/反斜杠/方括号时选择器会失效或注入。
-        var script = "(function(){var n=" + nameJson + ";var a=document.querySelectorAll('[data-name]');var h=null;"
-            + "for(var i=0;i<a.length;i++){if(a[i].getAttribute('data-name')===n){h=a[i];break;}}"
+        // 目标定位走属性等值匹配（不做 CSS 选择器拼接）：唯一 JS 生成点 = DomOps.LookupFunction。
+        var script = "(function(){" + DomOps.LookupFunction + "var h=_wfFind(" + nameJson + ");"
             + "if(!h){return 'NOT_FOUND';}"
             + "if(!(window.__uiReconcile&&window.__uiReconcile.applyTree)){return 'RECONCILE_NOT_READY';}"
             + "return window.__uiReconcile.applyTree(h," + treeJson + "," + stateJson + ");})()";

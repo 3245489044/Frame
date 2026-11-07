@@ -40,19 +40,19 @@ public static class HtmlPager
         sb.Append(MarkupTag.Element(
             "span",
             new MarkupAttrBatch().Class("pager-group pager-leading", "pager-leading"),
-            leading.ToString()));
+            UiMarkup.Trusted(leading.ToString())));
 
         sb.Append(MarkupTag.Element(
             "span",
             new MarkupAttrBatch().Class("pager-info", "pager-info"),
-            MarkupTag.Text(model.PageText)));
+            UiMarkup.Trusted(MarkupTag.Text(model.PageText))));
 
         var trailing = new StringBuilder();
         AppendActions(trailing, model.TrailingActions, buttonClass);
         sb.Append(MarkupTag.Element(
             "span",
             new MarkupAttrBatch().Class("pager-group pager-trailing", "pager-trailing"),
-            trailing.ToString()));
+            UiMarkup.Trusted(trailing.ToString())));
 
         if (model.GotoAction is not null)
         {
@@ -67,7 +67,7 @@ public static class HtmlPager
             sb.Append(MarkupTag.Element(
                 "span",
                 new MarkupAttrBatch().Class("pager-goto", "pager-goto"),
-                gotoInner.ToString()));
+                UiMarkup.Trusted(gotoInner.ToString())));
         }
 
         var attrs = new MarkupAttrBatch()
@@ -76,7 +76,7 @@ public static class HtmlPager
             .AddIfAny("aria-label", model.AriaLabel)
             .Add("data-page", model.Page.ToString(CultureInfo.InvariantCulture))
             .Add("data-page-count", model.PageCount.ToString(CultureInfo.InvariantCulture));
-        return MarkupTag.Element("div", attrs, sb.ToString());
+        return MarkupTag.Element("div", attrs, UiMarkup.Trusted(sb.ToString()));
     }
 
     private static void AppendActions(

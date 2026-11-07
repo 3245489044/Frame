@@ -25,7 +25,7 @@ public static class HtmlSectionListView
             sb.Append(MarkupTag.Element(
                 "div",
                 new MarkupAttrBatch().Class(MarkupClass.Suffix(cls, "-note", "section-list"), "section-list-note"),
-                MarkupTag.Text(note)));
+                UiMarkup.Trusted(MarkupTag.Text(note))));
 
         if (items is not null)
         {
@@ -34,19 +34,19 @@ public static class HtmlSectionListView
                 var inner = MarkupTag.Element(
                                    "div",
                                    new MarkupAttrBatch().Class(MarkupClass.Suffix(cls, "-head", "section-list"), "section-list-head"),
-                                   MarkupTag.Text(item.Head))
+                                   UiMarkup.Trusted(MarkupTag.Text(item.Head)))
                                + MarkupTag.Element(
                                    "pre",
                                    new MarkupAttrBatch().Class(MarkupClass.Suffix(cls, "-body", "section-list"), "section-list-body"),
-                                   MarkupTag.Text(item.Body));
+                                   UiMarkup.Trusted(MarkupTag.Text(item.Body)));
                 sb.Append(MarkupTag.Element(
                     "div",
                     new MarkupAttrBatch().Class(MarkupClass.Suffix(cls, "-item", "section-list"), "section-list-item"),
-                    inner));
+                    UiMarkup.Trusted(inner)));
             }
         }
 
-        return MarkupTag.Element("div", new MarkupAttrBatch().Class(cls, "section-list"), sb.ToString());
+        return MarkupTag.Element("div", new MarkupAttrBatch().Class(cls, "section-list"), UiMarkup.Trusted(sb.ToString()));
     }
 }
 

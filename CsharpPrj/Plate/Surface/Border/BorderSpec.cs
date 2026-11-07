@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 
 namespace UiBackend;
 
@@ -84,6 +83,21 @@ public sealed record BorderSpec(
     public bool IsEmpty =>
         Strokes.Count == 0 && Glows.Count == 0 && InnerLights.Count == 0 && Sheens.Count == 0;
 
+    /// <summary>最上层描边（按 Z 取最大；两载体投影器与遮挡判定唯一读取点）。</summary>
+    public BorderStroke? TopStroke
+    {
+        get
+        {
+            BorderStroke? best = null;
+            foreach (var stroke in Strokes)
+            {
+                if (best is null || stroke.Z >= best.Z) best = stroke;
+            }
+
+            return best;
+        }
+    }
+
     /// <summary>
     /// 把材质层归一化为边框模型。非法宽度/颜色会产出 <see cref="BorderIssue"/> 并跳过该元素，
     /// **不静默回落**（调用方必须把 issues 记账）。
@@ -119,7 +133,7 @@ public sealed record BorderSpec(
                     if (!TryParseColors(layer, issueList, out var colors)) continue;
                     var radii = ParseRadii(layer, materialRadius, issueList);
                     var chamfer = ParseChamfer(layer, issueList);
-                    var align = Param(layer, "align");
+                    var align = LayerParams.Read(layer.Params, "align");
                     strokes.Add(new BorderStroke(
                         layer.Z, widths, colors, radii, chamfer,
                         string.IsNullOrWhiteSpace(align) ? "outer" : align));
@@ -128,7 +142,7 @@ public sealed record BorderSpec(
 
                 case "shadow":
                 {
-                    if (!TryParseArgb(Param(layer, "value"), layer, issueList, out var argb)) continue;
+                    if (!TryParseArgb(LayerParams.Read(layer.Params, "value"), layer, issueList, out var argb)) continue;
                     var (offsetX, offsetY) = ParseOffset(layer);
                     glows.Add(new BorderGlow(
                         layer.Z, argb,
@@ -140,7 +154,7 @@ public sealed record BorderSpec(
 
                 case "innerShadow":
                 {
-                    if (!TryParseArgb(Param(layer, "value"), layer, issueList, out var argb)) continue;
+                    if (!TryParseArgb(LayerParams.Read(layer.Params, "value"), layer, issueList, out var argb)) continue;
                     var (offsetX, offsetY) = ParseOffset(layer);
                     lights.Add(new BorderInnerLight(
                         layer.Z, argb,
@@ -154,8 +168,8 @@ public sealed record BorderSpec(
 
                 case "specular":
                 {
-                    if (!TryParseArgb(Param(layer, "value"), layer, issueList, out var argb)) continue;
-                    var mode = Param(layer, "mode");
+                    if (!TryParseArgb(LayerParams.Read(layer.Params, "value"), layer, issueList, out var argb)) continue;
+                    var mode = LayerParams.Read(layer.Params, "mode");
                     if (string.Equals(mode, "edge", StringComparison.Ordinal)
                         || string.Equals(mode, "inner", StringComparison.Ordinal))
                     {
@@ -189,7 +203,7 @@ public sealed record BorderSpec(
 
     private static bool TryParseWidths(BorderLayerInput layer, List<BorderIssue> issues, out BorderEdgeSet widths)
     {
-        var shorthand = Param(layer, "widths");
+        var shorthand = LayerParams.Read(layer.Params, "widths");
         if (!string.IsNullOrWhiteSpace(shorthand))
         {
             if (BorderEdgeSet.TryParseShorthand(shorthand, out widths)) return true;
@@ -198,15 +212,14 @@ public sealed record BorderSpec(
             return false;
         }
 
-        var raw = Param(layer, "width");
+        var raw = LayerParams.Read(layer.Params, "width");
         if (string.IsNullOrWhiteSpace(raw))
         {
             widths = BorderEdgeSet.Uniform(1f);
             return true;
         }
 
-        if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var width)
-            || float.IsNaN(width) || float.IsInfinity(width) || width < 0)
+        if (!LayerParams.TryFloat(raw, out var width) || width < 0)
         {
             issues.Add(new BorderIssue("border-width-invalid", raw));
             widths = BorderEdgeSet.Zero;
@@ -219,7 +232,7 @@ public sealed record BorderSpec(
 
     private static bool TryParseColors(BorderLayerInput layer, List<BorderIssue> issues, out BorderColorSet colors)
     {
-        var rawColors = Param(layer, "colors");
+        var rawColors = LayerParams.Read(layer.Params, "colors");
         if (!string.IsNullOrWhiteSpace(rawColors))
         {
             var parts = rawColors.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -238,7 +251,7 @@ public sealed record BorderSpec(
             return false;
         }
 
-        return TryParseSingleColor(Param(layer, "value"), layer, issues, out colors);
+        return TryParseSingleColor(LayerParams.Read(layer.Params, "value"), layer, issues, out colors);
     }
 
     private static bool TryParseArgb(string raw, BorderLayerInput layer, List<BorderIssue> issues, out int argb)
@@ -266,14 +279,13 @@ public sealed record BorderSpec(
     {
         if (TryRadiiParam(layer, out var radii)) return radii;
 
-        var raw = Param(layer, "radius");
+        var raw = LayerParams.Read(layer.Params, "radius");
         if (string.IsNullOrWhiteSpace(raw))
         {
             return materialRadius > 0 ? CornerRadii.Uniform(materialRadius) : CornerRadii.Zero;
         }
 
-        if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var radius)
-            || float.IsNaN(radius) || float.IsInfinity(radius) || radius < 0)
+        if (!LayerParams.TryFloat(raw, out var radius) || radius < 0)
         {
             issues.Add(new BorderIssue("border-radius-invalid", raw));
             return materialRadius > 0 ? CornerRadii.Uniform(materialRadius) : CornerRadii.Zero;
@@ -284,7 +296,7 @@ public sealed record BorderSpec(
 
     private static CornerRadii ParseChamfer(BorderLayerInput layer, List<BorderIssue> issues)
     {
-        var shorthand = Param(layer, "chamfers");
+        var shorthand = LayerParams.Read(layer.Params, "chamfers");
         if (!string.IsNullOrWhiteSpace(shorthand))
         {
             if (CornerRadii.TryParseShorthand(shorthand, out var chamfers)) return chamfers;
@@ -292,10 +304,9 @@ public sealed record BorderSpec(
             return CornerRadii.Zero;
         }
 
-        var raw = Param(layer, "chamfer");
+        var raw = LayerParams.Read(layer.Params, "chamfer");
         if (string.IsNullOrWhiteSpace(raw)) return CornerRadii.Zero;
-        if (!float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var chamfer)
-            || float.IsNaN(chamfer) || float.IsInfinity(chamfer) || chamfer < 0)
+        if (!LayerParams.TryFloat(raw, out var chamfer) || chamfer < 0)
         {
             issues.Add(new BorderIssue("border-chamfer-invalid", raw));
             return CornerRadii.Zero;
@@ -306,7 +317,7 @@ public sealed record BorderSpec(
 
     private static bool TryRadiiParam(BorderLayerInput layer, out CornerRadii radii)
     {
-        var shorthand = Param(layer, "radii");
+        var shorthand = LayerParams.Read(layer.Params, "radii");
         if (!string.IsNullOrWhiteSpace(shorthand) && CornerRadii.TryParseShorthand(shorthand, out radii)) return true;
         radii = CornerRadii.Zero;
         return false;
@@ -314,25 +325,19 @@ public sealed record BorderSpec(
 
     private static (float X, float Y) ParseOffset(BorderLayerInput layer)
     {
-        var raw = Param(layer, "offset");
+        var raw = LayerParams.Read(layer.Params, "offset");
         if (string.IsNullOrWhiteSpace(raw)) return (0, 0);
 
         var parts = raw.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var x = parts.Length > 0 && float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var px)
-            ? px : 0;
-        var y = parts.Length > 1 && float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var py)
-            ? py : 0;
+        var x = parts.Length > 0 && LayerParams.TryFloat(parts[0], out var px) ? px : 0;
+        var y = parts.Length > 1 && LayerParams.TryFloat(parts[1], out var py) ? py : 0;
         return (x, y);
     }
 
     private static bool TryFloatParam(BorderLayerInput layer, string name, out float value)
     {
-        var raw = Param(layer, name);
-        if (float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out value)
-            && !float.IsNaN(value) && !float.IsInfinity(value))
-        {
-            return true;
-        }
+        var raw = LayerParams.Read(layer.Params, name);
+        if (LayerParams.TryFloat(raw, out value)) return true;
 
         value = 0;
         return false;
@@ -341,11 +346,8 @@ public sealed record BorderSpec(
     private static float FloatParam(BorderLayerInput layer, string name, float fallback)
         => TryFloatParam(layer, name, out var value) ? value : fallback;
 
-    private static string Param(BorderLayerInput layer, string name)
-        => layer.Params.TryGetValue(name, out var value) ? value : string.Empty;
-
     private static string Sides(BorderLayerInput layer, string fallback)
-        => Param(layer, "sides") is var sides && sides.Length > 0 ? sides : fallback;
+        => LayerParams.Read(layer.Params, "sides") is var sides && sides.Length > 0 ? sides : fallback;
 
     private static float Clamp01(float value) => Math.Min(1, Math.Max(0, value));
 }

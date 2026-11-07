@@ -21,7 +21,7 @@ public static class HtmlBlocks
         => MarkupTag.Element(
             "pre",
             new MarkupAttrBatch().Class(cssClass, "mono"),
-            MarkupTag.Text(text));
+            UiMarkup.Trusted(MarkupTag.Text(text)));
 
     /// <summary>
     /// 渲染注记面板：<c>&lt;div class="{cls}"&gt;&lt;div&gt;{head}&lt;/div&gt;&lt;pre class="{bodyClass}"&gt;{body}&lt;/pre&gt;[&lt;div&gt;{note}&lt;/div&gt;]&lt;/div&gt;</c>。
@@ -30,17 +30,17 @@ public static class HtmlBlocks
     public static string Notice(string cssClass, string head, string? body, string? note = null, string bodyClass = "mono")
     {
         var sb = new StringBuilder();
-        sb.Append(MarkupTag.Element("div", null, MarkupTag.Text(head)));
+        sb.Append(MarkupTag.Element("div", null, UiMarkup.Trusted(MarkupTag.Text(head))));
         sb.Append(MarkupTag.Element(
             "pre",
             new MarkupAttrBatch().Class(bodyClass, "mono"),
-            MarkupTag.Text(body)));
+            UiMarkup.Trusted(MarkupTag.Text(body))));
         if (!string.IsNullOrEmpty(note))
-            sb.Append(MarkupTag.Element("div", null, MarkupTag.Text(note)));
+            sb.Append(MarkupTag.Element("div", null, UiMarkup.Trusted(MarkupTag.Text(note))));
         return MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class(cssClass, "notice"),
-            sb.ToString());
+            UiMarkup.Trusted(sb.ToString()));
     }
 }
 

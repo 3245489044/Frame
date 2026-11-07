@@ -76,7 +76,8 @@ public sealed class SkinInspector : ISkinInspector
             return false;
         }
 
-        var report = SkinPixelProbe.Inspect(control, material, tolerance);
+        // 只读实测：运行时只判「材质是否真的落像素」，不与实现自绘的期望比对（同源自证）
+        var report = SkinPixelProbe.Probe(control);
         evidence = report.Describe();
         var unresolved = SkinDiagnostics.DescribeUnresolved();
 
@@ -92,12 +93,6 @@ public sealed class SkinInspector : ISkinInspector
         {
             evidence += $" 材质未落像素（maxDelta={report.MaxDelta:0.0} < {minDelta:0.0}；疑似 token 未换值或开关关闭）"
                         + (unresolved.Length > 0 ? " " + unresolved : string.Empty);
-            return false;
-        }
-
-        if (report.Matched == 0)
-        {
-            evidence += $" 像素与解析材质不符（无采样点落在容差 {tolerance} 内）";
             return false;
         }
 

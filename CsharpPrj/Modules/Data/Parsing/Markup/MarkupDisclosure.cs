@@ -45,7 +45,7 @@ public static class MarkupDisclosure
             summary.Class(summaryClass, summaryFallback);
         summaryAttrs?.Invoke(summary);
 
-        var inner = MarkupTag.Element("summary", summary, summaryHtml, d) + (bodyHtml ?? string.Empty);
-        return MarkupTag.Element("details", details, inner, d);
+        var inner = MarkupTag.Element("summary", summary, UiMarkup.Trusted(summaryHtml), d) + (bodyHtml ?? string.Empty);
+        return MarkupTag.Element("details", details, UiMarkup.Trusted(inner), d);
     }
 }

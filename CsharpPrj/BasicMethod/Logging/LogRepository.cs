@@ -94,7 +94,7 @@ namespace Common.Diagnostics
             {
                 if (printable && !suppressed)
                 {
-                    LogCollapser.Write(formatted);
+                    LogCollapser.Write(LogConsolePayload.Format(formatted));
                     // Console 模式同样广播：GUI 默认即 Console 模式，不广播则进程内订阅者（UI 终端）永收不到日志。
                     LogWritten?.Invoke(entry);
                 }
@@ -106,7 +106,7 @@ namespace Common.Diagnostics
 
             if (entry.Level is "Error" or "Warning" && printable && !suppressed)
             {
-                LogCollapser.Write(formatted);
+                LogCollapser.Write(LogConsolePayload.Format(formatted));
             }
 
             Record(entry);

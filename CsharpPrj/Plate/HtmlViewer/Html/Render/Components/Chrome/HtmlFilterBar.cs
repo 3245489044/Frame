@@ -39,7 +39,7 @@ public static class HtmlFilterBar
             sb.Append(MarkupTag.Element(
                 "span",
                 new MarkupAttrBatch().Class("filter-label", "filter-label"),
-                MarkupTag.Text(model.InputLabel)));
+                UiMarkup.Trusted(MarkupTag.Text(model.InputLabel))));
         if (!string.IsNullOrEmpty(model.InputName))
             HtmlToolbar.AppendInput(sb, new HtmlActionInput(
                 model.InputName!,
@@ -53,7 +53,7 @@ public static class HtmlFilterBar
             .Class(cssClass, "filter-bar")
             .Add("role", "group")
             .AddIfAny("aria-label", model.AriaLabel);
-        return MarkupTag.Element("div", attrs, sb.ToString());
+        return MarkupTag.Element("div", attrs, UiMarkup.Trusted(sb.ToString()));
     }
 }
 

@@ -207,7 +207,7 @@ public static class HtmlShellProjector
         => MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class("view-host", "view-host").Name(UiViewSkeleton.DefaultRootName),
-            viewRootHtml);
+            UiMarkup.Trusted(viewRootHtml));
 
     /// <summary>气泡段包裹（单源）：段根带稳定 <c>data-key</c> ⇒ 流原语可按段键定点更新/追加。</summary>
     public static string WrapStreamSection(string key, UiMarkup html)
@@ -290,7 +290,7 @@ public static class HtmlShellProjector
         => MarkupTag.Element(
             "div",
             new MarkupAttrBatch().Class("shell-title", "shell-title").Name(key).Data("degrade", "slot-undeclared"),
-            inner);
+            UiMarkup.Trusted(inner));
 
     private static UiNode WrapNode(string key, UiNode content, SurfaceContainerMarkup? structure)
     {

@@ -1,110 +1,115 @@
 #nullable enable
 
 using System;
+using UiBackend;
 
 namespace Share.Conversation.Rendering.Surface;
 
 /// <summary>
-/// 运行时光参数（唯一产出点）：只喂现有的 <c>specular</c>（angle/value）与 <c>backdrop</c>（value）参数，
-/// 不新增材质/合成分支。静态 <see cref="ResolvedSurface.Fingerprint"/> 不参与时间与光标。
+/// 运行时光参数的**载体窄视图**（唯一入口已改为 <see cref="SurfaceLightPort"/>）：
+/// <see cref="Angle"/>/<see cref="Intensity"/>/<see cref="Warmth"/> 喂现有 <c>specular</c> 与 <c>backdrop</c>；
+/// 其余字段给出同一采样结果的边缘光/光斑/阴影方向，供载体按需使用。
+/// <para>本类型不再包含任何光数学（时间表、光标偏转已删除），只做结果投影。</para>
 /// </summary>
 public readonly record struct SurfaceLightState(float Angle, float Intensity, float Warmth)
 {
+    /// <summary>是否来自有效光场；false ⇒ 载体保持声明值（禁止回落时间表）。</summary>
+    public bool HasValue { get; init; } = true;
+
+    /// <summary>指向光的方向（屏幕空间；x 右、y 下、z 指向观察者）。</summary>
+    public float DirectionX { get; init; }
+
+    /// <inheritdoc cref="DirectionX"/>
+    public float DirectionY { get; init; }
+
+    /// <inheritdoc cref="DirectionX"/>
+    public float DirectionZ { get; init; }
+
+    /// <summary>光斑中心（归一化 0..1）。</summary>
+    public float SpotX { get; init; } = 0.5f;
+
+    /// <inheritdoc cref="SpotX"/>
+    public float SpotY { get; init; } = 0.5f;
+
+    /// <summary>四边边缘光权重（0..1，最亮边=1）。</summary>
+    public float EdgeTop { get; init; }
+
+    /// <inheritdoc cref="EdgeTop"/>
+    public float EdgeLeft { get; init; }
+
+    /// <inheritdoc cref="EdgeTop"/>
+    public float EdgeRight { get; init; }
+
+    /// <inheritdoc cref="EdgeTop"/>
+    public float EdgeBottom { get; init; }
+
+    /// <summary>阴影方向（归一化 -1..1）。</summary>
+    public float ShadowX { get; init; }
+
+    /// <inheritdoc cref="ShadowX"/>
+    public float ShadowY { get; init; }
+
+    /// <summary>该处环境色（0xAARRGGBB；色值解释统一由 <see cref="SurfaceColor"/> 负责）。</summary>
+    public int TintArgb { get; init; }
+
+    /// <summary>光场签名（缓存失效依据）。</summary>
+    public long LightSignature { get; init; }
+
+    /// <summary>无光场可用：载体不得据此重画光，只能保持声明值。</summary>
+    public static readonly SurfaceLightState Unavailable = new(135f, 0f, 0f) { HasValue = false };
+
     /// <summary>位图缓存键片段（含插值后的光参数；不含秒级噪声）。</summary>
-    public string CacheToken => $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}";
+    public string CacheToken => HasValue
+        ? $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:S{LightSignature}"
+        : "light-unavailable";
+
+    /// <summary>采样结果 → 载体窄视图（**唯一投影点**）。</summary>
+    public static SurfaceLightState From(SurfaceLightSample sample)
+    {
+        if (!sample.HasValue) return Unavailable;
+
+        return new SurfaceLightState(sample.Angle, sample.Intensity, sample.Warmth)
+        {
+            HasValue = true,
+            DirectionX = sample.Direction.X,
+            DirectionY = sample.Direction.Y,
+            DirectionZ = sample.Direction.Z,
+            SpotX = sample.SpotX,
+            SpotY = sample.SpotY,
+            EdgeTop = sample.EdgeTop,
+            EdgeLeft = sample.EdgeLeft,
+            EdgeRight = sample.EdgeRight,
+            EdgeBottom = sample.EdgeBottom,
+            ShadowX = sample.ShadowX,
+            ShadowY = sample.ShadowY,
+            TintArgb = sample.TintArgb,
+            LightSignature = sample.Signature,
+        };
+    }
 }
 
 /// <summary>
-/// 预计算 + 参数插值的轻量光模型（UI 侧 CPU，无引擎依赖）：
-/// 15 分钟粒度查表（<see cref="BuildTable"/>）→ 按当前分钟线性插值 → 光标横向位置小幅偏转。
+/// 运行时光入口（兼容旧调用点）：**不再**按时间/光标近似，只读全局光场
+/// <see cref="SurfaceLightRegistry.Current"/>。等价于在整帧中心取一次采样；
+/// 需要按组件位置取光时调用 <see cref="SurfaceLightPort.Sample"/>。
 /// </summary>
 public static class SurfaceLight
 {
-    private const int StepMinutes = 15;
-    private const int SlotsPerDay = 24 * 60 / StepMinutes;
-
-    /// <summary>关键帧（本地时刻 → 角度/强度/暖度）。角度按最短弧插值。</summary>
-    private static readonly (int MinuteOfDay, float Angle, float Intensity, float Warmth)[] Keyframes =
-    {
-        (0, 250f, 0.25f, 0.05f),
-        (6 * 60, 20f, 0.55f, 0.70f),
-        (9 * 60, 45f, 0.85f, 0.35f),
-        (12 * 60, 80f, 1.00f, 0.10f),
-        (15 * 60, 110f, 0.85f, 0.30f),
-        (18 * 60, 150f, 0.60f, 0.80f),
-        (22 * 60, 200f, 0.35f, 0.20f),
-    };
-
-    private static readonly Lazy<SurfaceLightState[]> Table = new(BuildTable);
-
-    /// <summary>取当前时点的运行光参数。</summary>
-    /// <param name="localTime">本地时刻（调用方应按分钟量化，避免每秒重绘）。</param>
-    /// <param name="cursorX">光标在面板内的横向位置（像素；0 或缺省关闭偏转）。</param>
-    /// <param name="width">面板宽度（像素；&lt;=0 关闭偏转）。</param>
+    /// <summary>取全局帧中心处的光参数（旧签名保留，参数不再参与计算）。</summary>
+    /// <param name="localTime">保留参数；不再读取时间。</param>
+    /// <param name="cursorX">保留参数；不再做光标偏转。</param>
+    /// <param name="width">保留参数；不再做光标偏转。</param>
     public static SurfaceLightState Resolve(DateTime localTime, int cursorX = 0, int width = 0)
     {
-        var minuteOfDay = localTime.Hour * 60 + localTime.Minute;
-        var table = Table.Value;
+        _ = localTime;
+        _ = cursorX;
+        _ = width;
 
-        var slot = minuteOfDay / StepMinutes;
-        var fraction = (minuteOfDay % StepMinutes) / (float)StepMinutes;
-        var current = table[slot];
-        var next = table[(slot + 1) % SlotsPerDay];
+        var frame = SurfaceLightRegistry.Current;
+        if (frame is null) return SurfaceLightState.Unavailable;
 
-        var angle = LerpAngle(current.Angle, next.Angle, fraction);
-        var intensity = current.Intensity + (next.Intensity - current.Intensity) * fraction;
-        var warmth = current.Warmth + (next.Warmth - current.Warmth) * fraction;
-
-        if (width > 0)
-        {
-            var shift = Math.Clamp(cursorX * 2f / width - 1f, -1f, 1f);
-            angle = Normalize(angle + shift * 12f);
-            intensity = Math.Clamp(intensity + shift * 0.08f, 0.15f, 1.25f);
-        }
-
-        return new SurfaceLightState(angle, intensity, warmth);
+        var coverage = frame.Coverage;
+        var probe = new SurfaceLightProbe(coverage.X, coverage.Y, coverage.Width, coverage.Height);
+        return SurfaceLightState.From(SurfaceLightPort.Sample(frame, probe));
     }
-
-    /// <summary>预计算：把关键帧展开成 15 分钟槽位的表（启动一次，之后只插值）。</summary>
-    private static SurfaceLightState[] BuildTable()
-    {
-        var table = new SurfaceLightState[SlotsPerDay];
-        for (var slot = 0; slot < SlotsPerDay; slot++)
-        {
-            table[slot] = InterpolateKeyframes(slot * StepMinutes);
-        }
-
-        return table;
-    }
-
-    private static SurfaceLightState InterpolateKeyframes(int minuteOfDay)
-    {
-        var index = Keyframes.Length - 1;
-        for (var i = 0; i < Keyframes.Length; i++)
-        {
-            if (Keyframes[i].MinuteOfDay <= minuteOfDay) index = i;
-            else break;
-        }
-
-        var current = Keyframes[index];
-        var next = Keyframes[(index + 1) % Keyframes.Length];
-        var span = (next.MinuteOfDay - current.MinuteOfDay + 24 * 60) % (24 * 60);
-        if (span <= 0) span = 24 * 60;
-        var fraction = (minuteOfDay - current.MinuteOfDay + 24 * 60) % (24 * 60) / (float)span;
-
-        return new SurfaceLightState(
-            LerpAngle(current.Angle, next.Angle, fraction),
-            current.Intensity + (next.Intensity - current.Intensity) * fraction,
-            current.Warmth + (next.Warmth - current.Warmth) * fraction);
-    }
-
-    private static float LerpAngle(float from, float to, float fraction)
-    {
-        var delta = (to - from) % 360f;
-        if (delta > 180f) delta -= 360f;
-        if (delta < -180f) delta += 360f;
-        return Normalize(from + delta * fraction);
-    }
-
-    private static float Normalize(float angle) => (angle % 360f + 360f) % 360f;
 }

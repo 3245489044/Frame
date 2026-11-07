@@ -164,8 +164,9 @@ public sealed partial class HtmlBackendRuntime : ISurfaceWriter
         if (!names.Contains("region-main")) names.Add("region-main");
         try
         {
-            var script = "(function(){var ns=" + JsonSerializer.Serialize(names) + ";var all=document.querySelectorAll('[data-name]');"
-                + "var out=[];for(var i=0;i<ns.length;i++){var el=null;for(var j=0;j<all.length;j++){if(all[j].getAttribute('data-name')===ns[i]){el=all[j];break;}}"
+            var script = "(function(){" + DomOps.LookupFunction + "var ns=" + JsonSerializer.Serialize(names) + ";"
+                + "var all=document.querySelectorAll('[data-name]');var out=[];"
+                + "for(var i=0;i<ns.length;i++){var el=_wfFind(ns[i]);"
                 + "var dn=el?el.querySelectorAll('[data-name]'):[];var f=dn.length?dn[0].getAttribute('data-name'):'';"
                 + "out.push({n:ns[i],c:el?el.children.length:-1,d:dn.length,f:f,t:el?((el.textContent||'').length):-1,h:el?el.innerHTML.length:-1});}"
                 + "var body=(document.body&&document.body.innerHTML)?document.body.innerHTML.length:0;"

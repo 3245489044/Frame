@@ -8,7 +8,11 @@ namespace Modules.Common.Drawing
     {
         #region 颜色解析
 
-        public static Color FromHex(string hex)
+        /// <summary>
+        /// 解析十六进制颜色，**8 位按 AARRGGBB**（显式命名，禁与 <c>SurfaceColor</c> 的 RRGGBBAA 混淆）。
+        /// <para>新代码一律用 <c>SurfaceColor</c>（声明面唯一解析）；本方法仅为遗留调用保留。</para>
+        /// </summary>
+        public static Color FromArgbHex(string hex)
         {
             if (string.IsNullOrWhiteSpace(hex))
                 throw new ArgumentException("颜色字符串不能为空", nameof(hex));
@@ -60,7 +64,7 @@ namespace Modules.Common.Drawing
             {
                 try
                 {
-                    color = FromHex(value);
+                    color = FromArgbHex(value);
                     return true;
                 }
                 catch

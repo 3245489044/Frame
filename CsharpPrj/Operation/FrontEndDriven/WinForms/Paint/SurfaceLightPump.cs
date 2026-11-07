@@ -1,0 +1,88 @@
+#nullable enable
+
+using System;
+using System.Windows.Forms;
+using Share.Registry;
+using Share.Conversation.Rendering.Surface;
+using TConfig;
+using UiBackend;
+
+namespace FrontEndDriven.WinForms.Paint;
+
+/// <summary>
+/// 光场通道泵（**进程内唯一生产者**）：低频调用 <c>Engine_SampleSurfaceLight</c>，
+/// 解析后整帧发布到 <see cref="SurfaceLightRegistry"/>；两个载体只读同一份结果。
+/// <para>没有引擎函数（宿主未加载引擎）⇒ 发布 null，载体保持声明值；不伪造动态光。</para>
+/// </summary>
+internal static class SurfaceLightPump
+{
+    private const int IntervalMs = 1000;
+    private const int RetryTicks = 5;
+
+    private static readonly object Gate = new();
+    private static System.Windows.Forms.Timer? _timer;
+    private static int _idleTicks;
+    private static bool _pullInProgress;
+    private static int _pixelScaleDpi = 96;
+
+    /// <summary>首次需要光时惰性启动（必须在含消息循环的 UI 线程调用）。</summary>
+    public static void EnsureStarted(Control anchor)
+    {
+        lock (Gate)
+        {
+            if (_timer is not null) return;
+            _pixelScaleDpi = anchor.DeviceDpi > 0 ? anchor.DeviceDpi : 96;
+
+            _timer = new System.Windows.Forms.Timer { Interval = IntervalMs };
+            _timer.Tick += (_, _) => Pull();
+            _timer.Start();
+        }
+    }
+
+    private static void Pull()
+    {
+        if (_pullInProgress) return;
+        _pullInProgress = true;
+        try
+        {
+            if (RegistryCoordinator.Registry is not ITrConfigRegistry registry
+                || !registry.TryGetDelegate("Engine_SampleSurfaceLight", out var function)
+                || function is not Func<int, int, int, int, string, string> sample)
+            {
+                _idleTicks++;
+                if (_idleTicks >= RetryTicks)
+                {
+                    _idleTicks = 0;
+                    SurfaceLightRegistry.Publish(null);
+                }
+
+                return;
+            }
+
+            _idleTicks = 0;
+            var screen = SystemInformation.VirtualScreen;
+            var scale = 96f / _pixelScaleDpi;
+            var x = (int)Math.Round(screen.X * scale);
+            var y = (int)Math.Round(screen.Y * scale);
+            var width = Math.Max(1, (int)Math.Round(screen.Width * scale));
+            var height = Math.Max(1, (int)Math.Round(screen.Height * scale));
+
+            var frame = SurfaceLightFrameCodec.Parse(sample(x, y, width, height, string.Empty));
+            SurfaceLightRegistry.Publish(frame);
+        }
+        catch (Exception)
+        {
+            // 通道异常只能降级为「无帧」，不得让绘制线程承担光计算。
+            _idleTicks++;
+            if (_idleTicks >= RetryTicks)
+            {
+                _idleTicks = 0;
+                SurfaceLightRegistry.Publish(null);
+            }
+        }
+        finally
+        {
+            _pullInProgress = false;
+        }
+    }
+}

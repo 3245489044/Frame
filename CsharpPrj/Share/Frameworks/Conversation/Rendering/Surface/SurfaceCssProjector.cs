@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UiBackend;
 
 namespace Share.Conversation.Rendering.Surface;
 
@@ -72,7 +73,7 @@ public static class SurfaceCssProjector
         foreach (var alias in AliasVariables)
         {
             if (!resolved.Tokens.TryGetValue(alias.Token, out var value) || value.Length == 0) continue;
-            builder.Append(alias.Variable).Append(':').Append(WithUnit(value, alias.Unit)).Append(';');
+            builder.Append(alias.Variable).Append(':').Append(CssValue.AppendUnit(value, alias.Unit)).Append(';');
         }
 
         builder.Append('}');
@@ -90,7 +91,7 @@ public static class SurfaceCssProjector
             {
                 if (!string.Equals(visual.Bind, "cssvar", StringComparison.Ordinal)) continue;
                 if (visual.Prop.Length == 0) continue;
-                declarations.Add($"{visual.Prop}:{WithUnit(visual.Value, visual.Unit)}");
+                declarations.Add($"{visual.Prop}:{CssValue.AppendUnit(visual.Value, visual.Unit)}");
             }
 
             if (declarations.Count == 0) continue;
@@ -151,10 +152,4 @@ public static class SurfaceCssProjector
 
         return token.Length > 0;
     }
-
-    /// <summary>单位拼接（多值按空白分隔逐个追加；单位空 ⇒ 原样）。</summary>
-    private static string WithUnit(string value, string unit)
-        => unit.Length == 0
-            ? value
-            : string.Join(" ", value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(v => v + unit));
 }

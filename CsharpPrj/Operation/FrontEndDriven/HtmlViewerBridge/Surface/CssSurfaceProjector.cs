@@ -212,10 +212,11 @@ public static class CssSurfaceProjector
 
             if (string.Equals(sheen.Mode, "spot", StringComparison.Ordinal))
             {
-                var (x, y) = SpotCenter(sheen.Angle);
                 // 光斑中心 = 视口固定锚点（px）；background-attachment:fixed 使定位区 = 视口 ⇒ 面板移动光斑不动。
+                // 无帧回落也必须锚在视口：用 vw/vh/vmin，**不能**退回元素自身百分比（那是局部坐标）。
                 backgrounds.Add(
-                    $"radial-gradient(circle var(--sl-spot-r, 120px) at var(--sl-anchor-x, {x}%) var(--sl-anchor-y, {y}%), var(--sl-tint, {CssColor(sheen.Argb)}) 0%, transparent 70%)");
+                    "radial-gradient(circle var(--sl-spot-r, 22vmin) at var(--sl-anchor-x, 30vw) var(--sl-anchor-y, 18vh), " +
+                    $"var(--sl-tint, {CssColor(sheen.Argb)}) 0%, transparent 70%)");
                 backgroundAttachments.Add("fixed");
             }
             else
@@ -334,16 +335,6 @@ public static class CssSurfaceProjector
             Pair("--sl-tint", CssColor(sheenTint)),
             Pair("--sl-irid-angle", iridAngle.ToString(CultureInfo.InvariantCulture) + "deg"),
         };
-    }
-
-    /// <summary>光斑中心（模型角度 → 归一化坐标；GDI+ 与 CSS 同口径）。</summary>
-    private static (int X, int Y) SpotCenter(float angle)
-    {
-        if (float.IsNaN(angle) || float.IsInfinity(angle)) return (50, 50);
-        var radians = angle * Math.PI / 180;
-        var x = (int)Math.Round(50 + Math.Cos(radians) * 26);
-        var y = (int)Math.Round(50 - Math.Sin(radians) * 20);
-        return (Math.Clamp(x, 0, 100), Math.Clamp(y, 0, 100));
     }
 
     /// <summary>打包 ARGB → CSS 颜色（不透明输出 <c>#RRGGBB</c>，半透明输出 <c>#RRGGBBAA</c>）。</summary>

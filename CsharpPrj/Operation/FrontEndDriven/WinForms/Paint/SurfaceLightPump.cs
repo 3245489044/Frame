@@ -39,6 +39,19 @@ internal static class SurfaceLightPump
         }
     }
 
+    /// <summary>屏幕覆盖区（屏幕 DIP）；与 <See cref="Pull"/> 的换算同一口径，供无帧回落帧使用。</summary>
+    internal static SurfaceLightCoverage ScreenCoverage(Control anchor)
+    {
+        var screen = SystemInformation.VirtualScreen;
+        var dpi = anchor.DeviceDpi > 0 ? anchor.DeviceDpi : (_pixelScaleDpi > 0 ? _pixelScaleDpi : 96);
+        var scale = 96f / dpi;
+        return new SurfaceLightCoverage(
+            screen.X * scale,
+            screen.Y * scale,
+            Math.Max(1f, screen.Width * scale),
+            Math.Max(1f, screen.Height * scale));
+    }
+
     private static void Pull()
     {
         if (_pullInProgress) return;

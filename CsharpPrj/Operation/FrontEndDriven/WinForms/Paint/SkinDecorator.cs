@@ -389,7 +389,9 @@ public static class SkinDecorator
         if (LightOverride is { } over) return over(control);
 
         SurfaceLightPump.EnsureStarted(control);
-        var sample = SurfaceLightPort.Sample(SurfaceLightRegistry.Current, ProbeOf(control));
+        // 无帧（启动前 1 秒 / 引擎未加载 / 连续采样失败）⇒ 声明式默认太阳，而不是整屏无光。
+        var frame = SurfaceLightRegistry.Current ?? SurfaceLight.DefaultFrame(SurfaceLightPump.ScreenCoverage(control));
+        var sample = SurfaceLightPort.Sample(frame, ProbeOf(control));
         return sample.HasValue ? SurfaceLightState.From(sample) : null;
     }
 

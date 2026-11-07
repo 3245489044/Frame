@@ -37,7 +37,7 @@ public static class SpectralStyleModule
                 .Append("content:\"\";position:absolute;inset:0;border-radius:inherit;pointer-events:none;")
                 // 色相环：固定起点 + 多色标，保证沿轮廓连续且跨度 ≥90°。
                 // at 用视口 px 锚点 + fixed 定位区 ⇒ 色相由「面板相对光斑的位置」决定（不是元素自身百分比）。
-                .Append("background:conic-gradient(from 135deg at var(--sl-anchor-x,50%) var(--sl-anchor-y,50%),")
+                .Append("background:conic-gradient(from 135deg at var(--sl-anchor-x,30vw) var(--sl-anchor-y,18vh),")
                 .Append("#7fe9ff 0deg,#8f8cff 72deg,#ff8ae0 144deg,#ffd59a 216deg,#6f7bff 288deg,#7fe9ff 360deg);")
                 .Append("background-attachment:fixed;")
                 // 只留边缘环（中心透明），避免整面板被彩色覆盖。

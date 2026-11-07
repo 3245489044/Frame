@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Abstractions;
 
@@ -22,6 +23,9 @@ public sealed record UiNode(
 
     /// <summary>**受信原文**文本节点（模板字面量 HTML；不做二次转义）。</summary>
     public static UiNode RawText(string html) => new(string.Empty, Text: html, Raw: true);
+
+    /// <summary>**受信片段**节点（类型化入口；替代裸字符串，防把未编码文本误当片段）。</summary>
+    public static UiNode Markup(UiMarkup markup) => RawText(markup.Html);
 
     /// <summary>元素节点（便捷构造）。</summary>
     public static UiNode Element(

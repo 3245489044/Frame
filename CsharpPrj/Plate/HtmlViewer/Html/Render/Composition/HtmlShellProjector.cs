@@ -25,7 +25,7 @@ public static class HtmlShellProjector
     /// 不再依赖后端进程级全局槽猜当前视图。
     /// </para>
     /// </summary>
-    public static string RenderSelector(
+    public static UiMarkup RenderSelector(
         IReadOnlyDictionary<string, string> templates,
         IReadOnlyList<(string Key, string Label)> items,
         string currentKey,
@@ -48,27 +48,27 @@ public static class HtmlShellProjector
             }
         }
 
-        return HtmlTemplateEngine.Render(templates, "segGroup",
+        return HtmlTemplateEngine.RenderMarkup(templates, "segGroup",
             new Dictionary<string, object?> { ["items"] = rows });
     }
 
     /// <summary>
     /// 渲染「上下分栏」壳（<c>splitShell</c> 模板）：上栏（<c>{nodes|raw}</c>）+ 下栏（<c>{history|raw}</c>）。
     /// 典型用途：观测面板（节点聚拢）叠于会话流之上；两栏片段由宿主已渲染好，本方法只做模板拼接。
-    /// 缺模板 → 返回空串（调用方据此回退纯内容）。
+    /// 缺模板 → 返回空片段（调用方据此回退纯内容）。
     /// </summary>
     /// <param name="templates">模板集（含 <c>splitShell</c> 键）。</param>
-    /// <param name="primaryHtml">上栏 HTML 片段（如节点面板）。</param>
-    /// <param name="secondaryHtml">下栏 HTML 片段（如会话历史 / 对话流）。</param>
-    public static string RenderPaneSplit(
+    /// <param name="primary">上栏片段（如节点面板）。</param>
+    /// <param name="secondary">下栏片段（如会话历史 / 对话流）。</param>
+    public static UiMarkup RenderPaneSplit(
         IReadOnlyDictionary<string, string> templates,
-        string primaryHtml,
-        string secondaryHtml)
-        => HtmlTemplateEngine.Render(templates, "splitShell",
+        UiMarkup primary,
+        UiMarkup secondary)
+        => HtmlTemplateEngine.RenderMarkup(templates, "splitShell",
             new Dictionary<string, object?>
             {
-                ["nodes"] = primaryHtml,
-                ["history"] = secondaryHtml,
+                ["nodes"] = primary,
+                ["history"] = secondary,
             });
 
     /// <summary>区域容器属性前缀（转发 <see cref="UiViewNames.RegionNamePrefix"/>：公开别名，桥/宿主仍需引用）。</summary>
@@ -83,33 +83,46 @@ public static class HtmlShellProjector
     }
 
 
+    /// <summary>壳槽位值（**类型化**：片段 vs 纯文本在编译期分开）。整页壳与区域节点装配共用本记录 ⇒ 单源。</summary>
+    public sealed record UiShellSlots(
+        UiMarkup Selector,
+        UiText Title,
+        UiMarkup Subtitle,
+        UiMarkup Tree,
+        UiMarkup Composer,
+        UiMarkup Overlay,
+        string PollAttrs = "")
+    {
+        /// <summary>空壳（未声明的槽全部为空）。</summary>
+        public static UiShellSlots Empty { get; } = new(
+            UiMarkup.Empty, new UiText(string.Empty), UiMarkup.Empty,
+            UiMarkup.Empty, UiMarkup.Empty, UiMarkup.Empty);
+    }
+
     /// <summary>
     /// 声明驱动的容器壳（视图作用域）：容器集来自视图程序（<c>containers[]</c>），内容按容器键供给；
     /// 未声明的容器不产出（结构上不存在 ⇒ 无需清理）。
     /// <para>框架只认结构位（<c>main</c> 为内容壳；<c>seg/head/subhead/aside/overlay</c> 为壳槽），零领域视图词。</para>
+    /// <para>槽位值类型化（<see cref="UiShellSlots"/>）：纯文本槽只能给 <see cref="UiText"/>，片段槽只能给
+    /// <see cref="UiMarkup"/> ⇒ 「片段当文本再编码」在编译期不可表达。</para>
     /// </summary>
     public static string RenderContainerShell(
         IReadOnlyDictionary<string, string> templates,
         IReadOnlyList<UiViewContainer> containers,
-        string selectorHtml,
-        string title,
-        string subtitle,
-        string treeHtml,
-        IReadOnlyDictionary<string, string> contents,
+        UiShellSlots slots,
+        IReadOnlyDictionary<string, UiMarkup> contents,
         IReadOnlyList<(string Key, UiNode Root)> bubbles,
-        string composerHtml,
-        string overlayHtml,
-        string? pollAttrs = null,
         string? refreshTitle = null,
         string? viewKey = null,
         IReadOnlyDictionary<string, SurfaceContainerMarkup>? markup = null)
     {
+        ArgumentNullException.ThrowIfNull(slots);
         var present = new HashSet<string>(containers.Select(static c => c.Key), StringComparer.Ordinal);
 
         string Slot(string suffix) => RegionNamePrefix + suffix;
-        string Html(string key) => contents.TryGetValue(key, out var value) ? value : string.Empty;
+        UiMarkup Html(string key) => contents is not null && contents.TryGetValue(key, out var value) ? value : UiMarkup.Empty;
 
-        string Block(string key, string fallbackClass, string body)
+        string Block(string key, string fallbackClass, UiMarkup body)
         {
             var structure = markup is not null && markup.TryGetValue(key, out var found) ? found : null;
             var tag = string.IsNullOrWhiteSpace(structure?.Tag) ? "div" : structure!.Tag;
@@ -121,20 +134,23 @@ public static class HtmlShellProjector
                 foreach (var pair in structure.Attributes) attrs.Data(pair.Key, pair.Value);
             }
 
-            return MarkupTag.Element(tag, attrs, body);
+            return MarkupTag.Element(tag, attrs, body.Html);
         }
 
         var bubbleHtml = new StringBuilder();
         foreach (var section in bubbles ?? Array.Empty<(string Key, UiNode Root)>())
             bubbleHtml.Append(UiFragmentWriter.Serialize(section.Root));
 
+        var bubbleFragment = UiMarkup.Trusted(bubbleHtml.ToString());
         var mainInner = new StringBuilder();
         foreach (var container in containers)
         {
             var slot = UiViewContainerSlots.Classify(container);
             if (slot == UiViewContainerSlot.Main || UiViewContainerSlots.IsShellSlot(slot)) continue;
 
-            var body = slot == UiViewContainerSlot.Stream ? Html(container.Key) + bubbleHtml : Html(container.Key);
+            var body = slot == UiViewContainerSlot.Stream
+                ? UiMarkup.Concat(Html(container.Key), bubbleFragment)
+                : Html(container.Key);
             mainInner.Append(Block(
                 container.Key,
                 container.IsStream ? "region stream" : "region",
@@ -143,31 +159,31 @@ public static class HtmlShellProjector
 
         var main = MarkupBlock.Render("div", "region", "region", Slot("main"), mainInner.ToString());
         var selectorRegion = present.Contains(Slot("seg"))
-            ? Block(Slot("seg"), "seg region", selectorHtml)
+            ? Block(Slot("seg"), "seg region", slots.Selector)
             : string.Empty;
         var titleRegion = present.Contains(Slot("head"))
-            ? MarkupPresets.LabelledSpan(Slot("head"), MarkupTag.Text(title))
-            : title;
+            ? MarkupPresets.LabelledSpan(Slot("head"), MarkupTag.Text(slots.Title))
+            : string.Empty;
         var subtitleRegion = present.Contains(Slot("subhead"))
-            ? MarkupPresets.LabelledSpan(Slot("subhead"), MarkupTag.Text(subtitle))
-            : subtitle;
+            ? MarkupPresets.LabelledSpan(Slot("subhead"), slots.Subtitle.Html)
+            : string.Empty;
         var treeRegion = present.Contains(Slot("aside"))
-            ? Block(Slot("aside"), "region", treeHtml)
+            ? Block(Slot("aside"), "region", slots.Tree)
             : string.Empty;
         var overlayRegion = present.Contains(Slot("overlay"))
-            ? Block(Slot("overlay"), "region", overlayHtml)
+            ? Block(Slot("overlay"), "region", slots.Overlay)
             : string.Empty;
 
         var html = HtmlTemplateEngine.Render(templates, "layoutShell",
             new Dictionary<string, object?>
             {
-                ["selector"] = selectorRegion,
-                ["title"] = titleRegion,
-                ["subtitle"] = subtitleRegion,
-                ["tree"] = treeRegion,
-                ["history"] = main,
-                ["overlay"] = overlayRegion,
-                ["pollAttrs"] = pollAttrs ?? string.Empty,
+                ["selector"] = UiMarkup.Trusted(selectorRegion),
+                ["title"] = UiMarkup.Trusted(titleRegion),
+                ["subtitle"] = UiMarkup.Trusted(subtitleRegion),
+                ["tree"] = UiMarkup.Trusted(treeRegion),
+                ["history"] = UiMarkup.Trusted(main),
+                ["overlay"] = UiMarkup.Trusted(overlayRegion),
+                ["pollAttrs"] = slots.PollAttrs,
                 ["refreshTitle"] = refreshTitle ?? string.Empty,
             });
 
@@ -182,8 +198,8 @@ public static class HtmlShellProjector
             viewRootHtml);
 
     /// <summary>气泡段包裹（单源）：段根带稳定 <c>data-key</c> ⇒ 流原语可按段键定点更新/追加。</summary>
-    public static string WrapStreamSection(string key, string html)
-        => MarkupPresets.StreamItem(key, html);
+    public static string WrapStreamSection(string key, UiMarkup html)
+        => MarkupPresets.StreamItem(key, html.Html);
 
     /// <summary>
     /// 容器内容装配（框架件，单一映射实现）：<c>containers[] × 壳槽 × 按容器键内容 ⇒ 容器键 → 片段</c>。
@@ -191,30 +207,31 @@ public static class HtmlShellProjector
     /// 壳槽（seg/head/subhead/aside/composer/overlay）取 <paramref name="shellSlots"/>；
     /// 内容容器取 <paramref name="containerContents"/>；<c>main</c> 为结构包裹（非容器，不产）；
     /// 流容器由流原语承载（不产区域目标）。</para>
-    /// <para>缺内容 ⇒ 产空串（与既有「空即空态/收起」口径一致，写目标仍由键控对齐消费）。</para>
+    /// <para>缺内容 ⇒ 产空片段（与既有「空即空态/收起」口径一致，写目标仍由键控对齐消费）。</para>
     /// </summary>
     public static IReadOnlyDictionary<string, string> ComposeContents(
         IReadOnlyList<UiViewContainer> containers,
-        IReadOnlyDictionary<string, string> shellSlots,
-        IReadOnlyDictionary<string, string> containerContents,
+        UiShellSlots shellSlots,
+        IReadOnlyDictionary<string, UiMarkup> containerContents,
         IReadOnlyDictionary<string, SurfaceContainerMarkup>? markup = null)
         => ComposeContentNodes(containers, shellSlots, containerContents, markup)
             .ToDictionary(static pair => pair.Key, static pair => UiFragmentWriter.Serialize(pair.Value), StringComparer.Ordinal);
 
     /// <summary>
     /// 容器内容装配（**节点出口**，唯一实现）：<c>containers[] × 壳槽 × 按容器键内容 ⇒ 容器键 → 节点</c>。
-    /// <para>壳槽/内容为已渲染片段（受信模板产物）⇒ <see cref="UiNode.RawText"/> 承载，不经 HTML→节点回解析；
+    /// <para>壳槽/内容为已渲染片段（受信模板产物）⇒ <see cref="UiNode.Markup"/> 承载，不经 HTML→节点回解析；
     /// 仅带 <see cref="SurfaceContainerMarkup"/> 的容器外套结构 <c>&lt;tag&gt;</c> 节点（属性序 = class → data-name → data-*）。</para>
+    /// <para>槽位取值只经 <see cref="ShellSlotValue"/>（与 <see cref="RenderContainerShell"/> 同源）⇒ 两条路径不可能分叉。</para>
     /// </summary>
     public static IReadOnlyDictionary<string, UiNode> ComposeContentNodes(
         IReadOnlyList<UiViewContainer> containers,
-        IReadOnlyDictionary<string, string> shellSlots,
-        IReadOnlyDictionary<string, string> containerContents,
+        UiShellSlots shellSlots,
+        IReadOnlyDictionary<string, UiMarkup>? containerContents,
         IReadOnlyDictionary<string, SurfaceContainerMarkup>? markup = null)
     {
         ArgumentNullException.ThrowIfNull(containers);
-        var slots = shellSlots ?? new Dictionary<string, string>(StringComparer.Ordinal);
-        var contents = containerContents ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        ArgumentNullException.ThrowIfNull(shellSlots);
+        var contents = containerContents ?? new Dictionary<string, UiMarkup>(StringComparer.Ordinal);
         var composed = new Dictionary<string, UiNode>(StringComparer.Ordinal);
 
         foreach (var container in containers)
@@ -223,23 +240,32 @@ public static class HtmlShellProjector
             if (slot is UiViewContainerSlot.Main or UiViewContainerSlot.Stream) continue;
 
             var suffix = UiViewContainerSlots.Suffix(container.Key);
-            var key = UiViewContainerSlots.IsShellSlot(slot) || slot == UiViewContainerSlot.Composer
-                ? suffix
-                : container.Key;
-
-            var html = slots.TryGetValue(key, out var slotHtml)
-                ? slotHtml
-                : contents.TryGetValue(container.Key, out var contentHtml) ? contentHtml : string.Empty;
+            var isShell = UiViewContainerSlots.IsShellSlot(slot) || slot == UiViewContainerSlot.Composer;
+            var value = isShell
+                ? ShellSlotValue(shellSlots, suffix)
+                : contents.TryGetValue(container.Key, out var contentHtml) ? contentHtml : UiMarkup.Empty;
             // 无结构标记 ⇒ 保持旧契约（纯内容片段）；有标记 ⇒ 只对已声明容器包裹（零回归）。
             composed[container.Key] = markup is not null && markup.TryGetValue(container.Key, out var structure)
-                ? WrapNode(container.Key, html, structure)
-                : UiNode.RawText(html);
+                ? WrapNode(container.Key, value, structure)
+                : UiNode.Markup(value);
         }
 
         return composed;
     }
 
-    private static UiNode WrapNode(string key, string html, SurfaceContainerMarkup? structure)
+    /// <summary>壳槽 → 类型化值（**唯一映射**；纯文本位在这里编码一次）。</summary>
+    private static UiMarkup ShellSlotValue(UiShellSlots slots, string suffix) => suffix switch
+    {
+        "seg" => slots.Selector,
+        "head" => UiMarkup.FromText(slots.Title.Value),
+        "subhead" => slots.Subtitle,
+        "aside" => slots.Tree,
+        "composer" => slots.Composer,
+        "overlay" => slots.Overlay,
+        _ => UiMarkup.Empty,
+    };
+
+    private static UiNode WrapNode(string key, UiMarkup html, SurfaceContainerMarkup? structure)
     {
         var tag = string.IsNullOrWhiteSpace(structure?.Tag) ? "div" : structure!.Tag;
         // 类名去重：声明类若已含 region（如 "region panel"）不得拼成 "region region panel"。
@@ -260,6 +286,6 @@ public static class HtmlShellProjector
             foreach (var pair in structure.Attributes) attributes["data-" + pair.Key] = pair.Value;
         }
 
-        return UiNode.Element(tag, attributes: attributes, children: new[] { UiNode.RawText(html) });
+        return UiNode.Element(tag, attributes: attributes, children: new[] { UiNode.Markup(html) });
     }
 }

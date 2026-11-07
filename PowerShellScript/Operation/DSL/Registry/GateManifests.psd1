@@ -751,6 +751,16 @@
         Note   = '文本安全（P4/C4）：C1 HtmlText 单源在位（非标量 ⇒ ⊘）/ C2 HtmlSectionItem 经 HtmlText / C3 Views 内禁对象字段直拼；负对照 details.Add(row.Payload) 必红'
     }
 
+    UiEscapeSingleSource = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Boundary'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '编码单源（框架级）：E1 生产层禁直调 HtmlEncode/HtmlText.Encode（唯一编码点 = UiMarkup.FromText）/ E2 壳装配禁 MarkupTag.Text（槽位类型化）/ E3 二次转义指纹 &amp;# 为零；负对照必红'
+    }
+
     SubprocessEncoding = @{
         Domain = 'Agent'
         Family = 'Presentation'

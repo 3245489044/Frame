@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Modules.Parsing.Markup;
 using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
@@ -26,6 +27,14 @@ public static class UiFragmentWriter
         IReadOnlyDictionary<string, object?> model,
         IReadOnlyList<UiNode>? fallback = null)
         => HtmlTemplateEngine.RenderToNodes(templates, name, model, fallback);
+
+    /// <summary>渲染命名模板为**受信片段**（框架内组合的唯一字符串出口包装）。</summary>
+    public static UiMarkup RenderMarkup(
+        IReadOnlyDictionary<string, string> templates,
+        string name,
+        IReadOnlyDictionary<string, object?> model,
+        string fallback = "")
+        => UiMarkup.Trusted(HtmlTemplateEngine.Render(templates, name, model, fallback));
 
     /// <summary>片段根（Tag 空串 + 子节点）：与页面 <c>appendInto</c> 同语义。</summary>
     public static UiNode Fragment(IReadOnlyList<UiNode> children)

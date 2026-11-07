@@ -44,9 +44,10 @@ public static class MarkupTag
         return "</" + tag + ">";
     }
 
-    /// <summary>文本编码（元素内容位）。</summary>
-    public static string Text(string? text, MarkupDialect? dialect = null)
-        => (dialect ?? MarkupDialects.Html).EncodeText(text ?? string.Empty);
+    /// <summary>文本编码（元素内容位）。**只接受未编码文本**（<see cref="UiText"/>；string 隐式转入）。
+    /// 已编码片段不得走本方法（否则二次转义）。</summary>
+    public static string Text(UiText text, MarkupDialect? dialect = null)
+        => (dialect ?? MarkupDialects.Html).EncodeText(text.Value);
 
     /// <summary>属性串（null ⇒ 空串）。</summary>
     public static string Attrs(MarkupAttrBatch? attrs) => attrs?.Render() ?? string.Empty;

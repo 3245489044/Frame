@@ -96,24 +96,31 @@ public static class CssSurfaceProjector
 
                 case "specular":
                 {
-                    // 尊重 mode：edge = 内高光（inset shadow）；spot = 径向光斑；缺省保留旧对角带。
+                    // 尊重 mode/strength/width/radius（HTML 侧不再退化成固定 40%–60% 对角亮带）。
+                    // 定论：几何按 WinForms 权威升级；仅「光随光标实时移动」在 HTML 侧显式降级记账。
                     var mode = Param(layer, "mode", string.Empty);
+                    var strength = Strength(layer);
+                    var tint = Tint(value, strength);
                     if (string.Equals(mode, "edge", StringComparison.Ordinal))
                     {
-                        shadows.Add($"inset 0 {Px(layer, "width", "2")} 0 {value}");
+                        shadows.Add($"inset 0 {Px(layer, "width", "2")} 0 {tint}");
                     }
                     else if (string.Equals(mode, "spot", StringComparison.Ordinal))
                     {
                         var (x, y) = SpotCenter(layer);
+                        var radiusPct = Math.Clamp(RadiusRatio(layer) * 100, 8, 100);
                         backgrounds.Add(
-                            $"radial-gradient(circle at {x}% {y}%, {value} 0%, transparent 70%)");
+                            $"radial-gradient(circle at {x}% {y}%, {tint} 0%, transparent {radiusPct:0.#}%)");
                     }
                     else
                     {
+                        // band：带宽取声明 width（缺省按面板比例 12%），强度取声明 strength。
+                        var half = BandHalf(layer);
                         backgrounds.Add(
-                            $"linear-gradient({Deg(layer)}deg, transparent 40%, {value} 50%, transparent 60%)");
+                            $"linear-gradient({Deg(layer)}deg, transparent calc(50% - {half}), {tint} 50%, transparent calc(50% + {half})");
                     }
 
+                    skipped.Add("specular:degraded(static-light)");
                     break;
                 }
 
@@ -138,11 +145,17 @@ public static class CssSurfaceProjector
                 {
                     var asset = Asset(layer);
                     if (asset.Length == 0) break;
+                    // 九宫格只用 border-image 一条路径，禁止同一张图再铺 background（否则同图双画、边缘发虚）。
+                    if (HasSlice(layer))
+                    {
+                        foreach (var pair in NineSlice(layer, asset)) extra.Add(pair);
+                        break;
+                    }
+
                     backgrounds.Add($"url(\"{asset}\")");
                     extra.Add(Pair("background-repeat", Param(layer, "repeat", "repeat")));
                     if (layer.Params.TryGetValue("anchor", out var anchor) && anchor.Length > 0)
                         extra.Add(Pair("background-position", anchor));
-                    foreach (var pair in NineSlice(layer, asset)) extra.Add(pair);
                     break;
                 }
 
@@ -150,11 +163,16 @@ public static class CssSurfaceProjector
                 {
                     var asset = Asset(layer);
                     if (asset.Length == 0) break;
+                    if (HasSlice(layer))
+                    {
+                        foreach (var pair in NineSlice(layer, asset)) extra.Add(pair);
+                        break;
+                    }
+
                     backgrounds.Add($"url(\"{asset}\")");
                     extra.Add(Pair("background-repeat", "no-repeat"));
                     extra.Add(Pair("background-position", Param(layer, "anchor", "center")));
                     extra.Add(Pair("background-size", Param(layer, "size", "contain")));
-                    foreach (var pair in NineSlice(layer, asset)) extra.Add(pair);
                     break;
                 }
             }
@@ -174,7 +192,19 @@ public static class CssSurfaceProjector
         }
 
         if (backgroundColor.Length > 0) declarations.Add(Pair("background-color", backgroundColor));
-        if (backgrounds.Count > 0) declarations.Add(Pair("background-image", string.Join(", ", backgrounds)));
+        // fill+radius 以 WinForms 为准：无描边材质也要圆角（材质级最大半径），否则填充直角/描边圆角错位。
+        if (primary is null)
+        {
+            var materialRadius = MaterialRadius(material);
+            if (materialRadius > 0) declarations.Add(Pair("border-radius", FormatPx(materialRadius)));
+        }
+        // CSS 背景层「先写者在上」：按 z 升序收集，输出时反转，保证高 z 图元压在上面（不再后写覆盖先写）。
+        if (backgrounds.Count > 0)
+        {
+            var ordered = new List<string>(backgrounds.Count);
+            for (var i = backgrounds.Count - 1; i >= 0; i--) ordered.Add(backgrounds[i]);
+            declarations.Add(Pair("background-image", string.Join(", ", ordered)));
+        }
         foreach (var pair in extra) declarations.Add(pair);
         if (shadows.Count > 0) declarations.Add(Pair("box-shadow", string.Join(", ", shadows)));
         if (backdropFilter is not null) declarations.Add(Pair("backdrop-filter", backdropFilter));
@@ -269,6 +299,23 @@ public static class CssSurfaceProjector
         return fallback > 0 ? FormatPx(fallback) : string.Empty;
     }
 
+    /// <summary>材质级最大圆角半径（与 GDI+ 的材质兜底同口径）。</summary>
+    private static float MaterialRadius(ResolvedMaterial material)
+    {
+        var max = 0f;
+        foreach (var layer in material.Layers)
+        {
+            var raw = Param(layer, "radius", string.Empty);
+            if (raw.Length > 0 && float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+                && parsed > max)
+            {
+                max = parsed;
+            }
+        }
+
+        return max;
+    }
+
     private static ResolvedLayer? PrimaryStroke(ResolvedMaterial material)
     {
         ResolvedLayer? best = null;
@@ -302,13 +349,48 @@ public static class CssSurfaceProjector
     private static string Param(ResolvedLayer layer, string name, string fallback)
         => layer.Params.TryGetValue(name, out var value) && value.Length > 0 ? value : fallback;
 
-    /// <summary>九宫格（slice 非空才产出 border-image 三元组）。</summary>
+    /// <summary>九宫格（slice 非空才产出 border-image 一套；调用方保证不再叠加 background 同图）。</summary>
     private static IEnumerable<KeyValuePair<string, string>> NineSlice(ResolvedLayer layer, string asset)
     {
         if (!layer.Params.TryGetValue("slice", out var slice) || slice.Length == 0) yield break;
+        yield return Pair("border-style", "solid");
         yield return Pair("border-image-source", $"url(\"{asset}\")");
         yield return Pair("border-image-slice", slice + " fill");
         yield return Pair("border-image-repeat", Param(layer, "repeat", "stretch"));
+        yield return Pair("border-image-width", slice);
+    }
+
+    private static bool HasSlice(ResolvedLayer layer)
+        => layer.Params.TryGetValue("slice", out var slice) && slice.Length > 0;
+
+    private static float Strength(ResolvedLayer layer)
+    {
+        var raw = Param(layer, "strength", "0.7");
+        return float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? Math.Clamp(parsed, 0f, 1f)
+            : 0.7f;
+    }
+
+    private static string Tint(string value, float strength)
+    {
+        var percent = Math.Clamp((int)Math.Round(strength * 100), 0, 100);
+        return $"color-mix(in srgb, {value} {percent}%, transparent)";
+    }
+
+    private static string BandHalf(ResolvedLayer layer)
+    {
+        var raw = Param(layer, "width", string.Empty);
+        if (raw.Length > 0 && float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var width))
+            return FormatPx(Math.Max(1f, width));
+        return "12%";
+    }
+
+    private static float RadiusRatio(ResolvedLayer layer)
+    {
+        var raw = Param(layer, "radius", "0.55");
+        return float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+            ? Math.Clamp(parsed, 0.25f, 1.2f)
+            : 0.55f;
     }
 
     private static KeyValuePair<string, string> Pair(string property, string value) => new(property, value);

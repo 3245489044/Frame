@@ -15,8 +15,10 @@ public readonly record struct BudgetDecision(
     string? DegradeReason);
 
 /// <summary>
-/// 每拍预算（以**节点数**为主预算，对齐设计 D4）：超限 ⇒ 先丢 volatile 节 → 再按体量裁 stable（至少留一节）→
+/// 每拍预算（以**节点数**为主预算，对齐设计 D4）：超限 ⇒ 先丢装饰（progressive）→ 再丢 volatile → 节点仍超才按体量裁 stable（至少留一节）→
 /// 交互拍永不丢弃（只可见化降级原因）。每次降级必带 reason（禁静默）。
+/// <para>**字节超限不整节丢弃**：字节只是辅助预算，丢整节会让界面缺块/停留旧 DOM，比慢更差；
+/// 字节超限只记账（reason=bytes-over-budget）并整节落地。</para>
 /// </summary>
 public static class WriteBudgetPolicy
 {
@@ -26,30 +28,13 @@ public static class WriteBudgetPolicy
         if (sections is null || sections.Count == 0)
             return new BudgetDecision(Array.Empty<SectionPlan>(), Array.Empty<SectionPlan>(), 0, 0, null);
 
-        // 一次遍历：总量 + 阶段分类同时完成（后续只操作累加变量，禁重扫/重算 sections）。
+        // 一次遍历：总量（后续只操作累加变量，禁重扫/重算 sections）。
         var nodes = 0;
         var bytes = 0;
-        var kept = new List<SectionPlan>(sections.Count);
-        var dropped = new List<SectionPlan>();
-        var keptNodes = 0;
-        var keptBytes = 0;
         foreach (var section in sections)
         {
-            var sectionNodes = Math.Max(0, section.Nodes);
-            var sectionBytes = Math.Max(0, section.Bytes);
-            nodes += sectionNodes;
-            bytes += sectionBytes;
-
-            // F5 渐进表面：预算压力下先丢「装饰」阶段（徽标/成本/易变叶子），壳/结构/内容保留。
-            if (progressive && section.Stage == SurfaceStage.Decorations)
-            {
-                dropped.Add(section);
-                continue;
-            }
-
-            kept.Add(section);
-            keptNodes += sectionNodes;
-            keptBytes += sectionBytes;
+            nodes += Math.Max(0, section.Nodes);
+            bytes += Math.Max(0, section.Bytes);
         }
 
         var overNodes = budget.MaxNodes > 0 && nodes > budget.MaxNodes;
@@ -61,8 +46,26 @@ public static class WriteBudgetPolicy
         if (source == UiWriteSource.Interactive)
             return new BudgetDecision(sections, Array.Empty<SectionPlan>(), nodes, bytes, "interactive-over-budget");
 
+        // F5 渐进表面：预算压力下先丢「装饰」阶段（徽标/成本/易变叶子），壳/结构/内容保留。
+        var kept = new List<SectionPlan>(sections.Count);
+        var dropped = new List<SectionPlan>();
+        var keptNodes = 0;
+        var keptBytes = 0;
+        foreach (var section in sections)
+        {
+            if (progressive && section.Stage == SurfaceStage.Decorations)
+            {
+                dropped.Add(section);
+                continue;
+            }
+
+            kept.Add(section);
+            keptNodes += Math.Max(0, section.Nodes);
+            keptBytes += Math.Max(0, section.Bytes);
+        }
+
         var reason = overNodes ? "nodes-over-budget" : "bytes-over-budget";
-        if (progressive && dropped.Count > 0) reason = "decorations-over-budget";
+        if (dropped.Count > 0) reason = "decorations-over-budget";
 
         overNodes = budget.MaxNodes > 0 && keptNodes > budget.MaxNodes;
         overBytes = budget.MaxBytes > 0 && keptBytes > budget.MaxBytes;
@@ -80,23 +83,24 @@ public static class WriteBudgetPolicy
                 dropped.Add(section);
                 continue;
             }
+
             stable.Add(section);
             stableNodes += Math.Max(0, section.Nodes);
             stableBytes += Math.Max(0, section.Bytes);
         }
+
         kept = stable;
         keptNodes = stableNodes;
         keptBytes = stableBytes;
 
-        // 2) 仍超 ⇒ 按体量从大到小裁 stable（至少留一节，禁整批丢光）。
-        while (kept.Count > 1
-               && ((budget.MaxNodes > 0 && keptNodes > budget.MaxNodes)
-                   || (budget.MaxBytes > 0 && keptBytes > budget.MaxBytes)))
+        // 2) 节点仍超 ⇒ 按体量从大到小裁 stable（至少留一节，禁整批丢光）。
+        //    仅节点预算是硬约束；字节超限不整节丢弃（见类型注释）。
+        while (kept.Count > 1 && budget.MaxNodes > 0 && keptNodes > budget.MaxNodes)
         {
             var largest = 0;
             for (var i = 1; i < kept.Count; i++)
             {
-                if (kept[i].Bytes > kept[largest].Bytes) largest = i;
+                if (kept[i].Nodes > kept[largest].Nodes) largest = i;
             }
 
             var victim = kept[largest];
@@ -104,15 +108,15 @@ public static class WriteBudgetPolicy
             dropped.Add(victim);
             keptNodes -= Math.Max(0, victim.Nodes);
             keptBytes -= Math.Max(0, victim.Bytes);
-            reason = "stable-pruned";
+            reason = "nodes-pruned";
         }
 
         // 3) 单节仍超：保留落地（留陈旧 DOM 比慢更差）并可见化。
-        if (kept.Count == 1
-            && ((budget.MaxNodes > 0 && keptNodes > budget.MaxNodes)
-                || (budget.MaxBytes > 0 && keptBytes > budget.MaxBytes)))
+        overNodes = budget.MaxNodes > 0 && keptNodes > budget.MaxNodes;
+        overBytes = budget.MaxBytes > 0 && keptBytes > budget.MaxBytes;
+        if (overNodes || overBytes)
         {
-            reason = "oversize-single-section";
+            reason = overNodes ? "oversize-single-section" : "bytes-over-budget-kept";
         }
 
         return new BudgetDecision(kept, dropped, keptNodes, keptBytes, reason);

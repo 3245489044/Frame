@@ -96,11 +96,42 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
     private static readonly ConcurrentDictionary<string, string> StyleModuleOverrides =
         new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// surface-* 模块族 → 当前生效模块名（<c>surface-materials-&lt;hash&gt;</c> 族键为 <c>surface-materials</c>）。
+    /// <para>旧实现把所有 hash 变体一起拼接，按名序后写的旧样式反而压住新样式；改为**每族只保留最新一次注册**。</para>
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, string> SurfaceFamilies =
+        new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>注册/覆盖样式模块（幂等：覆盖式）。<paramref name="name"/> 取通用模块名（tokens/block/shell/tree/switch/grouped/state/attach/data）。</summary>
     public static void RegisterStyleModule(string name, string css)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         StyleModuleOverrides[name] = css ?? string.Empty;
+        if (name.StartsWith(SurfaceRuntimeModulePrefix, StringComparison.OrdinalIgnoreCase))
+            SurfaceFamilies[SurfaceFamily(name)] = name;
+    }
+
+    /// <summary>卸载样式模块（换肤/换表面重投影时清旧档，防旧规则继续参与级联）。</summary>
+    /// <param name="name">模块名。</param>
+    public static bool UnregisterStyleModule(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        var removed = StyleModuleOverrides.TryRemove(name, out _);
+        if (name.StartsWith(SurfaceRuntimeModulePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var family = SurfaceFamily(name);
+            SurfaceFamilies.TryRemove(new KeyValuePair<string, string>(family, name));
+        }
+
+        return removed;
+    }
+
+    /// <summary>surface 模块名 → 族（<c>surface-materials-&lt;hash&gt;</c> ⇒ <c>surface-materials</c>；其余原样）。</summary>
+    private static string SurfaceFamily(string name)
+    {
+        const string materialsPrefix = "surface-materials";
+        return name.StartsWith(materialsPrefix, StringComparison.OrdinalIgnoreCase) ? materialsPrefix : name;
     }
 
     /// <summary>取样式模块：外部覆盖优先，否则资产模块；未知名返回空串。</summary>
@@ -128,8 +159,9 @@ public sealed partial class HtmlAssetRegistry : IHtmlAssetProvider
     /// </summary>
     private static string SurfaceRuntimeCss()
     {
-        var names = StyleModuleOverrides.Keys
-            .Where(name => name.StartsWith(SurfaceRuntimeModulePrefix, StringComparison.OrdinalIgnoreCase))
+        // 每族只取最新注册的模块（旧 hash 不再参与拼接），族内顺序稳定排序 ⇒ 级联可预期。
+        var names = SurfaceFamilies.Values
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(name => name, StringComparer.Ordinal);
 
         var builder = new StringBuilder();

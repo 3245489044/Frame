@@ -35,8 +35,11 @@ public static class HtmlThemeBackground
                     segment = css.Substring(idx, end - idx + 1);
             }
         }
-        var m = Regex.Match(segment, "--bg\\s*:\\s*(#[0-9a-fA-F]{3,8}|transparent|none)\\b", RegexOptions.IgnoreCase);
-        return m.Success ? m.Groups[1].Value : null;
+        // CSS 级联：同一段内后声明的 `--bg` 覆盖先声明的；取**最后一条**（旧实现只取第一条，
+        // 换肤后变量重定义不生效，窗口底与页面底色因此不同源）。
+        var matches = Regex.Matches(
+            segment, "--bg\\s*:\\s*(#[0-9a-fA-F]{3,8}|transparent|none)", RegexOptions.IgnoreCase);
+        return matches.Count > 0 ? matches[matches.Count - 1].Groups[1].Value : null;
     }
 
     /// <summary>色值 ⇒ Color：统一走 <see cref="SurfaceColor"/>（CSS 8 位 = RRGGBBAA，禁在此另写一套）。</summary>

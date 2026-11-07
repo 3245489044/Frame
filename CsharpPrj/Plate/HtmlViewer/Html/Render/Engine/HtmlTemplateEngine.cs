@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
+using Modules.Parsing.Markup;
 using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
@@ -41,6 +42,14 @@ public static class HtmlTemplateEngine
             return fallback;
         return RenderTemplate(tpl, templates, model);
     }
+
+    /// <summary>渲染命名模板为**受信片段**（唯一包装点：字符串 → <see cref="UiMarkup"/>）。</summary>
+    public static UiMarkup RenderMarkup(
+        IReadOnlyDictionary<string, string> templates,
+        string name,
+        IReadOnlyDictionary<string, object?>? model,
+        string fallback = "")
+        => UiMarkup.Trusted(Render(templates, name, model, fallback));
 
     /// <summary>渲染一段模板字符串（<paramref name="templates"/> 供 {&gt;name} 命名模板调用解析，可 null）。</summary>
     public static string RenderTemplate(
@@ -237,9 +246,24 @@ public static class HtmlTemplateEngine
                     sb.Append(t.Text);
                     break;
                 case BindingNode b:
-                    var val = Get(model, b.Field);
-                    if (val is null) break;
-                    sb.Append(b.Raw ? val : WebUtility.HtmlEncode(val));
+                    var value = GetValue(model, b.Field);
+                    if (value is null) break;
+                    if (b.Raw)
+                    {
+                        // 有效类型 = UiMarkup（受信片段）；字符串仍按原文（外部入口兼容），
+                        // 但框架内组合一律传 UiMarkup（禁把未编码文本当片段）。
+                        sb.Append(value switch
+                        {
+                            UiMarkup markup => markup.Html,
+                            UiText text => WebUtility.HtmlEncode(text.Value),
+                            _ => Get(model, b.Field) ?? string.Empty,
+                        });
+                    }
+                    else
+                    {
+                        sb.Append(WebUtility.HtmlEncode(value is UiText t ? t.Value : Get(model, b.Field) ?? string.Empty));
+                    }
+
                     break;
                 case EachNode e:
                     if (TryGetList(model, e.ListName, out var list))
@@ -292,4 +316,16 @@ public static class HtmlTemplateEngine
     /// <summary>取值（大小写不敏感，bool 归一为 <c>"1"/""</c>），缺失 ⇒ null。</summary>
     private static string? Get(IReadOnlyDictionary<string, object?> model, string field)
         => UiModel.Get(model, field);
+
+    /// <summary>取原始值对象（类型化绑定：识别 <see cref="UiMarkup"/> / <see cref="UiText"/>）。</summary>
+    private static object? GetValue(IReadOnlyDictionary<string, object?> model, string field)
+    {
+        if (model.TryGetValue(field, out var direct)) return direct;
+        foreach (var pair in model)
+        {
+            if (string.Equals(pair.Key, field, StringComparison.OrdinalIgnoreCase)) return pair.Value;
+        }
+
+        return null;
+    }
 }

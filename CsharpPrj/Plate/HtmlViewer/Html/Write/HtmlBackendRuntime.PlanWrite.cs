@@ -227,13 +227,13 @@ public sealed partial class HtmlBackendRuntime
 
         var reason = droppedLeaves > 0 ? "leaf-skipped" : droppedStreams > 0 ? "stream-skipped" : "over-budget";
 
-        // 多目标仍越界 ⇒ 按体量从大到小裁剪，至少保留一个（顺序按原计划保持）。
-        if (kept.Count > 1 && (kept.Count > _options.MaxOpsPerFlush || EstimateBytes(kept) > _options.MaxBytesPerFlush))
+        // 多目标仍越界 ⇒ 仅按**目标数**裁剪（至少保留一个，顺序按原计划保持）；
+        // 字节超限不裁整目标：整目标丢弃会留下陈旧 DOM / 缺块，比慢更差（只记账 oversize）。
+        if (kept.Count > 1 && kept.Count > _options.MaxOpsPerFlush)
         {
             var dropCandidates = new HashSet<UiWriteTarget>();
             var bySize = kept.OrderByDescending(EstimateTargetBytes).ToList();
-            while (bySize.Count > 1
-                   && (bySize.Count > _options.MaxOpsPerFlush || EstimateBytes(bySize) > _options.MaxBytesPerFlush))
+            while (bySize.Count > 1 && bySize.Count > _options.MaxOpsPerFlush)
             {
                 dropCandidates.Add(bySize[0]);
                 bySize.RemoveAt(0);

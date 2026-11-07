@@ -51,20 +51,29 @@ public sealed class WebViewLifecycleHost
         await _initLock.WaitAsync(ct);
         try
         {
-            if (!_ready)
+            var firstRun = !_ready;
+            if (firstRun)
             {
                 await _host.EnsureCoreAsync();
-                var theme = _content.ResolveTheme();
-                // 深浅色显式锚定：按 Mode 锚定 WebView2 配色与默认背景，避免「随系统猜测而黑」/ 周边底色不一致。
-                if (_host.Core?.Profile is not null)
-                    _host.Core.Profile.PreferredColorScheme = _content.Mode.Map();
-                var bg = HtmlThemeBackground.Resolve(theme.ToCss(), _content.Mode);
-                if (bg.HasValue)
-                    _host.DefaultBackgroundColor = bg.Value;
                 _ready = true;
+            }
+
+            // 主题锚定**每次**执行（不再只初始化一次）：换主题后 DefaultBackgroundColor / 配色必须同步，
+            // 否则主窗口深色底与 `--bg` 不同源，玻璃层没有可采样内容。
+            var theme = _content.ResolveTheme();
+            if (_host.Core?.Profile is not null)
+                _host.Core.Profile.PreferredColorScheme = _content.Mode.Map();
+            var bg = HtmlThemeBackground.Resolve(theme.ToCss(), _content.Mode);
+            if (bg.HasValue)
+                _host.DefaultBackgroundColor = bg.Value;
+
+            if (firstRun
+                && _host.Core is not null
+                && _content.LastBodyHtml is null
+                && !string.IsNullOrWhiteSpace(_content.DefaultBodyHtml))
+            {
                 // 无内容时显示默认占位（仅在从未渲染时；RenderAsync 会先设 LastBodyHtml 再进来）。
-                if (_host.Core is not null && _content.LastBodyHtml is null && !string.IsNullOrWhiteSpace(_content.DefaultBodyHtml))
-                    _host.NavigateToHtmlDocument(_content.RenderDocument(_content.DefaultBodyHtml));
+                _host.NavigateToHtmlDocument(_content.RenderDocument(_content.DefaultBodyHtml));
             }
             // 消息桥订阅：首次就绪 + CoreWebView2 重建后重新绑定（幂等：同实例引用则跳过）。
             _ensureBridgeInstalled();

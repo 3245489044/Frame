@@ -88,64 +88,71 @@ public static class CssSurfaceProjector
         string backgroundColor = string.Empty;
         string? backdropFilter = null;
 
-        foreach (var layer in material.Layers)
+        // 强类型层模型（与 WinForms 载体同一份解析）：本文件不再直接读层参数袋。
+        var parsed = ResolvedLayerSpecProjection.Parse(material.Layers);
+        foreach (var layerSpec in parsed.Specs)
         {
-            var value = Param(layer, "value", string.Empty);
-            switch (layer.Primitive)
+            switch (layerSpec.Kind)
             {
-                case "fill":
-                    backgroundColor = value;
+                case LayerPrimitive.Fill:
+                    if (layerSpec.HasColor) backgroundColor = CssColor(layerSpec.ColorArgb);
                     break;
 
-                case "gradient":
-                    backgrounds.Add($"linear-gradient({Deg(layer)}deg, {ReplaceCommas(value, ", ")})");
+                case LayerPrimitive.Gradient:
+                    if (layerSpec.Gradient.Stops.Count == 0)
+                    {
+                        skipped.Add("gradient:" + layerSpec.Role);
+                        break;
+                    }
+
+                    backgrounds.Add($"linear-gradient({Deg(layerSpec.Angle)}deg, {GradientStopsCss(layerSpec.Gradient)})");
                     break;
 
-                case "backdrop":
-                    backdropFilter = $"blur({Px(layer, "blur", "0")})";
+                case LayerPrimitive.Backdrop:
+                    backdropFilter = $"blur({FormatPx(layerSpec.Blur)})";
                     break;
 
-                case "stroke":
-                    // 几何/颜色统一在循环后由 BorderSpec + 原始层文本输出（这里只标记已投影）。
+                case LayerPrimitive.Stroke:
+                    // 几何/颜色统一在循环后由 BorderSpec 输出（这里只标记已投影）。
                     break;
 
                 // M6：贴图 / 贴画（资源缺失 ⇒ 无 asset ⇒ 进 Skipped，禁静默纯色）
-                case "texture":
+                case LayerPrimitive.Texture:
                 {
-                    var asset = Asset(layer);
-                    if (asset.Length == 0) break;
+                    if (layerSpec.Asset.Length == 0) break;
                     // 九宫格只用 border-image 一条路径，禁止同一张图再铺 background（否则同图双画、边缘发虚）。
-                    if (HasSlice(layer))
+                    if (layerSpec.SliceText.Length > 0)
                     {
-                        foreach (var pair in NineSlice(layer, asset)) extra.Add(pair);
+                        foreach (var pair in NineSlice(layerSpec)) extra.Add(pair);
                         break;
                     }
 
-                    backgrounds.Add($"url(\"{asset}\")");
-                    extra.Add(Pair("background-repeat", Param(layer, "repeat", "repeat")));
-                    if (layer.Params.TryGetValue("anchor", out var anchor) && anchor.Length > 0)
-                        extra.Add(Pair("background-position", anchor));
+                    backgrounds.Add($"url(\"{layerSpec.Asset}\")");
+                    extra.Add(Pair("background-repeat", layerSpec.Repeat.Length > 0 ? layerSpec.Repeat : "repeat"));
+                    if (layerSpec.Anchor.Length > 0) extra.Add(Pair("background-position", layerSpec.Anchor));
                     break;
                 }
 
-                case "decal":
+                case LayerPrimitive.Decal:
                 {
-                    var asset = Asset(layer);
-                    if (asset.Length == 0) break;
-                    if (HasSlice(layer))
+                    if (layerSpec.Asset.Length == 0) break;
+                    if (layerSpec.SliceText.Length > 0)
                     {
-                        foreach (var pair in NineSlice(layer, asset)) extra.Add(pair);
+                        foreach (var pair in NineSlice(layerSpec)) extra.Add(pair);
                         break;
                     }
 
-                    backgrounds.Add($"url(\"{asset}\")");
+                    backgrounds.Add($"url(\"{layerSpec.Asset}\")");
                     extra.Add(Pair("background-repeat", "no-repeat"));
-                    extra.Add(Pair("background-position", Param(layer, "anchor", "center")));
-                    extra.Add(Pair("background-size", Param(layer, "size", "contain")));
+                    extra.Add(Pair("background-position", layerSpec.Anchor.Length > 0 ? layerSpec.Anchor : "center"));
+                    extra.Add(Pair("background-size", layerSpec.Size.Length > 0 ? layerSpec.Size : "contain"));
                     break;
                 }
             }
         }
+
+        // 解析期问题可见化（缺失 asset / 非法值 / 未换值 token 不得静默吞掉）。
+        foreach (var issue in parsed.Issues) skipped.Add("parse:" + issue.Code + ":" + issue.Detail);
 
         // 边框：同一模型（BorderSpec）取最大 z 的描边；多描边因 CSS 单 border 限制显式记账。
         var spec = BorderSpecProjection.From(material);
@@ -210,8 +217,7 @@ public static class CssSurfaceProjector
         // fill+radius 以 WinForms 为准：无描边材质也要圆角（材质级最大半径），否则填充直角/描边圆角错位。
         if (primary is null)
         {
-            var materialRadius = MaterialRadius(material);
-            if (materialRadius > 0) declarations.Add(Pair("border-radius", FormatPx(materialRadius)));
+            if (parsed.MaterialRadius > 0) declarations.Add(Pair("border-radius", FormatPx(parsed.MaterialRadius)));
         }
         // CSS 背景层「先写者在上」：按 z 升序收集，输出时反转，保证高 z 图元压在上面（不再后写覆盖先写）。
         if (backgrounds.Count > 0)
@@ -227,13 +233,12 @@ public static class CssSurfaceProjector
         declarations.Add(Pair("box-sizing", "border-box"));
 
         // 未投影图元可见化（texture/decal 缺件、noise/mask 等）。
-        foreach (var layer in material.Layers)
+        foreach (var layerSpec in parsed.Specs)
         {
-            if (layer.Primitive is "texture" or "decal" && Asset(layer).Length == 0)
-                skipped.Add(layer.Primitive + ":" + layer.Role);
-            else if (layer.Primitive is not ("fill" or "gradient" or "stroke" or "shadow"
-                     or "innerShadow" or "backdrop" or "specular" or "texture" or "decal"))
-                skipped.Add(layer.Primitive + ":" + layer.Role);
+            if (layerSpec.Kind is LayerPrimitive.Texture or LayerPrimitive.Decal && layerSpec.Asset.Length == 0)
+                skipped.Add(layerSpec.Primitive + ":" + layerSpec.Role);
+            else if (layerSpec.Kind is LayerPrimitive.Mask or LayerPrimitive.Noise or LayerPrimitive.Unknown)
+                skipped.Add(layerSpec.Primitive + ":" + layerSpec.Role);
         }
 
         return declarations;
@@ -272,36 +277,25 @@ public static class CssSurfaceProjector
         }
     }
 
-    /// <summary>材质级最大圆角半径（与 GDI+ 的材质兜底同口径）。</summary>
-    private static float MaterialRadius(ResolvedMaterial material)
-    {
-        var max = 0f;
-        foreach (var layer in material.Layers)
-        {
-            var raw = Param(layer, "radius", string.Empty);
-            if (raw.Length > 0 && float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-                && parsed > max)
-            {
-                max = parsed;
-            }
-        }
-
-        return max;
-    }
-
     /// <summary>全局光态 → <c>--sl-*</c> 变量（唯一格式化的地方；不做任何光计算）。</summary>
     private static List<KeyValuePair<string, string>> LightVariables(SurfaceLightSample sample)
     {
         var angle = (int)Math.Round(sample.Angle);
         var spotX = Math.Clamp((int)Math.Round(sample.SpotX * 100), 0, 100);
         var spotY = Math.Clamp((int)Math.Round(sample.SpotY * 100), 0, 100);
+        // 高光强度同样由光态驱动（与 WinForms 的 SheenPeak 同一判据：矩阵镜面权重 → alpha）；
+        // --sl-tint 只被 sheen/spot 背景层使用，故把强度直接编码进它的 alpha，避免 CSS 侧再做光数学。
+        var specular = Math.Clamp(sample.Specular, 0f, 1f);
+        var sheenAlpha = (int)Math.Round(255 * (0.25 + 0.75 * specular));
+        var sheenTint = unchecked((sheenAlpha << 24) | (sample.TintArgb & 0x00FFFFFF));
         return new List<KeyValuePair<string, string>>
         {
             Pair("--sl-angle", angle.ToString(CultureInfo.InvariantCulture) + "deg"),
             Pair("--sl-x", spotX.ToString(CultureInfo.InvariantCulture) + "%"),
             Pair("--sl-y", spotY.ToString(CultureInfo.InvariantCulture) + "%"),
-            Pair("--sl-tint", CssColor(sample.TintArgb)),
+            Pair("--sl-tint", CssColor(sheenTint)),
             Pair("--sl-intensity", sample.Intensity.ToString("F2", CultureInfo.InvariantCulture)),
+            Pair("--sl-spec", specular.ToString("F2", CultureInfo.InvariantCulture)),
             Pair("--sl-edge-top", sample.EdgeTop.ToString("F2", CultureInfo.InvariantCulture)),
             Pair("--sl-edge-left", sample.EdgeLeft.ToString("F2", CultureInfo.InvariantCulture)),
             Pair("--sl-edge-right", sample.EdgeRight.ToString("F2", CultureInfo.InvariantCulture)),
@@ -336,41 +330,36 @@ public static class CssSurfaceProjector
     /// <summary>零值不写单位（<c>inset 0 0 …</c>），非零按 DIP→px。</summary>
     private static string ZeroAware(float value) => Math.Abs(value) < 0.001f ? "0" : FormatPx(value);
 
-    private static string Asset(ResolvedLayer layer)
-        => layer.Params.TryGetValue("asset", out var asset) ? asset : string.Empty;
-
-    private static string Param(ResolvedLayer layer, string name, string fallback)
-        => layer.Params.TryGetValue(name, out var value) && value.Length > 0 ? value : fallback;
-
     /// <summary>九宫格（slice 非空才产出 border-image 一套；调用方保证不再叠加 background 同图）。</summary>
-    private static IEnumerable<KeyValuePair<string, string>> NineSlice(ResolvedLayer layer, string asset)
+    private static IEnumerable<KeyValuePair<string, string>> NineSlice(ResolvedLayerSpec layerSpec)
     {
-        if (!layer.Params.TryGetValue("slice", out var slice) || slice.Length == 0) yield break;
+        var slice = layerSpec.SliceText;
         yield return Pair("border-style", "solid");
-        yield return Pair("border-image-source", $"url(\"{asset}\")");
+        yield return Pair("border-image-source", $"url(\"{layerSpec.Asset}\")");
         yield return Pair("border-image-slice", slice + " fill");
-        yield return Pair("border-image-repeat", Param(layer, "repeat", "stretch"));
+        yield return Pair("border-image-repeat", layerSpec.Repeat.Length > 0 ? layerSpec.Repeat : "stretch");
         yield return Pair("border-image-width", slice);
     }
 
-    private static bool HasSlice(ResolvedLayer layer)
-        => layer.Params.TryGetValue("slice", out var slice) && slice.Length > 0;
-
-    private static KeyValuePair<string, string> Pair(string property, string value) => new(property, value);
-
-    private static string Deg(ResolvedLayer layer)
-        => layer.Params.TryGetValue("angle", out var angle) && angle.Length > 0 ? angle : "180";
-
-    private static string Px(ResolvedLayer layer, string name, string fallback)
+    /// <summary>渐变 stop → CSS（未声明位置则不带百分比，保持既有输出形态）。</summary>
+    private static string GradientStopsCss(GradientSpec gradient)
     {
-        var raw = layer.Params.TryGetValue(name, out var value) && value.Length > 0 ? value : fallback;
-        return FormatPx(float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
-            ? parsed
-            : 0);
+        var parts = new List<string>(gradient.Stops.Count);
+        foreach (var stop in gradient.Stops)
+        {
+            var text = CssColor(stop.Argb);
+            if (stop.HasPosition)
+            {
+                text += " " + ((int)Math.Round(stop.Position * 100)).ToString(CultureInfo.InvariantCulture) + "%";
+            }
+
+            parts.Add(text);
+        }
+
+        return string.Join(", ", parts);
     }
 
-    private static string ReplaceCommas(string value, string separator)
-        => string.Join(separator, value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+    private static KeyValuePair<string, string> Pair(string property, string value) => new(property, value);
 
     private static string FormatPx(float value)
         => Math.Abs(value - Math.Round(value)) < 1e-6

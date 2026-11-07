@@ -12,6 +12,22 @@ using UiBackend;
 namespace FrontEndDriven.WinForms.Paint;
 
 /// <summary>
+/// 绘制范围（K3：唯一图层相位 splitter）。
+/// <para>取代 includeSpecular / dynamicOnly 两个布尔：Static = 除 Sheen 外的全部相位，Dynamic = 仅 Sheen，All = 全部。</para>
+/// </summary>
+internal enum PaintScope
+{
+    /// <summary>全部相位（含高光）。</summary>
+    All,
+
+    /// <summary>静态相位（Underlay/Fill/Edge/Overlay；供底图缓存）。</summary>
+    Static,
+
+    /// <summary>仅动态相位（Sheen）。</summary>
+    Dynamic,
+}
+
+/// <summary>
 /// 皮肤绘制引擎（GDI+ 方言落点）：已解析材质层栈 → 控件背景。
 /// <para>支持 fill/gradient/stroke/shadow/innerShadow/backdrop/specular；texture/decal/mask 由 M6 接管（进 Skipped，禁静默纯色）。</para>
 /// <para>backdrop：有宿主快照时「采样背后 + 模糊」；无快照才回退旧近似并记账 <c>backdrop:emulated</c>，禁伪装原生模糊。</para>
@@ -68,27 +84,29 @@ public static class SkinPaintEngine
     public static IReadOnlyList<string> Paint(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, Image? backdrop = null,
         SurfaceLightState? light = null, bool includeSpecular = true)
-        => PaintCore(graphics, bounds, material, backdrop, light, includeSpecular, dynamicOnly: false, out _);
+        => PaintCore(graphics, bounds, material, backdrop, light,
+            includeSpecular ? PaintScope.All : PaintScope.Static, out _);
 
     /// <summary>绘制一次材质（背景），并回报**实际落笔图层数**（诊断「有没有画到」的唯一证据）。</summary>
     public static IReadOnlyList<string> Paint(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, out int paintedLayers,
         Image? backdrop = null, SurfaceLightState? light = null, bool includeSpecular = true)
-        => PaintCore(graphics, bounds, material, backdrop, light, includeSpecular, dynamicOnly: false, out paintedLayers);
+        => PaintCore(graphics, bounds, material, backdrop, light,
+            includeSpecular ? PaintScope.All : PaintScope.Static, out paintedLayers);
 
     /// <summary>只画随时间/光标变化的层（当前仅 specular）；静态层由缓存底图提供。</summary>
     public static IReadOnlyList<string> PaintDynamic(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, SurfaceLightState? light)
-        => PaintCore(graphics, bounds, material, null, light, includeSpecular: true, dynamicOnly: true, out _);
+        => PaintCore(graphics, bounds, material, null, light, PaintScope.Dynamic, out _);
 
     /// <summary>只画动态层，并回报实际落笔图层数。</summary>
     public static IReadOnlyList<string> PaintDynamic(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, SurfaceLightState? light, out int paintedLayers)
-        => PaintCore(graphics, bounds, material, null, light, includeSpecular: true, dynamicOnly: true, out paintedLayers);
+        => PaintCore(graphics, bounds, material, null, light, PaintScope.Dynamic, out paintedLayers);
 
     private static IReadOnlyList<string> PaintCore(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, Image? backdrop,
-        SurfaceLightState? light, bool includeSpecular, bool dynamicOnly, out int paintedLayers)
+        SurfaceLightState? light, PaintScope scope, out int paintedLayers)
     {
         ArgumentNullException.ThrowIfNull(graphics);
         paintedLayers = 0;
@@ -106,7 +124,7 @@ public static class SkinPaintEngine
             var materialRadius = specSet.MaterialRadius;
 
             var painted = 0;
-            foreach (var spec in OrderedSpecs(specSet.Specs, includeSpecular, dynamicOnly))
+            foreach (var spec in OrderedSpecs(specSet.Specs, scope))
             {
                 // 明细由 PaintLayer 记账（unresolved-value:<raw>）；未落笔时再补「层身份」项。
                 var layerBegin = SkinRenderProfile.Begin();
@@ -135,23 +153,20 @@ public static class SkinPaintEngine
     /// <para>动态/静态拆分由相位判定（唯一判据），不再靠字面量 <c>"specular"</c>；shadow/backdrop 在 Underlay，不得盖住 fill/stroke。</para>
     /// </summary>
     private static IEnumerable<ResolvedLayerSpec> OrderedSpecs(
-        IReadOnlyList<ResolvedLayerSpec> specs, bool includeSpecular, bool dynamicOnly)
+        IReadOnlyList<ResolvedLayerSpec> specs, PaintScope scope)
     {
         var ordered = new List<ResolvedLayerSpec>(specs.Count);
         foreach (var spec in specs)
         {
-            var phase = SurfaceLayerPhase.Of(spec.Primitive);
-            if (dynamicOnly ? phase != LayerPhase.Sheen : (!includeSpecular && phase == LayerPhase.Sheen))
-            {
-                continue;
-            }
-
+            // 相位已在解析期定型（spec.Phase），此处只按绘制范围过滤，不再解析图元名。
+            if (scope == PaintScope.Dynamic && spec.Phase != LayerPhase.Sheen) continue;
+            if (scope == PaintScope.Static && spec.Phase == LayerPhase.Sheen) continue;
             ordered.Add(spec);
         }
 
         ordered.Sort(static (left, right) =>
         {
-            var phaseOrder = (int)SurfaceLayerPhase.Of(left.Primitive) - (int)SurfaceLayerPhase.Of(right.Primitive);
+            var phaseOrder = (int)left.Phase - (int)right.Phase;
             return phaseOrder != 0 ? phaseOrder : left.Z - right.Z;
         });
         return ordered;

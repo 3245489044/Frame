@@ -121,6 +121,9 @@ public sealed record ResolvedLayerSpec(
     /// <summary>本层解析期问题（无问题 = 空；载体按此判定「本层是否可落笔」）。</summary>
     public IReadOnlyList<LayerIssue> Issues { get; init; } = Array.Empty<LayerIssue>();
 
+    /// <summary>本层相位（解析期定型；载体按相位过滤/排序，不再按图元名判定）。</summary>
+    public LayerPhase Phase => SurfaceLayerPhase.Of(Kind);
+
     /// <summary>主色 alpha（0..255）。</summary>
     public int Alpha => (ColorArgb >> 24) & 0xFF;
 

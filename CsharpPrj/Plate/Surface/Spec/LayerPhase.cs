@@ -1,11 +1,12 @@
 #nullable enable
 
-namespace Share.Conversation.Rendering.Surface;
+namespace UiBackend;
 
 /// <summary>
-/// 图层相位（**唯一图层序口径**）：同相位内按 <see cref="ResolvedLayer.Z"/> 升序，跨相位按枚举序绘制。
+/// 图层相位（**唯一图层序口径**）：同相位内按 <see cref="ResolvedLayerSpec.Z"/> 升序，跨相位按枚举序绘制。
 /// <para>相位取代「按 z 全局排序」与「字面量 specular 判动态」两套口径：shadow/backdrop 属 Underlay，
 /// 不得盖在 fill/stroke 之上；specular 属 Sheen，是唯一动态相位。</para>
+/// <para>相位在解析期随 <see cref="ResolvedLayerSpec.Phase"/> 定型，载体只按相位过滤/排序，不再解析图元名。</para>
 /// </summary>
 public enum LayerPhase
 {
@@ -30,17 +31,21 @@ public static class SurfaceLayerPhase
 {
     /// <summary>图元所属相位（未知图元 ⇒ <see cref="LayerPhase.Overlay"/>，由调用方按「未实现」记账）。</summary>
     /// <param name="primitive">图元名。</param>
-    public static LayerPhase Of(string primitive) => primitive switch
+    public static LayerPhase Of(string primitive) => Of(ResolvedLayerSpec.KindOf(primitive));
+
+    /// <summary>图元类型所属相位（解析期已定型；载体直接用本重载）。</summary>
+    /// <param name="kind">图元类型。</param>
+    public static LayerPhase Of(LayerPrimitive kind) => kind switch
     {
-        "backdrop" => LayerPhase.Underlay,
-        "shadow" => LayerPhase.Underlay,
-        "fill" => LayerPhase.Fill,
-        "gradient" => LayerPhase.Fill,
-        "texture" => LayerPhase.Fill,
-        "decal" => LayerPhase.Fill,
-        "stroke" => LayerPhase.Edge,
-        "innerShadow" => LayerPhase.Overlay,
-        "specular" => LayerPhase.Sheen,
+        LayerPrimitive.Backdrop => LayerPhase.Underlay,
+        LayerPrimitive.Shadow => LayerPhase.Underlay,
+        LayerPrimitive.Fill => LayerPhase.Fill,
+        LayerPrimitive.Gradient => LayerPhase.Fill,
+        LayerPrimitive.Texture => LayerPhase.Fill,
+        LayerPrimitive.Decal => LayerPhase.Fill,
+        LayerPrimitive.Stroke => LayerPhase.Edge,
+        LayerPrimitive.InnerShadow => LayerPhase.Overlay,
+        LayerPrimitive.Specular => LayerPhase.Sheen,
         _ => LayerPhase.Overlay,
     };
 

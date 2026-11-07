@@ -79,7 +79,9 @@ public static class FrameComposer
             FrameGroupLabels.Default,
             options.Presentation);
 
-        var top = AttachPlanner.Plan(items, policy);
+        // 锚点判定与合成必须用**同一份**生效策略：曾用原始 policy（可空）做 Plan，
+        // 却用 effective 做字段合成 ⇒ policy 为空时全部落入 lead，终答恒为 fieldRow（气泡永不成立）。
+        var top = AttachPlanner.Plan(items, effective);
         var roots = new List<UiSurfaceNode>();
         var diagnostics = new List<UnknownFieldRecord>();
         // 计数单源：行/合并由同一分组实现产出（禁第二套聚合）。
@@ -193,7 +195,7 @@ public static class FrameComposer
             foreach (var contract in contracts)
             {
                 if (!Applies(contract, item)) continue;
-                var field = BuildField(item, kind, contract.Name, contract.From, origin, options);
+                var field = BuildField(item, kind, contract, origin, options);
                 if (field.IsNotApplicable) continue;
                 RecordUnknown(diagnostics, kind, field);
                 fields.Add(field);
@@ -204,7 +206,8 @@ public static class FrameComposer
             // 未声明字段契约 ⇒ 旧口径（name 即来源），保持既有可见性。
             foreach (var name in declared)
             {
-                var field = BuildField(item, kind, name, name, origin, options);
+                var field = BuildField(
+                    item, kind, new FrameFieldContract(name, name, FrameFieldContract.Always), origin, options);
                 if (field.IsNotApplicable) continue;
                 RecordUnknown(diagnostics, kind, field);
                 fields.Add(field);
@@ -239,18 +242,24 @@ public static class FrameComposer
         };
 
     private static UiField BuildField(
-        ConversationRenderItem item, string kind, string name, string from,
+        ConversationRenderItem item, string kind, FrameFieldContract contract,
         PresentationOrigin origin, FrameComposerOptions options)
     {
+        var name = contract.Name;
+        var from = contract.From;
         var spec = options.Fields.Resolve(name);
+        var value = ValueOf(item, from, origin);
+        var required = string.Equals(contract.ApplicableWhen, FrameFieldContract.Always, StringComparison.Ordinal);
 
-        // 字段口径裁决（D 层）：该 kind 声明键集内无此来源 ⇒ NotApplicable（不渲染，不是缺值）。
-        if (options.Schema.IsApplicable(kind, from) == false)
+        // 字段口径裁决（D 层唯一判据）：消费方禁再按「值是否存在」自行推断三态。
+        switch (options.Schema.VerdictOf(kind, from, value is not null, required))
         {
-            return UiField.NotApplicable(name, spec.LabelKey, SurfaceReasonCodes.KindHasNoSuchKey);
+            case FrameFieldVisibility.NotApplicable:
+                return UiField.NotApplicable(name, spec.LabelKey, SurfaceReasonCodes.KindHasNoSuchKey);
+            case FrameFieldVisibility.Unknown:
+                return UiField.Unknown(name, spec.LabelKey, SurfaceReasonCodes.MissingValue, name);
         }
 
-        var value = ValueOf(item, from, origin);
         if (value is null)
         {
             return UiField.Unknown(name, spec.LabelKey, SurfaceReasonCodes.MissingValue, name);
@@ -308,10 +317,10 @@ public static class FrameComposer
     private static object? ValueOf(ConversationRenderItem item, string name, PresentationOrigin origin)
         => name switch
         {
-            "text" => !string.IsNullOrEmpty(item.Text)
-                ? item.Text
-                : FieldOf(item, "message"),
-            "message" => !string.IsNullOrEmpty(item.Text) ? item.Text : FieldOf(item, "message"),
+            // 正文来源单源 = 帧字段袋（message 优先、text 兼容），**不回退 shaping summary**：
+            // item.Text 已是塑形摘要（可能等于 stage 等其他字段），回退会造成同一行 `X · X` 重复。
+            "text" => FieldOf(item, "text") ?? item.Text,
+            "message" => FieldOf(item, "message") ?? FieldOf(item, "text"),
             "terminal" => item.Terminal,
             "archived" => item.Archived,
             "presentation" => item.Presentation,

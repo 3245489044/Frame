@@ -101,7 +101,8 @@ public sealed class BoundaryWeights
 /// <summary>空间边界参数：Cline 工作根目录与范围守卫。</summary>
 public sealed class SpatialBoundaryConfig
 {
-    /// <summary>基准根目录（默认仓库根）；未设置时评估器回退当前工作目录。</summary>
+    /// <summary>基准根目录（默认仓库根）。未设置时评估器**不**提供隐式根（不回退当前工作目录）；
+    /// 由装配期注入的宿主默认根兜底，仍为空则调用方抛错。</summary>
     public string? BaseRoot { get; set; }
 
     /// <summary>允许访问的根目录白名单。</summary>

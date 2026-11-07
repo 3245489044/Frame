@@ -2891,6 +2891,14 @@
         Note    = 'CW-17 零静态可变账本（CW-09 销账项）：账本只经 IOverviewQuery 读快照；负对照'
     }
 
+    'CF-W-18-ProduceConsumed' = @{
+        Domain  = 'Constraint'
+        Args    = @{}
+        Expect  = 0
+        Carrier = 'gather-views.generated.json 的 needs[].domain / produces[].name × Agent/Frame 源码的 ProvideFor 与名称引用'
+        Note    = 'CW-18 聚拢产物消费闭合（声明→消费方向）：need 须有 ProvideFor 实现；kind∈{declaration,report,snapshot,node-batch} 的 produce 须有消费点或下游 need；host 结构消费类 kind（dom-region/carrier-artifact/ui-surface）按载体管线判；与 GatherClosure C5（Emit→声明）方向互补。报告模式（Args 空 = 不阻断）；G6 销账死 produce 后改 Args=@{Check=$true}；正负对照'
+    }
+
     'CF-W-19-NoLocalPlaceholder' = @{
         Domain  = 'Constraint'
         Args    = @{ Check = $true }

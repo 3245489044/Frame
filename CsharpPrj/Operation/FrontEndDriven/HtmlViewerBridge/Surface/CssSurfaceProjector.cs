@@ -321,7 +321,8 @@ public static class CssSurfaceProjector
         var specular = Math.Clamp(sample.Specular, 0f, 1f);
         var sheenAlpha = (int)Math.Round(255 * (0.25 + 0.75 * specular));
         var sheenTint = unchecked((sheenAlpha << 24) | (sample.TintArgb & 0x00FFFFFF));
-        // 虹彩相位只随太阳方向变化（IridescenceRamp.PhaseOf），CSS 侧只消费角度值。
+        // 虹彩相位 = 「世界固定锚点 − 探针中心」的方位角（IridescenceRamp.Bearing01）；
+        // 这里取整个覆盖区为探针，故是全局一份。逐元素相位需要 rectQuery 回传几何（见 06 P6）。
         var iridAngle = (int)Math.Round(Math.Clamp(sample.IridescencePhase, 0f, 1f) * 360) % 360;
         return new List<KeyValuePair<string, string>>
         {

@@ -70,7 +70,7 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// <summary>照度权重（0..1）：超出判定半径即 0。</summary>
     public float Shade { get; init; } = 1f;
 
-    /// <summary>虹彩相位（0..1）：只随太阳方向变化，不随控件位置变化。</summary>
+    /// <summary>虹彩相位（0..1）：光斑相对控件中心的方位角（世界固定锚点 − 控件中心）。</summary>
     public float IridescencePhase { get; init; }
 
     /// <summary>光场签名（缓存失效依据）。</summary>

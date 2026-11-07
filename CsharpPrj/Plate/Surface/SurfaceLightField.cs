@@ -254,8 +254,9 @@ public readonly record struct SurfaceLightSample(
     public float Shade { get; init; } = 1f;
 
     /// <summary>
-    /// 虹彩相位（0..1）：由 <see cref="IridescenceRamp.PhaseOf"/> 从**太阳方向与面板固定法线**求得，
-    /// 不含屏幕矩形/控件位置 ⇒ 面板移动时相位不变。
+    /// 虹彩相位（0..1）：由 <see cref="IridescenceRamp.Bearing01"/> 从**光斑相对面板中心的偏移方向**求得。
+    /// <para>光斑在世界/屏幕上是固定的，面板从它下面穿过；相位取「锚点 − 面板中心」的方位角，
+    /// 因此面板相对光斑移动时色相随之转动，而光斑本身的屏幕位置不动。</para>
     /// </summary>
     public float IridescencePhase { get; init; }
 
@@ -330,8 +331,10 @@ public static class SurfaceLightPort
         var anchor = frame.Anchor;
         var spotLocalX = anchor.X - probe.X;
         var spotLocalY = anchor.Y - probe.Y;
-        var spotX = probe.Width <= 1e-6f ? 0.5f : Math.Clamp(spotLocalX / probe.Width, 0.05f, 0.95f);
-        var spotY = probe.Height <= 1e-6f ? 0.5f : Math.Clamp(spotLocalY / probe.Height, 0.05f, 0.95f);
+        // 归一化只用于诊断/旧令牌口径，**不做** [0.05,0.95] 夹取：光斑允许落在面板之外，
+        // 面板不受光由 Shade 判定，而不是把光斑拽回面板角落。
+        var spotX = probe.Width <= 1e-6f ? 0.5f : spotLocalX / probe.Width;
+        var spotY = probe.Height <= 1e-6f ? 0.5f : spotLocalY / probe.Height;
 
         // 照度权重：锚点外平方衰减；超出判定半径即 0（不受光组件不得再叠边缘光/条带）。
         var shadeX = anchor.X - probe.CenterX;
@@ -342,8 +345,9 @@ public static class SurfaceLightPort
             ? 1f
             : Math.Clamp(1f - (distance / litRadius) * (distance / litRadius), 0f, 1f);
 
-        // 虹彩相位：只取太阳方向与面板固定法线，**不含**屏幕矩形/控件位置。
-        var phase = IridescenceRamp.PhaseOf(frame.Sun);
+        // 虹彩相位：取「世界固定锚点 − 面板中心」的方位角。光斑不随面板移动，
+        // 面板从光斑下方穿过时方位角变化 ⇒ 色相转动；这与「光不跟 UI 走」是同一模型的两面。
+        var phase = IridescenceRamp.Bearing01(anchor.X - probe.CenterX, anchor.Y - probe.CenterY);
 
         var edgeTop = Math.Max(0f, -direction.Y);
         var edgeBottom = Math.Max(0f, direction.Y);
@@ -446,28 +450,21 @@ public static class SurfaceLightPort
 }
 
 /// <summary>
-/// 虹彩色相环（**全仓唯一**的虹彩相位/色相实现）：相位只由太阳方向与面板固定法线求得。
-/// <para>与 <see cref="SurfaceLightPort"/> 一样，本类不接收矩形/控件位置，
-/// 因此「光不跟 UI 走」与「虹彩随光向变化」可以同时成立。</para>
+/// 虹彩色相环（**全仓唯一**的虹彩相位/色相实现）：相位是「世界固定光斑相对面板中心」的方位角。
+/// <para>光斑的屏幕位置不随面板移动；面板从光斑下方穿过时，方位角变化驱动色相转动。
+/// 因此「光不跟 UI 走」与「虹彩随位置/光向变化」来自同一模型，不再退回面板局部归一化坐标。</para>
 /// </summary>
 public static class IridescenceRamp
 {
-    /// <summary>面板固定倾角（度）：法线朝屏幕上方倾斜 35°，使太阳方位 90°→180° 相位单调递增 ≥0.2。</summary>
-    public const float PanelTiltDegrees = 35f;
-
-    /// <summary>面板固定法线（屏幕系：x 右、y 下、z 出屏），与控件位置无关。</summary>
-    public static readonly SurfaceLightDirection PanelNormal = new(
-        0f,
-        -MathF.Sin(PanelTiltDegrees * MathF.PI / 180f),
-        MathF.Cos(PanelTiltDegrees * MathF.PI / 180f));
-
-    /// <summary>太阳方向 → 虹彩相位（0..1）；面板移动不改变相位，太阳方位/高度变化才改变。</summary>
-    public static float PhaseOf(SurfaceLightDirection sun)
+    /// <summary>
+    /// 偏移向量 → 方位相位（0..1）：0=光斑在面板右侧、0.25=上方、0.5=左侧、0.75=下方（屏幕系 y 向下）。
+    /// <para><paramref name="offsetX"/>/<paramref name="offsetY"/> = 锚点 − 面板中心（屏幕 DIP）。</para>
+    /// </summary>
+    public static float Bearing01(float offsetX, float offsetY)
     {
-        var normalized = sun.Normalized();
-        if (normalized == SurfaceLightDirection.Empty) return 0.5f;
-        var dot = PanelNormal.X * normalized.X + PanelNormal.Y * normalized.Y + PanelNormal.Z * normalized.Z;
-        return Math.Clamp(0.5f * (1f - dot), 0f, 1f);
+        if (MathF.Abs(offsetX) <= 1e-6f && MathF.Abs(offsetY) <= 1e-6f) return 0.5f;
+        var degrees = MathF.Atan2(-offsetY, offsetX) * (180f / MathF.PI);
+        return (degrees % 360f + 360f) % 360f / 360f;
     }
 
     /// <summary>相位 + 沿轮廓/折面的参数 t（0..1）→ 色相（度）。</summary>

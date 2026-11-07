@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -95,7 +96,7 @@ public static class HtmlShellProjector
         string subtitle,
         string treeHtml,
         IReadOnlyDictionary<string, string> contents,
-        IReadOnlyList<(string Key, string Html)> bubbles,
+        IReadOnlyList<(string Key, UiNode Root)> bubbles,
         string composerHtml,
         string overlayHtml,
         string? pollAttrs = null,
@@ -124,7 +125,8 @@ public static class HtmlShellProjector
         }
 
         var bubbleHtml = new StringBuilder();
-        foreach (var section in bubbles ?? Array.Empty<(string Key, string Html)>()) bubbleHtml.Append(section.Html);
+        foreach (var section in bubbles ?? Array.Empty<(string Key, UiNode Root)>())
+            bubbleHtml.Append(UiFragmentWriter.Serialize(section.Root));
 
         var mainInner = new StringBuilder();
         foreach (var container in containers)
@@ -196,26 +198,24 @@ public static class HtmlShellProjector
         IReadOnlyDictionary<string, string> shellSlots,
         IReadOnlyDictionary<string, string> containerContents,
         IReadOnlyDictionary<string, SurfaceContainerMarkup>? markup = null)
+        => ComposeContentNodes(containers, shellSlots, containerContents, markup)
+            .ToDictionary(static pair => pair.Key, static pair => UiFragmentWriter.Serialize(pair.Value), StringComparer.Ordinal);
+
+    /// <summary>
+    /// 容器内容装配（**节点出口**，唯一实现）：<c>containers[] × 壳槽 × 按容器键内容 ⇒ 容器键 → 节点</c>。
+    /// <para>壳槽/内容为已渲染片段（受信模板产物）⇒ <see cref="UiNode.RawText"/> 承载，不经 HTML→节点回解析；
+    /// 仅带 <see cref="SurfaceContainerMarkup"/> 的容器外套结构 <c>&lt;tag&gt;</c> 节点（属性序 = class → data-name → data-*）。</para>
+    /// </summary>
+    public static IReadOnlyDictionary<string, UiNode> ComposeContentNodes(
+        IReadOnlyList<UiViewContainer> containers,
+        IReadOnlyDictionary<string, string> shellSlots,
+        IReadOnlyDictionary<string, string> containerContents,
+        IReadOnlyDictionary<string, SurfaceContainerMarkup>? markup = null)
     {
         ArgumentNullException.ThrowIfNull(containers);
         var slots = shellSlots ?? new Dictionary<string, string>(StringComparer.Ordinal);
         var contents = containerContents ?? new Dictionary<string, string>(StringComparer.Ordinal);
-        var composed = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        string Wrap(string key, string html)
-        {
-            var structure = markup is not null && markup.TryGetValue(key, out var found) ? found : null;
-            var tag = string.IsNullOrWhiteSpace(structure?.Tag) ? "div" : structure!.Tag;
-            var cssClass = string.Join(" ", new[] { "region", structure?.Class }
-                .Where(value => !string.IsNullOrWhiteSpace(value)));
-            var attrs = new MarkupAttrBatch().Class(cssClass, "region").Name(key);
-            if (structure is not null)
-            {
-                foreach (var pair in structure.Attributes) attrs.Data(pair.Key, pair.Value);
-            }
-
-            return MarkupTag.Element(tag, attrs, html);
-        }
+        var composed = new Dictionary<string, UiNode>(StringComparer.Ordinal);
 
         foreach (var container in containers)
         {
@@ -231,11 +231,35 @@ public static class HtmlShellProjector
                 ? slotHtml
                 : contents.TryGetValue(container.Key, out var contentHtml) ? contentHtml : string.Empty;
             // 无结构标记 ⇒ 保持旧契约（纯内容片段）；有标记 ⇒ 只对已声明容器包裹（零回归）。
-            composed[container.Key] = markup is not null && markup.ContainsKey(container.Key)
-                ? Wrap(container.Key, html)
-                : html;
+            composed[container.Key] = markup is not null && markup.TryGetValue(container.Key, out var structure)
+                ? WrapNode(container.Key, html, structure)
+                : UiNode.RawText(html);
         }
 
         return composed;
+    }
+
+    private static UiNode WrapNode(string key, string html, SurfaceContainerMarkup? structure)
+    {
+        var tag = string.IsNullOrWhiteSpace(structure?.Tag) ? "div" : structure!.Tag;
+        // 类名去重：声明类若已含 region（如 "region panel"）不得拼成 "region region panel"。
+        var tokens = new List<string> { "region" };
+        if (structure is not null)
+        {
+            tokens.AddRange(structure.Class.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        var cssClass = string.Join(" ", tokens.Distinct(StringComparer.Ordinal));
+        var attributes = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["class"] = cssClass,
+            ["data-name"] = key,
+        };
+        if (structure is not null)
+        {
+            foreach (var pair in structure.Attributes) attributes["data-" + pair.Key] = pair.Value;
+        }
+
+        return UiNode.Element(tag, attributes: attributes, children: new[] { UiNode.RawText(html) });
     }
 }

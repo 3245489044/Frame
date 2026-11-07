@@ -74,6 +74,45 @@ public sealed record PresentationLabels(IReadOnlyDictionary<string, LabelSource>
 
         /// <summary>降级文案格式。</summary>
         public const string Degraded = "degraded";
+
+        /// <summary>概览区块标题。</summary>
+        public const string OverviewTitle = "overviewTitle";
+
+        /// <summary>概览：输入帧总数。</summary>
+        public const string OverviewTotal = "overviewTotal";
+
+        /// <summary>概览：呈现行数。</summary>
+        public const string OverviewRows = "overviewRows";
+
+        /// <summary>概览：合并帧数。</summary>
+        public const string OverviewMerged = "overviewMerged";
+
+        /// <summary>概览：未呈现数。</summary>
+        public const string OverviewNotPresented = "overviewNotPresented";
+
+        /// <summary>概览：落库帧数。</summary>
+        public const string OverviewEmitted = "overviewEmitted";
+
+        /// <summary>概览：仅计数帧数。</summary>
+        public const string OverviewCountedOnly = "overviewCountedOnly";
+
+        /// <summary>概览：未识别帧数。</summary>
+        public const string OverviewUnrecognized = "overviewUnrecognized";
+
+        /// <summary>概览：恒等式成立/不成立文案。</summary>
+        public const string OverviewBalanced = "overviewBalanced";
+
+        /// <summary>概览：恒等式不成立文案。</summary>
+        public const string OverviewUnbalanced = "overviewUnbalanced";
+
+        /// <summary>概览：视角选中数。</summary>
+        public const string OverviewSelected = "overviewSelected";
+
+        /// <summary>概览：视角过滤数。</summary>
+        public const string OverviewFilteredOut = "overviewFilteredOut";
+
+        /// <summary>未知值占位文案（三态出口的可见文本）。</summary>
+        public const string UnknownValue = "unknownValue";
     }
 
     /// <summary>空声明。</summary>

@@ -14,8 +14,8 @@ namespace FrontEndDriven.HtmlViewerBridge;
 
 /// <summary>
 /// 通用会话消息流渲染器（**薄编排器**）：面序编排 + 能力判定；
-/// 投影由 <see cref="RoundSectionProjector"/> / <see cref="HeadBandProjector"/> /
-/// <see cref="OperationProjector"/> / <see cref="AttachProjector"/> 承担。
+/// 投影由声明驱动的表面管线（<see cref="SurfaceRenderPipeline"/> / <see cref="FrameComposer"/>）承担，
+/// 附件行为无状态投影（<see cref="AttachProjector"/>）。
 /// <para>纪律：产物 = 节点树（字符串出口唯一 = <see cref="UiFragmentWriter"/>）；
 /// 能力经 <see cref="TemplateSurface"/> 一次解析（模板键来自声明）；折叠态由 <see cref="FoldPolicy"/> 裁决；
 /// 缺声明/缺能力 = 可见降级（禁伪造等价结构）。</para>
@@ -81,12 +81,11 @@ public sealed class HtmlStreamRenderer : IConversationFragmentRenderer
             context?.RoundLabels,
             _options.EmptyText);
 
-        // 段键与投影分离：划分唯一实现 = ConversationSectionPartitioner；开关只切投影器。
+        // 段键与投影分离：划分唯一实现 = ConversationSectionPartitioner；投影只有一条路径。
         var sections = FrontEndDriven.HtmlViewerBridge.Surface.ConversationSectionPartitioner.Partition(
             items, projection, Degradations(fold), _options, _regions);
-        var declarations = _options.UseSurfacePipeline ? _options.Surface : null;
         return FrontEndDriven.HtmlViewerBridge.Surface.SurfaceFragmentPlanner.Plan(
-            sections, projection, declarations, context?.ViewKey);
+            sections, projection, _options.Surface, context?.ViewKey);
     }
 }
 
@@ -124,10 +123,7 @@ public sealed record HtmlStreamRendererOptions
     /// <summary>折叠策略（宿主按视图声明注入；null ⇒ <see cref="FoldPolicy.Default"/>）。</summary>
     public FoldPolicy? Fold { get; init; }
 
-    /// <summary>表面管线开关（B2 一版回退开关）：true 且 <see cref="Surface"/> 非空 ⇒ RenderPlan 投影。</summary>
-    public bool UseSurfacePipeline { get; init; }
-
-    /// <summary>渲染声明闭包（宿主注入；null ⇒ 走旧字符串投影路径，零回归）。</summary>
+    /// <summary>渲染声明闭包（宿主注入；null ⇒ 可见降级，禁回退旧投影器）。</summary>
     public SurfaceDeclarations? Surface { get; init; }
 }
 

@@ -50,6 +50,9 @@ public static class FrameComposer
 
         var top = AttachPlanner.Plan(items, policy);
         var roots = new List<UiSurfaceNode>();
+        // 计数单源：行/合并由同一分组实现产出（禁第二套聚合）。
+        var rowCount = 0;
+        var mergedCount = 0;
 
         if (top.Lead.Count > 0)
         {
@@ -59,6 +62,7 @@ public static class FrameComposer
                 leadRows.Add(BuildRow(top.Lead[i], $"lead:{i}", options, null, null));
             }
 
+            rowCount += leadRows.Count;
             roots.Add(BuildGroupNode("lead", "lead", leadRows, options.Presentation));
         }
 
@@ -71,7 +75,8 @@ public static class FrameComposer
                 : SurfaceRoleIds.FieldRow;
 
             var children = new List<UiSurfaceNode>();
-            foreach (var group in AttachPlanner.PlanGroups(entry.Attach, effective).Groups)
+            var attachPlan = AttachPlanner.PlanGroups(entry.Attach, effective);
+            foreach (var group in attachPlan.Groups)
             {
                 var rows = new List<UiSurfaceNode>(group.Rows.Count);
                 for (var i = 0; i < group.Rows.Count; i++)
@@ -82,6 +87,10 @@ public static class FrameComposer
 
                 children.Add(BuildGroupNode($"group:{group.Kind}", group.Label, rows, options.Presentation));
             }
+
+            // 行数 = 组内行；合并数 = 输入帧 - 行（同一实现给出，禁差值倒推）。
+            rowCount += 1 + attachPlan.RowCount;
+            mergedCount += entry.Attach.Count - attachPlan.RowCount;
 
             roots.Add(new UiSurfaceNode(
                 role,
@@ -95,7 +104,10 @@ public static class FrameComposer
             anchorIndex++;
         }
 
-        return new RenderPlan(viewKey, roots);
+        return new RenderPlan(viewKey, roots)
+        {
+            Counts = new RenderPlanCounts(items.Count, rowCount, mergedCount),
+        };
     }
 
     private static UiSurfaceNode BuildRow(

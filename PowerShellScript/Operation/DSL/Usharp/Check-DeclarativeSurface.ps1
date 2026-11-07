@@ -106,9 +106,6 @@ if (Test-Path -LiteralPath $diagnosticsPath)
 $carriers = @(
     'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge\TemplateSurface.cs',
     'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge\HtmlStreamRenderer.cs',
-    'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge\Projection\RoundSectionProjector.cs',
-    'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge\Projection\HeadBandProjector.cs',
-    'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge\Projection\OperationProjector.cs',
     'Frame\CsharpPrj\Operation\FrontEndDriven\HtmlViewerBridge\Projection\RowModels.cs',
     'Frame\CsharpPrj\Share\Frameworks\Conversation\Rendering\FoldPolicy.cs',
     'Projects\Plug\Agent\src\Agent.Ui\Ui\Views\Rendering\ConversationRendererFactory.cs',

@@ -1,6 +1,5 @@
 #nullable enable
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Share.Conversation;
@@ -13,11 +12,14 @@ namespace FrontEndDriven.HtmlViewerBridge.Surface;
 
 /// <summary>
 /// 段计划（B2/M4b）：段划分 → 逐段合成 <see cref="RenderPlan"/> → 载体投影 → 片段。
-/// <para>段键唯一来源 = <see cref="ConversationSectionPartitioner"/>；开关只切投影器，不切段键。</para>
+/// <para>段键唯一来源 = <see cref="ConversationSectionPartitioner"/>；投影只有一条路径（声明不可用 ⇒ 可见降级）。</para>
 /// </summary>
 internal static class SurfaceFragmentPlanner
 {
-    /// <summary>按段产出片段（declarations 为空 ⇒ 走旧投影器，零回归）。</summary>
+    /// <summary>声明不可用诊断码（逐段可见降级，禁静默回退旧投影器）。</summary>
+    public const string SurfaceUnavailableCode = "surface-declaration-unavailable";
+
+    /// <summary>按段产出片段（声明不可用 ⇒ 逐段可见降级，段键保持不变）。</summary>
     public static IReadOnlyList<ConversationRenderFragment> Plan(
         IReadOnlyList<ConversationSection> sections,
         ConversationProjectionContext projection,
@@ -25,13 +27,18 @@ internal static class SurfaceFragmentPlanner
         string? viewKey)
     {
         var fragments = new List<ConversationRenderFragment>(sections.Count);
-        HtmlSurfaceBackend? backend = declarations is null
-            ? null
-            : new HtmlSurfaceBackend(declarations.Map, "html", declarations.Ui, surface: declarations.Resolved);
-        var latestRound = sections.Where(section => section.Kind == ConversationSectionKind.Round)
-            .Select(section => section.Round)
-            .DefaultIfEmpty(0)
-            .Max();
+        if (declarations is null)
+        {
+            foreach (var section in sections)
+            {
+                fragments.Add(new ConversationRenderFragment(
+                    section.Key, UiFragmentWriter.Fragment(Notices.Degraded(SurfaceUnavailableCode, projection))));
+            }
+
+            return fragments;
+        }
+
+        var backend = new HtmlSurfaceBackend(declarations.Map, "html", declarations.Ui, surface: declarations.Resolved);
 
         foreach (var section in sections)
         {
@@ -49,21 +56,17 @@ internal static class SurfaceFragmentPlanner
 
                 case ConversationSectionKind.Head:
                     fragments.Add(new ConversationRenderFragment(section.Key, Project(
-                        backend, section.Items, projection, declarations, viewKey,
-                        () => UiFragmentWriter.Fragment(HeadBandProjector.Project(section.Items, projection)))));
+                        backend, section.Items, projection, declarations, viewKey)));
                     break;
 
                 case ConversationSectionKind.Operation:
                     fragments.Add(new ConversationRenderFragment(section.Key, Project(
-                        backend, section.Items, projection, declarations, viewKey,
-                        () => UiFragmentWriter.Fragment(OperationProjector.Project(section.Items, projection)))));
+                        backend, section.Items, projection, declarations, viewKey)));
                     break;
 
                 case ConversationSectionKind.Round:
                     fragments.Add(new ConversationRenderFragment(section.Key, Project(
-                        backend, section.Items, projection, declarations, viewKey,
-                        () => UiFragmentWriter.Fragment(RoundSectionProjector.Project(
-                            section.Round, section.Items, latestRound, projection)))));
+                        backend, section.Items, projection, declarations, viewKey)));
                     break;
             }
         }
@@ -72,14 +75,12 @@ internal static class SurfaceFragmentPlanner
     }
 
     private static UiNode Project(
-        HtmlSurfaceBackend? backend,
+        HtmlSurfaceBackend backend,
         IReadOnlyList<ConversationRenderItem> items,
         ConversationProjectionContext projection,
-        SurfaceDeclarations? declarations,
-        string? viewKey,
-        Func<UiNode> legacy)
+        SurfaceDeclarations declarations,
+        string? viewKey)
     {
-        if (backend is null || declarations is null) return legacy();
         var plan = SurfaceRenderPipeline.Compose(items, projection.Policy, declarations, viewKey ?? string.Empty);
         return backend.Project(plan);
     }

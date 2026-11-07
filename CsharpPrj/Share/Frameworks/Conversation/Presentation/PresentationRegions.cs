@@ -51,6 +51,26 @@ public static class TemplateRegions
 public sealed record DeclaredSurface(string Id, int Band, int Order, bool Enabled);
 
 /// <summary>
+/// 声明面视角（Lens）条目：一个视角 = 一组声明式过滤谓词（呈现类 / 结构面）+ 报数所需标识。
+/// <para>谓词为空 ⇒ 不过滤（全量视角）；过滤结果必须报数（<c>Selected + FilteredOut == Total</c>）。</para>
+/// </summary>
+/// <param name="Id">视角标识（受控词，声明面给出）。</param>
+/// <param name="LabelKey">文案键（labels.json 键；缺省 = 标识自身）。</param>
+/// <param name="Classes">命中即选中的呈现类（空 = 不限类）。</param>
+/// <param name="Surfaces">命中即选中的结构面词（bubble/process/operation/notice；空 = 不限面）。</param>
+/// <param name="IsDefault">是否为默认视角。</param>
+public sealed record DeclaredLens(
+    string Id,
+    string LabelKey,
+    IReadOnlyList<string> Classes,
+    IReadOnlyList<string> Surfaces,
+    bool IsDefault = false)
+{
+    /// <summary>谓词是否为空（⇒ 全量视角）。</summary>
+    public bool IsUnfiltered => Classes.Count == 0 && Surfaces.Count == 0;
+}
+
+/// <summary>
 /// **渲染区域/模板键声明**（产品策略单源：<c>ui/presentation.regions.json</c>）。
 /// <para>
 /// 框架只认识区域标识（<see cref="TemplateRegions"/>），区域对应的模板键、唯一兜底模板、
@@ -73,6 +93,32 @@ public sealed record PresentationRegions(
 
     /// <summary>声明是否可用（区域键与兜底模板齐备）。</summary>
     public bool IsDeclared => RegionKeys.Count > 0 && DefaultTemplate.Length > 0;
+
+    /// <summary>声明面视角集（空 = 未声明 ⇒ 视角能力不可用，调用方须显式可见化）。</summary>
+    public IReadOnlyList<DeclaredLens> Lenses { get; init; } = Array.Empty<DeclaredLens>();
+
+    /// <summary>
+    /// 生效必需模板键（**单一来源投影**）：<see cref="RequiredTemplates"/> ∪ 区域键 ∪ 兜底模板。
+    /// <para>用途：模板集完备性校验只读本属性，禁再维护第二份键清单（区域键漏配 ⇒ 可见缺失）。</para>
+    /// </summary>
+    public IReadOnlyList<string> RequiredKeys
+    {
+        get
+        {
+            var keys = new List<string>(RequiredTemplates.Count + RegionKeys.Count + 1);
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            void Add(string? key)
+            {
+                if (string.IsNullOrWhiteSpace(key)) return;
+                if (seen.Add(key!)) keys.Add(key!);
+            }
+
+            Add(DefaultTemplate);
+            foreach (var key in RequiredTemplates) Add(key);
+            foreach (var key in RegionKeys.Values) Add(key);
+            return keys;
+        }
+    }
 
     /// <summary>区域 → 模板键（未声明 ⇒ 空串；调用方据此可见降级）。</summary>
     /// <param name="region">区域标识（<see cref="TemplateRegions"/>）。</param>
@@ -139,7 +185,53 @@ public sealed record PresentationRegions(
             }
         }
 
-        return new PresentationRegions(regions, defaultTemplate, required, surfaces);
+        return new PresentationRegions(regions, defaultTemplate, required, surfaces)
+        {
+            Lenses = ParseLenses(root),
+        };
+    }
+
+    /// <summary>解析视角声明段：<c>"lenses": [ { "id": "…", "labelKey": "…", "classes": [ … ], "surfaces": [ … ], "default": true } ]</c>。</summary>
+    private static IReadOnlyList<DeclaredLens> ParseLenses(JsonElement root)
+    {
+        if (!root.TryGetProperty("lenses", out var list) || list.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<DeclaredLens>();
+        }
+
+        var lenses = new List<DeclaredLens>(list.GetArrayLength());
+        foreach (var item in list.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) continue;
+            var id = ReadString(item, "id");
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            lenses.Add(new DeclaredLens(
+                id!.Trim(),
+                ReadString(item, "labelKey")?.Trim() ?? id.Trim(),
+                ReadStringList(item, "classes"),
+                ReadStringList(item, "surfaces"),
+                item.TryGetProperty("default", out var isDefault) && isDefault.ValueKind == JsonValueKind.True));
+        }
+
+        return lenses;
+    }
+
+    private static IReadOnlyList<string> ReadStringList(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var array) || array.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<string>();
+        }
+
+        var values = new List<string>(array.GetArrayLength());
+        foreach (var item in array.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String) continue;
+            var value = item.GetString();
+            if (!string.IsNullOrWhiteSpace(value)) values.Add(value!.Trim().ToLowerInvariant());
+        }
+
+        return values;
     }
 
     private static string? ReadString(JsonElement element, string name)

@@ -131,7 +131,7 @@ public static class HtmlShellProjector
                 foreach (var pair in structure.Attributes) attrs.Data(pair.Key, pair.Value);
             }
 
-            return MarkupTag.Element(tag, attrs, body.Html);
+            return MarkupTag.Element(tag, attrs, body);
         }
 
         var bubbleHtml = new StringBuilder();
@@ -146,6 +146,10 @@ public static class HtmlShellProjector
             if (slot == UiViewContainerSlot.Main || UiViewContainerSlots.IsShellSlot(slot)) continue;
 
             // 取值来源单源 = HasShellSource（位置与来源两 predicate 分离）：composer 在主区内但取壳槽值。
+            if (slot == UiViewContainerSlot.Stream && contents is not null && contents.ContainsKey(container.Key))
+                throw new InvalidOperationException(
+                    $"流容器 '{container.Key}' 的 contents 已含同名键（内容与气泡双拼；Stream 内容只允许经 bubbles 提供）");
+
             var body = UiViewContainerSlots.HasShellSource(slot)
                 ? ShellSlotValue(slots, slot)
                 : slot == UiViewContainerSlot.Stream
@@ -211,6 +215,8 @@ public static class HtmlShellProjector
 
     /// <summary>
     /// 容器内容装配（框架件，单一映射实现）：<c>containers[] × 壳槽 × 按容器键内容 ⇒ 容器键 → 片段</c>。
+    /// <para>**仅测试对拍 oracle**：生产调用点 = 0（生产走 <see cref="ComposeContentNodes"/> 节点出口）；
+    /// 删除条件 = 对拍用例退役或改消费节点出口时。</para>
     /// <para>结构槽知识只在本类 + <see cref="UiViewContainerSlots"/>（域侧不再写 suffix <c>switch</c>）：
     /// 壳槽（seg/head/subhead/aside/composer/overlay）取 <paramref name="shellSlots"/>；
     /// 内容容器取 <paramref name="containerContents"/>；<c>main</c> 为结构包裹（非容器，不产）；
@@ -227,8 +233,9 @@ public static class HtmlShellProjector
 
     /// <summary>
     /// 容器内容装配（**节点出口**，唯一实现）：<c>containers[] × 壳槽 × 按容器键内容 ⇒ 容器键 → 节点</c>。
-    /// <para>壳槽/内容为已渲染片段（受信模板产物）⇒ <see cref="UiNode.Markup"/> 承载，不经 HTML→节点回解析；
-    /// 仅带 <see cref="SurfaceContainerMarkup"/> 的容器外套结构 <c>&lt;tag&gt;</c> 节点（属性序 = class → data-name → data-*）。</para>
+    /// <para><b>唯一判定层</b>：受信片段在本边界一次 <see cref="HtmlNodeParser.Parse"/> 收敛为真元素 + 纯文本，
+    /// 树中不再出现 <see cref="UiNode.Raw"/> 节点 ⇒ 下游任何通道都不可能把 HTML 串当文本物化。</para>
+    /// <para>仅带 <see cref="SurfaceContainerMarkup"/> 的容器外套结构 <c>&lt;tag&gt;</c> 节点（属性序 = class → data-name → data-*）。</para>
     /// <para>槽位取值只经 <see cref="ShellSlotValue"/>（与 <see cref="RenderContainerShell"/> 同源）⇒ 两条路径不可能分叉。</para>
     /// </summary>
     public static IReadOnlyDictionary<string, UiNode> ComposeContentNodes(
@@ -245,15 +252,22 @@ public static class HtmlShellProjector
         foreach (var container in containers)
         {
             var slot = UiViewContainerSlots.Classify(container);
-            if (slot is UiViewContainerSlot.Main or UiViewContainerSlot.Stream) continue;
+            if (slot is UiViewContainerSlot.Main or UiViewContainerSlot.Stream)
+            {
+                if (slot == UiViewContainerSlot.Stream && contents.ContainsKey(container.Key))
+                    throw new InvalidOperationException(
+                        $"流容器 '{container.Key}' 的 contents 已含同名键（内容与气泡双拼；Stream 内容只允许经 bubbles 提供）");
+                continue;
+            }
 
             var value = UiViewContainerSlots.HasShellSource(slot)
                 ? ShellSlotValue(shellSlots, slot)
                 : contents.TryGetValue(container.Key, out var contentHtml) ? contentHtml : UiMarkup.Empty;
-            // 无结构标记 ⇒ 保持旧契约（纯内容片段）；有标记 ⇒ 只对已声明容器包裹（零回归）。
+            // 一次解析（B）：装配边界即唯一判定层；之后只搬运节点（RawText 不再跨进程）。
+            var parsed = HtmlNodeParser.Parse(value.Html, preserveWhitespace: true);
             composed[container.Key] = markup is not null && markup.TryGetValue(container.Key, out var structure)
-                ? WrapNode(container.Key, value, structure)
-                : UiNode.Markup(value);
+                ? WrapNode(container.Key, parsed, structure)
+                : parsed;
         }
 
         return composed;
@@ -278,7 +292,7 @@ public static class HtmlShellProjector
             new MarkupAttrBatch().Class("shell-title", "shell-title").Name(key).Data("degrade", "slot-undeclared"),
             inner);
 
-    private static UiNode WrapNode(string key, UiMarkup html, SurfaceContainerMarkup? structure)
+    private static UiNode WrapNode(string key, UiNode content, SurfaceContainerMarkup? structure)
     {
         var tag = string.IsNullOrWhiteSpace(structure?.Tag) ? "div" : structure!.Tag;
         // 类名去重：声明类若已含 region（如 "region panel"）不得拼成 "region region panel"。
@@ -299,6 +313,10 @@ public static class HtmlShellProjector
             foreach (var pair in structure.Attributes) attributes["data-" + pair.Key] = pair.Value;
         }
 
-        return UiNode.Element(tag, attributes: attributes, children: new[] { UiNode.Markup(html) });
+        // 片段根（Tag=""）⇒ 透传其子节点；纯文本根 ⇒ 单文本节点（不得把片段再当 Raw 子节点）。
+        var children = content.IsText
+            ? (IReadOnlyList<UiNode>)new[] { content }
+            : content.Children ?? Array.Empty<UiNode>();
+        return UiNode.Element(tag, attributes: attributes, children: children);
     }
 }

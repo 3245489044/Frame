@@ -486,6 +486,22 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
         => HtmlDocumentRenderer.ToHtml(bodyHtml, ResolveThemeDocument(), ThemeMode, FontSizePx);
 
 
+    /// <summary>读取阅读锚点（首个可见块稳定 key + 视口内偏移）。整页重挂前调用，供 <see cref="RestoreScrollAnchorAsync"/> 保位。</summary>
+    /// <param name="hostName">流容器名（与 <c>data-name</c> 一致，如 <c>logStream</c>）。</param>
+    public Task<string> CaptureScrollAnchorAsync(string hostName, CancellationToken ct = default)
+        => ((IHtmlChannel)this).ExecuteScriptAsync(
+            $"window.__uiReconcile&&window.__uiReconcile.captureAnchor?window.__uiReconcile.captureAnchor({JsonSerializer.Serialize(hostName)}):null", ct);
+
+    /// <summary>恢复阅读锚点（按稳定 key 定位 ⇒ 重挂期间插流/裁尾不影响位移；目标块已被裁剪时退化为绝对位置）。</summary>
+    /// <param name="anchorJson"><see cref="CaptureScrollAnchorAsync"/> 的返回原文（无效值按 null 处理）。</param>
+    /// <param name="hostName">流容器名（与 <c>data-name</c> 一致）。</param>
+    public Task<string> RestoreScrollAnchorAsync(string? anchorJson, string hostName, CancellationToken ct = default)
+    {
+        var arg = string.IsNullOrWhiteSpace(anchorJson) || anchorJson == "null" ? "null" : anchorJson;
+        return ((IHtmlChannel)this).ExecuteScriptAsync(
+            $"window.__uiReconcile&&window.__uiReconcile.restoreAnchor?window.__uiReconcile.restoreAnchor({JsonSerializer.Serialize(hostName)}," + arg + "):'NOT_READY'", ct);
+    }
+
     // IHtmlChannel 显式实现：整页渲染 + 页内 DOM 指令统一入口（CoreWebView2 访问收敛到本控件唯一封送点）。
     // P4 写回收敛：消息桥重渲染写回（hostWriter → RenderHtmlAsync）导航后等待点击桥就绪，确保重渲染产物（含 data-cmd/data-name
     // 交互元素）落地到存活 document 才返回——消除「写回 fire-and-forget → 后续脚本点击命中旧 DOM → 任务/视图点击无效/NOT_FOUND」缺陷。

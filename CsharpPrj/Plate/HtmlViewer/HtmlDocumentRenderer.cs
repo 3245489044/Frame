@@ -37,7 +37,7 @@ public static class HtmlDocumentRenderer
         var fontStyle = fontSizePx is > 0
             ? $"<style>body{{font-size:{fontSizePx.Value:F1}px;}}</style>"
             : string.Empty;
-        var css = theme is null ? DefaultCss : theme.ToCss();
+        var css = EffectiveCss(theme);
         var colorScheme = mode switch
         {
             ThemeMode.Light => "light",
@@ -78,6 +78,12 @@ public static class HtmlDocumentRenderer
 </html>
 """;
     }
+
+    /// <summary>
+    /// 页面生效 CSS（**唯一来源**）：文档注入与 WebView2 <c>DefaultBackgroundColor</c> 取同一表达式 ⇒
+    /// 玻璃档 <c>--bg:transparent</c> 对「页面实际渲染」与「宿主可采样背景」同时成立。
+    /// </summary>
+    public static string EffectiveCss(ThemeDocument? theme) => theme is null ? DefaultCss : theme.ToCss();
 
     /// <summary>默认主题 CSS：气泡式对话布局（user 右蓝 / agent 左灰）+ 浅/深双主题（跟随系统 prefers-color-scheme）+ CJK 排版。
     /// 内容唯一真源在 L1 资产层 <see cref="UiBackend.Html.HtmlAssetRegistry"/>（按 <see cref="UiBackend.Html.HtmlAssetKeys.DefaultCss"/> 具名引用）。</summary>

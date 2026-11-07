@@ -63,7 +63,7 @@ public sealed class WebViewLifecycleHost
             var theme = _content.ResolveTheme();
             if (_host.Core?.Profile is not null)
                 _host.Core.Profile.PreferredColorScheme = _content.Mode.Map();
-            var bg = HtmlThemeBackground.Resolve(theme.ToCss(), _content.Mode);
+            var bg = HtmlThemeBackground.Resolve(HtmlDocumentRenderer.EffectiveCss(theme), _content.Mode);
             if (bg.HasValue)
                 _host.DefaultBackgroundColor = bg.Value;
 

@@ -13,32 +13,19 @@ namespace Plate.HtmlViewer;
 /// </summary>
 public static class HtmlThemeBackground
 {
-    /// <summary>按模式取 CSS 中的背景色：Dark 优先取 @media (prefers-color-scheme: dark) 块内 :root 的 --bg，其余取默认 :root 的 --bg。</summary>
+    /// <summary>按模式取 CSS 中的背景色（级联仿真：Dark 全量源序最后一条；Light 剔除深色媒体块后最后一条）。</summary>
     public static Color? Resolve(string? css, ThemeMode mode)
     {
         if (string.IsNullOrWhiteSpace(css))
             return null;
-        var value = mode == ThemeMode.Dark ? ExtractBg(css, dark: true) : null;
-        value ??= ExtractBg(css, dark: false);
-        return ParseColor(value);
+
+        // 级联顺序即真相：运行期模块（如玻璃档 `:root{--bg:transparent}`）排在主题之后，必须参与取最后一条；
+        // Light 若在整段 CSS 上取值会命中 `@media (prefers-color-scheme: dark)` 内的深色值，故先剔除该块。
+        var scoped = mode == ThemeMode.Dark ? css : StripDarkMedia(css);
+        return ParseColor(LastBg(scoped));
     }
 
     private const string DarkMedia = "@media (prefers-color-scheme: dark)";
-
-    private static string? ExtractBg(string css, bool dark)
-    {
-        if (dark)
-        {
-            var start = css.IndexOf(DarkMedia, StringComparison.OrdinalIgnoreCase);
-            if (start < 0) return null;
-            var end = BlockEnd(css, start);
-            return LastBg(css.Substring(start, end - start));
-        }
-
-        // 非深色档：先移除深色媒体块，再按级联取**最后一条** `--bg`。
-        // 组件样式（如玻璃档的 `:root{--bg:transparent}`）可能排在媒体块之后覆盖基础档，不能只截取媒体块之前的前缀。
-        return LastBg(StripDarkMedia(css));
-    }
 
     /// <summary>移除全部深色媒体块（花括号配对扫描，不做 `IndexOf('}')` 截断）。</summary>
     private static string StripDarkMedia(string css)
@@ -82,11 +69,12 @@ public static class HtmlThemeBackground
 
     private static string? LastBg(string segment)
     {
-        // CSS 级联：同一段内后声明的 `--bg` 覆盖先声明的；取**最后一条**（旧实现只取第一条，
-        // 换肤后变量重定义不生效，窗口底与页面底色因此不同源）。
+        // CSS 级联：同一段内后声明的 `--bg` 覆盖先声明的 ⇒ 取**最后一条**（运行期模块同理参与覆盖）。
         var matches = Regex.Matches(
-            segment, "--bg\\s*:\\s*(#[0-9a-fA-F]{3,8}|transparent|none)", RegexOptions.IgnoreCase);
-        return matches.Count > 0 ? matches[matches.Count - 1].Groups[1].Value : null;
+            segment,
+            "--bg\\s*:\\s*(#[0-9a-fA-F]{3,8}|transparent|none|rgb\\([^)]*\\)|rgba\\([^)]*\\))",
+            RegexOptions.IgnoreCase);
+        return matches.Count > 0 ? matches[matches.Count - 1].Groups[1].Value.Trim() : null;
     }
 
     /// <summary>色值 ⇒ Color：统一走 <see cref="SurfaceColor"/>（CSS 8 位 = RRGGBBAA，禁在此另写一套）。</summary>

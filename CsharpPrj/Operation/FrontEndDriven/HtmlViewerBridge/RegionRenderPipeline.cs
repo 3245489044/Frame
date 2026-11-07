@@ -204,7 +204,8 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
 
             if (!Changed(RegionSlot(viewKey, region.Key), _hash(UiFragmentWriter.Serialize(bound)), commits)) continue;
 
-            // 节点直绑（不再把 HTML 解析回树：渲染产物本身即节点）；容器键已是 DOM 名（region-*）。
+            // 节点已由装配层（HtmlShellProjector.ComposeContentNodes）一次 HtmlNodeParser.Parse 收敛为真元素/纯文本；
+            // 本拍只做变化判定与投递（不携带 RawText，HTML 串不得以文本身份跨进程）。容器键已是 DOM 名（region-*）。
             trees.Add(new UiWriteTarget(TargetName(region.Key), bound));
         }
 

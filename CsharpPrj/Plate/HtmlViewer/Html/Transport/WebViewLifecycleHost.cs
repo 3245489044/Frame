@@ -63,6 +63,8 @@ public sealed class WebViewLifecycleHost
             var theme = _content.ResolveTheme();
             if (_host.Core?.Profile is not null)
                 _host.Core.Profile.PreferredColorScheme = _content.Mode.Map();
+            // 必须取**完整生效 CSS**而非主题 IR tokens：运行期模块（玻璃档等）会在主题之后追加 `--bg` 覆盖，
+            // token 直读重载只用于无 CSS 场景，走这里会丢运行期覆盖。
             var bg = HtmlThemeBackground.Resolve(HtmlDocumentRenderer.EffectiveCss(theme), _content.Mode);
             if (bg.HasValue)
                 _host.DefaultBackgroundColor = bg.Value;

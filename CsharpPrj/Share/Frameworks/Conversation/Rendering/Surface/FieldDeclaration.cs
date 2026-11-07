@@ -25,7 +25,7 @@ public sealed record FieldSpec(
 
 /// <summary>
 /// 字段词表声明（生成物 <c>fields.generated.json</c>；真源 = <c>Config\nodes\fields.ushar</c>）。
-/// <para>未声明字段的唯一出口 = <see cref="SurfaceCellIds.Unknown"/>（可见占位）。</para>
+/// <para>未登记字段 ⇒ 中性规格（单元为 unknown 仅供样式；语义三态由 D 层字段口径裁决，禁由 Cell 推断）。</para>
 /// </summary>
 public sealed class FieldDeclaration
 {
@@ -60,14 +60,32 @@ public sealed class FieldDeclaration
     /// <summary>已声明字段名集（覆盖门禁比对用）。</summary>
     public IReadOnlyCollection<string> FieldNames => (IReadOnlyCollection<string>)_fields.Keys;
 
-    /// <summary>解析字段规格（未声明 ⇒ unknown 单元）。</summary>
+    /// <summary>解析字段规格（未声明 ⇒ 中性文本单元，不伪造 unknown 语义）。</summary>
     /// <param name="name">字段名。</param>
     public FieldSpec Resolve(string name)
     {
         if (name is not null && _fields.TryGetValue(name, out var spec)) return spec;
-        var unknown = new FieldSpec(
-            name ?? string.Empty, "unknown", SurfaceCellIds.Unknown, TextShape, Array.Empty<string>());
-        return unknown;
+        return new FieldSpec(
+            name ?? string.Empty, "undeclared", SurfaceCellIds.Unknown, TextShape, Array.Empty<string>());
+    }
+
+    /// <summary>是否登记过该字段（声明面事实；门禁/合成共用）。</summary>
+    /// <param name="name">字段名。</param>
+    public bool Declares(string name) => name is not null && _fields.ContainsKey(name);
+
+    /// <summary>解析字段规格（未登记 ⇒ false，调用方按声明面裁决）。</summary>
+    /// <param name="name">字段名。</param>
+    /// <param name="spec">字段规格。</param>
+    public bool TryResolve(string name, out FieldSpec spec)
+    {
+        if (name is not null && _fields.TryGetValue(name, out var found))
+        {
+            spec = found;
+            return true;
+        }
+
+        spec = Resolve(name);
+        return false;
     }
 
     /// <summary>解析声明 JSON（不可解析 ⇒ 抛：失败姿态由调用方决定）。</summary>

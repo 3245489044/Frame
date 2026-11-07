@@ -46,6 +46,11 @@ public sealed record FrameComposerOptions(
     public IReadOnlyDictionary<string, IReadOnlyList<FrameFieldContract>> FieldContracts { get; init; }
         = new Dictionary<string, IReadOnlyList<FrameFieldContract>>(StringComparer.Ordinal);
 
+    /// <summary>
+    /// kind → 字段口径（声明键集；<see cref="FrameFieldSchema.Empty"/> ⇒ 旧口径）。
+    /// </summary>
+    public FrameFieldSchema Schema { get; init; } = FrameFieldSchema.Empty;
+
     /// <summary>空声明（一切字段 unknown、无气泡面）。</summary>
     public static readonly FrameComposerOptions Empty = new(
         PresentationDeclaration.Empty,
@@ -76,6 +81,7 @@ public static class FrameComposer
 
         var top = AttachPlanner.Plan(items, policy);
         var roots = new List<UiSurfaceNode>();
+        var diagnostics = new List<UnknownFieldRecord>();
         // 计数单源：行/合并由同一分组实现产出（禁第二套聚合）。
         var rowCount = 0;
         var mergedCount = 0;
@@ -85,7 +91,7 @@ public static class FrameComposer
             var leadRows = new List<UiSurfaceNode>(top.Lead.Count);
             for (var i = 0; i < top.Lead.Count; i++)
             {
-                leadRows.Add(BuildRow(top.Lead[i], $"lead:{i}", options, null, null));
+                leadRows.Add(BuildRow(top.Lead[i], $"lead:{i}", options, null, null, diagnostics));
             }
 
             rowCount += leadRows.Count;
@@ -108,7 +114,7 @@ public static class FrameComposer
                 for (var i = 0; i < group.Rows.Count; i++)
                 {
                     var row = group.Rows[i];
-                    rows.Add(BuildRow(row.Source, $"{group.Kind}:{i}", options, row.ResultText, row.ResultLabel));
+                    rows.Add(BuildRow(row.Source, $"{group.Kind}:{i}", options, row.ResultText, row.ResultLabel, diagnostics));
                 }
 
                 children.Add(BuildGroupNode($"group:{group.Kind}", group.Label, rows, options.Presentation));
@@ -123,7 +129,7 @@ public static class FrameComposer
                 $"anchor:{anchorIndex}",
                 options.Presentation.SurfaceOf(resolved.ClassId),
                 resolved.ClassId,
-                BuildFields(entry.Anchor, resolved.Origin, options, null, null),
+                BuildFields(entry.Anchor, resolved.Origin, options, null, null, diagnostics),
                 children,
                 UiNodeState.Open,
                 new[] { "toggleFold" }));
@@ -133,6 +139,7 @@ public static class FrameComposer
         return new RenderPlan(viewKey, roots)
         {
             Counts = new RenderPlanCounts(items.Count, rowCount, mergedCount),
+            Diagnostics = new RenderDiagnostics(diagnostics, Array.Empty<string>()),
         };
     }
 
@@ -141,7 +148,8 @@ public static class FrameComposer
         string key,
         FrameComposerOptions options,
         string? resultText,
-        string? resultLabel)
+        string? resultLabel,
+        List<UnknownFieldRecord> diagnostics)
     {
         var resolved = PresentationResolver.Resolve(options.Presentation, item);
         return new UiSurfaceNode(
@@ -149,7 +157,7 @@ public static class FrameComposer
             $"row:{key}",
             options.Presentation.SurfaceOf(resolved.ClassId),
             resolved.ClassId,
-            BuildFields(item, resolved.Origin, options, resultText, resultLabel),
+            BuildFields(item, resolved.Origin, options, resultText, resultLabel, diagnostics),
             Array.Empty<UiSurfaceNode>(),
             UiNodeState.Open,
             new[] { "toggleFold", "copy" });
@@ -175,7 +183,8 @@ public static class FrameComposer
         PresentationOrigin origin,
         FrameComposerOptions options,
         string? resultText,
-        string? resultLabel)
+        string? resultLabel,
+        List<UnknownFieldRecord> diagnostics)
     {
         var fields = new List<UiField>();
         var kind = item.Stage ?? string.Empty;
@@ -184,8 +193,9 @@ public static class FrameComposer
             foreach (var contract in contracts)
             {
                 if (!Applies(contract, item)) continue;
-                var field = BuildField(item, contract.Name, contract.From, origin, options);
+                var field = BuildField(item, kind, contract.Name, contract.From, origin, options);
                 if (field.IsNotApplicable) continue;
+                RecordUnknown(diagnostics, kind, field);
                 fields.Add(field);
             }
         }
@@ -194,8 +204,9 @@ public static class FrameComposer
             // 未声明字段契约 ⇒ 旧口径（name 即来源），保持既有可见性。
             foreach (var name in declared)
             {
-                var field = BuildField(item, name, name, origin, options);
+                var field = BuildField(item, kind, name, name, origin, options);
                 if (field.IsNotApplicable) continue;
+                RecordUnknown(diagnostics, kind, field);
                 fields.Add(field);
             }
         }
@@ -208,6 +219,15 @@ public static class FrameComposer
         return fields;
     }
 
+    /// <summary>未知字段记账（J4：每个未知必带 kind/key/reason 三元组）。</summary>
+    private static void RecordUnknown(
+        List<UnknownFieldRecord> diagnostics, string kind, UiField field)
+    {
+        if (!field.IsUnknown) return;
+        diagnostics.Add(new UnknownFieldRecord(kind, field.Name, field.UnknownReason ?? SurfaceReasonCodes.MissingValue));
+    }
+
+
     /// <summary>契约适用条件判定（不满足 ⇒ NotApplicable，不渲染）。</summary>
     private static bool Applies(FrameFieldContract contract, ConversationRenderItem item)
         => contract.ApplicableWhen switch
@@ -219,13 +239,21 @@ public static class FrameComposer
         };
 
     private static UiField BuildField(
-        ConversationRenderItem item, string name, string from, PresentationOrigin origin, FrameComposerOptions options)
+        ConversationRenderItem item, string kind, string name, string from,
+        PresentationOrigin origin, FrameComposerOptions options)
     {
         var spec = options.Fields.Resolve(name);
+
+        // 字段口径裁决（D 层）：该 kind 声明键集内无此来源 ⇒ NotApplicable（不渲染，不是缺值）。
+        if (options.Schema.IsApplicable(kind, from) == false)
+        {
+            return UiField.NotApplicable(name, spec.LabelKey, SurfaceReasonCodes.KindHasNoSuchKey);
+        }
+
         var value = ValueOf(item, from, origin);
         if (value is null)
         {
-            return UiField.Unknown(name, spec.LabelKey, "missing-value", name);
+            return UiField.Unknown(name, spec.LabelKey, SurfaceReasonCodes.MissingValue, name);
         }
 
         // 字段不压平：声明为 structured 的单元，其「紧凑 JSON 文本」在此反解析为结构值；
@@ -236,7 +264,7 @@ public static class FrameComposer
         {
             return TryStructured(text, out var structured)
                 ? new UiField(name, spec.Cell, structured, spec.LabelKey, spec.Caps)
-                : UiField.Unknown(name, spec.LabelKey, "structured-parse-failed", name);
+                : UiField.Unknown(name, spec.LabelKey, SurfaceReasonCodes.StructuredParseFailed, name);
         }
 
         return new UiField(name, spec.Cell, value, spec.LabelKey, spec.Caps);

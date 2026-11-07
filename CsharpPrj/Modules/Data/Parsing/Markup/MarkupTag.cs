@@ -29,6 +29,15 @@ public static class MarkupTag
     public static string Element(string tag, MarkupAttrBatch? attrs, UiMarkup inner, MarkupDialect? dialect = null)
         => Element(tag, attrs, inner.Html, dialect);
 
+    /// <summary>元素（受信片段）：与 <see cref="Element(string, MarkupAttrBatch?, UiMarkup, MarkupDialect?)"/> 同源，
+    /// 在标记组合层一次收敛为 <see cref="UiMarkup"/>（业务侧不再手写 Trusted）。</summary>
+    /// <param name="tag">标签名（按方言文法校验）。</param>
+    /// <param name="attrs">属性批（null ⇒ 无属性）。</param>
+    /// <param name="inner">已渲染内容片段。</param>
+    /// <param name="dialect">方言；null ⇒ <paramref name="attrs"/> 的方言或 HTML 预置。</param>
+    public static UiMarkup ElementMarkup(string tag, MarkupAttrBatch? attrs, UiMarkup inner, MarkupDialect? dialect = null)
+        => UiMarkup.Trusted(Element(tag, attrs, inner, dialect));
+
     /// <summary>空元素：<c>&lt;tag attrs/&gt;</c>（闭合形态由方言声明）。</summary>
     public static string Void(string tag, MarkupAttrBatch? attrs, MarkupDialect? dialect = null)
     {

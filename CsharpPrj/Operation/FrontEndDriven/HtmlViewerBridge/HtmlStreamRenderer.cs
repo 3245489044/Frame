@@ -14,8 +14,7 @@ namespace FrontEndDriven.HtmlViewerBridge;
 
 /// <summary>
 /// 通用会话消息流渲染器（**薄编排器**）：面序编排 + 能力判定；
-/// 投影由声明驱动的表面管线（<see cref="SurfaceRenderPipeline"/> / <see cref="FrameComposer"/>）承担，
-/// 附件行为无状态投影（<see cref="AttachProjector"/>）。
+/// 投影由声明驱动的表面管线（<see cref="SurfaceRenderPipeline"/> / <see cref="FrameComposer"/>）承担。
 /// <para>纪律：产物 = 节点树（字符串出口唯一 = <see cref="UiFragmentWriter"/>）；
 /// 能力经 <see cref="TemplateSurface"/> 一次解析（模板键来自声明）；折叠态由 <see cref="FoldPolicy"/> 裁决；
 /// 缺声明/缺能力 = 可见降级（禁伪造等价结构）。</para>

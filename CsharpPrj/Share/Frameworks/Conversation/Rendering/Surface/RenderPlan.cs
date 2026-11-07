@@ -20,6 +20,23 @@ public sealed record RenderPlanCounts(int Total, int Rows, int Merged)
     public bool IsBalanced => Total == Rows + Merged;
 }
 
+/// <summary>一条未知字段的三元组（kind / key / reason）：未知必须可定位、可复算。</summary>
+/// <param name="Kind">帧类别。</param>
+/// <param name="Key">字段名（来源键）。</param>
+/// <param name="Reason">原因码（<see cref="SurfaceReasonCodes"/>）。</param>
+public readonly record struct UnknownFieldRecord(string Kind, string Key, string Reason);
+
+/// <summary>合成诊断（P2 DTO）：未知字段清单 + 可见失败清单（单一出口）。</summary>
+/// <param name="UnknownFields">未知字段三元组（有序）。</param>
+/// <param name="Failures">合成期可见失败码。</param>
+public sealed record RenderDiagnostics(
+    IReadOnlyList<UnknownFieldRecord> UnknownFields, IReadOnlyList<string> Failures)
+{
+    /// <summary>空诊断。</summary>
+    public static readonly RenderDiagnostics Empty =
+        new(Array.Empty<UnknownFieldRecord>(), Array.Empty<string>());
+}
+
 /// <summary>
 /// 渲染计划（后端投影的输入）：中立节点树 + 可复算的字段计数。
 /// <para>计数 = 结构事实（门禁/Headless 断言用），禁由叙述给出。</para>
@@ -31,6 +48,9 @@ public sealed record RenderPlan(string ViewKey, IReadOnlyList<UiSurfaceNode> Roo
 {
     /// <summary>帧计划计数（合成时产出；旧构造点可为 null，消费方按未知处理）。</summary>
     public RenderPlanCounts? Counts { get; init; }
+
+    /// <summary>合成诊断（未知字段三元组 + 失败清单；旧构造点为空诊断）。</summary>
+    public RenderDiagnostics Diagnostics { get; init; } = RenderDiagnostics.Empty;
     /// <summary>空计划。</summary>
     public static readonly RenderPlan Empty = new(string.Empty, Array.Empty<UiSurfaceNode>());
 

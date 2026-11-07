@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -32,6 +33,14 @@ public static class HtmlGroupedListProjector
         string panelTemplateName,
         IReadOnlyDictionary<string, object?>? panelModel,
         IReadOnlyList<Group> groups)
+        => RenderMarkup(templates, panelTemplateName, panelModel, groups).Html;
+
+    /// <summary>渲染分组折叠列表面板的受信片段（与 <see cref="Render"/> 同源；业务侧不再手写 Trusted）。</summary>
+    public static UiMarkup RenderMarkup(
+        IReadOnlyDictionary<string, string> templates,
+        string panelTemplateName,
+        IReadOnlyDictionary<string, object?>? panelModel,
+        IReadOnlyList<Group> groups)
     {
         var model = UiModel.New(panelModel);
 
@@ -47,6 +56,6 @@ public static class HtmlGroupedListProjector
                 ["nodes"] = g.Rows,
             }).ToList();
 
-        return HtmlTemplateEngine.Render(templates, panelTemplateName, model);
+        return UiMarkup.Trusted(HtmlTemplateEngine.Render(templates, panelTemplateName, model));
     }
 }

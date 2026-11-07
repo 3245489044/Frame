@@ -2875,5 +2875,29 @@
         Note    = '语义字段使用索引自证：Trees/Fields/Accesses 非空；排除装配不得进入引用集；UnresolvedReceivers 棘轮；基线棘轮 Baselines\Constraint\CF-W-14-FieldUsageIndex.psd1；正负对照'
     }
 
+    'CF-W-16-SingleRenderExit' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = 'Projects\Plug\Agent\src 内 `UiMarkup.Trusted(` 调用点计数（去注释无关，结构计数）'
+        Note    = 'CW-16 单渲染出口：页面面唯一受信边界 = ConversationPageRenderer.ExternalHtml（文件:行白名单 + 行内标记）；未登记出口 ⇒ 红；局限 attest：不判是否末端序列化；负对照'
+    }
+
+    'CF-W-17-NoStaticLedger' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = 'Agent.Ui\Ui\Views 与 Frame Surface 内 `static (readonly) Dictionary<` / `List<` 字段'
+        Note    = 'CW-17 零静态可变账本（CW-09 销账项）：账本只经 IOverviewQuery 读快照；负对照'
+    }
+
+    'CF-W-19-NoLocalPlaceholder' = @{
+        Domain  = 'Constraint'
+        Args    = @{ Check = $true }
+        Expect  = 0
+        Carrier = '实现目录内占位文案字面量 `"未知"` / `"N/A"` / `"不适用"`（白名单 = SurfaceGlyphs token 定义处）'
+        Note    = 'CW-19 实现层零本地占位（原文档 CW-14 因编号被 FieldUsageIndex 占用而改号）：占位只允许 SurfaceGlyphs/UnknownTokens/声明面；负对照'
+    }
+
 }
 

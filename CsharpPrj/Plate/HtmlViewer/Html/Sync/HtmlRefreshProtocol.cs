@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Text;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -39,4 +40,8 @@ public static class HtmlRefreshProtocol
         if (!string.IsNullOrEmpty(ctxAttrs)) sb.Append(" data-poll-ctx-attrs=\"").Append(ctxAttrs).Append('"');
         return sb.ToString();
     }
+
+    /// <summary>协议属性串的受信片段形态（与 <see cref="PollAttributes"/> 同源；业务侧不再手写 Trusted）。</summary>
+    public static UiMarkup PollAttributesMarkup(string subscribe, string? ctxSelector, string? ctxAttrs)
+        => UiMarkup.Trusted(PollAttributes(subscribe, ctxSelector, ctxAttrs));
 }

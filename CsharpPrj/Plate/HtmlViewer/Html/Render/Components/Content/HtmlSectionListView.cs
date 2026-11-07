@@ -18,6 +18,10 @@ public static class HtmlSectionListView
 {
     /// <summary>构建段列表 HTML（<paramref name="note"/> 为 null/空 ⇒ 不渲染注记行）。</summary>
     public static string Render(string cssClass, string? note, IReadOnlyList<HtmlSectionItem>? items)
+        => RenderMarkup(cssClass, note, items).Html;
+
+    /// <summary>构建段列表受信片段（与 <see cref="Render"/> 同源；业务侧不再手写 Trusted）。</summary>
+    public static UiMarkup RenderMarkup(string cssClass, string? note, IReadOnlyList<HtmlSectionItem>? items)
     {
         var cls = MarkupClass.Fallback(cssClass, "section-list");
         var sb = new StringBuilder();
@@ -46,7 +50,7 @@ public static class HtmlSectionListView
             }
         }
 
-        return MarkupTag.Element("div", new MarkupAttrBatch().Class(cls, "section-list"), UiMarkup.Trusted(sb.ToString()));
+        return UiMarkup.Trusted(MarkupTag.Element("div", new MarkupAttrBatch().Class(cls, "section-list"), UiMarkup.Trusted(sb.ToString())));
     }
 }
 

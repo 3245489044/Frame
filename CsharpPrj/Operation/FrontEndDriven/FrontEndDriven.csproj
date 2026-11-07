@@ -127,6 +127,12 @@
          本层（Operation/L4）只做 UI 适配（UiViewProjection 薄转发），通用语义不下沉到驱动层 -->
     <ProjectReference Include="$(Proj_Gather)" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- 废弃迁移（project.md §2 compile_exclude）：AttachProjector/RowModels 零生产引用，保留可追溯。 -->
+    <Compile Remove="_deprecated\**\*" />
+    <Compile Remove="HtmlViewerBridge\Projection\_deprecated\**\*" />
+    <None Include="HtmlViewerBridge\Projection\_deprecated\**\*" />
+  </ItemGroup>
 
 </Project>
 

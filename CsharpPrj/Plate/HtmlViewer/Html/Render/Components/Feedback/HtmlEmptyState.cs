@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -20,9 +21,17 @@ public static class HtmlEmptyState
     public static string Render(IReadOnlyDictionary<string, string> templates, string text)
         => RenderCore(templates, DivTemplateName, HtmlAssetKeys.EmptyDivTemplate, text);
 
+    /// <summary>渲染块级空态为受信片段（与 <see cref="Render"/> 同源；业务侧不再手写 Trusted）。</summary>
+    public static UiMarkup RenderMarkup(IReadOnlyDictionary<string, string> templates, string text)
+        => UiMarkup.Trusted(Render(templates, text));
+
     /// <summary>渲染段落空态（<c>&lt;p class="empty"&gt;</c>）：<paramref name="text"/> 经引擎 HTML 编码入 DOM。</summary>
     public static string RenderParagraph(IReadOnlyDictionary<string, string> templates, string text)
         => RenderCore(templates, ParagraphTemplateName, HtmlAssetKeys.EmptyPTemplate, text);
+
+    /// <summary>渲染段落空态为受信片段（与 <see cref="RenderParagraph"/> 同源）。</summary>
+    public static UiMarkup RenderParagraphMarkup(IReadOnlyDictionary<string, string> templates, string text)
+        => UiMarkup.Trusted(RenderParagraph(templates, text));
 
     private static string RenderCore(
         IReadOnlyDictionary<string, string> templates,

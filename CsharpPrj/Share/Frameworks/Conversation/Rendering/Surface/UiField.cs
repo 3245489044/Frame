@@ -58,7 +58,7 @@ public sealed record UiField(
         => new(name, SurfaceCellIds.Unknown, null, label, Array.Empty<string>())
         {
             Visibility = UiValueState.Unknown,
-            UnknownReason = reason ?? "missing-value",
+            UnknownReason = reason ?? SurfaceReasonCodes.MissingValue,
             Dimension = dimension,
         };
 
@@ -67,15 +67,14 @@ public sealed record UiField(
     /// <param name="label">标签（可空）。</param>
     /// <param name="reason">原因码（可空 ⇒ not-applicable）。</param>
     public static UiField NotApplicable(string name, string? label = null, string? reason = null)
-        => new(name, SurfaceCellIds.Unknown, null, label, Array.Empty<string>())
+        => new(name, SurfaceCellIds.Text, null, label, Array.Empty<string>())
         {
             Visibility = UiValueState.NotApplicable,
-            UnknownReason = reason ?? "not-applicable",
+            UnknownReason = reason ?? SurfaceReasonCodes.NotApplicable,
         };
 
-    /// <summary>是否未知占位（显式 Unknown，或单元声明为 unknown 的兜底）。</summary>
-    public bool IsUnknown => Visibility == UiValueState.Unknown
-        || (Visibility == UiValueState.Known && string.Equals(Cell, SurfaceCellIds.Unknown, StringComparison.Ordinal));
+    /// <summary>是否未知占位（只认显式 Unknown；载体单元不承载语义）。</summary>
+    public bool IsUnknown => Visibility == UiValueState.Unknown;
 
     /// <summary>是否声明面不适用（不渲染）。</summary>
     public bool IsNotApplicable => Visibility == UiValueState.NotApplicable;

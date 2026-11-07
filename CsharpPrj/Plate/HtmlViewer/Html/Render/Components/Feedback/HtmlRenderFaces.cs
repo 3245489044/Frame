@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -18,6 +19,10 @@ public static class HtmlRenderFaces
     /// <summary>渲染空态（显式「空 ≠ 无」）：<paramref name="text"/> 经模板引擎编码。</summary>
     public static string Empty(IReadOnlyDictionary<string, string> templates, string text)
         => HtmlEmptyState.Render(templates, text);
+
+    /// <summary>渲染空态为受信片段（单一实现 = <see cref="Empty"/>；业务侧不再手写 Trusted）。</summary>
+    public static UiMarkup EmptyMarkup(IReadOnlyDictionary<string, string> templates, string text)
+        => HtmlEmptyState.RenderMarkup(templates, text);
 
     /// <summary>渲染未就绪面（就绪矩阵 + 能力键注记）：正文/注记均经编码。</summary>
     public static string NotReady(

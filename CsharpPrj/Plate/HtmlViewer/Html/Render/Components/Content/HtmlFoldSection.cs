@@ -17,10 +17,18 @@ public static class HtmlFoldSection
         string? innerHtml,
         string? cssClass = null,
         string? dataName = null)
-        => MarkupDisclosure.Render(
+        => RenderMarkup(summary, innerHtml, cssClass, dataName).Html;
+
+    /// <summary>渲染折叠段受信片段（与 <see cref="Render"/> 同源；业务侧不再手写 Trusted）。</summary>
+    public static UiMarkup RenderMarkup(
+        string summary,
+        string? innerHtml,
+        string? cssClass = null,
+        string? dataName = null)
+        => UiMarkup.Trusted(MarkupDisclosure.Render(
             MarkupTag.Text(summary),
             innerHtml,
             detailsClass: cssClass,
             detailsFallback: "fold",
-            dataName: dataName);
+            dataName: dataName));
 }

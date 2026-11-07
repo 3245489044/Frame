@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -48,9 +49,21 @@ public static class HtmlHierarchyListProjector
         UiComponentCatalog? catalog = null,
         string? containerComponent = null,
         string? rowComponent = null)
+        => RenderTreeMarkup(templates, containerTemplate, rowTemplate, containers, emptyText, catalog, containerComponent, rowComponent).Html;
+
+    /// <summary>渲染两级折叠树为受信片段（与 <see cref="RenderTree"/> 同源；业务侧不再手写 Trusted）。</summary>
+    public static UiMarkup RenderTreeMarkup(
+        IReadOnlyDictionary<string, string> templates,
+        string containerTemplate,
+        string rowTemplate,
+        IReadOnlyList<Container>? containers,
+        string? emptyText = null,
+        UiComponentCatalog? catalog = null,
+        string? containerComponent = null,
+        string? rowComponent = null)
     {
         if (containers is null || containers.Count == 0)
-            return string.IsNullOrEmpty(emptyText) ? string.Empty : HtmlEmptyState.Render(templates, emptyText!);
+            return string.IsNullOrEmpty(emptyText) ? UiMarkup.Empty : HtmlEmptyState.RenderMarkup(templates, emptyText!);
 
         var effectiveContainerTemplate = catalog?.TemplateFor(containerComponent) ?? containerTemplate;
         var sb = new StringBuilder(containers.Count * 64);
@@ -72,7 +85,7 @@ public static class HtmlHierarchyListProjector
             sb.Append(HtmlTemplateEngine.Render(templates, effectiveContainerTemplate, effectiveModel));
         }
 
-        return sb.ToString();
+        return UiMarkup.Trusted(sb.ToString());
     }
 
     /// <summary>渲染平铺行列表：空行集 ⇒ <see cref="HtmlEmptyState"/> + <paramref name="emptyText"/>。</summary>
@@ -83,9 +96,19 @@ public static class HtmlHierarchyListProjector
         string? emptyText = null,
         UiComponentCatalog? catalog = null,
         string? rowComponent = null)
+        => RenderListMarkup(templates, rowTemplate, rows, emptyText, catalog, rowComponent).Html;
+
+    /// <summary>渲染平铺行列表为受信片段（与 <see cref="RenderList"/> 同源；业务侧不再手写 Trusted）。</summary>
+    public static UiMarkup RenderListMarkup(
+        IReadOnlyDictionary<string, string> templates,
+        string rowTemplate,
+        IReadOnlyList<Row>? rows,
+        string? emptyText = null,
+        UiComponentCatalog? catalog = null,
+        string? rowComponent = null)
     {
         if (rows is null || rows.Count == 0)
-            return string.IsNullOrEmpty(emptyText) ? string.Empty : HtmlEmptyState.Render(templates, emptyText!);
+            return string.IsNullOrEmpty(emptyText) ? UiMarkup.Empty : HtmlEmptyState.RenderMarkup(templates, emptyText!);
 
         var effectiveRowTemplate = catalog?.TemplateFor(rowComponent) ?? rowTemplate;
         var sb = new StringBuilder(rows.Count * 80);
@@ -95,7 +118,7 @@ public static class HtmlHierarchyListProjector
             var effectiveModel = catalog?.Apply(rowComponent, model) ?? model;
             sb.Append(HtmlTemplateEngine.Render(templates, effectiveRowTemplate, effectiveModel));
         }
-        return sb.ToString();
+        return UiMarkup.Trusted(sb.ToString());
     }
 
     private static List<object?> BuildRows(

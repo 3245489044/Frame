@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using Modules.Parsing.Markup;
 
 namespace UiBackend.Html;
 
@@ -38,6 +39,18 @@ public static class HtmlInputProjector
         string? sendTitle = null,
         IReadOnlyDictionary<string, object?>? extra = null,
         string? value = null)
+        => RenderMarkup(templates, session, history, placeholder, sendLabel, sendTitle, extra, value).Html;
+
+    /// <summary>渲染输入区受信片段（与 <see cref="Render"/> 同源；业务侧不再手写 Trusted）。</summary>
+    public static UiMarkup RenderMarkup(
+        IReadOnlyDictionary<string, string> templates,
+        string? session = null,
+        string? history = null,
+        string? placeholder = null,
+        string? sendLabel = null,
+        string? sendTitle = null,
+        IReadOnlyDictionary<string, object?>? extra = null,
+        string? value = null)
     {
         var row = new Dictionary<string, object?>
         {
@@ -52,6 +65,6 @@ public static class HtmlInputProjector
         if (extra is not null)
             foreach (var kv in extra)
                 row[kv.Key] = kv.Value;
-        return HtmlTemplateEngine.Render(templates, TemplateName, row);
+        return HtmlTemplateEngine.RenderMarkup(templates, TemplateName, row);
     }
 }

@@ -118,6 +118,9 @@ public sealed record ResolvedLayerSpec(
     string Anchor,
     string Size)
 {
+    /// <summary>本层解析期问题（无问题 = 空；载体按此判定「本层是否可落笔」）。</summary>
+    public IReadOnlyList<LayerIssue> Issues { get; init; } = Array.Empty<LayerIssue>();
+
     /// <summary>主色 alpha（0..255）。</summary>
     public int Alpha => (ColorArgb >> 24) & 0xFF;
 
@@ -294,7 +297,10 @@ public sealed record ResolvedLayerSpec(
             asset, slice, sliceText, repeat,
             string.Equals(repeat, "no-repeat", StringComparison.Ordinal),
             LayerParams.Read(parameters, "anchor"),
-            LayerParams.Read(parameters, "size"));
+            LayerParams.Read(parameters, "size"))
+        {
+            Issues = issues,
+        };
     }
 
     /// <summary>图元 → 类型（未知保留 <see cref="LayerPrimitive.Unknown"/>）。</summary>

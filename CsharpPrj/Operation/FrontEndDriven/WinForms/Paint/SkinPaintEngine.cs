@@ -99,22 +99,24 @@ public static class SkinPaintEngine
         try
         {
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            // K1：整组层一次解析并缓存（同一层栈跨帧复用），解析问题随 spec 携带；
             // 几何单源（按材质）：圆角由层声明提供，层未声明时沿用同材质内最大半径，
             // 避免「填充直角 + 描边圆角」的错位（材质 = 一个整体形状，不是各层各画各的）。
-            var materialRadius = ResolvedLayerSpecProjection.Parse(material.Layers).MaterialRadius;
+            var specSet = ResolvedLayerSpecProjection.ParseCached(material.Layers);
+            var materialRadius = specSet.MaterialRadius;
 
             var painted = 0;
-            foreach (var layer in OrderedLayers(material.Layers, includeSpecular, dynamicOnly))
+            foreach (var spec in OrderedSpecs(specSet.Specs, includeSpecular, dynamicOnly))
             {
                 // 明细由 PaintLayer 记账（unresolved-value:<raw>）；未落笔时再补「层身份」项。
                 var layerBegin = SkinRenderProfile.Begin();
-                var paintedLayer = PaintLayer(graphics, bounds, layer, materialRadius, skipped, backdrop, light);
-                SkinRenderProfile.RecordLayer(layer.Primitive, layerBegin);
+                var paintedLayer = PaintLayer(graphics, bounds, spec, materialRadius, skipped, backdrop, light);
+                SkinRenderProfile.RecordLayer(spec.Primitive, layerBegin);
                 if (paintedLayer) painted++;
                 else
                 {
                     // 未落笔必须同时给「层身份 + 具体原因」：身份供断言按图元定位，原因供人看。
-                    skipped.Add(layer.Primitive + ":" + layer.Role);
+                    skipped.Add(spec.Primitive + ":" + spec.Role);
                 }
             }
 
@@ -132,19 +134,19 @@ public static class SkinPaintEngine
     /// 图层相位序（K3）：同相位内按 Z，跨相位按 <see cref="LayerPhase"/>。
     /// <para>动态/静态拆分由相位判定（唯一判据），不再靠字面量 <c>"specular"</c>；shadow/backdrop 在 Underlay，不得盖住 fill/stroke。</para>
     /// </summary>
-    private static IEnumerable<ResolvedLayer> OrderedLayers(
-        IReadOnlyList<ResolvedLayer> layers, bool includeSpecular, bool dynamicOnly)
+    private static IEnumerable<ResolvedLayerSpec> OrderedSpecs(
+        IReadOnlyList<ResolvedLayerSpec> specs, bool includeSpecular, bool dynamicOnly)
     {
-        var ordered = new List<ResolvedLayer>(layers.Count);
-        foreach (var layer in layers)
+        var ordered = new List<ResolvedLayerSpec>(specs.Count);
+        foreach (var spec in specs)
         {
-            var phase = SurfaceLayerPhase.Of(layer.Primitive);
+            var phase = SurfaceLayerPhase.Of(spec.Primitive);
             if (dynamicOnly ? phase != LayerPhase.Sheen : (!includeSpecular && phase == LayerPhase.Sheen))
             {
                 continue;
             }
 
-            ordered.Add(layer);
+            ordered.Add(spec);
         }
 
         ordered.Sort(static (left, right) =>
@@ -156,18 +158,17 @@ public static class SkinPaintEngine
     }
 
     private static bool PaintLayer(
-        Graphics graphics, Rectangle bounds, ResolvedLayer layer, float materialRadius, List<string> skipped,
+        Graphics graphics, Rectangle bounds, ResolvedLayerSpec spec, float materialRadius, List<string> skipped,
         Image? backdrop = null, SurfaceLightState? light = null)
     {
         // 描边几何走 Plate.Surface 的 BorderSpec（四边宽度/颜色/圆角/DPI 浮点都在那里归一化）；
         // 层参数经唯一强类型入口（ResolvedLayerSpecProjection）读取，本文件不再直接读层参数袋。
-        var spec = ResolvedLayerSpecProjection.Parse(layer, out var issues);
-        foreach (var issue in issues) skipped.Add(issue.Code + ":" + issue.Detail);
+        foreach (var issue in spec.Issues) skipped.Add(issue.Code + ":" + issue.Detail);
 
         if (spec.Kind == LayerPrimitive.Stroke)
         {
             var fatal = false;
-            foreach (var issue in issues)
+            foreach (var issue in spec.Issues)
             {
                 if (issue.Code == "border-width-invalid" || issue.Code == "border-color-invalid") fatal = true;
             }
@@ -177,7 +178,7 @@ public static class SkinPaintEngine
             return true;
         }
 
-        var valid = issues.Count == 0;
+        var valid = spec.Issues.Count == 0;
 
         switch (spec.Kind)
         {
@@ -369,7 +370,7 @@ public static class SkinPaintEngine
 
             default:
                 // 声明 supported 却无 case（mask/noise/未知图元）⇒ 显式记账，禁静默当已实现。
-                skipped.Add("unimplemented:" + layer.Primitive);
+                skipped.Add("unimplemented:" + spec.Primitive);
                 return false;
         }
     }

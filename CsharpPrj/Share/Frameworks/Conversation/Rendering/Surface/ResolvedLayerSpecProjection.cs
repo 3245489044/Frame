@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UiBackend;
 
 namespace Share.Conversation.Rendering.Surface;
@@ -25,6 +26,21 @@ public static class ResolvedLayerSpecProjection
         var spec = ResolvedLayerSpec.Parse(ToInput(layer), out var layerIssues);
         issues = ToSurfaceIssues(layerIssues);
         return spec;
+    }
+
+    /// <summary>
+    /// 解析结果缓存（K1「解析期一次」）：同一层栈对象只解析一次，后续绘制/投影直接复用。
+    /// <para>键为层栈对象本身（弱引用，材质回收即释放）；层栈不可变 ⇒ 结果可安全共享。</para>
+    /// </summary>
+    private static readonly ConditionalWeakTable<IReadOnlyList<ResolvedLayer>, ResolvedLayerSpecSet> Parsed =
+        new();
+
+    /// <summary>解析整组层（同一层栈只解析一次；首次调用产出问题，后续命中缓存）。</summary>
+    /// <param name="layers">材质层（可为空）。</param>
+    public static ResolvedLayerSpecSet ParseCached(IReadOnlyList<ResolvedLayer> layers)
+    {
+        ArgumentNullException.ThrowIfNull(layers);
+        return Parsed.GetValue(layers, Parse);
     }
 
     /// <summary>一次解析整组层（顺序即入参顺序），并给出材质级最大声明半径。</summary>

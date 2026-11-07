@@ -72,10 +72,29 @@ public sealed class SurfaceRenderPipeline
         FramePolicy? policy,
         SurfaceDeclarations declarations,
         string viewKey = "")
+        => Compose(items, policy, declarations, viewKey, null, 0, false);
+
+    /// <summary>仅合成计划 + 折叠（全页宿主/Headless 共用；折叠仍是唯一实现 FoldPlanner）。</summary>
+    /// <param name="items">渲染项（源序）。</param>
+    /// <param name="policy">帧语义策略（可空）。</param>
+    /// <param name="declarations">声明闭包。</param>
+    /// <param name="viewKey">视图键。</param>
+    /// <param name="fold">折叠策略（null / None ⇒ 不折叠）。</param>
+    /// <param name="round">段轮次（0 = 非轮段）。</param>
+    /// <param name="latestRound">本段是否最新轮。</param>
+    public static RenderPlan Compose(
+        IReadOnlyList<ConversationRenderItem> items,
+        FramePolicy? policy,
+        SurfaceDeclarations declarations,
+        string viewKey,
+        FoldPolicy? fold,
+        int round,
+        bool latestRound)
     {
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(declarations);
-        return FrameComposer.Compose(items, policy, declarations.ComposerOptions, viewKey);
+        var plan = FrameComposer.Compose(items, policy, declarations.ComposerOptions, viewKey);
+        return FoldPlanner.Apply(plan, fold, round, latestRound);
     }
 
     /// <summary>渲染：合成 + 投影 + 可见失败记账。</summary>
@@ -90,12 +109,32 @@ public sealed class SurfaceRenderPipeline
         FramePolicy? policy,
         SurfaceDeclarations declarations,
         string viewKey = "")
+        => Render(carrierId, items, policy, declarations, viewKey, null, 0, false);
+
+    /// <summary>渲染（全页宿主路径）：合成 + 折叠 + 投影 + 可见失败记账。</summary>
+    /// <param name="carrierId">载体 id。</param>
+    /// <param name="items">渲染项（源序）。</param>
+    /// <param name="policy">帧语义策略（可空）。</param>
+    /// <param name="declarations">声明闭包。</param>
+    /// <param name="viewKey">视图键。</param>
+    /// <param name="fold">折叠策略（null / None ⇒ 不折叠）。</param>
+    /// <param name="round">段轮次（0 = 非轮段）。</param>
+    /// <param name="latestRound">本段是否最新轮。</param>
+    public SurfacePipelineResult Render(
+        string carrierId,
+        IReadOnlyList<ConversationRenderItem> items,
+        FramePolicy? policy,
+        SurfaceDeclarations declarations,
+        string viewKey,
+        FoldPolicy? fold,
+        int round,
+        bool latestRound)
     {
         ArgumentNullException.ThrowIfNull(declarations);
         var failures = new List<string>();
         if (!declarations.Ui.IsDeclared) failures.Add("ui-program-unavailable");
 
-        var plan = Compose(items, policy, declarations, viewKey);
+        var plan = Compose(items, policy, declarations, viewKey, fold, round, latestRound);
         if (!_factories.TryGetValue(carrierId ?? string.Empty, out var factory))
         {
             failures.Add($"{UnregisteredCode}:{carrierId}");

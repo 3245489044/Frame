@@ -109,6 +109,26 @@ public static class SurfaceCssProjector
         return Project(declaration.Resolve(skin));
     }
 
+    /// <summary>
+    /// 便捷重载：声明 + 表面程序 → CSS（皮肤取档位声明的 <c>values.ui_skin</c>）。
+    /// <para>玻璃档声明 <c>ui_skin=dark</c> 时，token 变量（<c>--bg/--fg/--agent-bg…</c>）必须按暗档投影，
+    /// 否则 HTML 内容块仍按缺省 light 皮肤出白底。档未声明/无 <c>ui_skin</c> ⇒ 回落声明缺省皮肤（零回归）。</para>
+    /// </summary>
+    /// <param name="declaration">UI 声明。</param>
+    /// <param name="program">表面程序（可空 ⇒ 回落声明缺省皮肤）。</param>
+    /// <param name="profileId">外观档（可空 ⇒ <see cref="SurfaceProgramDeclaration.ActiveProfile"/>）。</param>
+    public static string Project(
+        UiDeclaration declaration,
+        SurfaceProgramDeclaration? program,
+        string? profileId = null)
+    {
+        var id = string.IsNullOrWhiteSpace(profileId) ? program?.ActiveProfile : profileId;
+        var skin = program?.EffectiveProfile(id ?? string.Empty)?.Values.TryGetValue("ui_skin", out var value) == true
+            ? value
+            : null;
+        return Project(declaration, string.IsNullOrWhiteSpace(skin) ? null : skin);
+    }
+
     /// <summary>token 名 → CSS 变量名（下划线转连字符）。</summary>
     private static string Var(string token) => "--ui-" + token.Replace('_', '-');
 

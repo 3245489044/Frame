@@ -63,7 +63,11 @@ public static class SkinAppearanceInstaller
 
         SkinMaterialCatalog.SetPageBackground(pageBackground);
         var global = SelectGlobal(byKey, "panel_surface");
-        var globalProperty = SelectGlobal(byKeyProperty, "panel_surface");
+        // 属性通道全局回退：优先声明档的 row_surface（实心 muted 材质），缺失才回落面板槽（零回归）。
+        var globalProperty = SurfaceResolver.ResolveProfileSlot(
+                                program, context, profile, carrierId, "row_surface",
+                                WinFormsPropertyProjector.ChannelId)
+                            ?? SelectGlobal(byKeyProperty, "panel_surface");
 
         SkinMaterialCatalog.Set(byKey);
         SkinMaterialCatalog.SetProperty(byKeyProperty);

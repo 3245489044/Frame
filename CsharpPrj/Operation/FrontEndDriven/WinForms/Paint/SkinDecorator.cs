@@ -58,6 +58,11 @@ public static class SkinDecorator
                                         SkinMaterialCatalog.ForProperty(descriptor.Id)
                                         ?? SkinMaterialCatalog.ForProperty(descriptor.Name))
                                     ?? SkinMaterialCatalog.GlobalProperty;
+            // 容器材质在属性通道发生降级（如 panel_frost 的 alpha 底落回 flat 纯黑）⇒ 换用属性通道全局实心材质。
+            if (propertyMaterial is { FallbackUsed.Length: > 0 } && SkinMaterialCatalog.GlobalProperty is { } propertyFallback)
+            {
+                propertyMaterial = propertyFallback;
+            }
             var themed = propertyMaterial is not null && ApplyFallbackTheme(control, propertyMaterial);
             Detach(control);
             // 只有「连属性级换肤也做不到」才记账（可承载的控件静默换色，避免每控件一条噪声）。

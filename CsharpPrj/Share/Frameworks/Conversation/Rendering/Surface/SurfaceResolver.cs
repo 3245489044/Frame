@@ -31,6 +31,48 @@ public static class SurfaceResolver
     /// <summary>缺省外观档 id（声明面 <c>surface_profile_default</c>）。</summary>
     public const string DefaultProfile = "default";
 
+    /// <summary>
+    /// 解析外观档的单个语义槽材质（**与容器同一个 <see cref="ResolveMaterial"/>**，不写第二套）。
+    /// <para>用途：属性通道全局回退（<c>row_surface</c>）等「不挂在容器上的槽」只能从档位取，禁止调用方自建解析。</para>
+    /// <para>档/槽缺失 ⇒ null（调用方回落既有选择，零回归）。</para>
+    /// </summary>
+    /// <param name="program">表面程序。</param>
+    /// <param name="context">解析上下文（能力矩阵 / 层规格 / 资源问题）。</param>
+    /// <param name="profileId">外观档（空 ⇒ <see cref="DefaultProfile"/>；未知 ⇒ 回落默认档）。</param>
+    /// <param name="carrierId">载体 id。</param>
+    /// <param name="slot">语义槽名（<c>panel_surface</c> / <c>row_surface</c> …）。</param>
+    /// <param name="channel">写面通道（空 ⇒ <see cref="CapabilityMatrix.DefaultChannel"/>）。</param>
+    public static ResolvedMaterial? ResolveProfileSlot(
+        SurfaceProgramDeclaration program,
+        SurfaceResolveContext context,
+        string? profileId,
+        string carrierId,
+        string slot,
+        string? channel = null)
+    {
+        ArgumentNullException.ThrowIfNull(program);
+        ArgumentNullException.ThrowIfNull(context);
+        if (string.IsNullOrWhiteSpace(slot)) return null;
+
+        var profileName = string.IsNullOrWhiteSpace(profileId) ? DefaultProfile : profileId!;
+        var profile = program.EffectiveProfile(profileName) ?? program.EffectiveProfile(DefaultProfile);
+        if (profile is null || !profile.Materials.TryGetValue(slot, out var materialId)) return null;
+
+        var issues = new List<SurfaceIssue>();
+        var material = ResolveMaterial(
+            program,
+            carrierId ?? string.Empty,
+            slot,
+            materialId,
+            context.Capabilities,
+            context.LayerSpecs,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            string.IsNullOrWhiteSpace(channel) ? CapabilityMatrix.DefaultChannel : channel!,
+            context.AssetIssuesByLayer,
+            issues);
+        return material.Layers.Count > 0 ? material : null;
+    }
+
     /// <summary>解析一次视图 × 档 × 载体。</summary>
     /// <param name="program">表面程序（未装配 ⇒ 返回空容器 + program-unavailable）。</param>
     /// <param name="view">视图键。</param>

@@ -122,7 +122,7 @@ public static class SkinPixelProbe
         return new SkinPixelReport(materialId, tolerance, samples, painted);
     }
 
-    /// <summary>采样点：中心 + 四角内缩（避开 1px 描边与文本行）。</summary>
+    /// <summary>采样点：中心 + 四角内缩 + 四边中点（描边不再被结构性避开）。</summary>
     private static IReadOnlyList<(string Label, Point Point)> Points(int width, int height)
     {
         var x1 = Math.Max(1, width / 5);
@@ -136,6 +136,10 @@ public static class SkinPixelProbe
             ("tr", new Point(x2, y1)),
             ("bl", new Point(x1, y2)),
             ("br", new Point(x2, y2)),
+            ("border-left", new Point(0, height / 2)),
+            ("border-top", new Point(width / 2, 0)),
+            ("border-right", new Point(Math.Max(0, width - 1), height / 2)),
+            ("border-bottom", new Point(width / 2, Math.Max(0, height - 1))),
         };
     }
 

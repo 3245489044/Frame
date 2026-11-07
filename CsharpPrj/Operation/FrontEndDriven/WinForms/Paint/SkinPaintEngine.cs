@@ -141,16 +141,19 @@ public static class SkinPaintEngine
 
             case "stroke":
             {
-                if (!TryColor(layer, skipped, out var color)) return false;
-                var width = Math.Max(1, IntParam(layer, "width", 1));
-                using var pen = new Pen(color, width);
-                var inset = width / 2f;
-                var strokeBounds = new Rectangle(
-                    bounds.X + (int)inset, bounds.Y + (int)inset,
-                    Math.Max(1, bounds.Width - width), Math.Max(1, bounds.Height - width));
-                using var path = CreateRoundedPath(strokeBounds, Math.Max(0, RadiusOf(layer, bounds, materialRadius) - (int)inset));
-                if (path is null) graphics.DrawRectangle(pen, strokeBounds);
-                else graphics.DrawPath(pen, path);
+                // 单一模型（Plate.Surface）：四边宽度/颜色、圆角、DPI 浮点都在 BorderSpec 归一化。
+                // 非法宽度/颜色必须显式记账并拒绝，禁止 IntParam 把小数/坏值静默回落成 1。
+                var input = new BorderLayerInput(layer.Role, layer.Primitive, layer.Z, layer.Params);
+                var spec = BorderSpec.FromLayers(new[] { input }, out var issues);
+                var fatal = false;
+                foreach (var issue in issues)
+                {
+                    skipped.Add(issue.Code + ":" + issue.Detail);
+                    if (issue.Code == "border-width-invalid" || issue.Code == "border-color-invalid") fatal = true;
+                }
+
+                if (fatal || spec.Strokes.Count == 0) return false;
+                BorderPainter.DrawStroke(graphics, bounds, spec.Strokes[spec.Strokes.Count - 1], graphics.DpiX);
                 return true;
             }
 

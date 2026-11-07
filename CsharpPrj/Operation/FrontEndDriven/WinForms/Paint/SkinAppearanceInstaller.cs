@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
 
@@ -65,6 +66,8 @@ public static class SkinAppearanceInstaller
         SkinMaterialCatalog.SetGlobal(global);
         SkinMaterialCatalog.SetGlobalProperty(globalProperty);
         SkinDecorator.Enabled = global is not null || globalProperty is not null;
+        // 边框模型可见化：遮挡/多描边/非法宽度都在安装期落日志，避免「边被盖掉」静默。
+        var border = global is null ? null : BorderSpecProjection.Inspect(global);
         SkinDiagnostics.RecordInstall(
             SkinDecorator.Enabled, profile, carrierId, program.Fingerprint, byKey.Count, global);
         // 装配可见化：unresolvedTokens>0 表示层值仍是 token 名（运行期会解析成透明），
@@ -80,6 +83,11 @@ public static class SkinAppearanceInstaller
             globalProperty = globalProperty?.MaterialId,
             layers = global?.Layers.Count ?? 0,
             unresolvedTokens = SkinDiagnostics.Current.UnresolvedTokenCount,
+            borderStrokes = border?.Spec.Strokes.Count ?? 0,
+            borderIssues = border?.Issues.Count ?? 0,
+            borderIssueCodes = border is null
+                ? string.Empty
+                : string.Join(",", border.Issues.Select(issue => issue.Code).Distinct()),
         });
         return SkinDecorator.Enabled;
     }

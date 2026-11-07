@@ -80,7 +80,7 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
 
         // M4a：容器结构/材质类来自已解析表面（可空 ⇒ 原路径）；仅新增 class/data 属性，不改段键。
         tag = ApplySurface(attributes, node.Key, tag);
-        ApplyTheme(attributes, theme?.PartForRole(node.Role) ?? theme?.PartForClass(node.Class), node.State);
+        ApplyTheme(attributes, theme?.ThemeFor(node.Role, node.Class), node.State);
 
         var children = new List<UiNode>(node.Fields.Count + node.Children.Count);
         foreach (var field in node.Fields) children.Add(ProjectField(field, theme));
@@ -106,7 +106,7 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         if (props.TryGetValue("cls", out var cls) && cls.Length > 0) attributes["class"] = cls;
         if (field.IsUnknown) attributes["data-unknown"] = "1";
 
-        ApplyTheme(attributes, theme?.PartForCell(field.Cell), UiNodeState.Open);
+        ApplyTheme(attributes, theme?.ThemeForCell(field.Cell), UiNodeState.Open);
 
         return new UiNode(tag, $"{field.Name}", attributes, TextOf(field), null, null);
     }
@@ -145,13 +145,14 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
     }
 
     /// <summary>
-    /// 应用声明式主题：结构类（声明 cls）→ class；槽位绑定 cssvar → style；无法承载的槽位 → 可见标记。
+    /// 应用声明式主题：结构类（角色部件 cls）→ class；槽位绑定 cssvar → style；无法承载的槽位 → 可见标记。
+    /// <para>结构来自角色部件，外观来自呈现类部件（合并由 <see cref="UiTheme"/> 单点裁决）。</para>
     /// </summary>
-    private void ApplyTheme(IDictionary<string, string> attributes, ResolvedPart? part, UiNodeState state)
+    private void ApplyTheme(IDictionary<string, string> attributes, UiTheme? theme, UiNodeState state)
     {
-        if (part is null) return;
+        if (theme is null) return;
 
-        var structure = part.Structure(BackendId);
+        var structure = theme.Structure(BackendId);
         if (structure is not null && structure.TryGetValue("cls", out var cls)
             && cls.Length > 0 && !attributes.ContainsKey("class"))
         {
@@ -160,17 +161,17 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
 
         var stateId = StateId(state);
         var style = new List<string>();
-        foreach (var visual in part.Visuals(BackendId, stateId))
+        foreach (var visual in theme.Visuals(BackendId, stateId))
         {
             if (!string.Equals(visual.Bind, "cssvar", StringComparison.Ordinal)) continue;
             style.Add($"{visual.Prop}:{WithUnit(visual.Value, visual.Unit)}");
         }
 
         if (style.Count > 0) attributes["style"] = string.Join(";", style);
-        attributes["data-part"] = part.Name;
+        if (theme.Name is { Length: > 0 } partName) attributes["data-part"] = partName;
 
         // 槽位缺口只保留 DOM 属性（单一表示：供诊断读取；不进 UnsupportedCells）。
-        var missing = part.MissingSlots(BackendId, stateId);
+        var missing = theme.MissingSlots(BackendId, stateId);
         if (missing.Count > 0) attributes["data-unsupported"] = string.Join(",", missing);
     }
 

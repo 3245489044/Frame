@@ -78,7 +78,7 @@ public sealed class HeadlessSurfaceBackend : IBackendProjector<string>
                 role = node.Role,
                 key = node.Key,
                 @class = node.Class,
-                part = theme?.PartForRole(node.Role)?.Name,
+                part = theme?.ThemeFor(node.Role, node.Class)?.Name,
                 surface = node.Surface.ToString(),
                 state = node.State.ToString(),
                 actions = node.Actions,

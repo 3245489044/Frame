@@ -103,7 +103,7 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
             descriptor.Issues = container.Issues;
         }
 
-        ApplyTheme(descriptor, theme?.PartForRole(node.Role) ?? theme?.PartForClass(node.Class), node.State, node.Role);
+        ApplyTheme(descriptor, theme?.ThemeFor(node.Role, node.Class), node.State, node.Role);
         snapshot.Controls.Add(descriptor);
 
         if (parentId is not null)
@@ -138,7 +138,7 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
                 Enabled = true,
                 Dock = "Top",
             };
-            ApplyTheme(fieldDescriptor, theme?.PartForCell(field.Cell), UiNodeState.Open, field.Cell);
+            ApplyTheme(fieldDescriptor, theme?.ThemeForCell(field.Cell), UiNodeState.Open, field.Cell);
             snapshot.Controls.Add(fieldDescriptor);
             snapshot.Relations.Add(new ChildRelation { ParentId = id, ChildId = fieldId, OrderIndex = childOrder++ });
         }
@@ -157,10 +157,11 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
 
     /// <summary>
     /// 应用声明式主题：槽位绑定 prop → 控件属性；未支持属性/槽位 → <see cref="UnsupportedCells"/>（可见降级）。
+    /// <para>结构来自角色部件、外观来自呈现类部件（合并由 <see cref="UiTheme"/> 单点裁决）。</para>
     /// </summary>
-    private void ApplyTheme(ControlDescriptor descriptor, ResolvedPart? part, UiNodeState state, string key)
+    private void ApplyTheme(ControlDescriptor descriptor, UiTheme? theme, UiNodeState state, string key)
     {
-        if (part is null) return;
+        if (theme is null) return;
 
         var stateId = state switch
         {
@@ -169,7 +170,7 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
             _ => null,
         };
 
-        foreach (var visual in part.Visuals(BackendId, stateId))
+        foreach (var visual in theme.Visuals(BackendId, stateId))
         {
             if (!string.Equals(visual.Bind, "prop", StringComparison.Ordinal)) continue;
             switch (visual.Prop)
@@ -193,7 +194,7 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
             }
         }
 
-        foreach (var slot in part.MissingSlots(BackendId, stateId)) _unsupported.Add(new UnsupportedSlot(BackendId, key, slot, "token-missing"));
+        foreach (var slot in theme.MissingSlots(BackendId, stateId)) _unsupported.Add(new UnsupportedSlot(BackendId, key, slot, "token-missing"));
     }
 
     /// <summary>声明值（单位less）→ 控件字号；解析失败 ⇒ 可见降级（禁静默默认）。</summary>

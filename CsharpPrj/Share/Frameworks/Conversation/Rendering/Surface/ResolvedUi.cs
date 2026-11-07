@@ -21,6 +21,7 @@ public sealed class ResolvedUi
 {
     private readonly UiDeclaration _declaration;
     private readonly Dictionary<string, ResolvedPart> _parts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UiTheme> _themes = new(StringComparer.Ordinal);
 
     internal ResolvedUi(
         UiDeclaration declaration,
@@ -83,8 +84,88 @@ public sealed class ResolvedUi
     public ResolvedPart? PartForClass(string? classId)
         => string.IsNullOrEmpty(classId) ? null : Part("class_" + Normalize(classId!));
 
+    /// <summary>
+    /// 主题合并单点：结构属性取角色部件，外观取呈现类部件（类缺失/未知 ⇒ 回退角色）。
+    /// <para>两者都无声明 ⇒ <c>null</c>（调用方保持零主题路径）。</para>
+    /// </summary>
+    /// <param name="role">渲染角色（bubble/fieldRow…）。</param>
+    /// <param name="classId">呈现类 id（tool-call/answer…）。</param>
+    public UiTheme? ThemeFor(string? role, string? classId)
+    {
+        var rolePart = PartForRole(role);
+        var visualPart = PartForClass(classId) ?? rolePart;
+        if (rolePart is null && visualPart is null) return null;
+
+        var key = (role ?? string.Empty) + "\u0001" + (classId ?? string.Empty);
+        if (_themes.TryGetValue(key, out var cached)) return cached;
+
+        var theme = new UiTheme(rolePart, visualPart);
+        _themes[key] = theme;
+        return theme;
+    }
+
+    /// <summary>
+    /// 字段单元主题：结构与外观同源（cell 部件；未声明 ⇒ <c>null</c>）。
+    /// <para>字段无呈现类轴，因此不参与“角色结构 + 类外观”合并。</para>
+    /// </summary>
+    /// <param name="cell">单元名（kv/tree/code…）。</param>
+    public UiTheme? ThemeForCell(string? cell)
+    {
+        var part = PartForCell(cell);
+        if (part is null) return null;
+
+        var key = "\u0002" + (cell ?? string.Empty);
+        if (_themes.TryGetValue(key, out var cached)) return cached;
+
+        var theme = new UiTheme(part, part);
+        _themes[key] = theme;
+        return theme;
+    }
+
     /// <summary>声明键归一（连字符 → 下划线；记录 id 只允许标识符）。</summary>
     private static string Normalize(string value) => value.Replace('-', '_');
+}
+
+/// <summary>
+/// 主题合并视图：结构来自角色部件、外观来自呈现类部件（类部件缺失/未知 ⇒ 回退角色）。
+/// <para>后端只消费本对象，不自行决定“外观听谁的”。</para>
+/// </summary>
+public sealed class UiTheme
+{
+    private static readonly IReadOnlyList<UiVisual> NoVisuals = Array.Empty<UiVisual>();
+    private static readonly IReadOnlyList<string> NoMissing = Array.Empty<string>();
+
+    internal UiTheme(ResolvedPart? rolePart, ResolvedPart? visualPart)
+    {
+        RolePart = rolePart;
+        VisualPart = visualPart;
+    }
+
+    /// <summary>结构来源部件（角色；缺失 ⇒ 结构为空）。</summary>
+    public ResolvedPart? RolePart { get; }
+
+    /// <summary>外观来源部件（呈现类；类缺失 ⇒ 角色）。</summary>
+    public ResolvedPart? VisualPart { get; }
+
+    /// <summary>实际生效的视觉部件名（<c>data-part</c> 取值）。</summary>
+    public string? Name => VisualPart?.Name ?? RolePart?.Name;
+
+    /// <summary>结构属性：只取角色部件（该载体未声明 ⇒ null）。</summary>
+    /// <param name="carrierId">载体 id。</param>
+    public IReadOnlyDictionary<string, string>? Structure(string carrierId)
+        => RolePart?.Structure(carrierId);
+
+    /// <summary>样式指令：取生效视觉部件（类优先，角色回退）。</summary>
+    /// <param name="carrierId">载体 id。</param>
+    /// <param name="state">节点状态（可空）。</param>
+    public IReadOnlyList<UiVisual> Visuals(string carrierId, string? state = null)
+        => VisualPart?.Visuals(carrierId, state) ?? NoVisuals;
+
+    /// <summary>该载体真实无法承载的槽位（跟随生效视觉部件）。</summary>
+    /// <param name="carrierId">载体 id。</param>
+    /// <param name="state">节点状态（可空）。</param>
+    public IReadOnlyList<string> MissingSlots(string carrierId, string? state = null)
+        => VisualPart?.MissingSlots(carrierId, state) ?? NoMissing;
 }
 
 /// <summary>已声明单元的解析视图：结构属性（载体差）与样式指令（语义值）。</summary>

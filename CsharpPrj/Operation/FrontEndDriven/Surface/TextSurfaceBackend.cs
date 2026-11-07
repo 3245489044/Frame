@@ -54,7 +54,7 @@ public sealed class TextSurfaceBackend : IBackendProjector<string>
     private void Render(UiSurfaceNode node, int depth, StringBuilder builder, ResolvedUi? theme)
     {
         var props = _map.Props(BackendId, node.Role);
-        var part = theme?.PartForRole(node.Role) ?? theme?.PartForClass(node.Class);
+        var part = theme?.ThemeFor(node.Role, node.Class);
         var prefix = Props(props, "prefix");
         if (prefix.Length == 0) prefix = Structure(part, "prefix");
         builder.Append(' ', depth * 2).Append(prefix).Append(node.Class);
@@ -62,7 +62,7 @@ public sealed class TextSurfaceBackend : IBackendProjector<string>
         foreach (var field in node.Fields)
         {
             var fieldProps = _map.Props(BackendId, field.Cell);
-            var fieldPart = theme?.PartForCell(field.Cell);
+            var fieldPart = theme?.ThemeForCell(field.Cell);
             var sep = Props(fieldProps, "sep");
             if (sep.Length == 0) sep = Structure(fieldPart, "sep");
             if (sep.Length == 0) sep = " ";
@@ -75,19 +75,20 @@ public sealed class TextSurfaceBackend : IBackendProjector<string>
         foreach (var child in node.Children) Render(child, depth + 1, builder, theme);
     }
 
-    /// <summary>声明结构属性（part.carriers 的该载体记录）：无声明 ⇒ 空串（回落结构映射）。</summary>
-    private string Structure(ResolvedPart? part, string name)
+    /// <summary>声明结构属性（角色部件的 carriers 记录）：无声明 ⇒ 空串（回落结构映射）。</summary>
+    private string Structure(UiTheme? part, string name)
         => part?.Structure(BackendId) is { } structure && structure.TryGetValue(name, out var value)
             ? value
             : string.Empty;
 
     /// <summary>记录该载体不承载的语义槽位（可见降级，不静默丢）。</summary>
-    private void TrackUnsupported(string key, ResolvedPart? part)
+    private void TrackUnsupported(string key, UiTheme? part)
     {
         if (part is null) return;
+        var name = part.Name ?? string.Empty;
         foreach (var slot in part.MissingSlots(BackendId))
         {
-            _unsupported.Add(new UnsupportedSlot(BackendId, part.Name, slot, "token-missing"));
+            _unsupported.Add(new UnsupportedSlot(BackendId, name, slot, "token-missing"));
         }
     }
 

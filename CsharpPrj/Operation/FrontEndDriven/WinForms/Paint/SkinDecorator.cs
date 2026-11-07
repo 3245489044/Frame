@@ -427,10 +427,30 @@ public static class SkinDecorator
         Bitmap? crop = null;
         _capturingBackdrop = true;
         state.SuppressPaint = true;
+        var page = SkinMaterialCatalog.PageBackground;
+        var parentBackColor = parent.BackColor;
+        // 父级背景仍是系统默认（未上色）⇒ 背后就是页面，快照必须以页面色起底，否则面板被浅灰洗白。
+        var unstyled = page.HasValue
+                      && (parentBackColor.IsEmpty
+                          || parentBackColor.ToArgb() == SystemColors.Control.ToArgb());
         try
         {
             parentBitmap = new Bitmap(parentSize.Width, parentSize.Height);
-            parent.DrawToBitmap(parentBitmap, new Rectangle(Point.Empty, parentSize));
+            if (page.HasValue)
+            {
+                using var prefill = Graphics.FromImage(parentBitmap);
+                prefill.Clear(page.Value);
+            }
+
+            if (unstyled) parent.BackColor = page!.Value;
+            try
+            {
+                parent.DrawToBitmap(parentBitmap, new Rectangle(Point.Empty, parentSize));
+            }
+            finally
+            {
+                if (unstyled) parent.BackColor = parentBackColor;
+            }
 
             crop = new Bitmap(bounds.Width, bounds.Height);
             using (var graphics = Graphics.FromImage(crop))

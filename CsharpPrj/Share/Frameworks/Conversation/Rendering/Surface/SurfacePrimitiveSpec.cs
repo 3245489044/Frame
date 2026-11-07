@@ -95,8 +95,11 @@ public sealed record SurfacePrimitiveSpec(
     /// <param name="issues">产出问题（无则空）。</param>
     public static SurfacePrimitiveSpec Parse(ResolvedLayer layer, out IReadOnlyList<SurfaceIssue> issues)
     {
-        var list = new List<SurfaceIssue>();
         var kind = KindOf(layer.Primitive);
+        if (kind is SurfacePrimitiveKind.Shadow or SurfacePrimitiveKind.InnerShadow or SurfacePrimitiveKind.Specular)
+            return ParseBorderKind(layer, kind, out issues);
+
+        var list = new List<SurfaceIssue>();
         var role = layer.Role;
 
         var stops = kind == SurfacePrimitiveKind.Gradient
@@ -131,6 +134,78 @@ public sealed record SurfacePrimitiveSpec(
         return new SurfacePrimitiveSpec(
             kind, layer.Primitive, colorArgb, stops, angle, width, radius, blur,
             offsetX, offsetY, spread, strength, mode, asset, slice, noRepeat);
+    }
+
+    /// <summary>
+    /// 边框类图元（shadow / innerShadow / specular）的**唯一参数解释**：直接消费 <see cref="BorderSpec"/>
+    /// 归一化产物（Glows / InnerLights / Sheens），不再在此重复读字符串袋——两载体因此不可能各解一套。
+    /// </summary>
+    private static SurfacePrimitiveSpec ParseBorderKind(
+        ResolvedLayer layer, SurfacePrimitiveKind kind, out IReadOnlyList<SurfaceIssue> issues)
+    {
+        var list = new List<SurfaceIssue>();
+        var spec = BorderSpec.FromLayers(
+            new[] { new BorderLayerInput(layer.Role, layer.Primitive, layer.Z, layer.Params) },
+            out var borderIssues);
+        foreach (var issue in borderIssues) list.Add(new SurfaceIssue(issue.Code, issue.Detail));
+
+        var angle = ParseFloat(layer, "angle", DefaultAngle(kind), list);
+        var radius = ParseFloat(layer, "radius", DefaultRadius(kind), list);
+        var mode = "band";
+        var colorArgb = 0;
+        var width = DefaultWidth(kind);
+        var blur = 0f;
+        var offsetX = 0f;
+        var offsetY = 0f;
+        var spread = 0f;
+        var strength = 0.7f;
+
+        if (kind is SurfacePrimitiveKind.Shadow && spec.Glows.Count > 0)
+        {
+            var glow = spec.Glows[0];
+            colorArgb = glow.Argb;
+            blur = glow.Blur;
+            offsetX = glow.OffsetX;
+            offsetY = glow.OffsetY;
+            spread = glow.Spread;
+            strength = 1f;
+        }
+        else if (kind is SurfacePrimitiveKind.InnerShadow && spec.InnerLights.Count > 0)
+        {
+            var light = spec.InnerLights[0];
+            colorArgb = light.Argb;
+            width = light.Width;
+            strength = light.Strength;
+            blur = light.Blur;
+            offsetX = light.OffsetX;
+            offsetY = light.OffsetY;
+            mode = light.Mode;
+        }
+        else if (kind is SurfacePrimitiveKind.Specular)
+        {
+            if (spec.InnerLights.Count > 0)
+            {
+                var light = spec.InnerLights[0];
+                colorArgb = light.Argb;
+                width = light.Width;
+                strength = light.Strength;
+                mode = light.Mode;
+            }
+            else if (spec.Sheens.Count > 0)
+            {
+                var sheen = spec.Sheens[0];
+                colorArgb = sheen.Argb;
+                width = sheen.Width;
+                strength = sheen.Strength;
+                mode = sheen.Mode;
+                angle = sheen.Angle;
+            }
+        }
+
+        issues = list;
+        return new SurfacePrimitiveSpec(
+            kind, layer.Primitive, colorArgb, Array.Empty<int>(), angle, width, radius, blur,
+            offsetX, offsetY, spread, strength, mode, string.Empty, 0, false);
     }
 
     /// <summary>图元 → 类型（未知保留 Unknown）。</summary>

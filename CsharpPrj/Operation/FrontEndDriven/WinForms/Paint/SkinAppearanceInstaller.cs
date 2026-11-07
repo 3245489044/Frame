@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
+using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
 
@@ -37,6 +39,7 @@ public static class SkinAppearanceInstaller
 
         // 能力矩阵/层规格只建一次：每视图两次解析（draw / property）共用同一上下文。
         var context = SurfaceResolver.Prepare(program);
+        var pageBackground = ResolvePageColor(program, context, carrierId);
         foreach (var view in program.Views.Keys)
         {
             var resolved = SurfaceResolver.Resolve(program, context, view, carrierId, profile);
@@ -58,6 +61,7 @@ public static class SkinAppearanceInstaller
             }
         }
 
+        SkinMaterialCatalog.SetPageBackground(pageBackground);
         var global = SelectGlobal(byKey, "panel_surface");
         var globalProperty = SelectGlobal(byKeyProperty, "panel_surface");
 
@@ -92,6 +96,40 @@ public static class SkinAppearanceInstaller
         return SkinDecorator.Enabled;
     }
 
+    /// <summary>
+    /// 页面底色 = 默认档 <c>panel_surface</c> 槽的首个不透明 fill 层值。
+    /// <para>只用声明推导（禁代码硬编码色值）：默认档 <c>panel_surface → flat → base=panel_fill(#0d1117)</c>。</para>
+    /// <para>玻璃档的 base 是半透明玻璃色，不是页面底色，故固定按 <see cref="SurfaceResolver.DefaultProfile"/> 解析。</para>
+    /// <para>未声明 / 未换值 token / 非不透明 ⇒ null（宿主回落系统底色，零回归）。</para>
+    /// </summary>
+    private static Color? ResolvePageColor(
+        SurfaceProgramDeclaration program,
+        SurfaceResolveContext context,
+        string carrierId)
+    {
+        foreach (var view in program.Views.Keys)
+        {
+            var resolved = SurfaceResolver.Resolve(
+                program, context, view, carrierId, SurfaceResolver.DefaultProfile);
+            foreach (var container in resolved.Containers)
+            {
+                foreach (var material in container.Materials.Values)
+                {
+                    foreach (var layer in material.Layers)
+                    {
+                        if (!string.Equals(layer.Primitive, "fill", StringComparison.Ordinal)) continue;
+                        if (!layer.Params.TryGetValue("value", out var value) || value.Length == 0) continue;
+                        if (!SurfaceColor.TryParseColor(value, out var argb)) continue;
+                        if ((argb & unchecked((int)0xFF000000)) != unchecked((int)0xFF000000)) continue;
+                        return Color.FromArgb(argb);
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>全局回退材质（唯一实现：<see cref="SurfaceSlotSelection.SelectGlobal"/>）。</summary>
     private static ResolvedMaterial? SelectGlobal(
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>> byKey, string slot)
@@ -101,7 +139,10 @@ public static class SkinAppearanceInstaller
     public static void Uninstall()
     {
         SkinMaterialCatalog.Set(null);
+        SkinMaterialCatalog.SetProperty(null);
         SkinMaterialCatalog.SetGlobal(null);
+        SkinMaterialCatalog.SetGlobalProperty(null);
+        SkinMaterialCatalog.SetPageBackground(null);
         SkinDecorator.Disable();
         SkinDiagnostics.RecordUninstall();
     }

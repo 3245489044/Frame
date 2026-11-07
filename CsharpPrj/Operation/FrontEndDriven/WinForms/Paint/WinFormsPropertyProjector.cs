@@ -82,15 +82,21 @@ public static class WinFormsPropertyProjector
         return false;
     }
 
-    /// <summary>父链首个不透明底色（无父 ⇒ 系统窗体色）。</summary>
+    /// <summary>
+    /// 父链首个**显式上色**的不透明底色；系统默认/继承背景视为「未上色」，一路向上。
+    /// 全链未上色 ⇒ 页面底色（声明缺失时仍回落 <see cref="SystemColors.Control"/>，零回归）。
+    /// </summary>
     private static int OpaqueBehind(Control control)
     {
         for (var parent = control.Parent; parent is not null; parent = parent.Parent)
         {
-            if (parent.BackColor.A == 255) return parent.BackColor.ToArgb();
+            var background = parent.BackColor;
+            if (background.IsEmpty) continue;
+            if (background.ToArgb() == SystemColors.Control.ToArgb()) continue;
+            if (background.A == 255) return background.ToArgb();
         }
 
-        return SystemColors.Control.ToArgb();
+        return SkinMaterialCatalog.PageBackground?.ToArgb() ?? SystemColors.Control.ToArgb();
     }
 
     /// <summary>色值解析（唯一桥：<see cref="SurfaceColorParse"/>；失败 ⇒ false）。</summary>

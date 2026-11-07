@@ -229,22 +229,8 @@ public static class SkinPaintEngine
             case SurfacePrimitiveKind.InnerShadow:
             {
                 if (!valid) return false;
-                var dpi = graphics.DpiX;
-                var ringWidth = Math.Max(1f, BorderUnits.DipsToPixels(spec.Width, dpi));
-                var radiusPx = BorderUnits.DipsToPixels(RadiusOf(layer, bounds, materialRadius), dpi);
-                var outerRect = new RectangleF(bounds.X, bounds.Y, bounds.Width, bounds.Height);
-                var innerRect = new RectangleF(
-                    outerRect.X + ringWidth, outerRect.Y + ringWidth,
-                    Math.Max(0.5f, outerRect.Width - ringWidth * 2),
-                    Math.Max(0.5f, outerRect.Height - ringWidth * 2));
-                using var ring = new GraphicsPath(FillMode.Alternate);
-                using var outerPath = SkinGeometry.Path(outerRect, CornerRadii.Uniform(radiusPx));
-                using var innerPath = SkinGeometry.Path(innerRect,
-                    CornerRadii.Uniform(Math.Max(0f, radiusPx - ringWidth)));
-                ring.AddPath(outerPath, false);
-                ring.AddPath(innerPath, false);
-                using var brush = new SolidBrush(Color.FromArgb(spec.ColorArgb));
-                graphics.FillPath(brush, ring);
+                PaintInnerRing(graphics, bounds, RadiusOf(layer, bounds, materialRadius), spec.Width,
+                    Color.FromArgb(spec.ColorArgb));
                 return true;
             }
 
@@ -292,6 +278,13 @@ public static class SkinPaintEngine
                 var color = Color.FromArgb(spec.ColorArgb);
                 if (light is { } state)
                 {
+                    if (spec.Mode == "inner")
+                    {
+                        // 模型形态 <c>inner</c>：与 innerShadow 同一环填充（不再被误当成 band）。
+                        PaintInnerRing(graphics, bounds, RadiusOf(layer, bounds, materialRadius), spec.Width, color);
+                        return true;
+                    }
+
                     if (spec.Mode == "edge")
                     {
                         PaintEdgeHighlight(graphics, bounds, spec, state, materialRadius);
@@ -401,6 +394,28 @@ public static class SkinPaintEngine
 
         brush.InterpolationColors = new ColorBlend { Colors = colors, Positions = positions };
         return brush;
+    }
+
+    /// <summary>内环填充（innerShadow / specular inner 共用同一模型口径）。</summary>
+    private static void PaintInnerRing(
+        Graphics graphics, Rectangle bounds, float radiusDips, float widthDips, Color color)
+    {
+        var dpi = graphics.DpiX;
+        var ringWidth = Math.Max(1f, BorderUnits.DipsToPixels(widthDips, dpi));
+        var radiusPx = BorderUnits.DipsToPixels(radiusDips, dpi);
+        var outerRect = new RectangleF(bounds.X, bounds.Y, bounds.Width, bounds.Height);
+        var innerRect = new RectangleF(
+            outerRect.X + ringWidth, outerRect.Y + ringWidth,
+            Math.Max(0.5f, outerRect.Width - ringWidth * 2),
+            Math.Max(0.5f, outerRect.Height - ringWidth * 2));
+        using var ring = new GraphicsPath(FillMode.Alternate);
+        using var outerPath = SkinGeometry.Path(outerRect, CornerRadii.Uniform(radiusPx));
+        using var innerPath = SkinGeometry.Path(innerRect,
+            CornerRadii.Uniform(Math.Max(0f, radiusPx - ringWidth)));
+        ring.AddPath(outerPath, false);
+        ring.AddPath(innerPath, false);
+        using var brush = new SolidBrush(color);
+        graphics.FillPath(brush, ring);
     }
 
     /// <summary>

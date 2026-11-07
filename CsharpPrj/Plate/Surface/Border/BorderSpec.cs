@@ -39,7 +39,30 @@ public sealed record BorderStroke(
 public sealed record BorderGlow(int Z, int Argb, float Blur, float OffsetX, float OffsetY, float Spread);
 
 /// <summary>内高光 / 内阴影（DIP；<c>Sides</c> 语义见载体投影）。</summary>
-public sealed record BorderInnerLight(int Z, int Argb, float Width, string Sides, float Strength);
+/// <param name="Z">层序。</param>
+/// <param name="Argb">颜色（ARGB）。</param>
+/// <param name="Width">环宽 / 高光厚度（DIP）。</param>
+/// <param name="Sides">受光边（载体无法逐边表达时显式降级记账）。</param>
+/// <param name="Strength">强度（0..1）。</param>
+/// <param name="Blur">模糊半径（DIP；innerShadow）。</param>
+/// <param name="OffsetX">水平偏移（DIP；innerShadow）。</param>
+/// <param name="OffsetY">垂直偏移（DIP；innerShadow）。</param>
+/// <param name="Mode">形态（<c>inner</c> / <c>edge</c>）。</param>
+public sealed record BorderInnerLight(
+    int Z, int Argb, float Width, string Sides, float Strength,
+    float Blur = 0f, float OffsetX = 0f, float OffsetY = 0f, string Mode = "inner");
+
+/// <summary>
+/// 光泽（specular 的 <c>spot</c>/<c>band</c> 形态；<c>edge</c>/<c>inner</c> 已并入 <see cref="BorderInnerLight"/>）。
+/// <para>两载体都从这里取角度/强度/颜色：CSS 投影成 radial/linear-gradient，GDI+ 投影成聚光/亮带。</para>
+/// </summary>
+/// <param name="Z">层序。</param>
+/// <param name="Argb">颜色（ARGB）。</param>
+/// <param name="Mode"><c>spot</c> / <c>band</c>。</param>
+/// <param name="Width">厚度（DIP；band）。</param>
+/// <param name="Strength">强度（0..1）。</param>
+/// <param name="Angle">角度（度）。</param>
+public sealed record BorderSheen(int Z, int Argb, string Mode, float Width, float Strength, float Angle);
 
 /// <summary>模型输入：材质层的最小只读视图（Share 适配层只做搬运，不解释语义）。</summary>
 public sealed record BorderLayerInput(string Role, string Primitive, int Z, IReadOnlyDictionary<string, string> Params);
@@ -49,14 +72,17 @@ public sealed record BorderLayerInput(string Role, string Primitive, int Z, IRea
 /// <para>本程序集 BCL-only：颜色只存打包 ARGB，几何只存浮点/DIP；GDI+ 与 CSS 各自投影。</para>
 /// </summary>
 public sealed record BorderSpec(
-    IReadOnlyList<BorderStroke> Strokes, IReadOnlyList<BorderGlow> Glows, IReadOnlyList<BorderInnerLight> InnerLights)
+    IReadOnlyList<BorderStroke> Strokes, IReadOnlyList<BorderGlow> Glows,
+    IReadOnlyList<BorderInnerLight> InnerLights, IReadOnlyList<BorderSheen> Sheens)
 {
     /// <summary>空模型。</summary>
     public static readonly BorderSpec Empty = new(
-        Array.Empty<BorderStroke>(), Array.Empty<BorderGlow>(), Array.Empty<BorderInnerLight>());
+        Array.Empty<BorderStroke>(), Array.Empty<BorderGlow>(),
+        Array.Empty<BorderInnerLight>(), Array.Empty<BorderSheen>());
 
     /// <summary>是否没有任何边框元素。</summary>
-    public bool IsEmpty => Strokes.Count == 0 && Glows.Count == 0 && InnerLights.Count == 0;
+    public bool IsEmpty =>
+        Strokes.Count == 0 && Glows.Count == 0 && InnerLights.Count == 0 && Sheens.Count == 0;
 
     /// <summary>
     /// 把材质层归一化为边框模型。非法宽度/颜色会产出 <see cref="BorderIssue"/> 并跳过该元素，
@@ -73,6 +99,7 @@ public sealed record BorderSpec(
         var strokes = new List<BorderStroke>();
         var glows = new List<BorderGlow>();
         var lights = new List<BorderInnerLight>();
+        var sheens = new List<BorderSheen>();
 
         // 材质级半径兜底：层未声明半径时沿用同材质内最大半径（两载体同口径）。
         var materialRadius = 0f;
@@ -114,28 +141,39 @@ public sealed record BorderSpec(
                 case "innerShadow":
                 {
                     if (!TryParseArgb(Param(layer, "value"), layer, issueList, out var argb)) continue;
+                    var (offsetX, offsetY) = ParseOffset(layer);
                     lights.Add(new BorderInnerLight(
                         layer.Z, argb,
                         Math.Max(0, FloatParam(layer, "width", 1)),
                         Sides(layer, "all"),
-                        Clamp01(FloatParam(layer, "strength", 1))));
+                        Clamp01(FloatParam(layer, "strength", 1)),
+                        Math.Max(0, FloatParam(layer, "blur", 0)),
+                        offsetX, offsetY));
                     break;
                 }
 
                 case "specular":
                 {
-                    // 只有 edge/inner 形态进入内高光位；spot/default 由载体高光分支自行处理。
-                    var mode = Param(layer, "mode");
-                    if (!string.Equals(mode, "edge", StringComparison.Ordinal)
-                        && !string.Equals(mode, "inner", StringComparison.Ordinal)) continue;
                     if (!TryParseArgb(Param(layer, "value"), layer, issueList, out var argb)) continue;
-                    lights.Add(new BorderInnerLight(
+                    var mode = Param(layer, "mode");
+                    if (string.Equals(mode, "edge", StringComparison.Ordinal)
+                        || string.Equals(mode, "inner", StringComparison.Ordinal))
+                    {
+                        lights.Add(new BorderInnerLight(
+                            layer.Z, argb,
+                            Math.Max(0, FloatParam(layer, "width", 2)),
+                            string.Equals(mode, "edge", StringComparison.Ordinal) ? "top,left" : Sides(layer, "all"),
+                            Clamp01(FloatParam(layer, "strength", 0.65f)), 0f, 0f, 0f, mode));
+                        break;
+                    }
+
+                    // spot / band（缺省按 band）：把原先散落在两载体的角度/强度归一到这里。
+                    sheens.Add(new BorderSheen(
                         layer.Z, argb,
+                        string.Equals(mode, "spot", StringComparison.Ordinal) ? "spot" : "band",
                         Math.Max(0, FloatParam(layer, "width", 2)),
-                        string.Equals(mode, "edge", StringComparison.Ordinal)
-                            ? "top,left"
-                            : Sides(layer, "all"),
-                        Clamp01(FloatParam(layer, "strength", 0.65f))));
+                        Clamp01(FloatParam(layer, "strength", 0.65f)),
+                        FloatParam(layer, "angle", 45)));
                     break;
                 }
             }
@@ -144,8 +182,9 @@ public sealed record BorderSpec(
         strokes.Sort((left, right) => left.Z.CompareTo(right.Z));
         glows.Sort((left, right) => left.Z.CompareTo(right.Z));
         lights.Sort((left, right) => left.Z.CompareTo(right.Z));
+        sheens.Sort((left, right) => left.Z.CompareTo(right.Z));
         issues = issueList;
-        return new BorderSpec(strokes, glows, lights);
+        return new BorderSpec(strokes, glows, lights, sheens);
     }
 
     private static bool TryParseWidths(BorderLayerInput layer, List<BorderIssue> issues, out BorderEdgeSet widths)

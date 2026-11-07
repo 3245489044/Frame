@@ -16,14 +16,14 @@ namespace FrontEndDriven.WinForms.Paint;
 /// <param name="Actual">控件真实绘制结果（<see cref="Control.DrawToBitmap"/>）。</param>
 /// <param name="Baseline">未换肤基线（控件 BackColor；owner-draw 未生效时的像素）。</param>
 /// <param name="Expected">按已解析材质拟合的期望色（同一 <see cref="ResolvedMaterial"/>，单源）。</param>
-/// <param name="Delta">实际 vs 基线的 RGB 欧氏距离（材质是否真正落像素）。</param>
-/// <param name="ExpectedDelta">实际 vs 期望的 RGB 欧氏距离（色值是否正确）。</param>
+/// <param name="Delta">实际 vs 基线的 RGBA 欧氏距离（材质是否真正落像素）。</param>
+/// <param name="ExpectedDelta">实际 vs 期望的 RGBA 欧氏距离（色值/alpha 是否正确）。</param>
 public sealed record SkinPixelSample(
     string Point, Color Actual, Color Baseline, Color Expected, double Delta, double ExpectedDelta);
 
 /// <summary>像素断言报告（判定只读本结构；不含执行者叙述）。</summary>
 /// <param name="Material">被验证材质 id。</param>
-/// <param name="Tolerance">期望拟合容差（RGB 距离）。</param>
+/// <param name="Tolerance">期望拟合容差（RGBA 距离）。</param>
 /// <param name="Samples">采样点集合。</param>
 /// <param name="Painted">真实绘制是否真的执行过（<see cref="SkinDecorator"/> 的绘制计数是否推进，结构性事实）。</param>
 /// <param name="Failure">绘制中止/抛异常时的结构化原因（非空 ⇒ 判定必红，不靠像素猜）。</param>
@@ -151,24 +151,29 @@ public static class SkinPixelProbe
         return control.Parent is { } parent && parent.BackColor.A != 0 ? parent.BackColor : SystemColors.Control;
     }
 
-    /// <summary>期望位图：预填未换肤基线后跑同一绘制实现，并吃冻结的同一份 light/backdrop。</summary>
+    /// <summary>期望位图：预填未换肤基线后**复刻实际的两段绘制**（静态层 → 动态 sheen），并吃冻结的同一份 light/backdrop。</summary>
     private static Bitmap ExpectedBitmap(
         ResolvedMaterial material, Color baseline, int width, int height, SkinRenderInputs inputs)
     {
         var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
         using var graphics = Graphics.FromImage(bitmap);
         graphics.Clear(baseline);
-        SkinPaintEngine.Paint(graphics, new Rectangle(0, 0, width, height), material, inputs.Backdrop, inputs.Light);
+        var bounds = new Rectangle(0, 0, width, height);
+        // 与实际 owner-draw 同序：静态段不含 specular，动态段只画 sheen（单趟拟合会漏掉两段时点差异 ⇒ 假绿）。
+        SkinPaintEngine.Paint(
+            graphics, bounds, material, inputs.Backdrop, inputs.Light, includeSpecular: false);
+        SkinPaintEngine.PaintDynamic(graphics, bounds, material, inputs.Light);
         return bitmap;
     }
 
-    /// <summary>RGB 欧氏距离（与 ColorUtils.ColorDistance 同度量；阈值语义可直接对照）。</summary>
+    /// <summary>RGBA 欧氏距离（含 alpha；半透明材质只比 RGB 会把 alpha 错误判成通过）。</summary>
     private static double Distance(Color left, Color right)
     {
+        var da = left.A - right.A;
         var dr = left.R - right.R;
         var dg = left.G - right.G;
         var db = left.B - right.B;
-        return Math.Sqrt(dr * dr + dg * dg + db * db);
+        return Math.Sqrt(da * da + dr * dr + dg * dg + db * db);
     }
 }
 

@@ -94,37 +94,6 @@ public static class CssSurfaceProjector
                     backgrounds.Add($"linear-gradient({Deg(layer)}deg, {ReplaceCommas(value, ", ")})");
                     break;
 
-                case "specular":
-                {
-                    // 尊重 mode：edge = 内高光（inset shadow）；spot = 径向光斑；缺省保留旧对角带。
-                    var mode = Param(layer, "mode", string.Empty);
-                    if (string.Equals(mode, "edge", StringComparison.Ordinal))
-                    {
-                        shadows.Add($"inset 0 {Px(layer, "width", "2")} 0 {value}");
-                    }
-                    else if (string.Equals(mode, "spot", StringComparison.Ordinal))
-                    {
-                        var (x, y) = SpotCenter(layer);
-                        backgrounds.Add(
-                            $"radial-gradient(circle at {x}% {y}%, {value} 0%, transparent 70%)");
-                    }
-                    else
-                    {
-                        backgrounds.Add(
-                            $"linear-gradient({Deg(layer)}deg, transparent 40%, {value} 50%, transparent 60%)");
-                    }
-
-                    break;
-                }
-
-                case "shadow":
-                    shadows.Add($"{Offset(layer)} {Px(layer, "blur", "0")} {value}");
-                    break;
-
-                case "innerShadow":
-                    shadows.Add($"inset {Offset(layer)} {Px(layer, "blur", "0")} {value}");
-                    break;
-
                 case "backdrop":
                     backdropFilter = $"blur({Px(layer, "blur", "0")})";
                     break;
@@ -173,6 +142,54 @@ public static class CssSurfaceProjector
 
         // 边框：同一模型（BorderSpec）取最大 z 的描边；多描边因 CSS 单 border 限制显式记账。
         var spec = BorderSpecProjection.From(material);
+
+        // 阴影/内高光/光泽一律从归一化产物投影（不再从原始 layer 重拼，模型改参数两载体同时生效）。
+        foreach (var glow in spec.Glows)
+        {
+            var parts = new List<string>
+            {
+                FormatPx(glow.OffsetX), FormatPx(glow.OffsetY), FormatPx(glow.Blur),
+            };
+            if (glow.Spread > 0) parts.Add(FormatPx(glow.Spread));
+            parts.Add(CssColor(glow.Argb));
+            shadows.Add(string.Join(" ", parts));
+        }
+
+        foreach (var light in spec.InnerLights)
+        {
+            if (string.Equals(light.Mode, "edge", StringComparison.Ordinal))
+            {
+                // 顶高光；CSS 单条 inset 不能只亮左边 ⇒ 逐边语义显式降级记账。
+                shadows.Add($"inset 0 {FormatPx(light.Width)} 0 {CssColor(light.Argb)}");
+                skipped.Add("inner-light-sides-degraded:" + light.Sides);
+                continue;
+            }
+
+            if (!string.Equals(light.Sides, "all", StringComparison.Ordinal))
+                skipped.Add("inner-light-sides-degraded:" + light.Sides);
+            var inset = light.Blur > 0
+                ? $"inset {ZeroAware(light.OffsetX)} {ZeroAware(light.OffsetY)} {FormatPx(light.Blur)}"
+                : $"inset {ZeroAware(light.OffsetX)} {ZeroAware(light.OffsetY)} 0";
+            shadows.Add(inset + " " + CssColor(light.Argb));
+        }
+
+        foreach (var sheen in spec.Sheens)
+        {
+            if (string.Equals(sheen.Mode, "spot", StringComparison.Ordinal))
+            {
+                var (x, y) = SpotCenter(sheen.Angle);
+                backgrounds.Add(
+                    $"radial-gradient(circle at {x}% {y}%, {CssColor(sheen.Argb)} 0%, transparent 70%)");
+                // 光斑位置在 HTML 侧固定（不随光标），显式降级而非伪装动态。
+                skipped.Add("specular:degraded(static-light)");
+            }
+            else
+            {
+                backgrounds.Add(
+                    $"linear-gradient({Deg(sheen.Angle)}deg, transparent 40%, {CssColor(sheen.Argb)} 50%, transparent 60%)");
+            }
+        }
+
         var primary = PrimaryStroke(material);
         if (primary is not null)
         {
@@ -324,17 +341,32 @@ public static class CssSurfaceProjector
         return best;
     }
 
-    private static (int X, int Y) SpotCenter(ResolvedLayer layer)
+    /// <summary>光斑中心（模型角度 → 归一化坐标；GDI+ 与 CSS 同口径）。</summary>
+    private static (int X, int Y) SpotCenter(float angle)
     {
-        var raw = Param(layer, "angle", "45");
-        if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var angle))
-            return (50, 50);
-
+        if (float.IsNaN(angle) || float.IsInfinity(angle)) return (50, 50);
         var radians = angle * Math.PI / 180;
         var x = (int)Math.Round(50 + Math.Cos(radians) * 26);
         var y = (int)Math.Round(50 - Math.Sin(radians) * 20);
         return (Math.Clamp(x, 0, 100), Math.Clamp(y, 0, 100));
     }
+
+    /// <summary>打包 ARGB → CSS 颜色（不透明输出 <c>#RRGGBB</c>，半透明输出 <c>#RRGGBBAA</c>）。</summary>
+    private static string CssColor(int argb)
+    {
+        var a = (argb >> 24) & 0xFF;
+        var r = (argb >> 16) & 0xFF;
+        var g = (argb >> 8) & 0xFF;
+        var b = argb & 0xFF;
+        return a == 255 ? $"#{r:x2}{g:x2}{b:x2}" : $"#{r:x2}{g:x2}{b:x2}{a:x2}";
+    }
+
+    /// <summary>模型角度 → CSS 角度（整数，保持既有输出形态）。</summary>
+    private static string Deg(float angle)
+        => ((int)Math.Round(float.IsNaN(angle) || float.IsInfinity(angle) ? 0 : angle)).ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>零值不写单位（<c>inset 0 0 …</c>），非零按 DIP→px。</summary>
+    private static string ZeroAware(float value) => Math.Abs(value) < 0.001f ? "0" : FormatPx(value);
 
     private static string Asset(ResolvedLayer layer)
         => layer.Params.TryGetValue("asset", out var asset) ? asset : string.Empty;
@@ -368,11 +400,6 @@ public static class CssSurfaceProjector
             ? parsed
             : 0);
     }
-
-    private static string Offset(ResolvedLayer layer)
-        => layer.Params.TryGetValue("offset", out var offset) && offset.Length > 0
-            ? string.Join(' ', offset.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(part => part + "px"))
-            : "0 0";
 
     private static string ReplaceCommas(string value, string separator)
         => string.Join(separator, value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));

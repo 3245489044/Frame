@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using Share.Conversation.Rendering.Surface;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -36,7 +37,18 @@ public static class SkinMaterialCatalog
         SetProperty(null);
         SetGlobal(null);
         SetGlobalProperty(null);
+        SetPageBackground(null);
     }
+
+    /// <summary>
+    /// 页面底色（**未上色背后的唯一兜底**）：玻璃快照与属性通道遇到「系统默认底色」时用它替代
+    /// <see cref="SystemColors.Control"/>，否则面板会被浅灰底洗白。null ⇒ 保持系统色（声明缺失零回归）。
+    /// </summary>
+    public static Color? PageBackground { get; private set; }
+
+    /// <summary>设置页面底色（唯一写入口）。</summary>
+    /// <param name="color">页面底色（null ⇒ 清除）。</param>
+    public static void SetPageBackground(Color? color) => PageBackground = color;
 
     /// <summary>全局回退材质（绘制通道；null ⇒ 无回退，保持纯属性着色）。</summary>
     public static ResolvedMaterial? Global { get; private set; }

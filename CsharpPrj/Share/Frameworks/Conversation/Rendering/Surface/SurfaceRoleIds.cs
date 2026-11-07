@@ -9,18 +9,15 @@ namespace Share.Conversation.Rendering.Surface;
 public static class SurfaceRoleIds
 {
     public const string Bubble = "bubble";
-    public const string Attach = "attach";
     public const string Group = "group";
     public const string FieldRow = "fieldRow";
-    public const string Badge = "badge";
-    public const string Region = "region";
 
     /// <summary>折叠容器（唯一折叠语义角色；载体内部决定 details/FoldPanel/ASCII 前缀）。</summary>
     public const string Fold = "fold";
 
     private static readonly HashSet<string> Known = new(StringComparer.Ordinal)
     {
-        Bubble, Attach, Group, FieldRow, Badge, Region, Fold,
+        Bubble, Group, FieldRow, Fold,
     };
 
     /// <summary>是否已注册角色（未注册 ⇒ <see cref="Unknown"/>，可见占位）。</summary>

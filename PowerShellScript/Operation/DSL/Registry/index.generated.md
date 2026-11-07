@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（115 件）
+## Agent（116 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -75,6 +75,7 @@
 | `PromptCacheStability` | fast | 0 | Declaration | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-PromptCacheStability.ps1` |
 | `PromptSegments` | fast | 0 | Declaration | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-PromptSegments.ps1` |
 | `PsSkillToolMap` | fast | 0 | Contract | Closure | `Environment\CentralTest\Tools\Gate\Agent\Contract\Check-PsSkillToolMap.ps1` |
+| `PublicApiAdditive` | fast | 0 | Boundary | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Boundary\Check-PublicApiAdditive.ps1` |
 | `ReadFactCoverage` | fast | 0 | Runtime | Drift | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-ReadFactCoverage.ps1` |
 | `ReadinessSingleEntry` | fast | 0 | Runtime | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-ReadinessSingleEntry.ps1` |
 | `RecordDraftSingleSource` | fast | 0 | Runtime | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-RecordDraftSingleSource.ps1` |
@@ -227,7 +228,7 @@
 | `WireFabric` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\KeySpace\Check-WireFabric.ps1` |
 | `WorkFlowMethodKeySemantics` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\KeySpace\Check-WorkFlowMethodKeySemantics.ps1` |
 
-## Meta（36 件）
+## Meta（37 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -236,6 +237,7 @@
 | `BuildClosure` | fast | 0 | Build | Closure | `Environment\CentralTest\Tools\Gate\Meta\Check-BuildClosure.ps1` |
 | `BuildLayout` | fast | 0 | Build | Closure | `Environment\CentralTest\Tools\Gate\Meta\Check-BuildLayout.ps1` |
 | `BulkThreshold` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-BulkThreshold.ps1` |
+| `CardBoundary` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-CardBoundary.ps1` |
 | `ConfigPaths` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-ConfigPaths.ps1` |
 | `ContractRegistry` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-ContractRegistry.ps1` |
 | `DeclarationLayout` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-DeclarationLayout.ps1` |
@@ -268,13 +270,14 @@
 | `UiThreadAffinity` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-UiThreadAffinity.ps1` |
 | `WriteBudgetNodes` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-WriteBudgetNodes.ps1` |
 
-## Node（47 件）
+## Node（48 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
 | `AgentFrameworkSingleSource` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-AgentFrameworkSingleSource.ps1` |
 | `AgentOrchestrationFlow` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-AgentOrchestrationFlow.ps1` |
 | `AgentRuntimeUIConfigFreshness` | fast | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-AgentRuntimeUIConfigFreshness.ps1` |
+| `AssemblyVerdictClosure` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Node\Check-AssemblyVerdictClosure.ps1` |
 | `DbPageGatherWiring` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Node\Check-DbPageGatherWiring.ps1` |
 | `DomainRosterSingleSource` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Node\Check-DomainRosterSingleSource.ps1` |
 | `DomainWireSingleSource` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Node\Check-DomainWireSingleSource.ps1` |

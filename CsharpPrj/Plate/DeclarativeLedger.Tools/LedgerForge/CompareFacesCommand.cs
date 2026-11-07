@@ -48,7 +48,7 @@ internal static class CompareFacesCommand
 
             try
             {
-                var keys = ReadKeys(path);
+                var keys = FaceKeySetReader.Read(path);
                 faces.Add((name, keys));
             }
             catch (Exception exception)
@@ -95,39 +95,6 @@ internal static class CompareFacesCommand
         }
 
         return violations.Count == 0 ? 0 : 1;
-    }
-
-    /// <summary>键集文件：JSON 字符串数组；或对象（取 properties 名）；或 <c>{"keys":[...]}</c>。</summary>
-    private static IReadOnlyList<string> ReadKeys(string path)
-    {
-        using var stream = File.OpenRead(path);
-        using var document = JsonDocument.Parse(stream);
-        var root = document.RootElement;
-
-        if (root.ValueKind == JsonValueKind.Array)
-        {
-            return root.EnumerateArray()
-                .Where(item => item.ValueKind == JsonValueKind.String)
-                .Select(item => item.GetString()!)
-                .Where(key => !string.IsNullOrWhiteSpace(key))
-                .ToList();
-        }
-
-        if (root.ValueKind == JsonValueKind.Object)
-        {
-            if (root.TryGetProperty("keys", out var keys) && keys.ValueKind == JsonValueKind.Array)
-            {
-                return keys.EnumerateArray()
-                    .Where(item => item.ValueKind == JsonValueKind.String)
-                    .Select(item => item.GetString()!)
-                    .Where(key => !string.IsNullOrWhiteSpace(key))
-                    .ToList();
-            }
-
-            return root.EnumerateObject().Select(property => property.Name).ToList();
-        }
-
-        throw new InvalidOperationException("键集文件须为 JSON 数组或对象");
     }
 
     private sealed record FaceViolation(string Face, string Kind, string Key);

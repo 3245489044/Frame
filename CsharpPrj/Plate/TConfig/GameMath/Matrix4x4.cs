@@ -125,6 +125,75 @@ public readonly struct Matrix4x4 : IEquatable<Matrix4x4>
             left.M41 * right.M14 + left.M42 * right.M24 + left.M43 * right.M34 + left.M44 * right.M44);
     }
 
+    /// <summary>
+    /// 一般 4x4 求逆（Gauss–Jordan + 部分主元；内部 double 精度）。行/列语义与 <c>operator *</c> 同一约定，
+    /// 因此 <c>v * M</c> 与 <c>v * M⁻¹</c> 可直接用于“世界 ↔ 裁剪”双向变换（unproject / 投影）。
+    /// <para>奇异矩阵返回 false（调用方按“无射线”处理，不做近似回退）。</para>
+    /// </summary>
+    public bool TryInvert(out Matrix4x4 inverse)
+    {
+        // 增广矩阵 [M | I]，行主序展开；消元只做行交换/行缩放/行相加，保持数值稳定。
+        double[] a =
+        {
+            M11, M12, M13, M14, 1, 0, 0, 0,
+            M21, M22, M23, M24, 0, 1, 0, 0,
+            M31, M32, M33, M34, 0, 0, 1, 0,
+            M41, M42, M43, M44, 0, 0, 0, 1,
+        };
+
+        for (int col = 0; col < 4; col++)
+        {
+            int pivotRow = col;
+            double pivotAbs = System.Math.Abs(a[col * 8 + col]);
+            for (int row = col + 1; row < 4; row++)
+            {
+                double candidate = System.Math.Abs(a[row * 8 + col]);
+                if (candidate > pivotAbs)
+                {
+                    pivotAbs = candidate;
+                    pivotRow = row;
+                }
+            }
+
+            if (pivotAbs < 1e-12)
+            {
+                inverse = default;
+                return false;
+            }
+
+            if (pivotRow != col)
+            {
+                for (int k = 0; k < 8; k++)
+                {
+                    double tmp = a[col * 8 + k];
+                    a[col * 8 + k] = a[pivotRow * 8 + k];
+                    a[pivotRow * 8 + k] = tmp;
+                }
+            }
+
+            double pivot = a[col * 8 + col];
+            for (int k = 0; k < 8; k++)
+                a[col * 8 + k] /= pivot;
+
+            for (int row = 0; row < 4; row++)
+            {
+                if (row == col) continue;
+                double factor = a[row * 8 + col];
+                if (factor == 0d) continue;
+                for (int k = 0; k < 8; k++)
+                    a[row * 8 + k] -= factor * a[col * 8 + k];
+            }
+        }
+
+        // 消元后左半为 I，右半（列 4..7）才是 M⁻¹。
+        inverse = new Matrix4x4(
+            (float)a[4], (float)a[5], (float)a[6], (float)a[7],
+            (float)a[12], (float)a[13], (float)a[14], (float)a[15],
+            (float)a[20], (float)a[21], (float)a[22], (float)a[23],
+            (float)a[28], (float)a[29], (float)a[30], (float)a[31]);
+        return true;
+    }
+
     public bool Equals(Matrix4x4 other)
     {
         return M11.Equals(other.M11) && M12.Equals(other.M12) && M13.Equals(other.M13) && M14.Equals(other.M14)

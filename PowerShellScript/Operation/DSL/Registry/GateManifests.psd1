@@ -202,6 +202,14 @@
         Note   = 'Agent.Modules.Framework 归属唯一 / 契约不内联 / 依赖方向 / 零 Agent 件可见化；C5 正负对照（内存合成，零侧写）'
     }
 
+    AssemblyVerdictClosure = @{
+        Domain = 'Node'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '装配裁决闭门：AV1 位置对账未解析必红 / AV2 就绪覆盖显式声明 / AV3 指标口径与节点域一致 / AV4 调用面 Shadow 可追溯或可阻塞 / AV5 边准入声明为空不可默认可过 / AV6 声明孤儿默认姿态可判 / AV7 部署存在≠被引用 / AV8 聚拢健康与封存内容判据 / AV9 VM 占位不得据此判过；九组正负对照 + 存量逐条豁免'
+    }
+
     # ===== 带 -Check 开关的门禁（-Check 时退出码裁决） =====
     RelationPlan = @{
         Domain = 'Node'
@@ -1917,6 +1925,14 @@
         Args   = @{ Check = $true }
         Expect = 0
         Note   = 'PrjBridge 解耦守卫（INV-PB-1）：桥产物 AssemblyRef 零 Agent.*/GameEditor.*（结构事实=元数据引用表）⇒ Agent/Engine 任意变更不迫使桥重编'
+    }
+
+    # ===== Card 通用契约层边界（CB-1..CB-4）=====
+    CardBoundary = @{
+        Domain = 'Meta'
+        Args   = @{ Check = $true }
+        Expect = 0
+        Note   = 'Card 中性契约边界：CB-1 契约零依赖 / CB-2 适配器单边引用（Agent→Contract，Engine→Contract+Scene，禁互引/禁 Frame）/ CB-3 契约公开面无委托与句柄 / CB-4 契约副本唯一（Shared\CsharpPrj）；自带 Good/Bad 自证 + -NegativeControl'
     }
 
     # ===== 契约框架（ContractFramework：契约身份/注册/对账/执行/取证）=====

@@ -173,6 +173,7 @@ function Test-GateCallBinding {
             'Frame\PowerShellScript\Baselines\GateClosure.psm1',
             'Frame\PowerShellScript\Baselines\GateBaseline.psm1',
             'Frame\PowerShellScript\Baselines\DeclarationPathResolver.psm1',
+            'Frame\PowerShellScript\Baselines\GateFaceReconciliation.psm1',
             'Frame\PowerShellScript\Baselines\ArtifactFreshness.psm1',
             'Frame\PowerShellScript\Baselines\VerifyScope.psm1',
             'Frame\PowerShellScript\Operation\DSL\Meta\TextOps.psm1',

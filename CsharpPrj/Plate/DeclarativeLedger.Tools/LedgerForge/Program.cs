@@ -31,12 +31,13 @@ internal static class Program
                 "entry-check" => EntryCheckCommand.Run(LedgerView.Load(options.Data), options.Bin!, options.Only, options.Kind),
                 "gather-validate" => GatherValidateCommand.Run(options.Dir, options.Out),
                 "compare-faces" => CompareFacesCommand.Run(options.Faces, options.Ref, options.Out),
+                "reconcile-faces" => ReconcileFacesCommand.Run(options.Faces, options.Ref, options.Out),
                 "transfer-facts" => TransferFactsCommand.Run(options.Ushar, options.Consts, options.Codec, options.Out),
                 "ps-runtime-facts" => PsRuntimeFactsCommand.Run(options.Repo, options.AgentRoot, options.FrameRoot, options.Out),
                 "contract-facts" => ContractFactsCommand.Run(options.Repo, options.AgentRoot, options.Out),
                 "help" or "--help" or "-h" or "" => Help(),
                 _ => Fail($"未知命令 '{options.Command}'"
-                          + "（可用：check | compose | split | set-impl | normalize-key | derive-schema | emit-declaration | lint | entry-check | gather-validate | compare-faces | transfer-facts | ps-runtime-facts | contract-facts | help）"),
+                          + "（可用：check | compose | split | set-impl | normalize-key | derive-schema | emit-declaration | lint | entry-check | gather-validate | compare-faces | reconcile-faces | transfer-facts | ps-runtime-facts | contract-facts | help）"),
             };
         }
         catch (Exception exception)
@@ -71,6 +72,8 @@ internal static class Program
         Console.WriteLine("                                         聚拢声明校验（唯一实现 = GatherSpecLoader；V1–V15；issues 走 JSON）");
         Console.WriteLine("  compare-faces --face <名>=<键集.json> (≥2) [--ref <名>] [--out <json>]");
         Console.WriteLine("                                         多面键集对拍（唯一比较实现 = LedgerKeyClosure / Ordinal）");
+        Console.WriteLine("  reconcile-faces --face <名>=<键集.json> (≥2) [--ref <名>] [--out <json>]");
+        Console.WriteLine("                                         多面对账（面数量 / 覆盖等级 / 缺项；空面与未装载一律不绿）");
         Console.WriteLine("  transfer-facts --ushar <声明> --consts <生成常量> --codec <唯一实现> [--out <json>]");
         Console.WriteLine("                                         转移键事实导出（[Space] 值集 / 生成常量 / Codec 词表边界）");
         Console.WriteLine("  ps-runtime-facts --repo <仓库根> --agent <Agent 根> [--frame-root <Frame 根>] [--out <json>]");
@@ -242,10 +245,10 @@ internal static class Program
                 throw new ArgumentException("emit-declaration 需要 --family <夹具文件>");
             if (command == "gather-validate" && string.IsNullOrWhiteSpace(dir))
                 throw new ArgumentException("gather-validate 需要 --dir <聚拢声明目录>");
-            if (command == "compare-faces" && faces.Count < 2)
-                throw new ArgumentException("compare-faces 至少需要两个 --face <名>=<键集 JSON>");
-            if (reference is not null && command != "compare-faces")
-                throw new ArgumentException($"--ref 仅适用于 compare-faces（实得命令 '{command}'）");
+            if (command is "compare-faces" or "reconcile-faces" && faces.Count < 2)
+                throw new ArgumentException($"{command} 至少需要两个 --face <名>=<键集 JSON>");
+            if (reference is not null && command is not ("compare-faces" or "reconcile-faces"))
+                throw new ArgumentException($"--ref 仅适用于 compare-faces / reconcile-faces（实得命令 '{command}'）");
             if (command == "transfer-facts" && (string.IsNullOrWhiteSpace(ushar) || string.IsNullOrWhiteSpace(consts) || string.IsNullOrWhiteSpace(codec)))
                 throw new ArgumentException("transfer-facts 需要 --ushar、--consts、--codec");
             if (command == "ps-runtime-facts" && (string.IsNullOrWhiteSpace(repo) || string.IsNullOrWhiteSpace(agentRoot)))

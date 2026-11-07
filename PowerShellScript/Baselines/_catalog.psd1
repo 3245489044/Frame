@@ -126,6 +126,7 @@
         @{ File = '_inline-baselines.psd1'; Role = 'Register'; Domain = 'Infra'; Gate = ''; Shape = 'Registry'; Origins = @('Debt'); Consumer = 'Environment\CentralTest\Tools\Gate\Meta\Check-GateBaselines.ps1' }
         @{ File = '_verify-scope.psd1'; Role = 'Register'; Domain = 'Infra'; Gate = ''; Shape = 'Registry'; Origins = @('Derived', 'Verdict'); Consumer = 'Environment\CentralTest\Internal\Invoke-Verify.ps1' }
         @{ File = '_DeclarationClosureExemptions.psd1'; Role = 'Register'; Domain = 'Infra'; Gate = ''; Shape = 'Registry'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\KeySpace\Check-DeclarationClosure.ps1' }
+        @{ File = 'Node\_AssemblyVerdictClosureExemptions.psd1'; Role = 'Register'; Domain = 'Node'; Gate = ''; Shape = 'Registry'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Node\Check-AssemblyVerdictClosure.ps1' }
         # ---- Role=Lib（原语代码；改动面大，固定留根，禁按域搬迁）----
         @{ File = 'GateBaseline.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateFileIndex.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
@@ -134,6 +135,7 @@
         @{ File = 'GateCallBinding.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateStructureFacts.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'DeclarationPathResolver.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Operation\DSL\Meta\Check-ConfigPaths.ps1' }
+        @{ File = 'GateFaceReconciliation.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
 
         @{ File = 'GateFacts.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = '' }
         @{ File = 'GateClosure.psm1'; Role = 'Lib'; Domain = 'Infra'; Gate = ''; Shape = 'Code'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\KeySpace\Check-DeclarationClosure.ps1' }

@@ -360,9 +360,9 @@ public static class CssSurfaceProjector
         return new List<KeyValuePair<string, string>>
         {
             Pair("--sl-angle", angle.ToString(CultureInfo.InvariantCulture) + "deg"),
-            // 锚点是**视口坐标 px**（世界固定），不是面板百分比：固定背景层据此在屏幕上定位。
-            Pair("--sl-anchor-x", FormatPx(sample.Anchor.X)),
-            Pair("--sl-anchor-y", FormatPx(sample.Anchor.Y)),
+            // 共享模块不发布 --sl-anchor-x/y：同一份 CSS 服务多个 WebView，而每个载体的原点不同。
+            // 锚点由 SurfaceThemeBinding 在运行期按 viewer 换算后 setProperty 推送；无推送时
+            // radial-gradient 回落到 30vw/18vh（视口单位，仍属载体坐标）。
             // --sl-spot-r 是材质级量（SpotRadiusDips × 声明 radius），由材质规则按需输出。
             Pair("--sl-tint", CssColor(sheenTint)),
             Pair("--sl-irid-angle", iridAngle.ToString(CultureInfo.InvariantCulture) + "deg"),

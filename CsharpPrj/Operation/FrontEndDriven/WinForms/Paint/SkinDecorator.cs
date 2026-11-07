@@ -473,23 +473,30 @@ public static class SkinDecorator
         SurfaceLightPump.EnsureStarted(control);
         // 无帧（启动前 1 秒 / 引擎未加载 / 连续采样失败）⇒ 声明式默认太阳，而不是整屏无光。
         var frame = SurfaceLightRegistry.Current ?? SurfaceLight.DefaultFrame(SurfaceLightPump.ScreenCoverage(control));
-        var sample = SurfaceLightPort.Sample(frame, ProbeOf(control));
+        var probe = ProbeOf(control);
+        var sample = SurfaceLightPort.Sample(frame, probe);
+        if (sample.HasValue && !sample.SpotInsideBounds)
+        {
+            // 越界只记账、不夹取：光斑允许落在面板之外，是否受光由 Shade 判定。
+            SkinDiagnostics.RecordCarrierOutOfBounds(
+                "winforms:" + (string.IsNullOrEmpty(control.Name) ? control.GetType().Name : control.Name),
+                sample.SpotBoundsDetail);
+        }
+
         return sample.HasValue ? SurfaceLightState.From(sample) : null;
     }
 
-    /// <summary>控件矩形 → 屏幕 DIP 探针（光场覆盖区使用同一坐标空间）。</summary>
+    /// <summary>控件矩形 → 屏幕 DIP 探针（origin 只能来自 <see cref="SurfaceLightCarrierOrigin"/> 单一入口）。</summary>
     private static SurfaceLightProbe ProbeOf(Control control)
     {
-        var origin = control.PointToScreen(Point.Empty);
-        var dpi = control.DeviceDpi <= 0 ? 96f : control.DeviceDpi;
-        var scale = 96f / dpi;
+        var carrier = SurfaceLightCarrierOrigin.Of(control);
         return new SurfaceLightProbe(
-            origin.X * scale,
-            origin.Y * scale,
-            control.Width * scale,
-            control.Height * scale,
+            carrier.ScreenXDip,
+            carrier.ScreenYDip,
+            carrier.WidthDip,
+            carrier.HeightDip,
             ZOrder: 0,
-            Dpi: dpi);
+            Dpi: carrier.Dpi);
     }
 
     /// <summary>

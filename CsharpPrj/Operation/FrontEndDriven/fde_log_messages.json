@@ -17,6 +17,21 @@
       "level": "Info",
       "category": "FrontEndDriven.Skin"
     },
+    "SkinDiagnostics_light_push": {
+      "template": "[表面] 锚点推送到已渲染页面 — viewer={viewer}, instance={instance}, old={oldValue}, new={newValue}, page={pageValue}, ok={ok}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
+    "SkinDiagnostics_carrier_projection": {
+      "template": "[表面] 载体投影（逐载体换算证据） — carrier={carrier}, world={world}, origin={origin}, local={local}, reconstructed={reconstructed}, rect={rect}, inside={inside}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
+    "SkinDiagnostics_carrier_out_of_bounds": {
+      "template": "[表面] 锚点越界（只记账，不夹取） — carrier={carrier}, detail={detail}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
     "SkinDecorator_paint_failed": {
       "template": "[皮肤] 绘制帧失败（已记录 Failed 报告并继续，不中断重绘） — type={type}, material={material}, exception={exception}",
       "level": "Warning",

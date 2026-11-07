@@ -195,6 +195,97 @@ public static class SkinDiagnostics
         FrontEndDrivenLog.Log("SkinDiagnostics_light_sample_degraded", new { reason, detail });
     }
 
+    private static readonly HashSet<Guid> _pushFailureReported = new();
+
+    /// <summary>
+    /// 锚点推送可观测记录：成功每次值变化记一条；**失败每 viewer 实例只记一次**（禁止静默丢）。
+    /// </summary>
+    /// <param name="viewer">控件名（多视图时区分载体）。</param>
+    /// <param name="instance">控件实例 id（同一名字的重建实例不串号）。</param>
+    /// <param name="oldValue">推送前的页面 inline 值。</param>
+    /// <param name="newValue">本次推送的载体坐标值。</param>
+    /// <param name="pageValue">推送后从页面读回的值（证明 DOM 已生效）。</param>
+    /// <param name="ok">是否推送成功。</param>
+    public static void RecordLightPush(
+        string viewer,
+        Guid instance,
+        string oldValue,
+        string newValue,
+        string pageValue,
+        bool ok)
+    {
+        if (!ok)
+        {
+            lock (Gate)
+            {
+                if (!_pushFailureReported.Add(instance)) return;
+            }
+        }
+
+        FrontEndDrivenLog.Log("SkinDiagnostics_light_push", new
+        {
+            viewer,
+            instance = instance.ToString(),
+            oldValue,
+            newValue,
+            pageValue,
+            ok,
+        });
+    }
+
+    private static readonly HashSet<string> _carrierBoundsReported = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 载体锚点越界记账（**不夹取**）：每载体只记一次，保留 world/origin/local/rect 原始事实。
+    /// </summary>
+    public static void RecordCarrierOutOfBounds(string carrier, string? detail)
+    {
+        if (string.IsNullOrEmpty(detail)) return;
+        lock (Gate)
+        {
+            if (!_carrierBoundsReported.Add(carrier)) return;
+        }
+
+        FrontEndDrivenLog.Log("SkinDiagnostics_carrier_out_of_bounds", new { carrier, detail });
+    }
+
+    private static readonly Dictionary<string, string> _carrierProjectionLast = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, int> _carrierProjectionCount = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 跨载体一致性证据：同一世界锚点在 HTML 与 WinForms 各自换算后的 world/origin/local/reconstructed。
+    /// <para>按 origin/local 变化记录，每载体上限 5 条（窗口移动前后各留一条，不随 1Hz 泵刷屏）。</para>
+    /// </summary>
+    public static void RecordCarrierProjection(
+        string carrier,
+        SurfaceLightAnchor world,
+        SurfaceCarrierFrame frame,
+        SurfaceLightCarrierPoint local)
+    {
+        var key = FormattableString.Invariant(
+            $"{frame.ScreenXDip:F1},{frame.ScreenYDip:F1},{local.X:F1},{local.Y:F1}");
+        lock (Gate)
+        {
+            if (_carrierProjectionLast.TryGetValue(carrier, out var last) && last == key) return;
+            if (_carrierProjectionCount.TryGetValue(carrier, out var count) && count >= 5) return;
+            _carrierProjectionLast[carrier] = key;
+            _carrierProjectionCount[carrier] = count + 1;
+        }
+
+        var reconstructedX = local.X + frame.ScreenXDip;
+        var reconstructedY = local.Y + frame.ScreenYDip;
+        FrontEndDrivenLog.Log("SkinDiagnostics_carrier_projection", new
+        {
+            carrier,
+            world = FormattableString.Invariant($"{world.X:F1},{world.Y:F1}"),
+            origin = FormattableString.Invariant($"{frame.ScreenXDip:F1},{frame.ScreenYDip:F1}"),
+            local = FormattableString.Invariant($"{local.X:F1},{local.Y:F1}"),
+            reconstructed = FormattableString.Invariant($"{reconstructedX:F1},{reconstructedY:F1}"),
+            rect = FormattableString.Invariant($"{frame.WidthDip:F1}x{frame.HeightDip:F1}"),
+            inside = local.Inside,
+        });
+    }
+
     /// <summary>
     /// 统计非法/未换值的声明项（token 未换值的结构指标）。
     /// <para>判据载体 = K1 强类型解析输出的 issues（**与运行期同源**）：扫描全部声明参数（色值与 width/radius 等数值），

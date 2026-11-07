@@ -644,7 +644,8 @@ internal static class SurfaceAmbient
             frame = _defaultFrame;
         }
 
-        var scale = 96f / Math.Max(96f, dpi);
+        var carrier = SurfaceLightCarrierOrigin.Of(form);
+        dpi = carrier.Dpi;
         var screen = form.PointToScreen(Point.Empty);
         var frameToken = frame.Signature;
         if (_stateFrameToken == frameToken
@@ -656,13 +657,31 @@ internal static class SurfaceAmbient
         }
 
         var probe = new SurfaceLightProbe(
-            screen.X * scale,
-            screen.Y * scale,
-            form.ClientSize.Width * scale,
-            form.ClientSize.Height * scale,
-            0,
-            dpi);
+            carrier.ScreenXDip,
+            carrier.ScreenYDip,
+            carrier.WidthDip,
+            carrier.HeightDip,
+            ZOrder: 0,
+            Dpi: carrier.Dpi);
         var sample = SurfaceLightPort.Sample(frame, probe);
+        if (sample.HasValue)
+        {
+            if (!sample.SpotInsideBounds)
+            {
+                // 越界只记账、不夹取（光斑允许落在面板之外，Shade 决定是否受光）。
+                SkinDiagnostics.RecordCarrierOutOfBounds(
+                    "winforms:" + (string.IsNullOrEmpty(form.Name) ? form.GetType().Name : form.Name),
+                    sample.SpotBoundsDetail);
+            }
+
+            SkinDiagnostics.RecordCarrierProjection(
+                "winforms:" + (string.IsNullOrEmpty(form.Name) ? form.GetType().Name : form.Name),
+                frame.Anchor,
+                carrier,
+                new SurfaceLightCarrierPoint(
+                    sample.SpotLocalX, sample.SpotLocalY, sample.SpotInsideBounds, sample.SpotBoundsDetail));
+        }
+
         _stateFrameToken = frameToken;
         _stateDpi = dpi;
         _stateOrigin = screen;

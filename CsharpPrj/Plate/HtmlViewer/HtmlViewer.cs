@@ -68,6 +68,9 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
         _realInput = new RealInputClicker(this, _scriptExecutor, ReportDiagnostics);
         _contentWriter = new ContentWriteCoordinator(ReportDiagnostics);
         _messageRoutes = new MessageRouteArbiter(h => MessageReceived += h, h => MessageReceived -= h);
+
+        // 运行期锚点推送按实例遍历（多 WebView 共存时每个载体各自换算）。
+        HtmlViewerLiveRegistry.Register(this);
     }
 
     /// <summary>HTML 文档基础字号（px）。默认 15（对齐 <see cref="HtmlDocumentRenderer.DefaultCss"/>）。</summary>
@@ -131,8 +134,12 @@ public sealed class HtmlViewer : WebView2, IHtmlChannel, IUiBridgeReadiness, IWe
     /// <see cref="WriteContentAsync"/> 无协调器时的回退）与首挂载使用。生产者一律经
     /// <see cref="WriteContentAsync"/> / <see cref="RenderPlanExecutor"/>（单写者），门禁 <c>Check-UiSingleWrite</c> 强制。</para></summary>
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
-    public Task SetHtmlAsync(string? html, CancellationToken ct = default)
-        => _marshaler.RunAsync(c => new ValueTask(_lifecycle.RenderAsync(html, c)), ct);
+    public async Task SetHtmlAsync(string? html, CancellationToken ct = default)
+    {
+        await _marshaler.RunAsync(c => new ValueTask(_lifecycle.RenderAsync(html, c)), ct).ConfigureAwait(false);
+        // 整页导航会清掉运行期 inline 锚点：通知推送方清缓存并重推（否则值未变会被去重跳过）。
+        HtmlViewerLiveRegistry.NotifyContentWritten(this);
+    }
 
     /// <summary>宿主内容写回协调器（D2 单写者）：由 <see cref="UiBackend.Html.HtmlBackendRuntime"/> 在装配时挂接。
     /// 挂接后，所有「输出 → 页面内容」的落地（值契约 / ECS 输出 / 消息桥）统一经协调器（reconcile / 去重 / 区域，保态）。</summary>

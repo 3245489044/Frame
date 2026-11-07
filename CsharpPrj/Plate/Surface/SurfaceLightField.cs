@@ -244,6 +244,12 @@ public readonly record struct SurfaceLightSample(
     /// <summary>锚点相对组件左上角的 Y（DIP）。</summary>
     public float SpotLocalY { get; init; }
 
+    /// <summary>锚点是否落在组件客户区内（越界不夹取，只记账）。</summary>
+    public bool SpotInsideBounds { get; init; } = true;
+
+    /// <summary>越界结构化事实（world/origin/local/rect）；未越界为 null。</summary>
+    public string? SpotBoundsDetail { get; init; }
+
     /// <summary>光斑半径（DIP）。</summary>
     public float SpotRadiusDips { get; init; }
 
@@ -329,8 +335,12 @@ public static class SurfaceLightPort
 
         // 高光中心 = **世界固定锚点**，与组件矩形无关：组件移动时光斑在屏幕上的位置不动。
         var anchor = frame.Anchor;
-        var spotLocalX = anchor.X - probe.X;
-        var spotLocalY = anchor.Y - probe.Y;
+        // 唯一换算入口（HTML 推送与 WinForms 采样共用）：输入必须是物理屏幕 DIP，输出载体局部坐标。
+        var carrierPoint = SurfaceLightCarrierProjection.Project(
+            anchor,
+            new SurfaceCarrierFrame(probe.X, probe.Y, probe.Width, probe.Height, (int)probe.Dpi));
+        var spotLocalX = carrierPoint.X;
+        var spotLocalY = carrierPoint.Y;
         // 归一化只用于诊断/旧令牌口径，**不做** [0.05,0.95] 夹取：光斑允许落在面板之外，
         // 面板不受光由 Shade 判定，而不是把光斑拽回面板角落。
         var spotX = probe.Width <= 1e-6f ? 0.5f : spotLocalX / probe.Width;
@@ -403,6 +413,8 @@ public static class SurfaceLightPort
             Anchor = anchor,
             SpotLocalX = spotLocalX,
             SpotLocalY = spotLocalY,
+            SpotInsideBounds = carrierPoint.Inside,
+            SpotBoundsDetail = carrierPoint.OutOfBoundsDetail,
             SpotRadiusDips = anchor.SpotRadiusDips,
             Shade = shade,
             IridescencePhase = phase,

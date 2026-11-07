@@ -99,3 +99,20 @@ details.fold[open] > summary.fold-summary::before { content: "▾ "; }
 .field > .field-text { color: var(--fg); white-space: pre-wrap; word-break: break-word; }
 .field.unknown > .field-text, .unknown { color: var(--muted); font-style: italic; }
 
+/* ── 行族 + 成本余项 + 分页（模板引用的通用类；值只用 token 引用） ── */
+.operation-row { margin: 2px 6px; padding: 2px 0; }
+.operation-badge { font-size: 12px; color: var(--muted); letter-spacing: .02em; }
+.operation-text { white-space: pre-wrap; word-break: break-word; font-size: 13px; color: var(--fg); }
+.notice-subject { font-size: 12px; color: var(--muted); }
+.unknown-badge { border: 1px dashed var(--border); padding: 0 4px; }
+.round-cost { margin-left: 6px; }
+.render-degraded { font-size: 12px; color: var(--danger); }
+.cost-coverage { font-size: 12px; color: var(--muted); }
+.cost-list { margin: 4px 0 4px 18px; font-size: 12px; }
+.cost-summary { display: flex; flex-wrap: wrap; gap: 6px; }
+.msg { margin: 2px 6px; padding: 2px 0; }
+.msg-stage { font-size: 12px; color: var(--muted); margin-right: 6px; }
+.msg-text { white-space: pre-wrap; word-break: break-word; font-size: 13px; color: var(--fg); }
+.pager-prev, .pager-next { font-size: 12px; }
+.pager-pos { font-size: 12px; color: var(--muted); padding: 0 6px; }
+

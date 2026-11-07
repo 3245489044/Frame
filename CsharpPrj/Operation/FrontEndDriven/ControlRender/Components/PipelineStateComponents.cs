@@ -16,6 +16,27 @@ public struct LayoutAppliedComponent : IComponent
 }
 
 /// <summary>
+/// 比例 + 最小像素双约束的分配记录（诊断/可观测）：
+/// 记录名义比例宽度、折算后的最小物理宽、实际分配矩形与生效约束（ratio/min/shrunk/overflow）。
+/// 写入方：LayoutSystem.ReconcileMinAllocations；消费方：LayoutSystem 比例分支优先采用本组件。
+/// </summary>
+public struct LayoutAllocationComponent : IComponent
+{
+    public int Left;
+    public int Top;
+    public int Width;
+    public int Height;
+    /// <summary>名义比例宽度（物理 px），用于对比最小像素约束是否生效。</summary>
+    public int NominalWidth;
+    /// <summary>按 DeviceDpi 折算后的最小物理宽度（物理 px）。</summary>
+    public int MinWidthPx;
+    /// <summary>生效约束：ratio | min | shrunk | overflow。</summary>
+    public string Effective;
+    /// <summary>超额无法回收时剩余的溢出像素（0 = 无溢出）。</summary>
+    public int OverflowPx;
+}
+
+/// <summary>
 /// 已投影布局组件（Pillar A·收敛判定下沉 ECS）：记录最近一次物理投影写入的父相对 bounds。
 /// 判定"是否需要写"改为对比本标记与 ECS ComputedLayout，不再读物理——
 /// 消除「物理读回 → SetBounds → ResumeLayout 二次调整 → 物理≠ECS → 再写」的振荡环。

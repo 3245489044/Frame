@@ -11,6 +11,7 @@ using FrontEndDriven.ECS.Components;
 using FrontEndDriven;
 using FrontEndDriven.ControlRender.Diagnostics;
 using FrontEndDriven.ControlRender.Layout;
+using FrontEndDriven.Diagnostics;
 using FrontEndDriven.Shared.Utils;
 using FrameworkAbstractions.ComponentRegistry;
 using ECS.Components;
@@ -23,11 +24,15 @@ public class LayoutSystem
 
     private readonly ContainerBasisResolver? _basisResolver;
 
+    /// <summary>物理控件池（DPI 来源；为 null 时回退 AppServiceProvider 解析，再回退 96 DPI）。</summary>
+    private readonly ControlPool? _controlPool;
+
     /// <summary>注入统一同步父容器可达成显示区解析器（TabControl 自动扣页签条+边框 inset）；测试态可传 null 走父 ContainerSize 单跳兜底。</summary>
-    public LayoutSystem(EntityManager entityManager, ContainerBasisResolver? basisResolver)
+    public LayoutSystem(EntityManager entityManager, ContainerBasisResolver? basisResolver, ControlPool? controlPool = null)
     {
         _entityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
         _basisResolver = basisResolver;
+        _controlPool = controlPool;
     }
 
     public void Update()
@@ -41,6 +46,9 @@ public class LayoutSystem
         // 收敛循环按深度推进重试）。不再需要独立的「深度排序预结算」趟——同一批实体由收敛循环重算至无变化。
         for (int pass = 0; pass < LayoutConvergencePolicy.MaxLayoutPasses; pass++)
         {
+            // 每趟先按父容器重算「比例 + 最小像素」分配：父尺寸在本趟追平后，子分配下一趟即收敛。
+            ReconcileMinAllocations();
+
             bool anyComputedThisPass = false;
 
             foreach (var entity in GetLayoutPendingEntities())
@@ -112,15 +120,32 @@ public class LayoutSystem
         {
             var propLayout = _entityManager.GetComponent<ProportionalLayoutComponent>(entity);
 
-            computed = new ComputedLayoutComponent
+            // 「比例 + 最小像素」双约束：有分配记录时优先采用（含最小宽下界与超额回收结果）；
+            // 无最小配置的实体不产生记录 → 走原公式，逐值不变（其它面板零影响）。
+            if (_entityManager.TryGetComponent<LayoutAllocationComponent>(entity, out var allocation))
             {
-                Left = parentLeft + (int)(propLayout.Left * parentWidth),
-                Top = parentTop + (int)(propLayout.Top * parentHeight),
-                Width = (int)(propLayout.Width * parentWidth),
-                Height = (int)(propLayout.Height * parentHeight),
-                ParentWidth = parentWidth,
-                ParentHeight = parentHeight
-            };
+                computed = new ComputedLayoutComponent
+                {
+                    Left = parentLeft + allocation.Left,
+                    Top = parentTop + allocation.Top,
+                    Width = allocation.Width,
+                    Height = allocation.Height,
+                    ParentWidth = parentWidth,
+                    ParentHeight = parentHeight
+                };
+            }
+            else
+            {
+                computed = new ComputedLayoutComponent
+                {
+                    Left = parentLeft + (int)(propLayout.Left * parentWidth),
+                    Top = parentTop + (int)(propLayout.Top * parentHeight),
+                    Width = (int)(propLayout.Width * parentWidth),
+                    Height = (int)(propLayout.Height * parentHeight),
+                    ParentWidth = parentWidth,
+                    ParentHeight = parentHeight
+                };
+            }
         }
 
         _entityManager.AddOrSetComponent(entity, computed);
@@ -135,6 +160,144 @@ public class LayoutSystem
         _entityManager.AddComponent(entity, new LayoutAppliedComponent());
 
         return true;
+    }
+
+    /// <summary>
+    /// 「比例 + 最小像素」双约束分配：按父实体分组重算，写入 <see cref="LayoutAllocationComponent"/>。
+    /// 仅当组内存在 MinWidthDip &gt; 0 才计算；无最小配置的父容器保持原比例路径（逐值不变）。
+    /// </summary>
+    private void ReconcileMinAllocations()
+    {
+        var groups = new Dictionary<Entity, List<Entity>>();
+
+        foreach (var entity in _entityManager.GetEntities<ProportionalLayoutComponent>())
+        {
+            if (IsSplitterPanelEntity(entity))
+                continue;
+            if (_entityManager.HasComponent<LayoutIntentComponent>(entity)
+                || LayoutQuery.IsNativeIntent(_entityManager, entity))
+                continue;
+            if (!_entityManager.TryGetComponent<ParentEntityComponent>(entity, out var parent)
+                || !parent.ParentEntity.IsValid)
+                continue;
+
+            if (!groups.TryGetValue(parent.ParentEntity, out var siblings))
+            {
+                siblings = new List<Entity>();
+                groups[parent.ParentEntity] = siblings;
+            }
+
+            siblings.Add(entity);
+        }
+
+        foreach (var group in groups)
+            ReconcileSiblingGroup(group.Value);
+    }
+
+    private void ReconcileSiblingGroup(List<Entity> siblings)
+    {
+        bool anyMin = false;
+        foreach (var sibling in siblings)
+        {
+            if (_entityManager.GetComponent<ProportionalLayoutComponent>(sibling).MinWidthDip > 0)
+            {
+                anyMin = true;
+                break;
+            }
+        }
+
+        if (!anyMin)
+        {
+            foreach (var sibling in siblings)
+            {
+                if (_entityManager.HasComponent<LayoutAllocationComponent>(sibling))
+                    _entityManager.RemoveComponent<LayoutAllocationComponent>(sibling);
+            }
+
+            return;
+        }
+
+        if (!TryGetParentContainerSize(siblings[0], out _, out _, out var parentWidth, out var parentHeight)
+            || parentWidth <= 0 || parentHeight <= 0)
+            return;
+
+        int dpi = 0;
+        foreach (var sibling in siblings)
+            dpi = Math.Max(dpi, ResolveDeviceDpi(sibling));
+
+        if (dpi <= 0 && _entityManager.TryGetComponent<ParentEntityComponent>(siblings[0], out var parentComp))
+            dpi = ResolveDeviceDpi(parentComp.ParentEntity);
+
+        if (dpi <= 0)
+            dpi = ProportionalLayoutPolicy.ReferenceDpi;
+
+        var slots = new List<ProportionalLayoutPolicy.Slot>(siblings.Count);
+        foreach (var sibling in siblings)
+        {
+            var prop = _entityManager.GetComponent<ProportionalLayoutComponent>(sibling);
+            slots.Add(new ProportionalLayoutPolicy.Slot(
+                sibling,
+                prop.Left,
+                prop.Top,
+                prop.Width,
+                prop.Height,
+                prop.MinWidthDip,
+                prop.MinHeightDip,
+                prop.ShrinkPriority));
+        }
+
+        foreach (var allocation in ProportionalLayoutPolicy.Allocate(parentWidth, parentHeight, dpi, slots))
+            StoreAllocation(allocation);
+    }
+
+    /// <summary>物理控件 DPI（真源）；取不到返回 0，由调用方回退父控件 / 96。</summary>
+    private int ResolveDeviceDpi(Entity entity)
+    {
+        var pool = _controlPool ?? AppServiceProvider.Resolve<ControlPool>();
+        return pool?.GetControl(entity) is Control control && !control.IsDisposed
+            ? control.DeviceDpi
+            : 0;
+    }
+
+    /// <summary>写分配记录（值未变化则零写入，保证重复重排幂等）。</summary>
+    private void StoreAllocation(ProportionalLayoutPolicy.Result allocation)
+    {
+        if (_entityManager.TryGetComponent<LayoutAllocationComponent>(allocation.Entity, out var existing)
+            && existing.Left == allocation.Left
+            && existing.Top == allocation.Top
+            && existing.Width == allocation.Width
+            && existing.Height == allocation.Height
+            && existing.NominalWidth == allocation.NominalWidth
+            && existing.MinWidthPx == allocation.MinWidthPx
+            && existing.OverflowPx == allocation.OverflowPx
+            && string.Equals(existing.Effective, allocation.Effective, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _entityManager.AddOrSetComponent(allocation.Entity, new LayoutAllocationComponent
+        {
+            Left = allocation.Left,
+            Top = allocation.Top,
+            Width = allocation.Width,
+            Height = allocation.Height,
+            NominalWidth = allocation.NominalWidth,
+            MinWidthPx = allocation.MinWidthPx,
+            Effective = allocation.Effective,
+            OverflowPx = allocation.OverflowPx
+        });
+
+        if (allocation.OverflowPx > 0)
+        {
+            FrontEndDrivenLog.Log("Layout_MinWidth_Overflow", new
+            {
+                effective = allocation.Effective,
+                nominalWidth = allocation.NominalWidth,
+                minWidthPx = allocation.MinWidthPx,
+                allocatedWidth = allocation.Width,
+                overflowPx = allocation.OverflowPx
+            });
+        }
     }
 
     private bool IsContainerEntity(Entity entity)

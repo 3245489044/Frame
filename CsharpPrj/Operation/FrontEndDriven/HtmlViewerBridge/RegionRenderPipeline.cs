@@ -67,7 +67,7 @@ public sealed class RegionRenderPipeline<TSnapshot, TFrame> where TSnapshot : cl
         string volatileSlotKey,
         string regionSlotPrefix,
         IUiDeclarationPort declarations,
-        string regionNamePrefix = HtmlShellProjector.RegionNamePrefix,
+        string regionNamePrefix = UiViewNames.RegionNamePrefix,
         Action<string, Exception>? onFailure = null,
         string streamRegionPrefix = UiViewNames.StreamSectionPrefix,
         Func<string>? appearanceFingerprint = null)

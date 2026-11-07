@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using UiBackend.Abstractions;
 
 namespace UiBackend.Html;
@@ -31,8 +32,37 @@ public enum UiViewContainerSlot
 /// </summary>
 public static class UiViewContainerSlots
 {
-    /// <summary>容器键 → 槽后缀（无前缀 ⇒ 原样返回）。</summary>
-    public static string Suffix(string? containerKey)
+    /// <summary>结构槽词表（**后缀 ↔ 槽 的唯一表**）：正反映射均由此表派生，禁第二处枚举字面量。</summary>
+    private static readonly (UiViewContainerSlot Slot, string Suffix)[] Vocabulary =
+    {
+        (UiViewContainerSlot.Main, "main"),
+        (UiViewContainerSlot.Seg, "seg"),
+        (UiViewContainerSlot.Head, "head"),
+        (UiViewContainerSlot.SubHead, "subhead"),
+        (UiViewContainerSlot.Aside, "aside"),
+        (UiViewContainerSlot.Overlay, "overlay"),
+        (UiViewContainerSlot.Composer, "composer"),
+    };
+
+    private static readonly Dictionary<string, UiViewContainerSlot> SlotBySuffix = BuildSlotBySuffix();
+    private static readonly Dictionary<UiViewContainerSlot, string> SuffixBySlot = BuildSuffixBySlot();
+
+    private static Dictionary<string, UiViewContainerSlot> BuildSlotBySuffix()
+    {
+        var map = new Dictionary<string, UiViewContainerSlot>(Vocabulary.Length, StringComparer.Ordinal);
+        foreach (var (slot, suffix) in Vocabulary) map[suffix] = slot;
+        return map;
+    }
+
+    private static Dictionary<UiViewContainerSlot, string> BuildSuffixBySlot()
+    {
+        var map = new Dictionary<UiViewContainerSlot, string>(Vocabulary.Length);
+        foreach (var (slot, suffix) in Vocabulary) map[slot] = suffix;
+        return map;
+    }
+
+    /// <summary>区域键 → 容器后缀（无前缀 ⇒ 原样返回）。</summary>
+    public static string RegionSuffix(string? containerKey)
     {
         if (string.IsNullOrWhiteSpace(containerKey)) return string.Empty;
         var key = containerKey!.Trim();
@@ -41,22 +71,22 @@ public static class UiViewContainerSlots
             : key;
     }
 
+    /// <summary>容器后缀 → 区域键（<see cref="RegionSuffix"/> 的逆；键构造唯一入口）。</summary>
+    public static string RegionKey(string? suffix)
+        => UiViewNames.RegionNamePrefix + (suffix ?? string.Empty).Trim();
+
+    /// <summary>容器键 → 槽后缀（<see cref="RegionSuffix"/> 的语义别名）。</summary>
+    public static string Suffix(string? containerKey) => RegionSuffix(containerKey);
+
+    /// <summary>结构槽 → 容器后缀（词表反向唯一映射；非结构槽 ⇒ 空串）。</summary>
+    public static string SuffixOf(UiViewContainerSlot slot)
+        => SuffixBySlot.TryGetValue(slot, out var suffix) ? suffix : string.Empty;
+
     /// <summary>容器键（+ 角色）→ 结构槽。</summary>
     public static UiViewContainerSlot Classify(string? containerKey, bool isStream = false)
-    {
-        var suffix = Suffix(containerKey);
-        return suffix switch
-        {
-            "main" => UiViewContainerSlot.Main,
-            "seg" => UiViewContainerSlot.Seg,
-            "head" => UiViewContainerSlot.Head,
-            "subhead" => UiViewContainerSlot.SubHead,
-            "aside" => UiViewContainerSlot.Aside,
-            "overlay" => UiViewContainerSlot.Overlay,
-            "composer" => UiViewContainerSlot.Composer,
-            _ => isStream ? UiViewContainerSlot.Stream : UiViewContainerSlot.Content,
-        };
-    }
+        => SlotBySuffix.TryGetValue(RegionSuffix(containerKey), out var slot)
+            ? slot
+            : isStream ? UiViewContainerSlot.Stream : UiViewContainerSlot.Content;
 
     /// <summary>容器声明 → 结构槽（流角色优先于键名）。</summary>
     public static UiViewContainerSlot Classify(UiViewContainer container)
@@ -71,4 +101,12 @@ public static class UiViewContainerSlots
     public static bool IsShellSlot(UiViewContainerSlot slot)
         => slot is UiViewContainerSlot.Seg or UiViewContainerSlot.Head or UiViewContainerSlot.SubHead
             or UiViewContainerSlot.Aside or UiViewContainerSlot.Overlay;
+
+    /// <summary>
+    /// 该槽的取值是否来自壳槽（而非容器内容）。
+    /// <para>与 <see cref="IsShellSlot"/> 正交：<c>composer</c> 位于主区内（不是壳位），
+    /// 但取值仍由壳槽供给 —— 装配路径若按「位置」推断取值来源，就会分叉出空区域。</para>
+    /// </summary>
+    public static bool HasShellSource(UiViewContainerSlot slot)
+        => IsShellSlot(slot) || slot == UiViewContainerSlot.Composer;
 }

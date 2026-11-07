@@ -71,9 +71,6 @@ public static class HtmlShellProjector
                 ["history"] = secondary,
             });
 
-    /// <summary>区域容器属性前缀（转发 <see cref="UiViewNames.RegionNamePrefix"/>：公开别名，桥/宿主仍需引用）。</summary>
-    public const string RegionNamePrefix = UiViewNames.RegionNamePrefix;
-
     /// <summary>视图根包装：根携带 <c>data-view-root</c> + 稳定键（视图键缺失 ⇒ 抛，禁止无根降级）。</summary>
     public static string RenderViewRoot(string shellHtml, string? viewKey)
     {
@@ -91,7 +88,7 @@ public static class HtmlShellProjector
         UiMarkup Tree,
         UiMarkup Composer,
         UiMarkup Overlay,
-        string PollAttrs = "")
+        UiMarkup? PollAttrs = null)
     {
         /// <summary>空壳（未声明的槽全部为空）。</summary>
         public static UiShellSlots Empty { get; } = new(
@@ -119,7 +116,7 @@ public static class HtmlShellProjector
         ArgumentNullException.ThrowIfNull(slots);
         var present = new HashSet<string>(containers.Select(static c => c.Key), StringComparer.Ordinal);
 
-        string Slot(string suffix) => RegionNamePrefix + suffix;
+        string Slot(string suffix) => UiViewContainerSlots.RegionKey(suffix);
         UiMarkup Html(string key) => contents is not null && contents.TryGetValue(key, out var value) ? value : UiMarkup.Empty;
 
         string Block(string key, string fallbackClass, UiMarkup body)
@@ -148,24 +145,35 @@ public static class HtmlShellProjector
             var slot = UiViewContainerSlots.Classify(container);
             if (slot == UiViewContainerSlot.Main || UiViewContainerSlots.IsShellSlot(slot)) continue;
 
-            var body = slot == UiViewContainerSlot.Stream
-                ? UiMarkup.Concat(Html(container.Key), bubbleFragment)
-                : Html(container.Key);
+            // 取值来源单源 = HasShellSource（位置与来源两 predicate 分离）：composer 在主区内但取壳槽值。
+            var body = UiViewContainerSlots.HasShellSource(slot)
+                ? ShellSlotValue(slots, slot)
+                : slot == UiViewContainerSlot.Stream
+                    ? UiMarkup.Concat(Html(container.Key), bubbleFragment)
+                    : Html(container.Key);
             mainInner.Append(Block(
                 container.Key,
                 container.IsStream ? "region stream" : "region",
                 body));
         }
 
-        var main = MarkupBlock.Render("div", "region", "region", Slot("main"), mainInner.ToString());
+        // 未声明壳槽的可见回退：文本类槽（head/subhead）缺容器时不得整段消失（结构性槽不声明即不存在）。
+        var undeclaredSlot = new StringBuilder();
+        if (!present.Contains(Slot("head")) && !slots.Title.IsEmpty)
+            undeclaredSlot.Append(UndeclaredSlot(Slot("head"), MarkupTag.Text(slots.Title)));
+        if (!present.Contains(Slot("subhead")) && !slots.Subtitle.IsEmpty)
+            undeclaredSlot.Append(UndeclaredSlot(Slot("subhead"), ShellSlotValue(slots, UiViewContainerSlot.SubHead).Html));
+
+        var main = MarkupBlock.Render("div", "region", "region", Slot("main"),
+            undeclaredSlot.Append(mainInner).ToString());
         var selectorRegion = present.Contains(Slot("seg"))
             ? Block(Slot("seg"), "seg region", slots.Selector)
             : string.Empty;
         var titleRegion = present.Contains(Slot("head"))
-            ? MarkupPresets.LabelledSpan(Slot("head"), MarkupTag.Text(slots.Title))
+            ? MarkupPresets.LabelledSpan(Slot("head"), ShellSlotValue(slots, UiViewContainerSlot.Head).Html)
             : string.Empty;
         var subtitleRegion = present.Contains(Slot("subhead"))
-            ? MarkupPresets.LabelledSpan(Slot("subhead"), slots.Subtitle.Html)
+            ? MarkupPresets.LabelledSpan(Slot("subhead"), ShellSlotValue(slots, UiViewContainerSlot.SubHead).Html)
             : string.Empty;
         var treeRegion = present.Contains(Slot("aside"))
             ? Block(Slot("aside"), "region", slots.Tree)
@@ -183,7 +191,7 @@ public static class HtmlShellProjector
                 ["tree"] = UiMarkup.Trusted(treeRegion),
                 ["history"] = UiMarkup.Trusted(main),
                 ["overlay"] = UiMarkup.Trusted(overlayRegion),
-                ["pollAttrs"] = slots.PollAttrs,
+                ["pollAttrs"] = slots.PollAttrs ?? UiMarkup.Empty,
                 ["refreshTitle"] = refreshTitle ?? string.Empty,
             });
 
@@ -239,10 +247,8 @@ public static class HtmlShellProjector
             var slot = UiViewContainerSlots.Classify(container);
             if (slot is UiViewContainerSlot.Main or UiViewContainerSlot.Stream) continue;
 
-            var suffix = UiViewContainerSlots.Suffix(container.Key);
-            var isShell = UiViewContainerSlots.IsShellSlot(slot) || slot == UiViewContainerSlot.Composer;
-            var value = isShell
-                ? ShellSlotValue(shellSlots, suffix)
+            var value = UiViewContainerSlots.HasShellSource(slot)
+                ? ShellSlotValue(shellSlots, slot)
                 : contents.TryGetValue(container.Key, out var contentHtml) ? contentHtml : UiMarkup.Empty;
             // 无结构标记 ⇒ 保持旧契约（纯内容片段）；有标记 ⇒ 只对已声明容器包裹（零回归）。
             composed[container.Key] = markup is not null && markup.TryGetValue(container.Key, out var structure)
@@ -254,16 +260,23 @@ public static class HtmlShellProjector
     }
 
     /// <summary>壳槽 → 类型化值（**唯一映射**；纯文本位在这里编码一次）。</summary>
-    private static UiMarkup ShellSlotValue(UiShellSlots slots, string suffix) => suffix switch
+    private static UiMarkup ShellSlotValue(UiShellSlots slots, UiViewContainerSlot slot) => slot switch
     {
-        "seg" => slots.Selector,
-        "head" => UiMarkup.FromText(slots.Title.Value),
-        "subhead" => slots.Subtitle,
-        "aside" => slots.Tree,
-        "composer" => slots.Composer,
-        "overlay" => slots.Overlay,
+        UiViewContainerSlot.Seg => slots.Selector,
+        UiViewContainerSlot.Head => UiMarkup.Trusted(MarkupTag.Text(slots.Title)),
+        UiViewContainerSlot.SubHead => slots.Subtitle,
+        UiViewContainerSlot.Aside => slots.Tree,
+        UiViewContainerSlot.Composer => slots.Composer,
+        UiViewContainerSlot.Overlay => slots.Overlay,
         _ => UiMarkup.Empty,
     };
+
+    /// <summary>未声明壳槽的可见回退（文本类槽不得静默丢弃；结构性槽不声明即不存在）。</summary>
+    private static string UndeclaredSlot(string key, string inner)
+        => MarkupTag.Element(
+            "div",
+            new MarkupAttrBatch().Class("shell-title", "shell-title").Name(key).Data("degrade", "slot-undeclared"),
+            inner);
 
     private static UiNode WrapNode(string key, UiMarkup html, SurfaceContainerMarkup? structure)
     {

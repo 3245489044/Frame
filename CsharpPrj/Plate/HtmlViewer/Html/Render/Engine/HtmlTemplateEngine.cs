@@ -66,8 +66,8 @@ public static class HtmlTemplateEngine
     /// <summary>
     /// 渲染命名模板为**节点树**（与 <see cref="Render"/> 共用同一解析器与解析缓存，禁第二套模板解析）。
     /// <para>语义与 <see cref="Render"/> 逐条一致：文本/绑定 → 文本节点（序列化时统一转义）；
-    /// <c>{#each}</c>/<c>{?}</c>/<c>{&gt;partial}</c> 同构展开。<c>|raw</c> 在节点出口按文本处理
-    /// （节点树不承载原文片段；会话模板已无 <c>|raw</c>，壳文档仍走 <see cref="Render"/>）。</para>
+    /// <c>{#each}</c>/<c>{?}</c>/<c>{&gt;partial}</c> 同构展开。<c>|raw</c> 位由 <see cref="UiMarkup"/> 直接承载
+    /// （受信片段不二次转义，裸 string fail-fast）⇒ 模板 → 节点一次成型，无 HTML→节点回解析。</para>
     /// </summary>
     /// <param name="templates">模板集。</param>
     /// <param name="name">模板名。</param>
@@ -95,17 +95,11 @@ public static class HtmlTemplateEngine
     {
         if (string.IsNullOrEmpty(template)) return Array.Empty<UiNode>();
 
-        // 节点出口 = 元素节点：模板字面量先按字符串渲染（保留绑定转义），再解析为元素树。
-        // 模板字面量若留在 RawText，按元素遍历的绑定器（折叠/键守卫）永远看不到 <details>（D17/E5）。
-        if (template.Contains("|raw", StringComparison.Ordinal))
-        {
-            throw new System.InvalidOperationException(
-                "RenderToNodes 不支持 |raw 绑定（节点出口须用真节点；壳文档请走 Render）");
-        }
-
-        var html = RenderTemplate(template, templates, model);
-        var root = HtmlNodeParser.Parse(html, preserveWhitespace: true);
-        return root.Children ?? Array.Empty<UiNode>();
+        // 节点出口 = **原生节点**（不经「渲染成串再解析」）：|raw 位由 UiMarkup 直接携带，
+        // 形态转换点唯一（模板 → 节点），不再产生 HTML→节点回解析（E6）。
+        var output = new List<UiNode>();
+        RenderNodesTo(ParseWhole(template), templates, model ?? EmptyModel, output);
+        return output;
     }
 
     /// <summary>节点渲染（与 <see cref="RenderNodes"/> 同构；输出节点列表而非字符串）。</summary>
@@ -125,10 +119,23 @@ public static class HtmlTemplateEngine
                 case BindingNode b:
                     if (b.Raw)
                     {
-                        // 节点出口不承载受信原文片段：|raw 意味着「内层片段已渲染成串」，
-                        // 与「产物 = 节点树」冲突 ⇒ 显式失败（可见），禁静默转义成文本。
-                        throw new System.InvalidOperationException(
-                            "RenderToNodes 不支持 |raw 绑定（节点出口须用真节点；壳文档请走 Render）");
+                        // 节点出口同受类型屏障约束：|raw 只接受 UiMarkup；UiText 走文本节点（序列化时编码）。
+                        var raw = GetValue(model, b.Field);
+                        switch (raw)
+                        {
+                            case null:
+                                break;
+                            case UiMarkup markup:
+                                output.Add(UiNode.Markup(markup));
+                                break;
+                            case UiText text:
+                                if (text.Value.Length > 0) output.Add(UiNode.TextNode(text.Value));
+                                break;
+                            default:
+                                throw RawBindingTypeError(b.Field, raw);
+                        }
+
+                        break;
                     }
 
                     var val = Get(model, b.Field);
@@ -154,6 +161,11 @@ public static class HtmlTemplateEngine
             }
         }
     }
+
+    /// <summary>|raw 位类型错误（唯一构造点）：消息含字段名与修复指引，便于定位 feeder。</summary>
+    private static InvalidOperationException RawBindingTypeError(string field, object value)
+        => new($"模板绑定 '{{{field}|raw}}' 只接受 UiMarkup（受信片段）或 UiText；收到 {value.GetType().FullName}。"
+               + "修复：文本经 UiMarkup.FromText（需编码）或 UiMarkup.Trusted（已编码受信）后传入。");
 
     /// <summary>整段模板解析（结果缓存，避免反复解析同一模板）。</summary>
     private static List<Node> ParseWhole(string template)
@@ -250,13 +262,13 @@ public static class HtmlTemplateEngine
                     if (value is null) break;
                     if (b.Raw)
                     {
-                        // 有效类型 = UiMarkup（受信片段）；字符串仍按原文（外部入口兼容），
-                        // 但框架内组合一律传 UiMarkup（禁把未编码文本当片段）。
+                        // 类型屏障：|raw 位只接受受信片段（UiMarkup）/待编码文本（UiText）。
+                        // 裸 string 一律 fail-fast —— 否则任意字符串可当受信 HTML 绕过组合层屏障（E5）。
                         sb.Append(value switch
                         {
                             UiMarkup markup => markup.Html,
                             UiText text => WebUtility.HtmlEncode(text.Value),
-                            _ => Get(model, b.Field) ?? string.Empty,
+                            _ => throw RawBindingTypeError(b.Field, value),
                         });
                     }
                     else

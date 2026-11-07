@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Modules.Parsing.Markup;
 using UiBackend.Html;
 
 namespace Plate.HtmlViewer;
@@ -53,8 +54,8 @@ public static class HtmlDocumentRenderer
         {
             var model = new Dictionary<string, object?>
             {
-                ["css"] = css + fontStyle,
-                ["body"] = bodyHtml ?? string.Empty,
+                ["css"] = UiMarkup.Trusted(css + fontStyle),
+                ["body"] = UiMarkup.Trusted(bodyHtml ?? string.Empty),
                 ["colorScheme"] = colorScheme,
             };
             return HtmlTemplateEngine.RenderTemplate(htmlShellTemplate!, null, model);

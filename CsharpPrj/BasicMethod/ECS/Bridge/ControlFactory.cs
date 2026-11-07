@@ -99,7 +99,10 @@ public class ControlFactory
                             Left = (float)layoutLeft,
                             Top = (float)layoutTop,
                             Width = (float)layout.Width,
-                            Height = (float)layout.Height
+                            Height = (float)layout.Height,
+                            MinWidthDip = layout.MinWidth,
+                            MinHeightDip = layout.MinHeight,
+                            ShrinkPriority = layout.ShrinkPriority
                         });
                         layoutIntentResolved = true;
                     }

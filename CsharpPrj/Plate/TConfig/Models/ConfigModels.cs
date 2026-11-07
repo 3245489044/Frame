@@ -130,10 +130,15 @@ public class LayoutPosition
     public double Right { get; set; } = -1;
     public double X { get; set; } = -1;
     public double Y { get; set; } = -1;
+    /// <summary>最小宽度（DIP，96 dpi 参考像素）。布局按 DeviceDpi 折算为物理像素后作为比例分配下界。</summary>
     public int MinWidth { get; set; }
+    /// <summary>最小高度（DIP，96 dpi 参考像素）。</summary>
     public int MinHeight { get; set; }
     public int MaxWidth { get; set; }
     public int MaxHeight { get; set; }
+
+    /// <summary>超额回收优先级：0 = 刚性列（永不低于最小宽）；&gt;0 = 弹性列，数值越大越先让出空间。</summary>
+    public int ShrinkPriority { get; set; }
 
     // M2·布局意图化：可选意图字段（缺省=proportional 存量兼容）。
     // "proportional"：比例布局（现行为）；"dock"：原生 Dock 接管；"anchor"：原生 Anchor 接管；"fixed"：像素直定位。

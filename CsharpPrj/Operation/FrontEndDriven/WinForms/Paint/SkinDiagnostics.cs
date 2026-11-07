@@ -173,6 +173,28 @@ public static class SkinDiagnostics
 
     private static int _anchorProbeWritten;
 
+    private static readonly HashSet<string> _lightDegradedReasons = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 光样降级一次性诊断（P0-3 可诊断性）：按**原因码**各打印一次，用于区分「没有光帧」与「视口为空」。
+    /// <para>旧实现两种情形都不产出探针日志，日志长得一样，无法归因。</para>
+    /// <para>原因码：<c>frame-null</c>（无光帧，<see cref="SurfaceLightRegistry.Current"/> 为空）、
+    /// <c>surface-null</c>（表面未解析，根本未进入取光）、<c>port-parse-null</c>/<c>port-exception</c>（端口已调用但无有效帧）、
+    /// <c>viewport-resolver-null</c>/<c>viewport-viewer-null</c>/<c>viewport-viewer-disposed</c>/
+    /// <c>viewport-viewer-no-handle</c>/<c>viewport-layout-pending</c>/<c>viewport-exception</c>
+    /// （光帧在但 WebView 视口解析失败的各环节）。按原因码去重：每种原因进程内只写一条。</para>
+    /// </summary>
+    /// <param name="reason">稳定原因码（同一原因进程内只写一次）。</param>
+    /// <param name="detail">该原因的结构事实（引擎注册状态 / 视口失败环节）。</param>
+    public static void RecordLightDegraded(string reason, string detail)
+    {
+        lock (Gate)
+        {
+            if (!_lightDegradedReasons.Add(reason)) return;
+        }
+        FrontEndDrivenLog.Log("SkinDiagnostics_light_sample_degraded", new { reason, detail });
+    }
+
     /// <summary>
     /// 统计非法/未换值的声明项（token 未换值的结构指标）。
     /// <para>判据载体 = K1 强类型解析输出的 issues（**与运行期同源**）：扫描全部声明参数（色值与 width/radius 等数值），

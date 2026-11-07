@@ -7,6 +7,21 @@
       "level": "Debug",
       "category": "FrontEndDriven.Skin"
     },
+    "SkinDiagnostics_anchor_probe": {
+      "template": "[表面] 锚点坐标一次性诊断 — virtual={virtualScreen}, control={controlRect}, coverage/anchor={anchor}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
+    "SkinDiagnostics_light_sample_degraded": {
+      "template": "[表面] 光样降级（按原因码各一次） — reason={reason}, detail={detail}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
+    "SkinDecorator_paint_failed": {
+      "template": "[皮肤] 绘制帧失败（已记录 Failed 报告并继续，不中断重绘） — type={type}, material={material}, exception={exception}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
     "WinFormApplier_SkinAttachFailed": {
       "template": "[皮肤] 控件装配失败（已按可见降级继续，不中断整页渲染） — nodeId={nodeId}, type={type}, error={error}",
       "level": "Warning",

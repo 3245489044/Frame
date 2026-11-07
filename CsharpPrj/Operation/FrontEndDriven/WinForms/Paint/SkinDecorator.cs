@@ -287,6 +287,9 @@ public static class SkinDecorator
             // 结构宿主（FrameHost）的背景由页面装饰层统一接管：用同一张页面场位图，不再铺纯色 flat。
             var ambientHost = state.EdgeMode == SurfaceEdgeMode.FrameHost && SurfaceAmbient.Enabled;
             if (!hit && !ambientHost) baseReport = RebuildBase(control, material, bounds, state, pinned, baseLight);
+            // 页面装饰层接管背景（ambientHost）或命中缓存但首帧尚无 BaseReport 时，baseReport 可为 null；
+            // 此处归一为空报告，保证 K6 合并面始终有值（不改 SurfaceAmbient 语义）。
+            if (baseReport is null) baseReport = SkinPaintReport.Empty;
 
             if (ambientHost) SurfaceAmbient.PaintHostSurface(control, e.Graphics);
             else if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);

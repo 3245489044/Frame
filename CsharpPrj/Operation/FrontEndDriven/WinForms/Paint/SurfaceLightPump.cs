@@ -80,11 +80,19 @@ internal static class SurfaceLightPump
             var width = Math.Max(1, (int)Math.Round(screen.Width * scale));
             var height = Math.Max(1, (int)Math.Round(screen.Height * scale));
 
-            var frame = SurfaceLightFrameCodec.Parse(sample(x, y, width, height, string.Empty));
+            var raw = sample(x, y, width, height, string.Empty);
+            var frame = SurfaceLightFrameCodec.Parse(raw);
+            if (frame is null)
+            {
+                // 原因码 port-parse-null：端口已注册且被调用，但快照被引擎明示不可用（diag）或格式不符。
+                SkinDiagnostics.RecordLightDegraded("port-parse-null", Clip(raw, 160));
+            }
             SurfaceLightRegistry.Publish(frame);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // 原因码 port-exception：端口调用本身抛出（跨 ALC 类型/序列化等）。
+            SkinDiagnostics.RecordLightDegraded("port-exception", ex.GetType().Name + ":" + ex.Message);
             // 通道异常只能降级为「无帧」，不得让绘制线程承担光计算。
             _idleTicks++;
             if (_idleTicks >= RetryTicks)
@@ -97,5 +105,12 @@ internal static class SurfaceLightPump
         {
             _pullInProgress = false;
         }
+    }
+
+    /// <summary>诊断用：截断引擎快照，避免一次性日志被整帧 cells 撑爆。</summary>
+    private static string Clip(string? value, int limit)
+    {
+        if (value is null) return "<null>";
+        return value.Length <= limit ? value : value.Substring(0, limit) + "...";
     }
 }

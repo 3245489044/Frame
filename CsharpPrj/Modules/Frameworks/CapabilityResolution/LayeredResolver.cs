@@ -28,7 +28,11 @@ public sealed record LayerResolution(
     IReadOnlyList<ResolvedLayer> Layers,
     IReadOnlyList<ResolutionIssue> Issues,
     string? FallbackUsed,
-    bool Degraded);
+    bool Degraded)
+{
+    /// <summary>回落梯度步（L0–L5；默认 L0，旧调用方零变化）。</summary>
+    public SurfaceFallbackStep FallbackStep { get; init; } = SurfaceFallbackStep.L0Full;
+}
 
 /// <summary>
 /// 通用层解析器（**纯函数**）：层引用表 × 能力矩阵 × 载体 × 通道 → 已解析层栈。
@@ -100,6 +104,88 @@ public static class LayeredResolver
             fallback,
             Degraded: true);
     }
+
+    /// <summary>属性通道 id（与声明面 caps 键一致；本类只做通道名判定，不依赖宿主）。</summary>
+    public const string PropertyChannel = "property";
+
+    /// <summary>
+    /// 带回落梯度的解析（**属性通道专用**）：降级但 direct 仍含 fill/gradient ⇒ 保留 direct 层并记 L2，
+    /// 不再把玻璃材质换成 <c>flat</c>/<c>row_surface</c> 实色；direct 无 fill 才使用 fallback。
+    /// <para>draw/HTML 仍走 <see cref="Resolve"/>，语义零变化。</para>
+    /// </summary>
+    /// <param name="layers">层定义。</param>
+    /// <param name="layerRefs">角色 → 层名。</param>
+    /// <param name="capabilities">能力矩阵。</param>
+    /// <param name="carrier">载体 id。</param>
+    /// <param name="tokenResolver">参数换值（null = 原样）。</param>
+    /// <param name="fallback">回退名（空 = 无回退）。</param>
+    /// <param name="fallbackRefs">回退层引用。</param>
+    /// <param name="channel">通道（属性通道 = <see cref="PropertyChannel"/>）。</param>
+    /// <param name="domainClassifier">值域分类（null = 不检查）。</param>
+    public static LayerResolution ResolveGraded(
+        IReadOnlyDictionary<string, LayerSpec> layers,
+        IReadOnlyDictionary<string, string> layerRefs,
+        CapabilityMatrix capabilities,
+        string carrier,
+        Func<string, string>? tokenResolver,
+        string? fallback,
+        IReadOnlyDictionary<string, string>? fallbackRefs,
+        string channel,
+        Func<string, string?>? domainClassifier)
+    {
+        ArgumentNullException.ThrowIfNull(layers);
+        ArgumentNullException.ThrowIfNull(layerRefs);
+        ArgumentNullException.ThrowIfNull(capabilities);
+
+        var direct = ResolveOnce(layers, layerRefs, capabilities, carrier, tokenResolver, channel, domainClassifier);
+        var propertyChannel = string.Equals(channel, PropertyChannel, StringComparison.Ordinal);
+        if (!direct.Degraded)
+        {
+            // 属性通道永远是“预合成实心面”，即使无降级也只能到 L2（不是真玻璃）。
+            var step = propertyChannel
+                ? (HasFill(direct.Layers) ? SurfaceFallbackStep.L2SolidFace : SurfaceFallbackStep.L5Unsupported)
+                : SurfaceFallbackStep.L0Full;
+            return direct with { FallbackStep = step };
+        }
+
+        // 保留 direct fill：属性通道的 fill 会在宿主合成期叠到父级不透明底，仍是玻璃族实心面（L2）。
+        if (HasFill(direct.Layers))
+        {
+            var step = propertyChannel
+                ? SurfaceFallbackStep.L2SolidFace
+                : SurfaceFallbackStep.L1Emulated;
+            return direct with { FallbackStep = step };
+        }
+
+        if (!string.IsNullOrWhiteSpace(fallback) && fallbackRefs is not null)
+        {
+            var issues = new List<ResolutionIssue>(direct.Issues)
+            {
+                new(ResolutionIssueCodes.MaterialDegraded, fallback!),
+            };
+            var fallbackResolution = ResolveOnce(
+                layers, fallbackRefs, capabilities, carrier, tokenResolver, channel, domainClassifier);
+            issues.AddRange(fallbackResolution.Issues);
+            var step = HasFill(fallbackResolution.Layers)
+                ? SurfaceFallbackStep.L2SolidFace
+                : SurfaceFallbackStep.L5Unsupported;
+            return new LayerResolution(
+                fallbackResolution.Layers,
+                issues,
+                fallback,
+                Degraded: true)
+            {
+                FallbackStep = step,
+            };
+        }
+
+        return direct with { FallbackStep = SurfaceFallbackStep.L5Unsupported };
+    }
+
+    private static bool HasFill(IReadOnlyList<ResolvedLayer> layers)
+        => layers.Any(layer =>
+            string.Equals(layer.Primitive, "fill", StringComparison.Ordinal)
+            || string.Equals(layer.Primitive, "gradient", StringComparison.Ordinal));
 
     private static LayerResolution ResolveOnce(
         IReadOnlyDictionary<string, LayerSpec> layers,

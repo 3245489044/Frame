@@ -222,6 +222,8 @@ public sealed class WinFormApplier
             try
             {
                 SkinDecorator.Attach(control, desc);
+                if (control is SplitContainer split)
+                    SurfaceDescriptorSource.BindInheritedPanels(split, desc);
             }
             catch (Exception ex)
             {
@@ -242,7 +244,9 @@ public sealed class WinFormApplier
 
             // E2·属性通道单一写者：材质投影器已接管该控件 BackColor 时，声明属性不得再写（禁顺序依赖；
             // 剥离发生在归一化产物上，故回写基线同一份，不会造成「未应用属性进入基线」）。
-            if (SkinDecorator.IsPropertyChannelOwned(control)) normalized.Remove(UIProtocol.Prop_BackColor);
+            // C 类收编：玻璃/非 DirectColor 族由材质通道负责底色，旧样式 BackColor 不得再写（禁第二写者）。
+            if (SkinDecorator.IsPropertyChannelOwned(control) || SurfaceStyleBridge.SuppressStyleBackColor(desc, control))
+                normalized.Remove(UIProtocol.Prop_BackColor);
 
             // R3·布局真源收敛（SingleImplementation）：ECS 布局托管实体（proportional / dock·anchor 原生意图）
             // 的像素 Bounds 不再由内容 Apply 写入——物理 Bounds 唯一由 LayoutProjector（纯 ECS 父原点）在挂载后投影。

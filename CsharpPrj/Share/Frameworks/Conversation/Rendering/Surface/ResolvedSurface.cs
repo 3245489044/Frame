@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using Modules.CapabilityResolution;
 
 namespace Share.Conversation.Rendering.Surface;
 
@@ -29,7 +30,11 @@ public sealed record ResolvedMaterial(
     string MaterialId,
     string? FallbackUsed,
     IReadOnlyList<ResolvedLayer> Layers,
-    IReadOnlyList<SurfaceIssue> Issues);
+    IReadOnlyList<SurfaceIssue> Issues)
+{
+    /// <summary>回落梯度步（L0–L5；属性通道最低 L2，默认 L0 保持旧调用方零变化）。</summary>
+    public SurfaceFallbackStep FallbackStep { get; init; } = SurfaceFallbackStep.L0Full;
+}
 
 /// <summary>已解析容器（结构 + 容器级外观）。</summary>
 /// <param name="Id">view:key。</param>

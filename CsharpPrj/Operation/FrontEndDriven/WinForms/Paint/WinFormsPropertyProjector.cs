@@ -29,6 +29,14 @@ public static class WinFormsPropertyProjector
     /// <param name="material">已解析材质。</param>
     /// <param name="reason">不可投影原因（可空）。</param>
     public static bool TryApply(Control? control, ResolvedMaterial? material, out string? reason)
+        => TryApply(control, material, tintArgb: null, out reason);
+
+    /// <summary>把材质底色投到控件属性面（可选旧样式 accent tint；不抛）。</summary>
+    /// <param name="control">目标控件。</param>
+    /// <param name="material">已解析材质。</param>
+    /// <param name="tintArgb">C 类 accent 色（null = 无色）。</param>
+    /// <param name="reason">不可投影原因（可空）。</param>
+    public static bool TryApply(Control? control, ResolvedMaterial? material, int? tintArgb, out string? reason)
     {
         reason = null;
         if (control is null || material is null) { reason = "no-material"; return false; }
@@ -37,6 +45,11 @@ public static class WinFormsPropertyProjector
         {
             reason = "no-opaque-base";
             return false;
+        }
+
+        if (tintArgb is { } tint)
+        {
+            baseArgb = SurfaceColorComposition.Over(tint, baseArgb);
         }
 
         var baseColor = Color.FromArgb(baseArgb);
@@ -114,36 +127,14 @@ public static class WinFormsPropertyProjector
     /// <param name="argb">不透明底色（A=255）。</param>
     public static bool TryGetOpaqueBase(Control control, ResolvedMaterial material, out int argb)
     {
-        argb = 0;
-        foreach (var layerSpec in ResolvedLayerSpecProjection.Parse(material.Layers).Specs)
+        if (SurfaceHostCompositor.TrySolidFace(control, material, out var face))
         {
-            if (layerSpec.Kind is not (LayerPrimitive.Fill or LayerPrimitive.Gradient) || !layerSpec.HasColor) continue;
-
-            var foreground = layerSpec.ColorArgb;
-            if (((foreground >> 24) & 0xFF) == 0) continue;
-
-            argb = SurfaceColorComposition.Over(foreground, OpaqueBehind(control));
+            argb = face.Argb;
             return true;
         }
 
+        argb = 0;
         return false;
-    }
-
-    /// <summary>
-    /// 父链首个**显式上色**的不透明底色；系统默认/继承背景视为「未上色」，一路向上。
-    /// 全链未上色 ⇒ 页面底色（声明缺失时仍回落 <see cref="SystemColors.Control"/>，零回归）。
-    /// </summary>
-    private static int OpaqueBehind(Control control)
-    {
-        for (var parent = control.Parent; parent is not null; parent = parent.Parent)
-        {
-            var background = parent.BackColor;
-            if (background.IsEmpty) continue;
-            if (background.ToArgb() == SystemColors.Control.ToArgb()) continue;
-            if (background.A == 255) return background.ToArgb();
-        }
-
-        return SkinMaterialCatalog.PageBackground?.ToArgb() ?? SystemColors.Control.ToArgb();
     }
 
     /// <summary>反差文字色（按底色亮度在黑/白之间二选一）。</summary>

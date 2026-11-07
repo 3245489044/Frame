@@ -356,16 +356,39 @@ public static class SurfaceResolver
             fallbackRefs = fallbackMaterial.Layers;
         }
 
-        var resolution = LayeredResolver.Resolve(
-            layerSpecs,
-            material.Layers,
-            capabilities,
-            carrierId,
-            tokenResolver: value => tokens.TryGetValue(value, out var resolved) ? resolved : value,
-            fallback: material.Fallback,
-            fallbackRefs: fallbackRefs,
-            channel: channel,
-            domainClassifier: SurfaceColorDomain.Classify);
+        var propertyChannel = string.Equals(channel, LayeredResolver.PropertyChannel, StringComparison.Ordinal);
+        // 属性通道的 alpha 由宿主预合成成 A=255：解析期把 alpha 视为“已预合成的不透明值”，
+        // 否则 glass_fill 会被 supported-opaque 值域拒绝，退回 muted_surface 黑面。
+        Func<string, string?>? domainClassifier = propertyChannel
+            ? value =>
+            {
+                var domain = SurfaceColorDomain.Classify(value);
+                return string.Equals(domain, SurfaceColorDomain.Alpha, StringComparison.Ordinal)
+                    ? SurfaceColorDomain.Opaque
+                    : domain;
+            }
+            : SurfaceColorDomain.Classify;
+        var resolution = propertyChannel
+            ? LayeredResolver.ResolveGraded(
+                layerSpecs,
+                material.Layers,
+                capabilities,
+                carrierId,
+                tokenResolver: value => tokens.TryGetValue(value, out var resolved) ? resolved : value,
+                fallback: material.Fallback,
+                fallbackRefs: fallbackRefs,
+                channel: channel,
+                domainClassifier: domainClassifier)
+            : LayeredResolver.Resolve(
+                layerSpecs,
+                material.Layers,
+                capabilities,
+                carrierId,
+                tokenResolver: value => tokens.TryGetValue(value, out var resolved) ? resolved : value,
+                fallback: material.Fallback,
+                fallbackRefs: fallbackRefs,
+                channel: channel,
+                domainClassifier: domainClassifier);
 
         var issues = new List<SurfaceIssue>(resolution.Issues.Count + 1);
         // 同因多报去重：载体未声明已在表面级报过一次，此处不逐层重复（内核保持「每层可见」，去重归口调用方）。
@@ -396,7 +419,14 @@ public static class SurfaceResolver
             layers.Add(new ResolvedLayer(layer.Role, layer.Primitive, layer.Z, layer.Params));
         }
 
-        return new ResolvedMaterial(slot, materialId, resolution.FallbackUsed, layers, issues);
+        var step = propertyChannel
+            ? resolution.FallbackStep
+            : resolution.FallbackUsed is null
+                ? (resolution.Degraded ? SurfaceFallbackStep.L1Emulated : SurfaceFallbackStep.L0Full)
+                : SurfaceFallbackStep.L2SolidFace;
+
+        return new ResolvedMaterial(slot, materialId, resolution.FallbackUsed, layers, issues)
+            with { FallbackStep = step };
     }
 
     private static IEnumerable<string> ReferencedLayers(SurfaceMaterialSpec material, SurfaceProgramDeclaration program)

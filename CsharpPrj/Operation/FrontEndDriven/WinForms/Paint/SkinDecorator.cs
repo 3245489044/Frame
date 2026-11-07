@@ -11,6 +11,7 @@ using System.Threading;
 using System.Windows.Forms;
 using FrontEndDriven.Diagnostics;
 using FrontEndDriven.WinForms.Applier;
+using Modules.CapabilityResolution;
 using Share.Conversation.Rendering.Surface;
 using UiBackend;
 
@@ -55,17 +56,43 @@ public static class SkinDecorator
         // 但保持系统浅色会直接破坏整体玻璃观感 ⇒ 只做「属性级换肤」（底色/文字色，可逆重启）。
         if (!SupportsOwnerDraw(control))
         {
-            // 属性通道用「已按通道能力降级」的材质（alpha 层在解析期已落回 fallback），禁把绘制材质直接写属性。
-            var propertyMaterial = SelectMaterial(
-                                        SkinMaterialCatalog.ForProperty(descriptor.Id)
-                                        ?? SkinMaterialCatalog.ForProperty(descriptor.Name))
-                                    ?? SkinMaterialCatalog.GlobalProperty;
-            // 容器材质在属性通道发生降级（如 panel_frost 的 alpha 底落回 flat 纯黑）⇒ 换用属性通道全局实心材质。
-            if (propertyMaterial is { FallbackUsed.Length: > 0 } && SkinMaterialCatalog.GlobalProperty is { } propertyFallback)
+            var family = SurfaceControlFamilyRegistry.ForControl(control, descriptor.Type);
+            int? tint = null;
+            ResolvedMaterial? propertyMaterial;
+            if (family is { Strategy: SurfaceStrategy.PropertyFace })
             {
-                propertyMaterial = propertyFallback;
+                // B 类：族级 control_face（glass_fill）优先；不再因 FallbackUsed 换 GlobalProperty(row_surface)。
+                propertyMaterial = SkinMaterialCatalog.FamilyProperty(family.MaterialSlot)
+                                   ?? SelectMaterial(
+                                       SkinMaterialCatalog.ForProperty(descriptor.Id)
+                                       ?? SkinMaterialCatalog.ForProperty(descriptor.Name))
+                                   ?? SkinMaterialCatalog.GlobalProperty;
+                tint = SurfaceStyleBridge.TintFor(descriptor, family.StyleRole);
+                if (propertyMaterial is { FallbackStep: > SurfaceFallbackStep.L2SolidFace })
+                {
+                    FrontEndDrivenLog.Log("SkinDecorator_face_degraded", new
+                    {
+                        type = control.GetType().Name,
+                        family = family.TypeKey,
+                        material = propertyMaterial.MaterialId,
+                        step = propertyMaterial.FallbackStep.ToString(),
+                    });
+                }
             }
-            var themed = propertyMaterial is not null && ApplyFallbackTheme(control, propertyMaterial);
+            else
+            {
+                // 未登记族保持旧路径（零回归）：属性通道用已按通道能力降级的材质，降级才换全局实心材质。
+                propertyMaterial = SelectMaterial(
+                                       SkinMaterialCatalog.ForProperty(descriptor.Id)
+                                       ?? SkinMaterialCatalog.ForProperty(descriptor.Name))
+                                   ?? SkinMaterialCatalog.GlobalProperty;
+                if (propertyMaterial is { FallbackUsed.Length: > 0 } && SkinMaterialCatalog.GlobalProperty is { } propertyFallback)
+                {
+                    propertyMaterial = propertyFallback;
+                }
+            }
+
+            var themed = propertyMaterial is not null && ApplyFallbackTheme(control, propertyMaterial, tint);
             Detach(control);
             // 只有「连属性级换肤也做不到」才记账（可承载的控件静默换色，避免每控件一条噪声）。
             if (!themed)
@@ -169,7 +196,16 @@ public static class SkinDecorator
 
     /// <summary>是否支持 owner-draw（容器/文本承载类；其余控件自绘内容）。</summary>
     private static bool SupportsOwnerDraw(Control control)
-        => control is Panel or FlowLayoutPanel or TableLayoutPanel or UserControl or GroupBox or Label;
+    {
+        var family = SurfaceControlFamilyRegistry.ForControl(control, null);
+        if (family is not null)
+        {
+            return family.Strategy is SurfaceStrategy.OwnerDrawContainer or SurfaceStrategy.InheritParent;
+        }
+
+        // 未登记 ⇒ 旧白名单（零回归）。
+        return control is Panel or FlowLayoutPanel or TableLayoutPanel or UserControl or GroupBox or Label;
+    }
 
     /// <summary>该控件的属性通道（BackColor）是否已由材质投影器接管（唯一写者判据）。</summary>
     /// <param name="control">目标控件。</param>
@@ -179,9 +215,9 @@ public static class SkinDecorator
     /// <summary>
     /// 非 owner-draw 控件的属性级换肤：**委托属性通道投影器**（唯一写点；不透明化与幂等比对都在投影器内）。
     /// </summary>
-    private static bool ApplyFallbackTheme(Control control, ResolvedMaterial material)
+    private static bool ApplyFallbackTheme(Control control, ResolvedMaterial material, int? tintArgb = null)
     {
-        if (!WinFormsPropertyProjector.TryApply(control, material, out _)) return false;
+        if (!WinFormsPropertyProjector.TryApply(control, material, tintArgb, out _)) return false;
         PropertyOwned.Remove(control);
         PropertyOwned.Add(control, PropertyOwnedMarker);
         return true;

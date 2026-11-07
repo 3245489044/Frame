@@ -68,9 +68,15 @@ public static class SkinAppearanceInstaller
                                 program, context, profile, carrierId, "row_surface",
                                 WinFormsPropertyProjector.ChannelId)
                             ?? SelectGlobal(byKeyProperty, "panel_surface");
+        // B 类控件族的属性材质：control_face（glass_fill + panel_edge），缺失时保持旧全局回退。
+        var controlFace = SurfaceResolver.ResolveProfileSlot(
+            program, context, profile, carrierId, "control_face", WinFormsPropertyProjector.ChannelId);
+        var familyProperty = new Dictionary<string, ResolvedMaterial>(StringComparer.Ordinal);
+        if (controlFace is not null) familyProperty["control_face"] = controlFace;
 
         SkinMaterialCatalog.Set(byKey);
         SkinMaterialCatalog.SetProperty(byKeyProperty);
+        SkinMaterialCatalog.SetFamilyProperty(familyProperty);
         SkinMaterialCatalog.SetGlobal(global);
         SkinMaterialCatalog.SetGlobalProperty(globalProperty);
         SkinDecorator.Enabled = global is not null || globalProperty is not null;
@@ -89,6 +95,7 @@ public static class SkinAppearanceInstaller
             catalogProperty = byKeyProperty.Count,
             global = global?.MaterialId,
             globalProperty = globalProperty?.MaterialId,
+            controlFace = controlFace?.MaterialId,
             layers = global?.Layers.Count ?? 0,
             unresolvedTokens = SkinDiagnostics.Current.UnresolvedTokenCount,
             borderStrokes = border?.Spec.Strokes.Count ?? 0,
@@ -146,6 +153,7 @@ public static class SkinAppearanceInstaller
         SkinMaterialCatalog.SetProperty(null);
         SkinMaterialCatalog.SetGlobal(null);
         SkinMaterialCatalog.SetGlobalProperty(null);
+        SkinMaterialCatalog.SetFamilyProperty(null);
         SkinMaterialCatalog.SetPageBackground(null);
         SkinDecorator.Disable();
         SkinDiagnostics.RecordUninstall();

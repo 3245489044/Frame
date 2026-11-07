@@ -122,6 +122,20 @@ public static class SkinDecorator
         }
 
         var state = States.GetValue(control, static _ => new SkinState());
+        // 批次 1.5：结构宿主改用 host_surface(flat) 后自身材质不再带 stroke；
+        // 族声明 EdgeMode=FrameHost 的控件由边框宿主补 1px 内衬边（borderToPanel 归零即此因）。
+        state.EdgeMode = family?.EdgeMode ?? SurfaceEdgeMode.Material;
+        if (state.EdgeMode == SurfaceEdgeMode.FrameHost && SurfaceFrameHost.EdgeStrokeFor(material) is null)
+        {
+            FrontEndDrivenLog.Log("SkinDecorator_frame_host_unavailable", new
+            {
+                type = control.GetType().Name,
+                family = family?.TypeKey,
+                material = material.MaterialId,
+                reason = "stroke-source-missing",
+            });
+        }
+
         var key = MaterialKey(material);
         if (string.Equals(state.MaterialKey, key, StringComparison.Ordinal))
         {
@@ -279,6 +293,12 @@ public static class SkinDecorator
             var dynamicReport = SkinPaintEngine.PaintReport(
                 e.Graphics, bounds, material, null, light, PaintScope.Dynamic);
             var frameReport = baseReport.Merge(dynamicReport);
+            // 边框宿主：内容之上补 1px 内衬边（host_surface=flat 本身没有 stroke，必须由宿主补）。
+            if (state.EdgeMode == SurfaceEdgeMode.FrameHost)
+            {
+                SurfaceFrameHost.TryDraw(e.Graphics, bounds, state.EdgeMode, material, control.DeviceDpi, out _);
+            }
+
             state.Frame++;
             state.LastReport = frameReport;
             SkinDiagnostics.RecordFrame(frameReport);
@@ -672,6 +692,9 @@ public static class SkinDecorator
     {
         internal ResolvedMaterial? Material { get; set; }
         internal string? MaterialKey { get; set; }
+
+        /// <summary>族声明的边缘归属（Material = 材质自带 stroke；FrameHost = 由 <see cref="SurfaceFrameHost"/> 补边）。</summary>
+        internal SurfaceEdgeMode EdgeMode { get; set; } = SurfaceEdgeMode.Material;
         internal PaintEventHandler? Handler { get; set; }
         internal Bitmap? Cache { get; set; }
         internal string? CacheKey { get; set; }

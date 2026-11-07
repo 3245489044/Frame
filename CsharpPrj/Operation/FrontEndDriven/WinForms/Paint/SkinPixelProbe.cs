@@ -257,7 +257,7 @@ public static class SkinPixelProbe
         if (width <= 0 || height <= 0) return raster;
 
         raster.Inputs = SkinDecorator.BuildRenderInputs(control, material);
-        var paintBefore = SkinDecorator.PaintVersionOf(control);
+        var frameBefore = SkinDecorator.LastFrameOf(control);
         var attached = SkinDecorator.MaterialOf(control) is not null;
 
         var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
@@ -275,13 +275,21 @@ public static class SkinPixelProbe
             failure = ex;
         }
 
-        raster.Painted = SkinDecorator.PaintVersionOf(control) > paintBefore;
+        // K6：帧序号推进 + 该帧报告至少一层 Ok 才算「画了」（处理器被调用 ≠ 画了）。
+        var frameAfter = SkinDecorator.LastFrameOf(control);
+        raster.Painted = frameAfter.Frame > frameBefore.Frame && frameAfter.Report.Painted;
         if (failure is not null || (!raster.Painted && attached))
         {
             // 已接线却一次绘制都没跑 ⇒ 绘制中止/未执行，判红；未接线则继续采样，用「等于基线」证明没有换肤。
             raster.Failure = failure is null ? "paint-not-run" : failure.GetType().Name + ": " + failure.Message;
             bitmap.Dispose();
             return raster;
+        }
+
+        if (frameAfter.Report.Failed > 0 && raster.Failure is null)
+        {
+            // 单层异常不抛出，但必须在证据面可见（否则 GDI 局部失败会被像素断言掩盖）。
+            raster.Failure = "layers-failed:" + frameAfter.Report.Describe();
         }
 
         raster.Bitmap = bitmap;

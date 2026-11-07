@@ -201,6 +201,7 @@ public static class SkinDecorator
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
         var paintBegin = SkinRenderProfile.Begin();
+        var baseReport = state.BaseReport;
         try
         {
             // 静态/动态拆分：backdrop+fill+edge 只随「分钟光 + 背后快照」变化，缓存成底图；
@@ -219,28 +220,34 @@ public static class SkinDecorator
             var hit = state.Cache is not null
                       && !backdropDue
                       && string.Equals(state.CacheKey, key, StringComparison.Ordinal);
-            if (!hit) RebuildBase(control, material, bounds, state, pinned, baseLight);
+            if (!hit) baseReport = RebuildBase(control, material, bounds, state, pinned, baseLight);
 
             if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
 
             var light = pinned is { } frozenLight
                 ? frozenLight.Light
                 : NeedsLight(material) ? ResolveLight(control) : (SurfaceLightState?)null;
-            var dynamicSkipped = SkinPaintEngine.PaintDynamic(e.Graphics, bounds, material, light, out var dynamicLayers);
-            // 每次都记账：painted 是「实际落笔图层数」，不是「处理器是否被调用」。
-            SkinDiagnostics.RecordPaint(dynamicSkipped, dynamicLayers);
-            if (dynamicSkipped.Count > 0)
+            // K6：静态底图 + 动态层合并成一份帧报告；PaintCount 在这里（每帧一次）推进。
+            var dynamicReport = SkinPaintEngine.PaintReport(
+                e.Graphics, bounds, material, null, light, PaintScope.Dynamic);
+            var frameReport = baseReport.Merge(dynamicReport);
+            state.Frame++;
+            state.LastReport = frameReport;
+            SkinDiagnostics.RecordFrame(frameReport);
+            if (frameReport.Details.Count > 0)
             {
-                FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", dynamicSkipped) });
+                FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", frameReport.Details) });
             }
 
             SkinRenderProfile.RecordPaint(paintBegin, hit);
-            state.PaintVersion++;
         }
         catch (Exception ex)
         {
-            // 绘制失败必须可见（带堆栈），且不得把异常抛回 UI 线程中断整棵重绘。
-            state.PaintFailures++;
+            // 绘制失败必须可见（带堆栈），且不得把异常抛回 UI 线程中断整棵重绘；
+            // K6：整帧失败同样推进 Frame 并留下 Failed 报告（不让「没有报告」冒充成功）。
+            state.Frame++;
+            state.LastReport = new SkinPaintReport(1, 0, 0, 0, 1, new[] { "frame:" + ex.GetType().Name + ":" + ex.Message });
+            SkinDiagnostics.RecordFrame(state.LastReport);
             SkinRenderProfile.RecordFailure();
             FrontEndDrivenLog.Log("SkinDecorator_paint_failed", new
             {
@@ -252,7 +259,7 @@ public static class SkinDecorator
     }
 
     /// <summary>重建静态底图：backdrop（快照+模糊）+ fill + edge；specular 不进入底图。</summary>
-    private static void RebuildBase(
+    private static SkinPaintReport RebuildBase(
         Control control, ResolvedMaterial material, Rectangle bounds, SkinState state,
         SkinRenderInputs? pinned, SurfaceLightState? baseLight)
     {
@@ -268,21 +275,22 @@ public static class SkinDecorator
             {
                 owned.Dispose();
                 state.LastBackdropTick = Environment.TickCount64;
-                return;
+                // 快照缺失 ⇒ 保留上一张底图；本帧沿用上一次静态报告（不让「未重建」冒充 Skipped）。
+                return state.BaseReport ?? SkinPaintReport.Empty;
             }
         }
 
+        var skipped = SkinPaintReport.Empty;
         var bitmap = new Bitmap(bounds.Width, bounds.Height);
         using (var graphics = Graphics.FromImage(bitmap))
         {
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             graphics.Clear(Color.Transparent);
-            var skipped = SkinPaintEngine.Paint(
-                graphics, bounds, material, out var paintedLayers, inputs?.Backdrop, inputs?.Light, includeSpecular: false);
-            SkinDiagnostics.RecordPaint(skipped, paintedLayers);
-            if (skipped.Count > 0)
+            skipped = SkinPaintEngine.PaintReport(
+                graphics, bounds, material, inputs?.Backdrop, inputs?.Light, PaintScope.Static);
+            if (skipped.Details.Count > 0)
             {
-                FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", skipped) });
+                FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", skipped.Details) });
             }
         }
 
@@ -293,8 +301,10 @@ public static class SkinDecorator
         state.CacheKey = CacheKey(FingerprintOf(state, material), bounds, control.DeviceDpi,
             baseLight, state.CacheBackdropVersion);
         state.LastBackdropTick = Environment.TickCount64;
+        state.BaseReport = skipped;
         owned?.Dispose();
         SkinRenderProfile.RecordRender(renderBegin);
+        return skipped;
     }
 
     /// <summary>底图用的「静态光」：同一份全局采样，缓存键已量化到肉眼可辨粒度（见 <see cref="SurfaceLightState.CacheToken"/>）。</summary>
@@ -331,13 +341,17 @@ public static class SkinDecorator
         return new PinScope(state, previous);
     }
 
-    /// <summary>累计成功绘制次数（探针据此区分「没画」与「画了但颜色错」，不靠像素猜测）。</summary>
-    internal static long PaintVersionOf(Control? control)
-        => control is not null && States.TryGetValue(control, out var state) ? state.PaintVersion : 0;
+    /// <summary>
+    /// 最近一帧证据（探针据此区分「没画」与「画了但颜色错」，不靠像素猜测）。
+    /// <para>K6：帧序号与绘制结果同源；<c>Painted</c> = 该帧至少一层 Ok，而不是「处理器被调用」。</para>
+    /// </summary>
+    internal static SkinFrameReport LastFrameOf(Control? control)
+        => control is not null && States.TryGetValue(control, out var state)
+            ? new SkinFrameReport(state.Frame, state.LastReport ?? SkinPaintReport.Empty)
+            : new SkinFrameReport(0, SkinPaintReport.Empty);
 
-    /// <summary>累计绘制失败次数（异常隔离的结构指标）。</summary>
-    internal static long PaintFailuresOf(Control? control)
-        => control is not null && States.TryGetValue(control, out var state) ? state.PaintFailures : 0;
+    /// <summary>帧证据（帧序号 + 结构化报告）。</summary>
+    internal readonly record struct SkinFrameReport(long Frame, SkinPaintReport Report);
 
     private static int _backdropSerial;
 
@@ -617,7 +631,14 @@ public static class SkinDecorator
         internal bool SuppressPaint { get; set; }
         internal System.Windows.Forms.Timer? RefreshTimer { get; set; }
         internal SkinRenderInputs? Pinned { get; set; }
-        internal long PaintVersion { get; set; }
-        internal long PaintFailures { get; set; }
+
+        /// <summary>帧序号（每帧 PaintControl 推进一次；异常帧也推进）。</summary>
+        internal long Frame { get; set; }
+
+        /// <summary>最近一帧结构化报告（静态 + 动态合并；异常帧为 Failed）。</summary>
+        internal SkinPaintReport? LastReport { get; set; }
+
+        /// <summary>最近一次静态底图报告（命中缓存时复用）。</summary>
+        internal SkinPaintReport? BaseReport { get; set; }
     }
 }

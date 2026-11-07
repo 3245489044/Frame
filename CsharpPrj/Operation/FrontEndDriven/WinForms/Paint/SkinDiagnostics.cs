@@ -113,7 +113,29 @@ public static class SkinDiagnostics
         }
     }
 
-    /// <summary>绘制记录（每次 owner-draw 绘制；记跳过项与**实际落笔图层数**，不拿处理器次数冒充绘制覆盖）。</summary>
+    /// <summary>
+    /// 一帧绘制记录（K6 唯一写入口）：PaintCount 每帧只 +1；PaintedLayers/LastSkipped 取自合并报告。
+    /// <para>静态底图重建不再单独计数（此前一帧会 +2，命中帧的 PaintedLayers 被动态层覆盖成 1）。</para>
+    /// </summary>
+    /// <param name="report">本帧静态 + 动态合并报告。</param>
+    public static void RecordFrame(SkinPaintReport report)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        Interlocked.Increment(ref _paintCount);
+        lock (Gate)
+        {
+            _current = _current with
+            {
+                PaintCount = Interlocked.Read(ref _paintCount),
+                PaintedLayers = report.PaintedLayers,
+                LastSkipped = report.Details.Count > 0 ? report.Details.ToArray() : Array.Empty<string>(),
+            };
+        }
+    }
+
+    /// <summary>
+    /// 旧版分段绘制记录（**兼容保留**，勿在新代码调用；用 <see cref="RecordFrame"/> 以免一帧计两次）。
+    /// </summary>
     /// <param name="skipped">跳过/降级项。</param>
     /// <param name="paintedLayers">本次实际落笔的图层数（静态+动态合计）。</param>
     public static void RecordPaint(IReadOnlyList<string>? skipped, int paintedLayers = -1)

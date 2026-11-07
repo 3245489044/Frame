@@ -85,34 +85,63 @@ public static class SkinPaintEngine
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, Image? backdrop = null,
         SurfaceLightState? light = null, bool includeSpecular = true)
         => PaintCore(graphics, bounds, material, backdrop, light,
-            includeSpecular ? PaintScope.All : PaintScope.Static, out _);
+            includeSpecular ? PaintScope.All : PaintScope.Static).Details;
 
     /// <summary>绘制一次材质（背景），并回报**实际落笔图层数**（诊断「有没有画到」的唯一证据）。</summary>
     public static IReadOnlyList<string> Paint(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, out int paintedLayers,
         Image? backdrop = null, SurfaceLightState? light = null, bool includeSpecular = true)
-        => PaintCore(graphics, bounds, material, backdrop, light,
-            includeSpecular ? PaintScope.All : PaintScope.Static, out paintedLayers);
+    {
+        var report = PaintCore(graphics, bounds, material, backdrop, light,
+            includeSpecular ? PaintScope.All : PaintScope.Static);
+        paintedLayers = report.PaintedLayers;
+        return report.Details;
+    }
 
     /// <summary>只画随时间/光标变化的层（当前仅 specular）；静态层由缓存底图提供。</summary>
     public static IReadOnlyList<string> PaintDynamic(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, SurfaceLightState? light)
-        => PaintCore(graphics, bounds, material, null, light, PaintScope.Dynamic, out _);
+        => PaintCore(graphics, bounds, material, null, light, PaintScope.Dynamic).Details;
 
     /// <summary>只画动态层，并回报实际落笔图层数。</summary>
     public static IReadOnlyList<string> PaintDynamic(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, SurfaceLightState? light, out int paintedLayers)
-        => PaintCore(graphics, bounds, material, null, light, PaintScope.Dynamic, out paintedLayers);
+    {
+        var report = PaintCore(graphics, bounds, material, null, light, PaintScope.Dynamic);
+        paintedLayers = report.PaintedLayers;
+        return report.Details;
+    }
 
-    private static IReadOnlyList<string> PaintCore(
+    /// <summary>
+    /// 绘制并回传结构化报告（K6）：静态/动态拆分共用同一结果面，诊断只读 <see cref="SkinPaintReport"/>。
+    /// </summary>
+    internal static SkinPaintReport PaintReport(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, Image? backdrop,
-        SurfaceLightState? light, PaintScope scope, out int paintedLayers)
+        SurfaceLightState? light, PaintScope scope)
+        => PaintCore(graphics, bounds, material, backdrop, light, scope);
+
+    private static SkinPaintReport PaintCore(
+        Graphics graphics, Rectangle bounds, ResolvedMaterial? material, Image? backdrop,
+        SurfaceLightState? light, PaintScope scope)
     {
         ArgumentNullException.ThrowIfNull(graphics);
-        paintedLayers = 0;
-        if (material is null || bounds.Width <= 0 || bounds.Height <= 0) return Array.Empty<string>();
+        if (material is null)
+        {
+            // 无材质不是「画成功」：报告必须显式 Skipped（禁空列表冒充已绘）。
+            return new SkinPaintReport(0, 0, 0, 0, 0, new[] { "no-material" });
+        }
 
-        var skipped = new List<string>();
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return new SkinPaintReport(0, 0, 0, 0, 0, new[] { "empty-bounds" });
+        }
+
+        var details = new List<string>();
+        var ok = 0;
+        var degraded = 0;
+        var skippedLayers = 0;
+        var failed = 0;
+        var total = 0;
         var state = graphics.Save();
         try
         {
@@ -123,29 +152,49 @@ public static class SkinPaintEngine
             var specSet = ResolvedLayerSpecProjection.ParseCached(material.Layers);
             var materialRadius = specSet.MaterialRadius;
 
-            var painted = 0;
-            foreach (var spec in OrderedSpecs(specSet.Specs, scope))
+            var ordered = OrderedSpecs(specSet.Specs, scope).ToList();
+            total = ordered.Count;
+            foreach (var spec in ordered)
             {
                 // 明细由 PaintLayer 记账（unresolved-value:<raw>）；未落笔时再补「层身份」项。
                 var layerBegin = SkinRenderProfile.Begin();
-                var paintedLayer = PaintLayer(graphics, bounds, spec, materialRadius, skipped, backdrop, light);
-                SkinRenderProfile.RecordLayer(spec.Primitive, layerBegin);
-                if (paintedLayer) painted++;
-                else
+                var degradedLayer = false;
+                var outcome = PaintOutcome.Skipped;
+                try
                 {
-                    // 未落笔必须同时给「层身份 + 具体原因」：身份供断言按图元定位，原因供人看。
-                    skipped.Add(spec.Primitive + ":" + spec.Role);
+                    outcome = PaintLayer(graphics, bounds, spec, materialRadius, details,
+                        backdrop, light, out degradedLayer)
+                        ? (degradedLayer ? PaintOutcome.Degraded : PaintOutcome.Ok)
+                        : PaintOutcome.Skipped;
+                }
+                catch (Exception ex)
+                {
+                    // K6：单层异常记 Failed 并继续画后续层；原因进明细供探针/门禁读取（不静默）。
+                    outcome = PaintOutcome.Failed;
+                    failed++;
+                    details.Add("failed:" + spec.Primitive + ":" + ex.GetType().Name + ":" + ex.Message);
+                }
+
+                SkinRenderProfile.RecordLayer(spec.Primitive, layerBegin);
+                switch (outcome)
+                {
+                    case PaintOutcome.Ok: ok++; break;
+                    case PaintOutcome.Degraded: degraded++; break;
+                    case PaintOutcome.Failed: break; // 异常分支已计数
+                    default:
+                        skippedLayers++;
+                        // 未落笔必须同时给「层身份 + 具体原因」：身份供断言按图元定位，原因供人看。
+                        details.Add(spec.Primitive + ":" + spec.Role);
+                        break;
                 }
             }
-
-            paintedLayers = painted;
         }
         finally
         {
             graphics.Restore(state);
         }
 
-        return skipped;
+        return new SkinPaintReport(total, ok, degraded, skippedLayers, failed, details);
     }
 
     /// <summary>
@@ -174,8 +223,9 @@ public static class SkinPaintEngine
 
     private static bool PaintLayer(
         Graphics graphics, Rectangle bounds, ResolvedLayerSpec spec, float materialRadius, List<string> skipped,
-        Image? backdrop = null, SurfaceLightState? light = null)
+        Image? backdrop, SurfaceLightState? light, out bool degraded)
     {
+        degraded = false;
         // 描边几何走 Plate.Surface 的 BorderSpec（四边宽度/颜色/圆角/DPI 浮点都在那里归一化）；
         // 层参数经唯一强类型入口（ResolvedLayerSpecProjection）读取，本文件不再直接读层参数袋。
         foreach (var issue in spec.Issues) skipped.Add(issue.Code + ":" + issue.Detail);
@@ -289,6 +339,7 @@ public static class SkinPaintEngine
                 if (path is null) graphics.FillRectangle(brush, bounds);
                 else graphics.FillPath(brush, path);
                 skipped.Add("backdrop:emulated");
+                degraded = true; // K6：近似落笔 = Degraded（有像素但语义不完整）
                 return true;
             }
 
@@ -296,7 +347,9 @@ public static class SkinPaintEngine
             {
                 if (!valid) return false;
                 var color = Color.FromArgb(spec.ColorArgb);
-                if (light is { } state)
+                // K6：LightState.Unavailable（HasValue=false）不得当作「有光但权重 0」；
+                // 保持声明 strength/angle 的静态 sheen，避免高光整层消失。
+                if (light is { HasValue: true } state)
                 {
                     if (spec.Mode == "inner")
                     {

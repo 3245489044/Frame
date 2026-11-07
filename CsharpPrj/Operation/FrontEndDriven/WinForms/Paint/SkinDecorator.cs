@@ -42,11 +42,18 @@ public static class SkinDecorator
             return;
         }
 
-        var material = descriptor.SkinRefs is { Count: > 0 }
-            ? SelectMaterial(descriptor.SkinRefs)
-            : SelectMaterial(SkinMaterialCatalog.For(descriptor.Id) ?? SkinMaterialCatalog.For(descriptor.Name))
-              ?? SkinMaterialCatalog.Global;
-        if (material is null)
+        // 族声明的材质槽优先：结构宿主（host_surface）不得被背景槽（panel_surface→panel_frost）顶替，
+        // 否则 SplitContainer 自身与两个 SplitterPanel 会把整窗铺成同一块玻璃面（panelToPage → 1.0）。
+        var family = SurfaceControlFamilyRegistry.ForControl(control, descriptor.Type);
+        var familyDraw = SkinMaterialCatalog.FamilyDraw(family?.MaterialSlot);
+        var material = familyDraw
+            ?? (descriptor.SkinRefs is { Count: > 0 }
+                ? SelectMaterial(descriptor.SkinRefs)
+                : SelectMaterial(SkinMaterialCatalog.For(descriptor.Id) ?? SkinMaterialCatalog.For(descriptor.Name))
+                  ?? SkinMaterialCatalog.Global);
+        // 属性通道族不依赖绘制通道材质：缺绘制材质时仍要走属性面，否则会被 WinFormApplier 的样式桥
+        // 剥掉旧底色后无任何写入，退化成系统色（property_button 白岛）。
+        if (material is null && family is not { Strategy: SurfaceStrategy.PropertyFace })
         {
             Detach(control);
             return;
@@ -56,7 +63,6 @@ public static class SkinDecorator
         // 但保持系统浅色会直接破坏整体玻璃观感 ⇒ 只做「属性级换肤」（底色/文字色，可逆重启）。
         if (!SupportsOwnerDraw(control))
         {
-            var family = SurfaceControlFamilyRegistry.ForControl(control, descriptor.Type);
             int? tint = null;
             ResolvedMaterial? propertyMaterial;
             if (family is { Strategy: SurfaceStrategy.PropertyFace })
@@ -106,6 +112,12 @@ public static class SkinDecorator
                 });
             }
 
+            return;
+        }
+
+        if (material is null)
+        {
+            Detach(control);
             return;
         }
 

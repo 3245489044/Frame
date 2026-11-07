@@ -23,6 +23,7 @@ public static class SkinMaterialCatalog
     private static volatile IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>> _byKey = EmptyCatalog;
     private static volatile IReadOnlyDictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>> _byKeyProperty = EmptyCatalog;
     private static volatile IReadOnlyDictionary<string, ResolvedMaterial> _familyProperty = EmptySlots;
+    private static volatile IReadOnlyDictionary<string, ResolvedMaterial> _familyDraw = EmptySlots;
 
     /// <summary>整体替换目录（null ⇒ 清空；换肤/失效的**唯一写入口**）。</summary>
     /// <param name="byKey">容器键 → 槽 → 材质（draw 通道）。</param>
@@ -38,9 +39,17 @@ public static class SkinMaterialCatalog
     public static void SetFamilyProperty(IReadOnlyDictionary<string, ResolvedMaterial>? bySlot)
         => _familyProperty = bySlot ?? EmptySlots;
 
+    /// <summary>整体替换族级绘制通道目录（槽 → 材质；唯一写入口；只放结构宿主等跨容器槽）。</summary>
+    public static void SetFamilyDraw(IReadOnlyDictionary<string, ResolvedMaterial>? bySlot)
+        => _familyDraw = bySlot ?? EmptySlots;
+
     /// <summary>按材质槽取族级属性通道材质（未命中 ⇒ null）。</summary>
     public static ResolvedMaterial? FamilyProperty(string? slot)
         => slot is { Length: > 0 } && _familyProperty.TryGetValue(slot, out var material) ? material : null;
+
+    /// <summary>按材质槽取族级绘制通道材质（未命中 ⇒ null）。</summary>
+    public static ResolvedMaterial? FamilyDraw(string? slot)
+        => slot is { Length: > 0 } && _familyDraw.TryGetValue(slot, out var material) ? material : null;
 
     /// <summary>清空目录。</summary>
     public static void Clear()
@@ -50,6 +59,7 @@ public static class SkinMaterialCatalog
         SetGlobal(null);
         SetGlobalProperty(null);
         SetFamilyProperty(null);
+        SetFamilyDraw(null);
         SetPageBackground(null);
     }
 

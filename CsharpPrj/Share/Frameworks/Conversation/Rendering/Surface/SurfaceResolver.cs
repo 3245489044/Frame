@@ -31,6 +31,9 @@ public static class SurfaceResolver
     /// <summary>缺省外观档 id（声明面 <c>surface_profile_default</c>）。</summary>
     public const string DefaultProfile = "default";
 
+    /// <summary>控件面槽 id：属性通道唯一允许保留 fill 到 L2 的槽（页面/宿主槽不得走梯度保留）。</summary>
+    public const string ControlFaceSlot = "control_face";
+
     /// <summary>
     /// 解析外观档的单个语义槽材质（**与容器同一个 <see cref="ResolveMaterial"/>**，不写第二套）。
     /// <para>用途：属性通道全局回退（<c>row_surface</c>）等「不挂在容器上的槽」只能从档位取，禁止调用方自建解析。</para>
@@ -368,7 +371,10 @@ public static class SurfaceResolver
                     : domain;
             }
             : SurfaceColorDomain.Classify;
-        var resolution = propertyChannel
+        // 只有「控件面」槽允许在属性通道保留 fill 走到 L2；页面/宿主槽（panel_surface 等）必须保持原回落
+        // （flat → 页面声明底色），否则整窗会被同一块 glass_fill 预合成色铺平（panelToPage 掉到 1.0）。
+        var controlFaceSlot = string.Equals(slot, ControlFaceSlot, StringComparison.Ordinal);
+        var resolution = propertyChannel && controlFaceSlot
             ? LayeredResolver.ResolveGraded(
                 layerSpecs,
                 material.Layers,
@@ -420,7 +426,11 @@ public static class SurfaceResolver
         }
 
         var step = propertyChannel
-            ? resolution.FallbackStep
+            ? controlFaceSlot
+                ? resolution.FallbackStep
+                : resolution.FallbackUsed is null
+                    ? (HasFill(resolution.Layers) ? SurfaceFallbackStep.L2SolidFace : SurfaceFallbackStep.L5Unsupported)
+                    : SurfaceFallbackStep.L3ParentCompositeFace
             : resolution.FallbackUsed is null
                 ? (resolution.Degraded ? SurfaceFallbackStep.L1Emulated : SurfaceFallbackStep.L0Full)
                 : SurfaceFallbackStep.L2SolidFace;
@@ -428,6 +438,12 @@ public static class SurfaceResolver
         return new ResolvedMaterial(slot, materialId, resolution.FallbackUsed, layers, issues)
             with { FallbackStep = step };
     }
+
+    /// <summary>层栈是否含可承载的实心面（fill/gradient）。</summary>
+    private static bool HasFill(System.Collections.Generic.IReadOnlyList<Modules.CapabilityResolution.ResolvedLayer> layers)
+        => layers.Any(layer =>
+            string.Equals(layer.Primitive, "fill", StringComparison.Ordinal)
+            || string.Equals(layer.Primitive, "gradient", StringComparison.Ordinal));
 
     private static IEnumerable<string> ReferencedLayers(SurfaceMaterialSpec material, SurfaceProgramDeclaration program)
     {

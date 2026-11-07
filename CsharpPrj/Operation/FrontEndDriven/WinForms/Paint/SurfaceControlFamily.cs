@@ -155,7 +155,9 @@ public static class SurfaceControlFamilyRegistry
         foreach (var key in new[] { "splitcontainer", "splitterpanel" })
         {
             ByType[key] = new SurfaceControlFamilySpec(
-                key, SurfaceStrategy.OwnerDrawContainer, "panel_surface", true,
+                // 结构宿主（不是卡片）：host_surface 在各档都映射 flat（页面声明底色），
+                // 避免 SplitContainer 面板被画成 panel_frost 而把整窗铺平成同一块玻璃面（panelToPage → 1.0）。
+                key, SurfaceStrategy.OwnerDrawContainer, "host_surface", true,
                 SurfaceBackdropMode.Parent, SurfaceEdgeMode.Material, SurfaceProbeMode.PerControl,
                 SurfaceChromePolicy.Native, SurfaceFallbackPolicy.RequireGlassFace,
                 SurfaceStyleRole.Ignore, SurfaceContentKind.None, SurfaceFallbackStep.L2SolidFace);

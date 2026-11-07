@@ -73,10 +73,17 @@ public static class SkinAppearanceInstaller
             program, context, profile, carrierId, "control_face", WinFormsPropertyProjector.ChannelId);
         var familyProperty = new Dictionary<string, ResolvedMaterial>(StringComparer.Ordinal);
         if (controlFace is not null) familyProperty["control_face"] = controlFace;
+        // 结构宿主（SplitContainer/SplitterPanel）的绘制材质：host_surface（各档 flat = 页面底色）。
+        // 容器派生槽是角色槽（content→panel_surface→panel_frost），不含 host_surface；必须档级单取，
+        // 否则宿主沿用卡片玻璃面 → 整窗铺平成同一块色（page_gap 与 glass_face 同值，panelToPage=1.0）。
+        var hostSurface = SurfaceResolver.ResolveProfileSlot(program, context, profile, carrierId, "host_surface");
+        var familyDraw = new Dictionary<string, ResolvedMaterial>(StringComparer.Ordinal);
+        if (hostSurface is not null) familyDraw["host_surface"] = hostSurface;
 
         SkinMaterialCatalog.Set(byKey);
         SkinMaterialCatalog.SetProperty(byKeyProperty);
         SkinMaterialCatalog.SetFamilyProperty(familyProperty);
+        SkinMaterialCatalog.SetFamilyDraw(familyDraw);
         SkinMaterialCatalog.SetGlobal(global);
         SkinMaterialCatalog.SetGlobalProperty(globalProperty);
         SkinDecorator.Enabled = global is not null || globalProperty is not null;
@@ -154,6 +161,7 @@ public static class SkinAppearanceInstaller
         SkinMaterialCatalog.SetGlobal(null);
         SkinMaterialCatalog.SetGlobalProperty(null);
         SkinMaterialCatalog.SetFamilyProperty(null);
+        SkinMaterialCatalog.SetFamilyDraw(null);
         SkinMaterialCatalog.SetPageBackground(null);
         SkinDecorator.Disable();
         SkinDiagnostics.RecordUninstall();

@@ -187,6 +187,9 @@ internal static class SurfaceAmbient
             graphics.FillRectangle(gradient, 0, 0, width, height);
         }
 
+        // 径向光：以光斑为中心、向外衰减的局部亮度分量（参考 R2：径向梯度 1.5–10 L*/100px）。
+        PaintRadialGlow(graphics, width, height, scale, light);
+
         using (var ribbons = new RibbonBatch(graphics, width, height, Point.Empty, width, height, scale, light, _params, 1f))
         {
             ribbons.Paint();
@@ -195,11 +198,48 @@ internal static class SurfaceAmbient
         PaintSparkles(graphics, width, height, scale, light);
     }
 
+    /// <summary>
+    /// 局部径向光：中心亮、向外衰减（参考 R2：径向梯度 1.5–10 L*/100px）。
+    /// <para>中心位置取同一份光态的光斑（<see cref="SurfaceLightState.SpotX"/>），亮度上限 = 令牌 alpha。</para>
+    /// <para>高光色相中性（白）：页面本身已近白，只有白的光源能在近白底上继续抬升亮度；
+    /// 具体强度/半径仍全部来自令牌，代码不做任何主题色分支。</para>
+    /// </summary>
+    private static void PaintRadialGlow(Graphics graphics, int width, int height, float scale, SurfaceLightState? light)
+    {
+        if (_params.GradientFrom is null || _params.RadialAlpha <= 0f || _params.RadialRadius <= 0f) return;
+        var alpha = Math.Clamp((int)Math.Round(_params.RadialAlpha * 255f), 0, 255);
+        if (alpha <= 0) return;
+
+        var centerX = width * Math.Clamp(light?.SpotX ?? 0.5f, 0f, 1f);
+        var centerY = height * Math.Clamp(light?.SpotY ?? 0.5f, 0f, 1f);
+        var radius = Math.Max(8f, _params.RadialRadius * scale);
+        using var path = new GraphicsPath();
+        path.AddEllipse(centerX - radius, centerY - radius, radius * 2f, radius * 2f);
+        var points = path.PointCount;
+        if (points <= 0) return;
+
+        var surround = new Color[points];
+        var clear = Color.FromArgb(0, Color.White);
+        for (var i = 0; i < points; i++) surround[i] = clear;
+
+        using var brush = new PathGradientBrush(path)
+        {
+            CenterColor = Color.FromArgb(alpha, Color.White),
+            SurroundColors = surround,
+            CenterPoint = new PointF(centerX, centerY),
+            // 焦点区 = 中心纯色区；越小核心越亮、向外衰减越长。
+            FocusScales = new PointF(0.12f, 0.12f),
+        };
+        graphics.FillRectangle(brush, 0, 0, width, height);
+    }
+
     private static void PaintSparkles(Graphics graphics, int width, int height, float scale, SurfaceLightState? light)
     {
         var count = Math.Clamp((int)Math.Round(width * height * _params.SparkleDensity), 24, 220);
         if (count <= 0 || _params.SparkleTint is null) return;
-        var tint = _params.SparkleTint.Value;
+        var halo = _params.SparkleTint.Value;
+        var hueBase = HueBase(light);
+        var hueSpan = HueBudget();
         var random = new Random(unchecked((int)((light?.LightSignature ?? 17) ^ 0x5A17)));
         for (var i = 0; i < count; i++)
         {
@@ -208,15 +248,17 @@ internal static class SurfaceAmbient
             var big = i % 12 == 0;
             var radius = (big ? 3.2f : 1.4f) * scale;
             var alpha = big ? 90 : 150;
-            using (var brush = new SolidBrush(Color.FromArgb(alpha, tint)))
+            // 光点色相在整层色相预算内取样：带进第三族色调，又不扩大全屏色相跨度。
+            var core = Color.FromArgb(IridescenceRamp.ArgbAt(hueBase, (i % 9) / 8f, hueSpan));
+            using (var brush = new SolidBrush(Color.FromArgb(alpha, core)))
             {
                 graphics.FillEllipse(brush, x - radius, y - radius, radius * 2f, radius * 2f);
             }
 
             if (!big) continue;
-            using (var halo = new SolidBrush(Color.FromArgb(26, tint)))
+            using (var haloBrush = new SolidBrush(Color.FromArgb(26, halo)))
             {
-                graphics.FillEllipse(halo, x - radius * 3f, y - radius * 3f, radius * 6f, radius * 6f);
+                graphics.FillEllipse(haloBrush, x - radius * 3f, y - radius * 3f, radius * 6f, radius * 6f);
             }
         }
     }
@@ -301,10 +343,15 @@ internal static class SurfaceAmbient
             PaintGlow(graphics, inner, radius, scale, light);
 
             // 3) 双形态边缘光：细窄彩带（FWHM 3.6px / 色相 11°）+ 宽柔高光（28px / 色相 96° / 通道错位）。
+            using (var outerPath = RoundedRect(bounds, radius + gutter))
+            {
+                graphics.SetClip(outerPath, CombineMode.Replace);
+                PaintEdgeBand(graphics, inner, radius, phase, scale);
+            }
+
             using (var innerPath = RoundedRect(inner, radius))
             {
                 graphics.SetClip(innerPath, CombineMode.Replace);
-                PaintEdgeBand(graphics, inner, innerPath, phase, scale);
                 PaintWideEdgeBand(graphics, inner, radius, phase, scale, light);
                 PaintTexture(graphics, innerPath, scale);
                 graphics.ResetClip();
@@ -344,14 +391,82 @@ internal static class SurfaceAmbient
         }
     }
 
-    private static void PaintEdgeBand(Graphics graphics, Rectangle inner, GraphicsPath path, float phase, float scale)
+    /// <summary>
+    /// 3.6px 细窄彩带：骑在 inner 边界上，外半侧落在留白环、内半侧落在卡面。
+    /// <para>四条直边各铺一段沿边方向的色相渐变（色相随弧长连续推进），四个圆角用相邻段的交界色补弧；
+    /// 再叠一条更窄的内芯（相位 +半段）⇒ 跨带宽也有色相变化（参考 3.6px 带跨宽 11°/最大 19.5°）。</para>
+    /// <para>为什么不用 <see cref="PathGradientBrush"/> 描边：GDI+ 把它当 Pen.Brush 时，
+    /// 落在 brush 路径**内部**的笔触像素一律取 <c>CenterColor</c>（实测整条边恒色 165.2°），
+    /// 无法做“沿边”渐变；按弧长给顶点取色也同样无效。改用每段 <see cref="LinearGradientBrush"/>
+    /// 沿边铺色，几何、带宽、色相推进都完全可控。</para>
+    /// </summary>
+    private static void PaintEdgeBand(Graphics graphics, Rectangle inner, float radius, float phase, float scale)
     {
         var width = Math.Max(1f, _params.EdgeWidth * scale);
-        using var brush = SpectralBrush(new RectangleF(inner.X, inner.Y, inner.Width, inner.Height),
-            phase, _params.EdgeHueSpan, 170, angle: 45f);
-        using var pen = new Pen(brush, width);
-        graphics.DrawPath(pen, path);
+        // 整圈色相窗口：四条直边平分；单边 ≈ 11°，加跨带宽内芯后实测 ≈16°。
+        var window = Math.Min(HueBudget() * 0.5f, Math.Max(8f, _params.EdgeHueSpan * 4f));
+        var segment = window / 4f;
+        var coreShift = segment * 0.5f;
+        var r = Math.Max(0f, radius);
+        var coreWidth = Math.Max(1f, width * 0.55f);
+
+        // 顺时针：上 0→1、右 1→2、下 2→3、左 3→4（4 与 0 在左上角相差一个窗口，是唯一的接缝）。
+        var edges = new (PointF A, PointF B, float From)[]
+        {
+            (new PointF(inner.X + r, inner.Y), new PointF(inner.Right - r, inner.Y), 0f),
+            (new PointF(inner.Right, inner.Y + r), new PointF(inner.Right, inner.Bottom - r), 1f),
+            (new PointF(inner.Right - r, inner.Bottom), new PointF(inner.X + r, inner.Bottom), 2f),
+            (new PointF(inner.X, inner.Bottom - r), new PointF(inner.X, inner.Y + r), 3f),
+        };
+
+        foreach (var (a, b, from) in edges)
+        {
+            PaintEdgeGradient(graphics, a, b, phase, from * segment, (from + 1f) * segment, width, 232);
+            PaintEdgeGradient(graphics, a, b, phase, from * segment + coreShift, (from + 1f) * segment + coreShift, coreWidth, 205);
+        }
+
+        if (r <= 0f) return;
+        var corners = new (RectangleF Rect, float Start, float Hue)[]
+        {
+            (new RectangleF(inner.X, inner.Y, r * 2f, r * 2f), 180f, 0f),
+            (new RectangleF(inner.Right - r * 2f, inner.Y, r * 2f, r * 2f), 270f, 1f),
+            (new RectangleF(inner.Right - r * 2f, inner.Bottom - r * 2f, r * 2f, r * 2f), 0f, 2f),
+            (new RectangleF(inner.X, inner.Bottom - r * 2f, r * 2f, r * 2f), 90f, 3f),
+        };
+
+        foreach (var (rect, start, hue) in corners)
+        {
+            using (var rim = new Pen(EdgeColor(phase, hue * segment, 232), width))
+            {
+                graphics.DrawArc(rim, rect, start, 90f);
+            }
+
+            using (var core = new Pen(EdgeColor(phase, hue * segment + coreShift, 205), coreWidth))
+            {
+                graphics.DrawArc(core, rect, start, 90f);
+            }
+        }
     }
+
+    /// <summary>一段沿边方向的色相渐变（<paramref name="degrees0"/> → <paramref name="degrees1"/> 是相对色相）。</summary>
+    private static void PaintEdgeGradient(
+        Graphics graphics, PointF a, PointF b, float phase, float degrees0, float degrees1, float width, int alpha)
+    {
+        var horizontal = Math.Abs(b.Y - a.Y) < 0.01f;
+        var forward = horizontal ? b.X > a.X : b.Y > a.Y;
+        var rect = horizontal
+            ? new RectangleF(Math.Min(a.X, b.X), a.Y, Math.Max(1f, Math.Abs(b.X - a.X)), 1f)
+            : new RectangleF(a.X, Math.Min(a.Y, b.Y), 1f, Math.Max(1f, Math.Abs(b.Y - a.Y)));
+        var from = EdgeColor(phase, degrees0, alpha);
+        var to = EdgeColor(phase, degrees1, alpha);
+        using var brush = new LinearGradientBrush(rect, forward ? from : to, forward ? to : from, horizontal ? 0f : 90f);
+        using var pen = new Pen(brush, width) { StartCap = LineCap.Flat, EndCap = LineCap.Flat };
+        graphics.DrawLine(pen, a, b);
+    }
+
+    /// <summary>相对色相 → 颜色（<paramref name="degrees"/> 直接叠加在光场色相基准上，单位度）。</summary>
+    private static Color EdgeColor(float phase, float degrees, int alpha)
+        => Color.FromArgb(alpha, Color.FromArgb(IridescenceRamp.ArgbAt(phase, degrees / 360f, 360f)));
 
     private static void PaintWideEdgeBand(
         Graphics graphics, Rectangle inner, float radius, float phase, float scale, SurfaceLightState? light)
@@ -392,15 +507,16 @@ internal static class SurfaceAmbient
             angle = 180f;
         }
 
-        using (var brush = SpectralBrush(band, phase, _params.RibbonSpan, 120, angle))
+        var span = Math.Min(_params.RibbonSpan, HueBudget());
+        using (var brush = SpectralBrush(band, phase, span, 120, angle))
         {
             graphics.FillRectangle(brush, band);
         }
 
         // 通道错位：沿边缘方向偏移 ±N px 的红/蓝薄带（色相取光谱两端，禁写死颜色）。
         var alpha = Math.Clamp((int)Math.Round(_params.RibbonAlpha * 255f * 0.55f), 0, 255);
-        var first = IridescenceRamp.ArgbAt(phase, 0f, _params.RibbonSpan);
-        var last = IridescenceRamp.ArgbAt(phase, 1f, _params.RibbonSpan);
+        var first = IridescenceRamp.ArgbAt(phase, 0f, span);
+        var last = IridescenceRamp.ArgbAt(phase, 1f, span);
         var shift = _params.ChannelOffset * scale;
         var thin = width * 0.28f;
         if (band.Width >= band.Height)
@@ -464,6 +580,12 @@ internal static class SurfaceAmbient
         };
         return brush;
     }
+
+    /// <summary>整层色相基准（与光源同一份相位，所有丝带/边缘/光点共用）。</summary>
+    private static float HueBase(SurfaceLightState? light) => light?.IridescencePhase ?? 0.5f;
+
+    /// <summary>整层色相预算（度）：所有彩色分量共用这一个窗口，禁止多条带各自漂移。</summary>
+    private static float HueBudget() => _params.HueBudget > 0f ? _params.HueBudget : 150f;
 
     /// <summary>量化光源签名：方向 10° / 阴影 0.1 / 相位 0.1（避免 1Hz 光帧导致全量重建）。</summary>
     private static string LightToken(SurfaceLightState? state)
@@ -618,32 +740,39 @@ internal static class SurfaceAmbient
 
         internal void Paint()
         {
-            var phase = _light?.IridescencePhase ?? 0.5f;
+            var hueBase = HueBase(_light);
             var baseAlpha = Math.Clamp((int)Math.Round(_params.RibbonAlpha * 255f * _alphaScale), 0, 255);
             if (baseAlpha <= 2) return;
 
+            // 全层色相预算：所有带共用同一个基准窗口；带间只做预算内的小幅偏移，
+            // 不允许每带各加一个独立相位（否则叠加后总跨度会超出预算）。
+            var budget = HueBudget();
+            var span = Math.Min(_params.RibbonSpan, budget);
+            var bandOffsetPhase = Math.Max(0f, budget - span) / 360f;
+
             for (var band = 0; band < 2; band++)
             {
-                var offsetPhase = phase + band * 0.28f;
+                var shapePhase = hueBase + band * 0.28f;
+                var huePhase = hueBase + band * bandOffsetPhase;
                 var centerX = _worldWidth * (band == 0 ? 0.18f : 0.62f);
                 var centerY = _worldHeight * (band == 0 ? 0.46f : 0.66f);
                 var amplitude = _worldHeight * _params.RibbonAmplitude;
                 var wavelength = _worldWidth * 1.05f;
                 var width = _params.RibbonWidth * _scale * (band == 0 ? 1f : 0.82f);
 
-                using var path = BuildBand(centerX, centerY, amplitude, wavelength, width, offsetPhase);
-                using var brush = SpectralBrush(path.GetBounds(), offsetPhase, _params.RibbonSpan, baseAlpha, angle: 90f);
+                using var path = BuildBand(centerX, centerY, amplitude, wavelength, width, shapePhase);
+                using var brush = SpectralBrush(path.GetBounds(), huePhase, span, baseAlpha, angle: 90f);
                 _graphics.FillPath(brush, path);
 
-                // 通道错位：红/蓝薄带各偏移 ±N px（色相取光谱两端）。
+                // 通道错位：红/蓝薄带各偏移 ±N px（色相取该带光谱两端，仍在预算窗口内）。
                 var shifted = _params.ChannelOffset * _scale;
                 var tintAlpha = Math.Clamp((int)Math.Round(baseAlpha * 0.55f), 0, 255);
-                using var firstPath = BuildBand(centerX, centerY - shifted, amplitude, wavelength, width * 0.3f, offsetPhase + 0.02f);
-                using var lastPath = BuildBand(centerX, centerY + shifted, amplitude, wavelength, width * 0.3f, offsetPhase - 0.02f);
+                using var firstPath = BuildBand(centerX, centerY - shifted, amplitude, wavelength, width * 0.3f, shapePhase + 0.02f);
+                using var lastPath = BuildBand(centerX, centerY + shifted, amplitude, wavelength, width * 0.3f, shapePhase - 0.02f);
                 using var firstBrush = new SolidBrush(
-                    Color.FromArgb(tintAlpha, Color.FromArgb(IridescenceRamp.ArgbAt(offsetPhase, 0f, _params.RibbonSpan))));
+                    Color.FromArgb(tintAlpha, Color.FromArgb(IridescenceRamp.ArgbAt(huePhase, 0f, span))));
                 using var lastBrush = new SolidBrush(
-                    Color.FromArgb(tintAlpha, Color.FromArgb(IridescenceRamp.ArgbAt(offsetPhase, 1f, _params.RibbonSpan))));
+                    Color.FromArgb(tintAlpha, Color.FromArgb(IridescenceRamp.ArgbAt(huePhase, 1f, span))));
                 _graphics.FillPath(firstBrush, firstPath);
                 _graphics.FillPath(lastBrush, lastPath);
             }
@@ -701,18 +830,24 @@ internal sealed class SurfaceAmbientParams
     internal float RibbonWidth { get; private init; }
     internal float RibbonAlpha { get; private init; }
     internal float RibbonSpan { get; private init; }
+    internal float HueBudget { get; private init; }
     internal float RibbonAmplitude { get; private init; }
     internal float ChannelOffset { get; private init; }
     internal float SparkleDensity { get; private init; }
     internal float GlowRadius { get; private init; }
     internal float GlowAlpha { get; private init; }
+    internal float RadialAlpha { get; private init; }
+    internal float RadialRadius { get; private init; }
     internal float EdgeWidth { get; private init; }
     internal float EdgeHueSpan { get; private init; }
     internal float WideEdgeWidth { get; private init; }
     internal float TextureAlpha { get; private init; }
     internal string Token { get; private init; } = "decor-off";
 
-    internal bool HasScene => GradientFrom is not null && GradientTo is not null && Gutter > 0 && CornerRadius > 0;
+    /// <summary>档位显式开关（<c>ambient_enabled</c>）：0 = 该档关闭装饰层，即使配色齐全也不画。</summary>
+    internal bool Enabled { get; private init; } = true;
+
+    internal bool HasScene => Enabled && GradientFrom is not null && GradientTo is not null && Gutter > 0 && CornerRadius > 0;
 
     /// <summary>令牌表 → 参数（令牌缺失用缺省值；颜色缺失即关闭）。</summary>
     internal static SurfaceAmbientParams FromTokens(IReadOnlyDictionary<string, string>? tokens)
@@ -735,6 +870,7 @@ internal sealed class SurfaceAmbientParams
 
         return new SurfaceAmbientParams
         {
+            Enabled = Number("ambient_enabled", 1f) >= 0.5f,
             GradientFrom = gradientFrom,
             GradientTo = gradientTo,
             SparkleTint = sparkle,
@@ -744,11 +880,14 @@ internal sealed class SurfaceAmbientParams
             RibbonWidth = Number("ambient_ribbon_width", 34f),
             RibbonAlpha = Number("ambient_ribbon_alpha", 0.22f),
             RibbonSpan = Number("ambient_ribbon_span", 96f),
+            HueBudget = Math.Clamp(Number("ambient_hue_budget", 150f), 1f, 360f),
             RibbonAmplitude = Number("ambient_ribbon_amplitude", 0.075f),
             ChannelOffset = Number("ambient_channel_offset", 12f),
             SparkleDensity = Number("ambient_sparkle_density", 0.000062f),
             GlowRadius = Number("ambient_glow_radius", 34f),
             GlowAlpha = Number("ambient_glow_alpha", 0.10f),
+            RadialAlpha = Number("ambient_radial_alpha", 0.42f),
+            RadialRadius = Number("ambient_radial_radius", 200f),
             EdgeWidth = Number("ambient_edge_width", 3.6f),
             EdgeHueSpan = Number("ambient_edge_span", 11f),
             WideEdgeWidth = Number("ambient_wide_edge_width", 28f),
@@ -758,9 +897,11 @@ internal sealed class SurfaceAmbientParams
                 $"{(gradientTo is { } t ? t.ToArgb().ToString("X8", CultureInfo.InvariantCulture) : "-")}/" +
                 $"{Number("ambient_gutter", 20f):F1}/{Number("panel_radius", 24f):F1}/" +
                 $"{Number("ambient_ribbon_width", 34f):F1}/{Number("ambient_ribbon_alpha", 0.22f):F2}/" +
-                $"{Number("ambient_ribbon_span", 96f):F0}/{Number("ambient_ribbon_amplitude", 0.075f):F3}/" +
+                $"{Number("ambient_ribbon_span", 96f):F0}/{Number("ambient_hue_budget", 150f):F0}/" +
+                $"{Number("ambient_ribbon_amplitude", 0.075f):F3}/" +
                 $"{Number("ambient_channel_offset", 12f):F1}/{Number("ambient_sparkle_density", 0.000062f):F5}/" +
                 $"{Number("ambient_glow_radius", 34f):F1}/{Number("ambient_glow_alpha", 0.10f):F2}/" +
+                $"{Number("ambient_radial_alpha", 0.42f):F2}/{Number("ambient_radial_radius", 200f):F1}/" +
                 $"{Number("ambient_edge_width", 3.6f):F1}/{Number("ambient_edge_span", 11f):F0}/" +
                 $"{Number("ambient_wide_edge_width", 28f):F1}/{Number("ambient_texture_alpha", 0.06f):F2}"),
         };

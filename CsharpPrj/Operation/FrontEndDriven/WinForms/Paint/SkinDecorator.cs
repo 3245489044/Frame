@@ -213,7 +213,8 @@ public static class SkinDecorator
             var backdropDue = pinned is null && HasBackdrop(material)
                 && (state.Cache is null || now - state.LastBackdropTick >= BackdropRefreshMs);
             var backdropVersion = pinned?.BackdropVersion ?? state.BackdropVersion;
-            var fingerprint = state.MaterialKey ?? MaterialKey(material);
+            // K4：指纹在 Attach 期已算好；此处只读缓存值（缺失才补算一次），禁每帧重算摘要。
+            var fingerprint = FingerprintOf(state, material);
             var key = CacheKey(fingerprint, bounds, control.DeviceDpi, baseLight, backdropVersion);
             var hit = state.Cache is not null
                       && !backdropDue
@@ -289,7 +290,7 @@ public static class SkinDecorator
         state.Cache = bitmap;
         state.CacheBackdropVersion = inputs?.BackdropVersion ?? 0;
         if (pinned is null && inputs is not null) state.BackdropVersion = inputs.BackdropVersion;
-        state.CacheKey = CacheKey(state.MaterialKey ?? MaterialKey(material), bounds, control.DeviceDpi,
+        state.CacheKey = CacheKey(FingerprintOf(state, material), bounds, control.DeviceDpi,
             baseLight, state.CacheBackdropVersion);
         state.LastBackdropTick = Environment.TickCount64;
         owned?.Dispose();
@@ -594,6 +595,10 @@ public static class SkinDecorator
             fingerprint, bounds.Width, bounds.Height, dpi,
             light is { } state ? state.CacheToken : null,
             backdropVersion, SkinPaintEngine.AssetGeneration);
+
+    /// <summary>指纹读取面：Attach 期已写 <see cref="SkinState.MaterialKey"/>；缺失才补算并按状态缓存（禁每帧重算）。</summary>
+    private static string FingerprintOf(SkinState state, ResolvedMaterial material)
+        => state.MaterialKey ??= MaterialKey(material);
 
     /// <summary>材质指纹：含层参数摘要（同材质换色必须失效，否则换肤永不重绘）。</summary>
     private static string MaterialKey(ResolvedMaterial material)

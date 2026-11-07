@@ -200,19 +200,31 @@ internal static class SurfaceAmbient
 
     /// <summary>
     /// 局部径向光：中心亮、向外衰减（参考 R2：径向梯度 1.5–10 L*/100px）。
-    /// <para>中心位置取同一份光态的光斑（<see cref="SurfaceLightState.SpotX"/>），亮度上限 = 令牌 alpha。</para>
+    /// <para>光斑在世界（屏幕）上固定：中心 = 光态 <see cref="SurfaceLightState.SpotX"/>/<see cref="SurfaceLightState.SpotY"/>，
+    /// 它们是「锚点 − 页面原点」/页面宽高，**故意不夹取到 [0,1]**。锚点落在页面外时中心就落在页面外，
+    /// 椭圆被页面自然裁掉或整体不可见——而不是被拽到边缘，造一个不存在的假亮斑。</para>
+    /// <para>强度再乘 <see cref="SurfaceLightState.Shade"/>（与 <see cref="SurfaceLightPort"/> 同一份照度权重）：
+    /// 锚点超出光斑判定半径即归零，不会在远处硬留一圈亮边。</para>
     /// <para>高光色相中性（白）：页面本身已近白，只有白的光源能在近白底上继续抬升亮度；
     /// 具体强度/半径仍全部来自令牌，代码不做任何主题色分支。</para>
     /// </summary>
     private static void PaintRadialGlow(Graphics graphics, int width, int height, float scale, SurfaceLightState? light)
     {
         if (_params.GradientFrom is null || _params.RadialAlpha <= 0f || _params.RadialRadius <= 0f) return;
-        var alpha = Math.Clamp((int)Math.Round(_params.RadialAlpha * 255f), 0, 255);
+
+        var shade = Math.Clamp(light?.Shade ?? 1f, 0f, 1f);
+        if (shade <= 0.02f) return;
+
+        var alpha = Math.Clamp((int)Math.Round(_params.RadialAlpha * shade * 255f), 0, 255);
         if (alpha <= 0) return;
 
-        var centerX = width * Math.Clamp(light?.SpotX ?? 0.5f, 0f, 1f);
-        var centerY = height * Math.Clamp(light?.SpotY ?? 0.5f, 0f, 1f);
+        var centerX = width * (light?.SpotX ?? 0.5f);
+        var centerY = height * (light?.SpotY ?? 0.5f);
         var radius = Math.Max(8f, _params.RadialRadius * scale);
+        // 椭圆的包围盒与页面不相交 ⇒ 整颗光斑在页面外，不画（锚点在宿主外时的真实行为）。
+        if (centerX + radius < 0f || centerY + radius < 0f
+            || centerX - radius > width || centerY - radius > height) return;
+
         using var path = new GraphicsPath();
         path.AddEllipse(centerX - radius, centerY - radius, radius * 2f, radius * 2f);
         var points = path.PointCount;
@@ -403,8 +415,10 @@ internal static class SurfaceAmbient
     private static void PaintEdgeBand(Graphics graphics, Rectangle inner, float radius, float phase, float scale)
     {
         var width = Math.Max(1f, _params.EdgeWidth * scale);
-        // 整圈色相窗口：四条直边平分；单边 ≈ 11°，加跨带宽内芯后实测 ≈16°。
-        var window = Math.Min(HueBudget() * 0.5f, Math.Max(8f, _params.EdgeHueSpan * 4f));
+        // 整圈色相窗口：四条直边平分。用 2×令牌（≈22°）而不是 4×：实测 4× 在丝带穿过卡边时，
+        // 细带 9% 的透明度会把丝带色透进来，单边实测可到 42°（越 25° 上限）。窗口收到 2× +
+        // 提高不透明度后，单边理论 ≈8°、含内芯跨带 ≈12°，实测落在 5–25°。
+        var window = Math.Min(HueBudget() * 0.5f, Math.Max(8f, _params.EdgeHueSpan * 2f));
         var segment = window / 4f;
         var coreShift = segment * 0.5f;
         var r = Math.Max(0f, radius);
@@ -421,8 +435,8 @@ internal static class SurfaceAmbient
 
         foreach (var (a, b, from) in edges)
         {
-            PaintEdgeGradient(graphics, a, b, phase, from * segment, (from + 1f) * segment, width, 232);
-            PaintEdgeGradient(graphics, a, b, phase, from * segment + coreShift, (from + 1f) * segment + coreShift, coreWidth, 205);
+            PaintEdgeGradient(graphics, a, b, phase, from * segment, (from + 1f) * segment, width, 245);
+            PaintEdgeGradient(graphics, a, b, phase, from * segment + coreShift, (from + 1f) * segment + coreShift, coreWidth, 232);
         }
 
         if (r <= 0f) return;
@@ -436,12 +450,12 @@ internal static class SurfaceAmbient
 
         foreach (var (rect, start, hue) in corners)
         {
-            using (var rim = new Pen(EdgeColor(phase, hue * segment, 232), width))
+            using (var rim = new Pen(EdgeColor(phase, hue * segment, 245), width))
             {
                 graphics.DrawArc(rim, rect, start, 90f);
             }
 
-            using (var core = new Pen(EdgeColor(phase, hue * segment + coreShift, 205), coreWidth))
+            using (var core = new Pen(EdgeColor(phase, hue * segment + coreShift, 232), coreWidth))
             {
                 graphics.DrawArc(core, rect, start, 90f);
             }
@@ -587,15 +601,24 @@ internal static class SurfaceAmbient
     /// <summary>整层色相预算（度）：所有彩色分量共用这一个窗口，禁止多条带各自漂移。</summary>
     private static float HueBudget() => _params.HueBudget > 0f ? _params.HueBudget : 150f;
 
-    /// <summary>量化光源签名：方向 10° / 阴影 0.1 / 相位 0.1（避免 1Hz 光帧导致全量重建）。</summary>
+    /// <summary>
+    /// 量化光源签名：方向 10° / 阴影 0.1 / 相位 0.1 / **光斑位置 0.05 页面宽高**。
+    /// <para>光斑位置必须入键：锚点在屏幕上固定，窗口一移动 SpotX/SpotY 就变；不入键会留下上一位置的径向光。</para>
+    /// <para>0.05 量化 = 1920 宽页面约 96px 一跳，避免拖动窗口时每一像素都重建 14ms 的页面场。</para>
+    /// </summary>
     private static string LightToken(SurfaceLightState? state)
     {
         // Nullable<struct> 不能直接点成员：先解包成窄视图（与 SkinPaintEngine 的取值方式一致）。
         if (state is not { } light) return "no-light";
         var angle = (int)Math.Round(light.Angle / 10f) * 10;
+        var spotX = (int)Math.Round(light.SpotX / 0.05f);
+        var spotY = (int)Math.Round(light.SpotY / 0.05f);
         return string.Create(CultureInfo.InvariantCulture,
-            $"A{angle}:X{light.ShadowX:F1}:Y{light.ShadowY:F1}:P{light.IridescencePhase:F1}");
+            $"A{angle}:X{light.ShadowX:F1}:Y{light.ShadowY:F1}:P{light.IridescencePhase:F1}:S{spotX}:T{spotY}");
     }
+
+    /// <summary>诊断：最近一次页面场解算实际使用的光态（验收用，不参与绘制）。</summary>
+    internal static SurfaceLightState? LastState => _state;
 
     /// <summary>
     /// 同一份光源：整个页面（宿主背景 + 所有卡片 chrome）只按**窗体**探针解算一次，

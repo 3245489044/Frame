@@ -59,7 +59,7 @@ public static class FrameComposer
                 leadRows.Add(BuildRow(top.Lead[i], $"lead:{i}", options, null, null));
             }
 
-            roots.Add(BuildGroupNode("lead", "lead", leadRows));
+            roots.Add(BuildGroupNode("lead", "lead", leadRows, options.Presentation));
         }
 
         var anchorIndex = 0;
@@ -80,7 +80,7 @@ public static class FrameComposer
                     rows.Add(BuildRow(row.Source, $"{group.Kind}:{i}", options, row.ResultText, row.ResultLabel));
                 }
 
-                children.Add(BuildGroupNode($"group:{group.Kind}", group.Label, rows));
+                children.Add(BuildGroupNode($"group:{group.Kind}", group.Label, rows, options.Presentation));
             }
 
             roots.Add(new UiSurfaceNode(
@@ -117,12 +117,16 @@ public static class FrameComposer
             new[] { "toggleFold", "copy" });
     }
 
-    private static UiSurfaceNode BuildGroupNode(string key, string label, IReadOnlyList<UiSurfaceNode> children)
+    private static UiSurfaceNode BuildGroupNode(
+        string key,
+        string label,
+        IReadOnlyList<UiSurfaceNode> children,
+        PresentationDeclaration presentation)
         => new(
             SurfaceRoleIds.Group,
             key,
             PresentationSurface.Process,
-            "process",
+            presentation.GroupClass is { Length: > 0 } declared ? declared : "process",
             new[] { new UiField("group", SurfaceCellIds.Badge, label) },
             children,
             UiNodeState.Closed,

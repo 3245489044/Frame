@@ -40,7 +40,11 @@ public sealed record PresentationClassSpec(
     PresentationSurface Surface,
     string Template,
     string StyleToken,
-    bool AnswerBadge = false);
+    bool AnswerBadge = false)
+{
+    /// <summary>强调 token（视觉策略声明位；缺省 = 不强调）。</summary>
+    public string? Emphasis { get; init; }
+}
 
 
 /// <summary>
@@ -60,6 +64,9 @@ public sealed record PresentationDeclaration(
 {
     /// <summary>未知类标识（结构占位；不是领域词）。</summary>
     public const string UnknownId = "unknown";
+
+    /// <summary>组节点呈现类（facts.groupClass；缺省 process）。</summary>
+    public string GroupClass { get; init; } = "process";
 
     /// <summary>空声明（声明不可用）：无类、无映射。</summary>
     public static readonly PresentationDeclaration Empty = new(
@@ -98,6 +105,10 @@ public sealed record PresentationDeclaration(
     /// <param name="id">呈现类标识。</param>
     public bool HasAnswerBadge(string? id) => Of(id)?.AnswerBadge == true;
 
+    /// <summary>强调 token（未声明 ⇒ null）。</summary>
+    /// <param name="id">呈现类标识。</param>
+    public string? EmphasisOf(string? id) => Of(id)?.Emphasis;
+
     /// <summary>声明是否可用（类清单非空）。</summary>
     public bool IsDeclared => Classes.Count > 0;
 
@@ -126,13 +137,18 @@ public sealed record PresentationDeclaration(
                 var template = ReadString(property.Value, "template") ?? id;
                 var style = ReadString(property.Value, "style") ?? id;
                 var badge = ReadBool(property.Value, "answerBadge");
-                classes[id] = new PresentationClassSpec(id, surface, template, style, badge);
+                var emphasis = ReadString(property.Value, "emphasis");
+                classes[id] = new PresentationClassSpec(id, surface, template, style, badge)
+                {
+                    Emphasis = emphasis is { Length: > 0 } ? Normalize(emphasis) : null,
+                };
             }
         }
 
         var terminal = string.Empty;
         var operation = string.Empty;
         var process = string.Empty;
+        var groupClass = "process";
         var roleFallback = new Dictionary<ConversationRole, string>();
 
         if (root.TryGetProperty("facts", out var facts) && facts.ValueKind == JsonValueKind.Object)
@@ -140,6 +156,7 @@ public sealed record PresentationDeclaration(
             terminal = Normalize(ReadString(facts, "terminal") ?? string.Empty);
             operation = Normalize(ReadString(facts, "channelOperation") ?? string.Empty);
             process = Normalize(ReadString(facts, "channelProcess") ?? string.Empty);
+            groupClass = ReadString(facts, "groupClass") is { Length: > 0 } declaredGroup ? Normalize(declaredGroup) : groupClass;
 
             if (facts.TryGetProperty("roleFallback", out var roles) && roles.ValueKind == JsonValueKind.Object)
             {
@@ -153,7 +170,10 @@ public sealed record PresentationDeclaration(
             }
         }
 
-        return new PresentationDeclaration(classes, terminal, operation, process, roleFallback);
+        return new PresentationDeclaration(classes, terminal, operation, process, roleFallback)
+        {
+            GroupClass = groupClass,
+        };
     }
 
     private static string Normalize(string value) => value.Trim().ToLowerInvariant();

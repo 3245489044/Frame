@@ -115,7 +115,7 @@ public static class CssSurfaceProjector
                 case LayerPrimitive.Gradient:
                     if (layerSpec.Gradient.Stops.Count == 0)
                     {
-                        skipped.Add("gradient:" + layerSpec.Role);
+                        SkipLayer(skipped, "gradient", layerSpec.Role);
                         break;
                     }
 
@@ -169,7 +169,7 @@ public static class CssSurfaceProjector
         }
 
         // 解析期问题可见化（缺失 asset / 非法值 / 未换值 token 不得静默吞掉）。
-        foreach (var issue in parsed.Issues) skipped.Add("parse:" + issue.Code + ":" + issue.Detail);
+        foreach (var issue in parsed.Issues) SkipLayer(skipped, "parse", issue.Code + ":" + issue.Detail);
 
         // 边框：同一模型（BorderSpec）取最大 z 的描边；多描边因 CSS 单 border 限制显式记账。
         var spec = BorderSpecProjection.From(material);
@@ -188,16 +188,16 @@ public static class CssSurfaceProjector
 
         foreach (var innerLight in spec.InnerLights)
         {
-            if (string.Equals(innerLight.Mode, "edge", StringComparison.Ordinal))
+            var edgeMode = string.Equals(innerLight.Mode, "edge", StringComparison.Ordinal);
+            if (edgeMode)
             {
                 // 顶高光；CSS 单条 inset 不能只亮左边 ⇒ 逐边语义显式降级记账。
                 shadows.Add($"inset 0 {FormatPx(innerLight.Width)} 0 {CssColor(innerLight.Argb)}");
-                skipped.Add("inner-light-sides-degraded:" + innerLight.Sides);
-                continue;
             }
 
-            if (!string.Equals(innerLight.Sides, "all", StringComparison.Ordinal))
-                skipped.Add("inner-light-sides-degraded:" + innerLight.Sides);
+            if (edgeMode || !string.Equals(innerLight.Sides, "all", StringComparison.Ordinal))
+                SkipLayer(skipped, "inner-light-sides-degraded", innerLight.Sides);
+            if (edgeMode) continue;
             var inset = innerLight.Blur > 0
                 ? $"inset {ZeroAware(innerLight.OffsetX)} {ZeroAware(innerLight.OffsetY)} {FormatPx(innerLight.Blur)}"
                 : $"inset {ZeroAware(innerLight.OffsetX)} {ZeroAware(innerLight.OffsetY)} 0";
@@ -264,7 +264,7 @@ public static class CssSurfaceProjector
         {
             if (spec.Strokes.Count > 1)
             {
-                skipped.Add("border-multi-stroke-emulated:" + spec.Strokes.Count);
+                SkipLayer(skipped, "border-multi-stroke-emulated", spec.Strokes.Count.ToString());
             }
 
             AddBorder(declarations, primary);
@@ -304,13 +304,17 @@ public static class CssSurfaceProjector
         foreach (var layerSpec in parsed.Specs)
         {
             if (layerSpec.Kind is LayerPrimitive.Texture or LayerPrimitive.Decal && layerSpec.Asset.Length == 0)
-                skipped.Add(layerSpec.Primitive + ":" + layerSpec.Role);
+                SkipLayer(skipped, layerSpec.Primitive, layerSpec.Role);
             else if (layerSpec.Kind is LayerPrimitive.Mask or LayerPrimitive.Noise or LayerPrimitive.Unknown)
-                skipped.Add(layerSpec.Primitive + ":" + layerSpec.Role);
+                SkipLayer(skipped, layerSpec.Primitive, layerSpec.Role);
         }
 
         return declarations;
     }
+
+    /// <summary>降级记账唯一出口：所有"跳过"都必须以 kind:detail 形式可见，禁静默丢弃。</summary>
+    private static void SkipLayer(List<string> skipped, string kind, string detail)
+        => skipped.Add(kind + ":" + detail);
 
     /// <summary>
     /// 描边投影（唯一模型读取点）：宽度/颜色/半径全部来自 <see cref="BorderSpec.TopStroke"/>，

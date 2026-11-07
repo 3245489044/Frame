@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Text;
 
 namespace PythonModel.Bridge;
 
@@ -132,6 +133,7 @@ public static class PythonEnvironment
                 FileName = "py",
                 Arguments = "-0",
                 RedirectStandardOutput = true,
+                StandardOutputEncoding = Encoding.UTF8,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
@@ -155,6 +157,7 @@ public static class PythonEnvironment
                     FileName = "py",
                     Arguments = $"-{version} -c \"import sys; print(sys.exec_prefix)\"",
                     RedirectStandardOutput = true,
+                    StandardOutputEncoding = Encoding.UTF8,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
@@ -264,6 +267,7 @@ public static class PythonEnvironment
                 FileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "where" : "which",
                 Arguments = "python",
                 RedirectStandardOutput = true,
+                StandardOutputEncoding = Encoding.UTF8,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };

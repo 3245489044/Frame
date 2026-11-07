@@ -74,6 +74,8 @@ public sealed class TsScriptCompiler
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
             UseShellExecute = false,
             WorkingDirectory = outDir, // 无 tsconfig，纯 CLI 选项，隔离仓库 tsconfig 影响
             CreateNoWindow = true,

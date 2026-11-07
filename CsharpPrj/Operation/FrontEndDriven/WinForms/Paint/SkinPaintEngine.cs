@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.IO;
 using Share.Conversation.Rendering.Surface;
 using UiBackend;
@@ -224,8 +225,23 @@ public static class SkinPaintEngine
             case "specular":
             {
                 if (!TryColor(layer, skipped, out var color)) return false;
+                var mode = Param(layer, "mode");
                 if (light is { } state)
                 {
+                    // 材质模型：玻璃用 mode=edge（倒角高光）+ mode=spot（径向聚光），
+                    // 不再画贯穿整面的等宽亮带；mode 缺省保留旧 band，兼容既有金属材质。
+                    if (string.Equals(mode, "edge", StringComparison.Ordinal))
+                    {
+                        PaintEdgeHighlight(graphics, bounds, layer, color, state, materialRadius);
+                        return true;
+                    }
+
+                    if (string.Equals(mode, "spot", StringComparison.Ordinal))
+                    {
+                        PaintSpotHighlight(graphics, bounds, layer, color, state, materialRadius);
+                        return true;
+                    }
+
                     // 运行时光：角度/强度已由 SurfaceLight 插值；带宽按像素而不是按面板归一化，
                     // 否则 600px 面板会得到 ~170px 宽的整版斜带（不再像局部高光）。
                     var peakAlpha = Math.Clamp((int)Math.Round(38 * state.Intensity), 0, 200);
@@ -301,6 +317,137 @@ public static class SkinPaintEngine
                 return false;
         }
     }
+
+    /// <summary>
+    /// 倒角高光：只落在顶边（2px 内）与左上侧边，水平/垂直双向收敛。
+    /// 不画贯穿面板的亮带——任一水平行上的亮段不超过 <c>width</c> 参数。
+    /// </summary>
+    private static void PaintEdgeHighlight(
+        Graphics graphics, Rectangle bounds, ResolvedLayer layer, Color color, SurfaceLightState state, int materialRadius)
+    {
+        var strength = Math.Clamp(FloatParam(layer, "strength", 0.65f), 0f, 1f);
+        var peak = Math.Clamp((int)Math.Round(66 * strength * state.Intensity), 0, 180);
+        if (peak <= 0) return;
+
+        var lit = Warm(color, state.Warmth);
+        var thickness = Math.Clamp(IntParam(layer, "width", 2), 1, 6);
+        var inset = 1;
+        var saved = graphics.Save();
+        GraphicsPath? clip = null;
+        try
+        {
+            clip = CreateRoundedPath(bounds, RadiusOf(layer, bounds, materialRadius));
+            if (clip is not null) graphics.SetClip(clip, CombineMode.Intersect);
+
+            // 顶边：中间亮、两端透明（不是等宽横贯亮带，而是沿倒角渐隐）。
+            var top = new Rectangle(bounds.X + inset, bounds.Y + inset, Math.Max(1, bounds.Width - inset * 2), thickness);
+            using var topBrush = new LinearGradientBrush(
+                top, Color.FromArgb(0, lit), Color.FromArgb(0, lit), LinearGradientMode.Horizontal);
+            topBrush.InterpolationColors = new ColorBlend
+            {
+                Colors = new[] { Color.FromArgb(0, lit), Color.FromArgb(peak, lit), Color.FromArgb(0, lit) },
+                Positions = new[] { 0f, 0.5f, 1f },
+            };
+            graphics.FillRectangle(topBrush, top);
+
+            // 左上倒角：上亮下隐，长度取面板高度的 1/3，避免形成纵向整条。
+            var side = new Rectangle(bounds.X + inset, bounds.Y + inset, thickness, Math.Max(1, bounds.Height / 3));
+            using var sideBrush = new LinearGradientBrush(
+                side, Color.FromArgb(peak / 2, lit), Color.FromArgb(0, lit), LinearGradientMode.Vertical);
+            graphics.FillRectangle(sideBrush, side);
+        }
+        finally
+        {
+            clip?.Dispose();
+            graphics.Restore(saved);
+        }
+    }
+
+    /// <summary>
+    /// 径向聚光：光源方向的柔和椭圆高光，中心亮、随距离衰减到 0。
+    /// 没有等宽亮带，因此不会出现「一束光柱」；半径按控件短边自适应。
+    /// </summary>
+    private static void PaintSpotHighlight(
+        Graphics graphics, Rectangle bounds, ResolvedLayer layer, Color color, SurfaceLightState state, int materialRadius)
+    {
+        var strength = Math.Clamp(FloatParam(layer, "strength", 0.7f), 0f, 1f);
+        var peak = Math.Clamp((int)Math.Round(30 * strength * state.Intensity), 0, 120);
+        if (peak <= 0) return;
+
+        var lit = Warm(color, state.Warmth);
+        var radius = Math.Max(8f, Math.Min(bounds.Width, bounds.Height) * Math.Clamp(FloatParam(layer, "radius", 0.55f), 0.25f, 1.2f));
+        var radians = state.Angle * Math.PI / 180.0;
+        var centerX = bounds.X + bounds.Width * (0.5f + (float)(Math.Cos(radians) * 0.26));
+        var centerY = bounds.Y + bounds.Height * (0.5f - (float)(Math.Sin(radians) * 0.20));
+        var size = (int)Math.Round(radius * 2);
+        var target = new Rectangle((int)Math.Round(centerX - radius), (int)Math.Round(centerY - radius), size, size);
+
+        var saved = graphics.Save();
+        GraphicsPath? clip = null;
+        try
+        {
+            clip = CreateRoundedPath(bounds, RadiusOf(layer, bounds, materialRadius));
+            if (clip is not null) graphics.SetClip(clip, CombineMode.Intersect);
+
+            // 预渲染的 128px 径向 alpha 掩膜 + ColorMatrix 着色：一次缩放贴图，避免每帧 PathGradientBrush。
+            var mask = SpotMask();
+            using var attributes = new ImageAttributes();
+            attributes.SetColorMatrix(new ColorMatrix(new[]
+            {
+                new[] { lit.R / 255f, 0f, 0f, 0f, 0f },
+                new[] { 0f, lit.G / 255f, 0f, 0f, 0f },
+                new[] { 0f, 0f, lit.B / 255f, 0f, 0f },
+                new[] { 0f, 0f, 0f, peak / 255f, 0f },
+                new[] { 0f, 0f, 0f, 0f, 1f },
+            }));
+            graphics.InterpolationMode = InterpolationMode.HighQualityBilinear;
+            graphics.DrawImage(
+                mask, target, 0, 0, mask.Width, mask.Height, GraphicsUnit.Pixel, attributes);
+        }
+        finally
+        {
+            clip?.Dispose();
+            graphics.Restore(saved);
+        }
+    }
+
+    private static readonly object SpotMaskSync = new();
+    private static Bitmap? _spotMask;
+
+    /// <summary>白色径向 alpha 掩膜（中心 255 → 边缘 0，二次衰减），进程内复用。</summary>
+    private static Bitmap SpotMask()
+    {
+        if (_spotMask is not null) return _spotMask;
+        lock (SpotMaskSync)
+        {
+            if (_spotMask is not null) return _spotMask;
+            const int side = 128;
+            var bitmap = new Bitmap(side, side, PixelFormat.Format32bppArgb);
+            var center = (side - 1) / 2.0;
+            for (var y = 0; y < side; y++)
+            {
+                for (var x = 0; x < side; x++)
+                {
+                    var dx = (x - center) / center;
+                    var dy = (y - center) / center;
+                    var distance = Math.Sqrt(dx * dx + dy * dy);
+                    var alpha = distance >= 1.0 ? 0 : (int)Math.Round(255 * (1 - distance) * (1 - distance));
+                    bitmap.SetPixel(x, y, Color.FromArgb(alpha, Color.White));
+                }
+            }
+
+            _spotMask = bitmap;
+            return bitmap;
+        }
+    }
+
+    /// <summary>时点/材质参数按不变文化解析浮点，缺省走回退值。</summary>
+    private static float FloatParam(ResolvedLayer layer, string name, float fallback)
+        => layer.Params.TryGetValue(name, out var value)
+           && float.TryParse(value, System.Globalization.NumberStyles.Float,
+               System.Globalization.CultureInfo.InvariantCulture, out var number)
+            ? number
+            : fallback;
 
     /// <summary>按时点暖度把高光/背景染向暖白（只调颜色，不改材质参数）。</summary>
     private static Color Warm(Color color, float warmth)

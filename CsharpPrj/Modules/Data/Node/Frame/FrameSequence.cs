@@ -51,16 +51,18 @@ public sealed record FrameGroupPlan<T>(string Kind, string Label, IReadOnlyList<
 
 /// <summary>
 /// 过程帧计划（计数单源）：<see cref="FrameCount"/> = 输入帧数，<see cref="RowCount"/> = 实际呈现行数，
-/// <see cref="TextCount"/> = 文本类行数；摘要与组计数一律读本记录（禁二次重算）。
+/// <see cref="TextCount"/> = 文本类行数，<see cref="MergedCount"/> = 并入调用行的结果帧数；
+/// 摘要与组计数一律读本记录（禁二次重算）。
 /// </summary>
 public sealed record FrameAttachPlan<T>(
     int FrameCount,
     int RowCount,
     int TextCount,
-    IReadOnlyList<FrameGroupPlan<T>> Groups)
+    IReadOnlyList<FrameGroupPlan<T>> Groups,
+    int MergedCount = 0)
 {
     /// <summary>空计划。</summary>
-    public static readonly FrameAttachPlan<T> Empty = new(0, 0, 0, Array.Empty<FrameGroupPlan<T>>());
+    public static readonly FrameAttachPlan<T> Empty = new(0, 0, 0, Array.Empty<FrameGroupPlan<T>>(), 0);
 }
 
 /// <summary>顶层分组结果：<see cref="Lead"/> = 首锚之前的帧（段首折叠）；<see cref="Entries"/> = 锚点 + 附属（源序）。</summary>
@@ -178,15 +180,17 @@ public sealed class FrameSequencer<T>
         var groups = new List<FrameGroupPlan<T>>(buckets.Count);
         var rowCount = 0;
         var textCount = 0;
+        var mergedCount = 0;
         foreach (var bucket in buckets)
         {
             var rows = BuildRows(bucket.Items);
             rowCount += rows.Count;
             textCount += rows.Count(row => IsTrace(row.Kind));
+            mergedCount += bucket.Items.Count - rows.Count;
             groups.Add(new FrameGroupPlan<T>(bucket.Kind, bucket.Label, rows));
         }
 
-        return new FrameAttachPlan<T>(attach.Count, rowCount, textCount, groups);
+        return new FrameAttachPlan<T>(attach.Count, rowCount, textCount, groups, mergedCount);
     }
 
     /// <summary>派生帧边（锚点归属 / 调用-结果 / 组内成员）；读侧关系，不落库。</summary>

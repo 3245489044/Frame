@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Text;
 using Modules.Threading;
 
 namespace Share.Frameworks.Process;
@@ -33,6 +34,10 @@ public static class ProcessRunner
             RedirectStandardError = true,
             CreateNoWindow = true,
             UseShellExecute = false,
+            // 编码单源：显式 UTF-8（不设 ⇒ 回退 Console.OutputEncoding，非 65001 下乱码/丢字，
+            // 且 StdoutBytes 的 UTF-8 字节计数口径会与实际解码不一致）。
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
         };
         if (!string.IsNullOrWhiteSpace(spec.WorkingDirectory))
             psi.WorkingDirectory = spec.WorkingDirectory;

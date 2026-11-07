@@ -12,6 +12,8 @@ $ErrorActionPreference = 'Stop'
 try {
     [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
     [Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)
+    # $OutputEncoding 管「字符串交给 native 进程 stdin/管道」的编码（PS 5.1 默认 ASCII ⇒ 非 ASCII 会变 ?）。
+    $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 } catch { }
 
 . (Join-Path $PSScriptRoot 'Invoke-AgentStep.ps1')

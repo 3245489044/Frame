@@ -80,6 +80,7 @@ public static class PowerShellHostProbe
             CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
+            StandardInputEncoding = Encoding.UTF8,
         };
         PowerShellHostEnvironment.Apply(startInfo);
         // 探测只依赖系统目录；隔离宿主 PATH 污染（某些宿主 PATH 含不可访问目录 ⇒ CreateProcess ACCESS_DENIED）。
@@ -190,6 +191,9 @@ public static class PowerShellHostProbe
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 RedirectStandardInput = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+                StandardInputEncoding = Encoding.UTF8,
                 CreateNoWindow = true,
             };
             PowerShellHostEnvironment.Apply(psi);

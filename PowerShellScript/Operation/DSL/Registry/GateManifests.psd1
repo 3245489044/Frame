@@ -751,6 +751,16 @@
         Note   = '文本安全（P4/C4）：C1 HtmlText 单源在位（非标量 ⇒ ⊘）/ C2 HtmlSectionItem 经 HtmlText / C3 Views 内禁对象字段直拼；负对照 details.Add(row.Payload) 必红'
     }
 
+    SubprocessEncoding = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Boundary'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '子进程/控制台编码（P0）：E1 RedirectStandard* 必须同处显式 Standard*Encoding（UTF-8）/ E2 PS 入口设 [Console]::OutputEncoding 必须同设 $OutputEncoding / E3 生产层禁 Encoding.ASCII|Default|GetEncoding(0) / E4 ENC-MARK 往返不变量（UTF-8 保真、CP936 必现 ?）；负对照 缺编码重定向与半设入口必红'
+    }
+
     UiLocDeclaration = @{
         Domain = 'Agent'
         Family = 'Presentation'

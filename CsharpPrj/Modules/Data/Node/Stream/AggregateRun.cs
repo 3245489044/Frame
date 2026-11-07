@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -357,7 +358,9 @@ public class AggregateRun
         }
     }
 
-    /// <summary>帧摘要去重键（同 kind 连续同载荷：字段按名序拼接，避免字段顺序造成假去重）。</summary>
+    /// <summary>帧摘要去重键（同 kind 连续同载荷：字段按名序拼接，避免字段顺序造成假去重）。
+    /// 值一律取**结构化的帧载荷文本**（与落库序列化同源）：字典/集合按内容比较，禁落回 <c>ToString()</c>
+    /// 的类型名（否则任意字典值都折叠成同一枚假指纹）。</summary>
     private static string FingerprintOf(string kind, IReadOnlyDictionary<string, object?>? fields)
         => fields is not { Count: > 0 }
             ? kind
@@ -365,7 +368,7 @@ public class AggregateRun
                 ";",
                 fields.Where(p => p.Value is not null)
                       .OrderBy(p => p.Key, StringComparer.Ordinal)
-                      .Select(p => $"{p.Key}={p.Value}"));
+                      .Select(p => p.Key + "=" + ToNode(p.Value!)!.ToJsonString()));
 
     /// <summary>帧载荷（<c>{seq,kind,atUtc,...fields}</c>；轮次由外层 rounds[] 承担，不进帧）。</summary>
     private string BuildFramePayload(
@@ -392,15 +395,104 @@ public class AggregateRun
         return obj.ToJsonString();
     }
 
-    private static JsonNode? ToNode(object value) => value switch
+    /// <summary>
+    /// 帧字段值 → JSON 节点（**落库序列化唯一实现**）。
+    /// <para>
+    /// 标量按原类型落值（<c>string/bool/整型/浮点</c>）；枚举取其名；时刻取 ISO-8601；
+    /// **字典按内容落成 JSON 对象、集合落成 JSON 数组**（递归）；
+    /// 其余对象才退回 <c>ToString()</c>。
+    /// </para>
+    /// <para>
+    /// 纪律：字典/集合**禁止**经 <c>ToString()</c> 落库 —— 那会把结构事实降级成类型名
+    /// （如 <c>System.Collections.Generic.Dictionary`2[...]</c>），读侧无法还原、也无法消费。
+    /// </para>
+    /// </summary>
+    private static JsonNode? ToNode(object value)
     {
-        string text => JsonValue.Create(text),
-        bool flag => JsonValue.Create(flag),
-        int number => JsonValue.Create(number),
-        long number => JsonValue.Create(number),
-        double number => JsonValue.Create(number),
-        _ => JsonValue.Create(value.ToString()),
-    };
+        switch (value)
+        {
+            case string text: return JsonValue.Create(text);
+            case bool flag: return JsonValue.Create(flag);
+            case int number: return JsonValue.Create(number);
+            case long number: return JsonValue.Create(number);
+            case double number: return JsonValue.Create(number);
+            case float number: return JsonValue.Create(number);
+            case decimal number: return JsonValue.Create(number);
+            case short number: return JsonValue.Create(number);
+            case byte number: return JsonValue.Create(number);
+            case Enum enumValue: return JsonValue.Create(enumValue.ToString());
+            case DateTimeOffset stamp: return JsonValue.Create(stamp.ToString("O"));
+            case DateTime stamp: return JsonValue.Create(stamp.ToString("O"));
+        }
+
+        if (TryDictionaryEntries(value, out var entries))
+        {
+            var obj = new JsonObject();
+            foreach (var pair in entries)
+            {
+                obj[pair.Key] = pair.Value is null ? null : ToNode(pair.Value);
+            }
+
+            return obj;
+        }
+
+        if (value is IEnumerable sequence)
+        {
+            var array = new JsonArray();
+            foreach (var item in sequence)
+            {
+                array.Add(item is null ? null : ToNode(item));
+            }
+
+            return array;
+        }
+
+        return JsonValue.Create(value.ToString());
+    }
+
+    /// <summary>
+    /// 字典探测（字符串键）：先走 <see cref="IDictionary"/>（<see cref="Dictionary{TKey,TValue}"/>/只读包装等），
+    /// 再按泛型接口 <see cref="IReadOnlyDictionary{TKey,TValue}"/>/<see cref="IDictionary{TKey,TValue}"/> 兜底
+    /// （覆盖不可变字典等不实现非泛型接口的容器）。
+    /// </summary>
+    private static bool TryDictionaryEntries(
+        object value, out IEnumerable<KeyValuePair<string, object?>> entries)
+    {
+        entries = Array.Empty<KeyValuePair<string, object?>>();
+
+        if (value is IDictionary dictionary)
+        {
+            var mapped = new List<KeyValuePair<string, object?>>(dictionary.Count);
+            foreach (DictionaryEntry entry in dictionary)
+            {
+                mapped.Add(new KeyValuePair<string, object?>(
+                    entry.Key?.ToString() ?? string.Empty, entry.Value));
+            }
+
+            entries = mapped;
+            return true;
+        }
+
+        var contract = value.GetType().GetInterfaces().FirstOrDefault(type =>
+            type.IsGenericType
+            && type.GetGenericArguments().Length == 2
+            && type.GetGenericArguments()[0] == typeof(string)
+            && (type.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)
+                || type.GetGenericTypeDefinition() == typeof(IDictionary<,>)));
+        if (contract is null) return false;
+
+        var keys = contract.GetProperty("Keys")!.GetValue(value) as IEnumerable;
+        var indexer = contract.GetProperty("Item")!;
+        var items = new List<KeyValuePair<string, object?>>();
+        foreach (var key in keys!)
+        {
+            items.Add(new KeyValuePair<string, object?>(
+                key.ToString() ?? string.Empty, indexer.GetValue(value, new[] { key })));
+        }
+
+        entries = items;
+        return true;
+    }
 
     /// <summary>轮分组构建器（内部可变；对外只经 <see cref="SnapshotAsync"/> 暴露不可变快照）。</summary>
     private sealed class AggregateRoundBuilder

@@ -39,7 +39,7 @@ public static class SkinAppearanceInstaller
 
         // 能力矩阵/层规格只建一次：每视图两次解析（draw / property）共用同一上下文。
         var context = SurfaceResolver.Prepare(program);
-        var pageBackground = ResolvePageColor(program, context, carrierId);
+        var pageBackground = ResolvePageColor(program, context, carrierId, profile);
         foreach (var view in program.Views.Keys)
         {
             var resolved = SurfaceResolver.Resolve(program, context, view, carrierId, profile);
@@ -62,6 +62,9 @@ public static class SkinAppearanceInstaller
         }
 
         SkinMaterialCatalog.SetPageBackground(pageBackground);
+        // 页面装饰层：唯一取值来源 = 当前档令牌（浅档主/深档备），代码端零颜色分支。
+        var ambient = SurfaceAmbientParams.FromTokens(SurfaceResolver.TokensForProfile(program, profile));
+        SurfaceAmbient.Configure(ambient);
         var global = SelectGlobal(byKey, "panel_surface");
         // 属性通道全局回退：优先声明档的 row_surface（实心 muted 材质），缺失才回落面板槽（零回归）。
         var globalProperty = SurfaceResolver.ResolveProfileSlot(
@@ -110,25 +113,30 @@ public static class SkinAppearanceInstaller
             borderIssueCodes = border is null
                 ? string.Empty
                 : string.Join(",", border.Issues.Select(issue => issue.Code).Distinct()),
+            ambient = ambient.HasScene,
+            ambientGutter = ambient.Gutter,
+            ambientRibbon = ambient.RibbonWidth,
         });
         return SkinDecorator.Enabled;
     }
 
     /// <summary>
     /// 页面底色 = 默认档 <c>panel_surface</c> 槽的首个不透明 fill 层值。
-    /// <para>只用声明推导（禁代码硬编码色值）：默认档 <c>panel_surface → flat → base=panel_fill(#0d1117)</c>。</para>
-    /// <para>玻璃档的 base 是半透明玻璃色，不是页面底色，故固定按 <see cref="SurfaceResolver.DefaultProfile"/> 解析。</para>
+    /// <para>只用声明推导（禁代码硬编码色值）：默认档 <c>panel_surface → flat → base=page_fill</c>。</para>
+    /// <para>结构固定按 <see cref="SurfaceResolver.DefaultProfile"/>，颜色按当前档位的令牌取值（浅/深各一值）。</para>
     /// <para>未声明 / 未换值 token / 非不透明 ⇒ null（宿主回落系统底色，零回归）。</para>
     /// </summary>
     private static Color? ResolvePageColor(
         SurfaceProgramDeclaration program,
         SurfaceResolveContext context,
-        string carrierId)
+        string carrierId,
+        string profile)
     {
         foreach (var view in program.Views.Keys)
         {
             var resolved = SurfaceResolver.Resolve(
-                program, context, view, carrierId, SurfaceResolver.DefaultProfile);
+                program, context, view, carrierId, SurfaceResolver.DefaultProfile,
+                tokens: SurfaceResolver.TokensForProfile(program, profile));
             foreach (var container in resolved.Containers)
             {
                 foreach (var material in container.Materials.Values)
@@ -163,6 +171,7 @@ public static class SkinAppearanceInstaller
         SkinMaterialCatalog.SetFamilyProperty(null);
         SkinMaterialCatalog.SetFamilyDraw(null);
         SkinMaterialCatalog.SetPageBackground(null);
+        SurfaceAmbient.Reset();
         SkinDecorator.Disable();
         SkinDiagnostics.RecordUninstall();
     }

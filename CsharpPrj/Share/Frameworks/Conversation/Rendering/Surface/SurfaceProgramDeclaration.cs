@@ -34,6 +34,7 @@ public sealed class SurfaceProgramDeclaration
         new Dictionary<string, SurfaceCarrierSpec>(StringComparer.Ordinal),
         new Dictionary<string, SurfaceAssetSpec>(StringComparer.Ordinal),
         new Dictionary<string, string>(StringComparer.Ordinal),
+        new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal),
         declared: false);
 
     private SurfaceProgramDeclaration(
@@ -50,6 +51,7 @@ public sealed class SurfaceProgramDeclaration
         IReadOnlyDictionary<string, SurfaceCarrierSpec> carriers,
         IReadOnlyDictionary<string, SurfaceAssetSpec> assets,
         IReadOnlyDictionary<string, string> settings,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> tokens,
         bool declared)
     {
         Schema = schema;
@@ -65,6 +67,7 @@ public sealed class SurfaceProgramDeclaration
         Carriers = carriers;
         Assets = assets;
         Settings = settings;
+        Tokens = tokens;
         IsDeclared = declared;
     }
 
@@ -109,6 +112,12 @@ public sealed class SurfaceProgramDeclaration
 
     /// <summary>表面设置（name → value；<c>active_profile</c> 为默认外观档，声明式、可运行期覆盖）。</summary>
     public IReadOnlyDictionary<string, string> Settings { get; }
+
+    /// <summary>
+    /// 表面令牌（token → 档位 → 值）。档位键 = Profile 的 <c>values.ui_skin</c>；<c>default</c> 缺省值兜底。
+    /// 层参数在发射期已落地为 active_profile 的字面值；切档时按本表重新取值（两档同键两值）。
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Tokens { get; }
 
     /// <summary>默认外观档（未声明 ⇒ 空字符串；解析方不得硬编码替代）。</summary>
     public string ActiveProfile
@@ -211,6 +220,8 @@ public sealed class SurfaceProgramDeclaration
         var carriers = new Dictionary<string, SurfaceCarrierSpec>(StringComparer.Ordinal);
         var assets = new Dictionary<string, SurfaceAssetSpec>(StringComparer.Ordinal);
         IReadOnlyDictionary<string, string> settings = new Dictionary<string, string>(StringComparer.Ordinal);
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> tokens =
+            new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
 
         if (root.TryGetProperty("appearance", out var appearance) && appearance.ValueKind == JsonValueKind.Object)
         {
@@ -276,11 +287,12 @@ public sealed class SurfaceProgramDeclaration
             }
 
             settings = StrMap(appearance, "settings");
+            tokens = NestedMap(appearance, "tokens");
         }
 
         return new SurfaceProgramDeclaration(
             SchemaName, Str(root, "fingerprint"), views, containers, mappings,
-            primitives, states, layers, materials, profiles, carriers, assets, settings,
+            primitives, states, layers, materials, profiles, carriers, assets, settings, tokens,
             declared: containers.Count > 0);
     }
 

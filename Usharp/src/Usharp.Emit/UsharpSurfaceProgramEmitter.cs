@@ -43,6 +43,7 @@ public static class UsharpSurfaceProgramEmitter
     public const string StatePrefix = "surface_state_";
     public const string AssetPrefix = "surface_asset_";
     public const string SettingPrefix = "surface_setting_";
+    public const string TokenPrefix = "surface_token_";
 
     /// <summary>容器写模式受控词。</summary>
     public static readonly IReadOnlySet<string> WriteModes =
@@ -71,6 +72,8 @@ public static class UsharpSurfaceProgramEmitter
         var carriers = new JsonObject();
         var assets = new JsonObject();
         var settings = new JsonObject();
+        // 表面令牌：name → { value(缺省/主档) + tiers(档位覆盖) }；层参数只引用名字，两档取值在此。
+        var surfaceTokens = new JsonObject();
 
         foreach (var record in compilation.Records)
         {
@@ -90,6 +93,31 @@ public static class UsharpSurfaceProgramEmitter
                     ["target"] = UsharpRecordJson.Str(record.Body, "target", id),
                     ["kind"] = kind,
                     ["carriers"] = Carriers(record.Body),
+                };
+            }
+            else if (record.RecordId.StartsWith(TokenPrefix, StringComparison.Ordinal))
+            {
+                var name = UsharpRecordJson.Str(record.Body, "name", record.RecordId[TokenPrefix.Length..]);
+                var value = UsharpRecordJson.Str(record.Body, "value", string.Empty);
+                if (value.Length == 0 && record.Body.TryGet("tiers", out var tiers) && tiers is UsharpRecord tierRecord)
+                {
+                    // 未声明缺省值：取任一档位值作基线（禁空令牌）。
+                    value = UsharpRecordJson.Props(tierRecord).Select(pair => pair.Value?.GetValue<string>() ?? string.Empty)
+                        .FirstOrDefault(text => text.Length > 0) ?? string.Empty;
+                }
+
+                if (value.Length == 0)
+                {
+                    diagnostics.Add(Error(file, $"表面令牌 '{name}' 缺 value/tiers（禁空令牌）"));
+                    continue;
+                }
+
+                surfaceTokens[name] = new JsonObject
+                {
+                    ["name"] = name,
+                    ["kind"] = UsharpRecordJson.Str(record.Body, "kind", "color"),
+                    ["value"] = value,
+                    ["tiers"] = Nested(record.Body, "tiers"),
                 };
             }
             else if (record.RecordId.StartsWith(SettingPrefix, StringComparison.Ordinal))
@@ -239,8 +267,10 @@ public static class UsharpSurfaceProgramEmitter
             }
         }
 
-        // token 值落地（发射期）：层参数换字面值；档位 → values.ui_skin → 皮肤覆盖。
-        if (tokens is not null) ApplyTokens(layers, profiles, settings, tokens, diagnostics, file);
+        // token 值落地（发射期）：层参数换字面值（按 active_profile 档位）；同时把「令牌 → 档位 → 值」发进产物，
+        // 运行期切档时由 SurfaceResolver 按当前 Profile 的 ui_skin 重新取值（两档同键两值，载体零分支）。
+        var tokenTiers = new JsonObject();
+        if (tokens is not null) ApplyTokens(layers, profiles, settings, tokens, surfaceTokens, tokenTiers, diagnostics, file);
 
         if (containers.Count == 0)
         {
@@ -379,6 +409,7 @@ public static class UsharpSurfaceProgramEmitter
                 ["primitives"] = primitives,
                 ["states"] = states,
                 ["layers"] = layers,
+                ["tokens"] = tokenTiers,
                 ["materials"] = materials,
                 ["profiles"] = profiles,
                 ["carriers"] = carriers,
@@ -430,12 +461,14 @@ public static class UsharpSurfaceProgramEmitter
     private static readonly HashSet<string> ColorPrimitives =
         new(StringComparer.Ordinal) { "fill", "gradient", "stroke", "shadow", "innerShadow", "backdrop", "specular" };
 
-    /// <summary>层参数换字面值 + 色值落地校验（未解析且非字面色值 ⇒ 诊断）。</summary>
+    /// <summary>层参数换字面值 + 色值落地校验 + 「令牌 → 档位 → 值」产出（两档同键两值）。</summary>
     private static void ApplyTokens(
         JsonObject layers,
         JsonObject profiles,
         JsonObject settings,
         SurfaceTokenTable tokens,
+        JsonObject surfaceTokens,
+        JsonObject tokenTiers,
         List<UsharpDiagnostic> diagnostics,
         string file)
     {
@@ -447,18 +480,22 @@ public static class UsharpSurfaceProgramEmitter
             return;
         }
 
-        var values = tokens.For(skin);
+        // 当前档位 = ui_skin 值；空档位落到 default（内容 token 走皮肤基表）。
+        var tier = string.IsNullOrWhiteSpace(skin) ? "default" : skin!;
+
+        // 解析值 = 内容 token（按档位皮肤）+ 表面 token（按同档位取值）。两者共用同一档位键。
+        var values = new Dictionary<string, string>(tokens.For(skin), StringComparer.Ordinal);
+        foreach (var pair in surfaceTokens)
+        {
+            if (pair.Value is not JsonObject token) continue;
+            values[pair.Key] = TierValue(token, tier);
+        }
+
         foreach (var pair in layers)
         {
             if (pair.Value is not JsonObject layer || layer["params"] is not JsonObject parameters) continue;
 
-            foreach (var parameter in parameters.ToList())
-            {
-                var raw = parameter.Value?.GetValue<string>();
-                if (raw is null) continue;
-                parameters[parameter.Key] = ResolveValue(raw, values);
-            }
-
+            // 层参数保留 token 名（不在发射期落地）：运行期按当前档位取值，切档才能作用到同一份产物。
             var primitive = layer["primitive"]?.GetValue<string>() ?? string.Empty;
             if (!ColorPrimitives.Contains(primitive)) continue;
 
@@ -470,23 +507,48 @@ public static class UsharpSurfaceProgramEmitter
                 break;
             }
         }
-    }
 
-    /// <summary>按逗号分段换 token（gradient 多色值；其余参数原样单值）。</summary>
-    private static string ResolveValue(string raw, IReadOnlyDictionary<string, string> values)
-    {
-        if (values.TryGetValue(raw, out var direct)) return direct;
-
-        var parts = raw.Split(',');
-        if (parts.Length < 2) return raw;
-
-        for (var i = 0; i < parts.Length; i++)
+        // 产出：每个 token 在各档位的取值。内容 token 取各皮肤解析值；表面 token 取 tiers 覆盖（缺省回 value）。
+        var tiers = new List<string>(tokens.Skins.Keys) { "default" };
+        foreach (var pair in tokens.Base)
         {
-            var part = parts[i].Trim();
-            if (values.TryGetValue(part, out var value)) parts[i] = value;
+            var map = new JsonObject();
+            foreach (var candidate in tiers)
+            {
+                var perSkin = tokens.For(candidate == "default" ? null : candidate);
+                map[candidate] = perSkin.TryGetValue(pair.Key, out var text) ? text : pair.Value;
+            }
+
+            tokenTiers[pair.Key] = map;
         }
 
-        return string.Join(",", parts);
+        foreach (var pair in surfaceTokens)
+        {
+            if (pair.Value is not JsonObject token) continue;
+            var map = new JsonObject { ["default"] = token["value"]?.GetValue<string>() ?? string.Empty };
+            if (token["tiers"] is JsonObject declared)
+            {
+                foreach (var entry in declared) map[entry.Key] = entry.Value?.GetValue<string>() ?? string.Empty;
+            }
+
+            tokenTiers[pair.Key] = map;
+        }
+    }
+
+    /// <summary>取某档位的表面 token 值（无该档位 → 缺省 value；缺省也空 → 任一档位值）。</summary>
+    private static string TierValue(JsonObject token, string tier)
+    {
+        if (token["tiers"] is JsonObject declared && declared[tier]?.GetValue<string>() is { Length: > 0 } exact) return exact;
+        if (token["value"]?.GetValue<string>() is { Length: > 0 } fallback) return fallback;
+        if (token["tiers"] is JsonObject any)
+        {
+            foreach (var entry in any)
+            {
+                if (entry.Value?.GetValue<string>() is { Length: > 0 } text) return text;
+            }
+        }
+
+        return string.Empty;
     }
 
     /// <summary>档位值沿 <c>extends</c> 链合并（父先子后；子覆盖父）。</summary>

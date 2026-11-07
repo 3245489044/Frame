@@ -69,7 +69,7 @@ public static class SurfaceResolver
             materialId,
             context.Capabilities,
             context.LayerSpecs,
-            new Dictionary<string, string>(StringComparer.Ordinal),
+            TokensForProfile(program, profileName),
             string.IsNullOrWhiteSpace(channel) ? CapabilityMatrix.DefaultChannel : channel!,
             context.AssetIssuesByLayer,
             issues);
@@ -142,7 +142,13 @@ public static class SurfaceResolver
         ArgumentNullException.ThrowIfNull(context);
         var carrier = carrierId ?? string.Empty;
         var profileName = string.IsNullOrWhiteSpace(profileId) ? DefaultProfile : profileId!;
-        var values = tokens ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        // 档位令牌表（program.tokens）先铺底，调用方显式 token 覆盖（调用方优先级更高）。
+        var values = new Dictionary<string, string>(TokensForProfile(program, profileName), StringComparer.Ordinal);
+        if (tokens is not null)
+        {
+            foreach (var pair in tokens) values[pair.Key] = pair.Value;
+        }
+
         var issues = new List<SurfaceIssue>();
         var resolvedChannel = string.IsNullOrWhiteSpace(channel) ? CapabilityMatrix.DefaultChannel : channel!;
         var fingerprintChannel = string.Equals(resolvedChannel, CapabilityMatrix.DefaultChannel, StringComparison.Ordinal)
@@ -208,6 +214,44 @@ public static class SurfaceResolver
         }
 
         return Signature.Sha256(builder.ToString());
+    }
+
+    /// <summary>
+    /// 取某外观档的令牌值表（token → 值）：档位 = <c>Profile.values.ui_skin</c>，缺该档位回 <c>default</c>。
+    /// <para>这是「两档同键两值」的唯一解析入口：载体只传档，不写颜色分支。</para>
+    /// </summary>
+    /// <param name="program">表面程序。</param>
+    /// <param name="profileId">外观档（空 ⇒ 声明 active_profile）。</param>
+    public static IReadOnlyDictionary<string, string> TokensForProfile(
+        SurfaceProgramDeclaration program,
+        string? profileId)
+    {
+        ArgumentNullException.ThrowIfNull(program);
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (program.Tokens.Count == 0) return map;
+
+        var name = string.IsNullOrWhiteSpace(profileId) ? program.ActiveProfile : profileId!;
+        var profile = program.EffectiveProfile(name);
+        var tier = profile is not null && profile.Values.TryGetValue("ui_skin", out var skin) && skin.Length > 0
+            ? skin
+            : null;
+
+        foreach (var pair in program.Tokens)
+        {
+            // 档位键存在但值为空 = 该档显式关闭此令牌（例如深档关闭页面装饰层，保持像素等价）。
+            if (tier is not null && pair.Value.TryGetValue(tier, out var exact))
+            {
+                if (exact.Length > 0) map[pair.Key] = exact;
+                continue;
+            }
+
+            if (pair.Value.TryGetValue("default", out var fallback) && fallback.Length > 0)
+            {
+                map[pair.Key] = fallback;
+            }
+        }
+
+        return map;
     }
 
     /// <summary>构建解析上下文（纯函数；同一 program 的多次解析可只建一次，避免重复构建能力矩阵/层规格）。</summary>

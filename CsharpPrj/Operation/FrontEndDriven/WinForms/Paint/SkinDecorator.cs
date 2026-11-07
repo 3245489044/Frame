@@ -180,6 +180,7 @@ public static class SkinDecorator
     public static void Disable()
     {
         Enabled = false;
+        SurfaceAmbient.Reset();
         // 关肤后属性通道归还声明侧：清空接管标记，否则声明颜色会被永久剥离（E2 豁免失效）。
         PropertyOwned.Clear();
         // 先快照：Detach 会从 States 中移除条目，直接枚举会破坏表。
@@ -206,6 +207,7 @@ public static class SkinDecorator
         state.Material = null;
         state.MaterialKey = null;
         state.Pinned = null;
+        SurfaceAmbient.Release(control);
         States.Remove(control);
         SkinDiagnostics.RecordAttach(false);
     }
@@ -282,9 +284,12 @@ public static class SkinDecorator
             var hit = state.Cache is not null
                       && !backdropDue
                       && string.Equals(state.CacheKey, key, StringComparison.Ordinal);
-            if (!hit) baseReport = RebuildBase(control, material, bounds, state, pinned, baseLight);
+            // 结构宿主（FrameHost）的背景由页面装饰层统一接管：用同一张页面场位图，不再铺纯色 flat。
+            var ambientHost = state.EdgeMode == SurfaceEdgeMode.FrameHost && SurfaceAmbient.Enabled;
+            if (!hit && !ambientHost) baseReport = RebuildBase(control, material, bounds, state, pinned, baseLight);
 
-            if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
+            if (ambientHost) SurfaceAmbient.PaintHostSurface(control, e.Graphics);
+            else if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
 
             var light = pinned is { } frozenLight
                 ? frozenLight.Light
@@ -297,6 +302,12 @@ public static class SkinDecorator
             if (state.EdgeMode == SurfaceEdgeMode.FrameHost)
             {
                 SurfaceFrameHost.TryDraw(e.Graphics, bounds, state.EdgeMode, material, control.DeviceDpi, out _);
+            }
+
+            // 卡片唯一装饰消费入口：同一份页面场（留白环/外发光/双形态边缘光/纹理/丝带），无卡片分支。
+            if (SurfaceAmbient.ShouldChrome(material))
+            {
+                SurfaceAmbient.PaintPanelChrome(control, e.Graphics, bounds, material);
             }
 
             state.Frame++;

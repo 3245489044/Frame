@@ -211,13 +211,18 @@ public static class SkinPaintEngine
                         bounds, Color.FromArgb(0, litColor), Color.FromArgb(0, litColor), state.Angle);
                     brush.InterpolationColors = new ColorBlend
                     {
+                        // GDI+ 契约：InterpolationColors 的位置数组必须覆盖完整 [0,1]（首 0、末 1），
+                        // 否则 setter 抛 ArgumentException("Parameter is not valid.")。
+                        // 高光带只占 0.38–0.62，两端补全为同色透明停靠点，带位置与宽度不变。
                         Colors = new[]
                         {
                             Color.FromArgb(0, litColor),
+                            Color.FromArgb(0, litColor),
                             Color.FromArgb(peakAlpha, litColor),
                             Color.FromArgb(0, litColor),
+                            Color.FromArgb(0, litColor),
                         },
-                        Positions = new[] { 0.38f, 0.5f, 0.62f },
+                        Positions = new[] { 0f, 0.38f, 0.5f, 0.62f, 1f },
                     };
                     using var lightPath = CreateRoundedPath(bounds, RadiusOf(layer, bounds, materialRadius));
                     if (lightPath is null) graphics.FillRectangle(brush, bounds);

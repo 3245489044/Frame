@@ -82,7 +82,9 @@ public sealed class SkinInspector : ISkinInspector
 
         if (report.Samples.Count == 0)
         {
-            evidence += " 无法采样（尺寸为 0 或绘制失败）";
+            evidence += string.IsNullOrEmpty(report.Failure)
+                ? " 无法采样（尺寸为 0）"
+                : $" 绘制中止/未执行（{report.Failure}）";
             return false;
         }
 

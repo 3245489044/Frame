@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Windows.Forms;
 using FrontEndDriven.Diagnostics;
 using FrontEndDriven.WinForms.Applier;
@@ -139,6 +140,7 @@ public static class SkinDecorator
         state.Cache = null;
         state.Material = null;
         state.MaterialKey = null;
+        state.Pinned = null;
         States.Remove(control);
         SkinDiagnostics.RecordAttach(false);
     }
@@ -186,17 +188,35 @@ public static class SkinDecorator
         var bounds = new Rectangle(Point.Empty, control.ClientSize);
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
-        // 只有玻璃材质（含 backdrop）接入运行时光；普通材质外观不变。
-        var light = HasBackdrop(material) ? ResolveLight(control) : (SurfaceLightState?)null;
-        var key = CacheKey(material, bounds, control.DeviceDpi, light);
-        if (state.Cache is null || state.CacheKey != key)
+        try
         {
-            state.Cache?.Dispose();
-            state.Cache = Render(material, bounds, control, state, light);
-            state.CacheKey = key;
-        }
+            // 冻结态（探针/诊断）优先：实际绘制与期望拟合必须吃同一份 light/backdrop，否则像素断言假红。
+            var light = state.Pinned is { } pinned
+                ? pinned.Light
+                : HasBackdrop(material) ? ResolveLight(control) : (SurfaceLightState?)null;
+            var backdropVersion = state.Pinned?.BackdropVersion ?? 0;
+            var key = CacheKey(material, bounds, control.DeviceDpi, light, backdropVersion);
+            if (state.Cache is null || state.CacheKey != key)
+            {
+                state.Cache?.Dispose();
+                state.Cache = Render(material, bounds, control, state, light);
+                state.CacheKey = key;
+            }
 
-        if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
+            if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
+            state.PaintVersion++;
+        }
+        catch (Exception ex)
+        {
+            // 绘制失败必须可见（带堆栈），且不得把异常抛回 UI 线程中断整棵重绘。
+            state.PaintFailures++;
+            FrontEndDrivenLog.Log("SkinDecorator_paint_failed", new
+            {
+                type = control.GetType().Name,
+                material = material.MaterialId,
+                exception = ex.ToString(),
+            });
+        }
     }
 
     private static Bitmap Render(
@@ -206,8 +226,13 @@ public static class SkinDecorator
         using var graphics = Graphics.FromImage(bitmap);
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.Clear(Color.Transparent);
-        using var backdrop = TryCaptureBehind(control, bounds, state);
-        var skipped = SkinPaintEngine.Paint(graphics, new Rectangle(Point.Empty, bounds.Size), material, backdrop, light);
+        // 未冻结 ⇒ 本帧自取快照（旧行为）；已冻结 ⇒ 只用传入快照，禁二次取（同源且防止探针路径嵌套 DrawToBitmap）。
+        using var owned = state.Pinned is null && HasBackdrop(material)
+            ? BuildRenderInputs(control, material, light)
+            : null;
+        var inputs = state.Pinned ?? owned;
+        var skipped = SkinPaintEngine.Paint(
+            graphics, new Rectangle(Point.Empty, bounds.Size), material, inputs?.Backdrop, inputs?.Light);
         SkinDiagnostics.RecordPaint(skipped);
         if (skipped.Count > 0)
         {
@@ -215,6 +240,67 @@ public static class SkinDecorator
         }
 
         return bitmap;
+    }
+
+    /// <summary>
+    /// 构建一帧的动态输入（运行时光 + 背后快照）。在绘制循环外调用时可安全取父级快照；
+    /// 探针用它冻结「实际 / 期望」同一份输入（<see cref="PinInputs"/>）。
+    /// </summary>
+    internal static SkinRenderInputs BuildRenderInputs(
+        Control control, ResolvedMaterial material, SurfaceLightState? light = null)
+    {
+        var state = States.GetValue(control, static _ => new SkinState());
+        SurfaceLightState? resolvedLight = HasBackdrop(material) ? light ?? ResolveLight(control) : null;
+        if (!HasBackdrop(material)) return SkinRenderInputs.Create(null, null, 0);
+
+        var bounds = new Rectangle(Point.Empty, control.ClientSize);
+        var backdrop = TryCaptureBehind(control, bounds, state);
+        var version = backdrop is null ? 0 : Interlocked.Increment(ref _backdropSerial);
+        return SkinRenderInputs.Create(resolvedLight, backdrop, version);
+    }
+
+    /// <summary>冻结一帧输入：绘制期间 <see cref="PaintControl"/> 不再自行解析时间/光标/快照，保证可复现。</summary>
+    internal static IDisposable PinInputs(Control control, SkinRenderInputs inputs)
+    {
+        if (!States.TryGetValue(control, out var state)) return NoopScope.Instance;
+        var previous = state.Pinned;
+        state.Pinned = inputs;
+        return new PinScope(state, previous);
+    }
+
+    /// <summary>累计成功绘制次数（探针据此区分「没画」与「画了但颜色错」，不靠像素猜测）。</summary>
+    internal static long PaintVersionOf(Control? control)
+        => control is not null && States.TryGetValue(control, out var state) ? state.PaintVersion : 0;
+
+    /// <summary>累计绘制失败次数（异常隔离的结构指标）。</summary>
+    internal static long PaintFailuresOf(Control? control)
+        => control is not null && States.TryGetValue(control, out var state) ? state.PaintFailures : 0;
+
+    private static int _backdropSerial;
+
+    private sealed class PinScope : IDisposable
+    {
+        private SkinState? _state;
+        private readonly SkinRenderInputs? _previous;
+
+        internal PinScope(SkinState state, SkinRenderInputs? previous)
+        {
+            _state = state;
+            _previous = previous;
+        }
+
+        public void Dispose()
+        {
+            if (_state is null) return;
+            _state.Pinned = _previous;
+            _state = null;
+        }
+    }
+
+    private sealed class NoopScope : IDisposable
+    {
+        internal static readonly NoopScope Instance = new();
+        public void Dispose() { }
     }
 
     /// <summary>运行时光：时间按分钟量化、光标按 8px 量化（缓存键只在肉眼可辨变化时失效）。</summary>
@@ -252,7 +338,7 @@ public static class SkinDecorator
     /// 于是裁出的就是「本控件位置下方的父级背景 + 兄弟内容」。
     /// <para>边界：不穿越窗口/WebView2 HWND ⇒ 不做元素级看穿桌面（与 01 文档可达上限一致）。</para>
     /// </summary>
-    private static Image? TryCaptureBehind(Control control, Rectangle bounds, SkinState state)
+    private static Bitmap? TryCaptureBehind(Control control, Rectangle bounds, SkinState state)
     {
         if (_capturingBackdrop) return null; // 父级也挂玻璃材质时，避免逐层向上递归
 
@@ -306,9 +392,11 @@ public static class SkinDecorator
     private static ResolvedMaterial? SelectMaterial(IReadOnlyDictionary<string, ResolvedMaterial>? materials)
         => SurfaceSlotSelection.SelectBackground(materials);
 
-    private static string CacheKey(ResolvedMaterial material, Rectangle bounds, int dpi, SurfaceLightState? light)
+    private static string CacheKey(
+        ResolvedMaterial material, Rectangle bounds, int dpi, SurfaceLightState? light, int backdropVersion)
         => $"{MaterialKey(material)}:{bounds.Width}x{bounds.Height}@dpi{dpi}"
-           + (light is { } state ? "|light:" + state.CacheToken : string.Empty);
+           + (light is { } state ? "|light:" + state.CacheToken : string.Empty)
+           + (backdropVersion > 0 ? "|bg:" + backdropVersion : string.Empty);
 
     /// <summary>材质指纹：含层参数摘要（同材质换色必须失效，否则换肤永不重绘）。</summary>
     private static string MaterialKey(ResolvedMaterial material)
@@ -330,5 +418,8 @@ public static class SkinDecorator
         internal string? CacheKey { get; set; }
         internal bool SuppressPaint { get; set; }
         internal System.Windows.Forms.Timer? RefreshTimer { get; set; }
+        internal SkinRenderInputs? Pinned { get; set; }
+        internal long PaintVersion { get; set; }
+        internal long PaintFailures { get; set; }
     }
 }

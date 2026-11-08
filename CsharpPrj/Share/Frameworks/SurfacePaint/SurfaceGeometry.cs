@@ -29,8 +29,20 @@ public static class SurfaceGeometry
     public static GraphicsPath? Shaped(RectangleF bounds, float radiusDips, float dpi)
     {
         if (radiusDips <= 0 || bounds.Width <= 0 || bounds.Height <= 0) return null;
+
+        // P1·小元素半径上限：短边 < 120 DIP 的按钮/小卡半径夹 12 DIP，
+        // 防大令牌半径（面板 34 DIP）把小控件画成胶囊/圆斑；
+        // 深档半径令牌均 ≤ 10 DIP，故深档像素零差异（DarkTier 硬约束）。
+        const float SmallElementShortSideDips = 120f;
+        const float SmallElementMaxRadiusDips = 12f;
+        var dpiSafe = dpi > 0 ? dpi : BorderUnits.BaseDpi;
+        var shortSideDips = Math.Min(bounds.Width, bounds.Height) * BorderUnits.BaseDpi / dpiSafe;
+        var effectiveRadiusDips = shortSideDips < SmallElementShortSideDips
+            ? Math.Min(radiusDips, SmallElementMaxRadiusDips)
+            : radiusDips;
+
         var radius = BorderGeometry.Clamp(
-            CornerRadii.Uniform(BorderUnits.DipsToPixels(radiusDips, dpi)),
+            CornerRadii.Uniform(BorderUnits.DipsToPixels(effectiveRadiusDips, dpi)),
             bounds.Width, bounds.Height);
         return Path(bounds, radius);
     }

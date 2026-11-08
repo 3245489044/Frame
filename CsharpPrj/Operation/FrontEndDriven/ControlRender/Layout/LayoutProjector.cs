@@ -89,6 +89,18 @@ public sealed class LayoutProjector
                 continue;
             proportional.Add(entity);
         }
+        // P1·固定布局实体同走 bounds-only 投影：位置随父容器移动、尺寸按 DIP 折算（此前永不投影）。
+        foreach (var entity in _entityManager.GetEntities<PixelLayoutComponent>())
+        {
+            if (!LayoutQuery.IsFixedPixels(_entityManager, entity)
+                || !LayoutQuery.IsInScope(_entityManager, entity, scope)
+                || LayoutQuery.IsNativeIntent(_entityManager, entity))
+                continue;
+            if (!_entityManager.HasComponent<ComputedLayoutComponent>(entity) || proportional.Contains(entity))
+                continue;
+            proportional.Add(entity);
+        }
+
         proportional.Sort((a, b) => LayoutQuery.PhysicalDepth(GetControl(a)).CompareTo(LayoutQuery.PhysicalDepth(GetControl(b))));
 
         foreach (var entity in proportional)

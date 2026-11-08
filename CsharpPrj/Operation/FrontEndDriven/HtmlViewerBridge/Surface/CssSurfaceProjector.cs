@@ -363,11 +363,17 @@ public static class CssSurfaceProjector
         var radii = stroke.Radii;
         if (radii.Max > 0)
         {
+            // P1·圆角硬夹取：min(r, 50%) 从源头杜绝「半径 > 半边长 → 胶囊/圆斑」，
+            // 与 GDI+ 侧 BorderGeometry.Clamp 的下限同源（任何令牌值都不会把控件画成药丸）。
             declarations.Add(Pair("border-radius", string.Join(' ',
-                FormatPx(radii.TopLeft), FormatPx(radii.TopRight),
-                FormatPx(radii.BottomRight), FormatPx(radii.BottomLeft))));
+                ClampHalf(radii.TopLeft), ClampHalf(radii.TopRight),
+                ClampHalf(radii.BottomRight), ClampHalf(radii.BottomLeft))));
         }
     }
+
+    /// <summary>半径 → <c>min(r, 50%)</c>（CSS 百分比按对应轴/短边解析，等价于半边长硬上限）。</summary>
+    private static string ClampHalf(float radius)
+        => $"min({FormatPx(radius)}, 50%)";
 
     /// <summary>全局光态 → <c>--sl-*</c> 变量（唯一格式化的地方；不做任何光计算）。</summary>
     private static List<KeyValuePair<string, string>> LightVariables(SurfaceLightSample sample)

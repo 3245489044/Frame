@@ -30,6 +30,10 @@ public static class LayoutQuery
             || (em.TryGetComponent<LayoutIntentComponent>(entity, out var intent)
                 && string.Equals(intent.Intent, "anchor", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>像素直定位意图（layout.intent=fixed）：由 LayoutSystem 结算（DIP→像素），非原生接管。</summary>
+    internal static bool IsFixedPixels(EntityManager em, Entity entity)
+        => em.TryGetComponent<PixelLayoutComponent>(entity, out var pixel) && pixel.IsFixed;
+
     /// <summary>实体是否属于指定 scope（Ordinal 比较）。</summary>
     public static bool IsInScope(EntityManager em, Entity entity, string scope)
         => em.TryGetComponent<ScopeComponent>(entity, out var scopeComp)

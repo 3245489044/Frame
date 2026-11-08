@@ -1,5 +1,9 @@
 
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using ECS.Core;
 using ECS.Bridge;
 using TConfig;
@@ -19,7 +23,17 @@ public class ConfigDrivenControlFactory
     private readonly EntityManager _entityManager;
     private readonly ControlFactory _controlFactory;
 
+    /// <summary>用户比例缓存的可信区间（越界即视为脏值，回退配置设计值）。</summary>
+    private const double MinUsableSplitterRatio = 0.15;
+    private const double MaxUsableSplitterRatio = 0.85;
+
+    /// <summary>旧版缓存（无指纹）与配置声明值允许的最大偏差——超出视为「被旧配置压住」的脏值。</summary>
+    private const double LegacyRatioMaxDelta = 0.25;
+
     private string _currentScope = "MainLayout";
+
+    /// <summary>本次加载配置的布局指纹（version + 分隔声明哈希）；null = 无指纹（不做指纹门禁）。</summary>
+    private string? _layoutFingerprint;
 
     public ConfigDrivenControlFactory(
         EntityManager entityManager,
@@ -89,6 +103,10 @@ public class ConfigDrivenControlFactory
         if (!rootEntity.IsValid)
             throw new ArgumentException("rootEntity 无效，请确保已通过 CreateRootEntity 创建。", nameof(rootEntity));
 
+        // P1·布局指纹：本次配置的「版本 + 分隔声明」决定用户比例缓存是否仍属同一版式。
+        // 消费顺序关键：先算新指纹、再在 ConvertControl 内与缓存旧指纹比对、最后（全部转换完成）落盘新指纹。
+        _layoutFingerprint = ComputeLayoutFingerprint(config);
+
         if (config.Views is { Count: > 0 })
         {
             for (int i = 0; i < config.Views.Count; i++)
@@ -96,6 +114,8 @@ public class ConfigDrivenControlFactory
                 ConvertView(config.Views[i], rootEntity, i);
             }
         }
+
+        StampLayoutFingerprint();
     }
 
     private void ConvertView(ViewConfig view, Entity parentEntity, int siblingOrder)
@@ -156,7 +176,8 @@ public class ConfigDrivenControlFactory
 
             if (!string.IsNullOrWhiteSpace(control.Name)
                 && AppServiceProvider.Resolve<IUiLayoutStateStore>() is { } layoutState
-                && layoutState.TryGetSplitterRatio(_currentScope, control.Name, out var saved))
+                && layoutState.TryGetSplitterRatio(_currentScope, control.Name, out var saved)
+                && IsUsableCachedRatio(layoutState, control.Name, saved, ratioValue))
             {
                 ratioValue = saved;
                 FrontEndDrivenLog.Log("ConfigDrivenControlFactory_splitter_restored",
@@ -372,6 +393,107 @@ public class ConfigDrivenControlFactory
             default:
                 intent = VisibilityIntent.ExpectVisible;
                 return false;
+        }
+    }
+
+    /// <summary>
+    /// 缓存比例可信性判定（P1·根治「配置改了但被旧缓存压住」）：
+    /// ① 越界（[0.15,0.85] 之外）⇒ 脏值；② 指纹不一致 ⇒ 整 scope 作废；
+    /// ③ 旧版无指纹缓存 ⇒ 与配置声明值偏差 &gt; 0.25 才作废（兼容升级前缓存，不阻塞启动）。
+    /// 任一丢弃都回退配置设计值并记 <c>ConfigDrivenControlFactory_layout_cache_stale</c>。
+    /// </summary>
+    private bool IsUsableCachedRatio(IUiLayoutStateStore store, string controlName, double cached, double configured)
+    {
+        if (cached < MinUsableSplitterRatio || cached > MaxUsableSplitterRatio)
+        {
+            LogStale(controlName, cached, configured, "out-of-range");
+            store.ResetSplitterRatios(_currentScope);
+            return false;
+        }
+
+        // 无指纹（未接线）时退化为仅区间校验：不因缺指纹而丢弃合法用户比例。
+        if (string.IsNullOrEmpty(_layoutFingerprint))
+            return true;
+
+        var cachedFingerprint = store.GetLayoutFingerprint(_currentScope);
+        if (string.IsNullOrEmpty(cachedFingerprint))
+        {
+            if (Math.Abs(cached - configured) > LegacyRatioMaxDelta)
+            {
+                LogStale(controlName, cached, configured, "legacy-outlier");
+                store.ResetSplitterRatios(_currentScope);
+                return false;
+            }
+
+            return true;
+        }
+
+        if (!string.Equals(cachedFingerprint, _layoutFingerprint, StringComparison.Ordinal))
+        {
+            LogStale(controlName, cached, configured, "config-changed");
+            store.ResetSplitterRatios(_currentScope);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void LogStale(string controlName, double cached, double configured, string reason)
+    {
+        FrontEndDrivenLog.Log("ConfigDrivenControlFactory_layout_cache_stale", new
+        {
+            scope = _currentScope,
+            controlName,
+            ratio = Math.Round(cached, 4),
+            configured = Math.Round(configured, 4),
+            reason
+        });
+    }
+
+    /// <summary>把本次加载的布局指纹落盘（下次启动据此判定缓存是否仍属同一版式）。</summary>
+    private void StampLayoutFingerprint()
+    {
+        if (string.IsNullOrEmpty(_layoutFingerprint))
+            return;
+
+        AppServiceProvider.Resolve<IUiLayoutStateStore>()?.SetLayoutFingerprint(_currentScope, _layoutFingerprint);
+    }
+
+    /// <summary>
+    /// 布局指纹 = 配置 version + 全部 splitContainer 的「名称=声明比例」序列哈希（前 16 位十六进制）。
+    /// 只覆盖版式相关声明：非布局改动（文案/日志开关）不会误清用户比例；version 变更必然失效。
+    /// </summary>
+    private static string ComputeLayoutFingerprint(UIConfiguration config)
+    {
+        var builder = new StringBuilder(config.Version?.Trim() ?? string.Empty);
+        if (config.Views is { Count: > 0 })
+        {
+            foreach (var view in config.Views)
+                AppendSplitterDeclarations(view.Controls, builder);
+        }
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()));
+        return System.Convert.ToHexString(hash).Substring(0, 16).ToLowerInvariant();
+    }
+
+    private static void AppendSplitterDeclarations(List<ControlConfig>? controls, StringBuilder builder)
+    {
+        if (controls is not { Count: > 0 })
+            return;
+
+        foreach (var control in controls)
+        {
+            if (string.Equals(control.Type, "splitcontainer", StringComparison.OrdinalIgnoreCase))
+            {
+                builder.Append('|')
+                    .Append(control.Name)
+                    .Append('=')
+                    .Append((control.SplitterDistance ?? 0.5).ToString("R", CultureInfo.InvariantCulture));
+            }
+
+            AppendSplitterDeclarations(control.Controls, builder);
+            AppendSplitterDeclarations(control.Panel1Controls, builder);
+            AppendSplitterDeclarations(control.Panel2Controls, builder);
         }
     }
 }

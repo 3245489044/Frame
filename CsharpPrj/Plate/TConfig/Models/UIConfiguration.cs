@@ -5,6 +5,10 @@ namespace TConfig;
 
 public class UIConfiguration
 {
+    /// <summary>配置版本（可选）：参与布局用户态缓存指纹——版本变更 ⇒ 旧分隔比例缓存自动失效。</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Version { get; set; }
+
     public string? Extends { get; set; }
     public FormConfig Form { get; set; } = new();
     public NavigationConfig Navigation { get; set; } = new();

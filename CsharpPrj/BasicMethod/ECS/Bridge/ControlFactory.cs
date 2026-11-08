@@ -51,6 +51,7 @@ public class ControlFactory
     private void AddLayoutComponents(Entity entity, ControlConfig config)
     {
         bool layoutIntentResolved = false;
+        bool fixedIntent = false;
 
         if (config.Layout is { } layout)
         {
@@ -80,7 +81,13 @@ public class ControlFactory
                     break;
 
                 default: // "proportional" / "fixed"（fixed 由下方 PixelLayoutComponent 承载像素直定位）
-                    if (intent != "fixed")
+                    if (intent == "fixed")
+                    {
+                        // fixed 为显式意图：不落比例组件，也不回落到容器默认 Fill（像素直定位优先）。
+                        fixedIntent = true;
+                        layoutIntentResolved = true;
+                    }
+                    else
                     {
                         var layoutLeft = layout.Left;
                         var layoutTop = layout.Top;
@@ -144,7 +151,9 @@ public class ControlFactory
             Left = config.X,
             Top = config.Y,
             Width = config.Width,
-            Height = config.Height
+            Height = config.Height,
+            Unit = 0, // layout 声明值按 DIP 解释，折算按宿主 DeviceDpi
+            IsFixed = fixedIntent
         });
     }
 

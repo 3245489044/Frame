@@ -22,6 +22,15 @@ namespace FrontEndDriven.Abstractions
         /// <summary>记录用户拖拽后的比例（值域 [0,1]；实现负责去抖与原子落盘）。</summary>
         void SetSplitterRatio(string scope, string controlName, double ratio);
 
+        /// <summary>读取某作用域上次加载时记录的配置布局指纹；未记录（旧版缓存）返回 null。</summary>
+        string? GetLayoutFingerprint(string scope);
+
+        /// <summary>记录本次加载的配置布局指纹（供下次启动判定缓存是否仍属同一版式）。</summary>
+        void SetLayoutFingerprint(string scope, string? layoutFingerprint);
+
+        /// <summary>清除用户分隔比例（<paramref name="scope"/> 为 null ⇒ 全部作用域），指纹一并清除；下次加载回退配置设计值。</summary>
+        void ResetSplitterRatios(string? scope = null);
+
         /// <summary>读取上次关闭时的窗体边界；未缓存返回 false。</summary>
         bool TryGetFormBounds(out UiFormBounds bounds);
 

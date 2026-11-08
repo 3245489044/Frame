@@ -70,6 +70,8 @@ public class LayoutSystem
         return _entityManager.GetEntities<ProportionalLayoutComponent, PendingLayoutComponent>()
             .Concat(_entityManager.GetEntities<LayoutIntentComponent, PendingLayoutComponent>()
                 .Where(e => LayoutQuery.IsFillDock(_entityManager, e)))
+            .Concat(_entityManager.GetEntities<PixelLayoutComponent, PendingLayoutComponent>()
+                .Where(e => LayoutQuery.IsFixedPixels(_entityManager, e)))
             .Distinct();
     }
 
@@ -80,6 +82,12 @@ public class LayoutSystem
         {
             return false;
         }
+
+        // P1·固定布局：layout.intent=fixed 的 DIP 声明值按宿主 DPI 折算像素，
+        // 参与 ComputedLayout 真源（此前固定控件只有 PixelLayout 组件、永不生 ComputedLayout，
+        // 物理尺寸由 WinForms 默认值决定 → 无法统一改版式）。
+        if (LayoutQuery.IsFixedPixels(_entityManager, entity))
+            return TryComputeFixedLayout(entity, parentLeft, parentTop, parentWidth, parentHeight);
 
         ComputedLayoutComponent computed;
         if (IsSplitterPanelEntity(entity))
@@ -154,6 +162,45 @@ public class LayoutSystem
         _entityManager.RemoveComponent<PendingLayoutComponent>(entity);
         _entityManager.AddComponent(entity, new LayoutAppliedComponent());
 
+        return true;
+    }
+
+    /// <summary>
+    /// 固定布局结算：PixelLayout 声明值（DIP）→ 物理像素（宿主 DeviceDpi，控件未就绪回退父 DPI，再回退 96）。
+    /// 与比例布局共用 ComputedLayout 真源，供投影/快照/检查统一消费。
+    /// </summary>
+    private bool TryComputeFixedLayout(Entity entity, int parentLeft, int parentTop, int parentWidth, int parentHeight)
+    {
+        if (parentWidth <= 0 || parentHeight <= 0)
+            return false;
+
+        var pixel = _entityManager.GetComponent<PixelLayoutComponent>(entity);
+
+        var dpi = _basis.ResolveDeviceDpi(entity);
+        if (dpi <= 0 && _entityManager.TryGetComponent<ParentEntityComponent>(entity, out var parent)
+            && parent.ParentEntity.IsValid)
+        {
+            dpi = _basis.ResolveDeviceDpi(parent.ParentEntity);
+        }
+
+        if (dpi <= 0)
+            dpi = ProportionalLayoutPolicy.ReferenceDpi;
+
+        int ToPixels(int value) => pixel.Unit == 1 ? value : ProportionalLayoutPolicy.ScaleDip(value, dpi);
+
+        var computed = new ComputedLayoutComponent
+        {
+            Left = parentLeft + ToPixels(pixel.Left),
+            Top = parentTop + ToPixels(pixel.Top),
+            Width = ToPixels(pixel.Width),
+            Height = ToPixels(pixel.Height),
+            ParentWidth = parentWidth,
+            ParentHeight = parentHeight
+        };
+
+        _entityManager.AddOrSetComponent(entity, computed);
+        _entityManager.RemoveComponent<PendingLayoutComponent>(entity);
+        _entityManager.AddComponent(entity, new LayoutAppliedComponent());
         return true;
     }
 
@@ -321,9 +368,11 @@ public class LayoutSystem
 
     public void RecalculateAll()
     {
-        var entities = _entityManager.GetEntities<
-            ProportionalLayoutComponent,
-            LayoutAppliedComponent>();
+        // P1·固定布局随全量重算一并置脏：DPI/宿主基准变化时 DIP 声明值需重新折算像素。
+        var entities = _entityManager.GetEntities<LayoutAppliedComponent>()
+            .Where(e => _entityManager.HasComponent<ProportionalLayoutComponent>(e)
+                || LayoutQuery.IsFixedPixels(_entityManager, e))
+            .ToList();
 
         foreach (var entity in entities)
         {
@@ -401,6 +450,16 @@ public class LayoutSystem
         foreach (var entity in _entityManager.GetEntities<LayoutIntentComponent>())
         {
             if (LayoutQuery.IsFillDock(_entityManager, entity)
+                && LayoutQuery.IsInScope(_entityManager, entity, scope))
+            {
+                yield return entity;
+            }
+        }
+
+        // P1·固定布局：scope 感知重排同样覆盖 fixed 实体（父基准/DPI 变化时重新折算）。
+        foreach (var entity in _entityManager.GetEntities<PixelLayoutComponent>())
+        {
+            if (LayoutQuery.IsFixedPixels(_entityManager, entity)
                 && LayoutQuery.IsInScope(_entityManager, entity, scope))
             {
                 yield return entity;

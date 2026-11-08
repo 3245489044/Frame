@@ -7,6 +7,7 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using FrameworkAbstractions.ComponentRegistry;
 using FrameworkAbstractions.WinFormsAbstractions;
+using FrontEndDriven.Diagnostics;
 using FrontEndDriven.Shared.Catalog;
 using Modules.Registry;
 using Share.EventBindingOrchestrator.Execution;
@@ -101,6 +102,26 @@ public static class UiCommandLibrary
         registry.Register("Ui_CommandManifest",
             (Func<string>)(CommandManifest),
             "命令面清单：列出通用命令库可用命令（命令执行子集的自描述）");
+
+        registry.Register("Ui_ResetLayoutState",
+            (Func<string>)(ResetLayoutState),
+            "布局用户态重置：清空分隔比例缓存（下次加载恢复配置设计比例）");
+    }
+
+    /// <summary>
+    /// 一键恢复设计比例：清空用户分隔比例缓存（含布局指纹），配置面保持只读。
+    /// 生效时机 = 下一次加载/启动（当前会话的 ECS SplitterRatio 仍为拖拽值，不清场以免打断正在进行的布局）。
+    /// </summary>
+    private static string ResetLayoutState()
+    {
+        var store = AppServiceProvider.Resolve<FrontEndDriven.Abstractions.IUiLayoutStateStore>();
+        if (store is null)
+            return "布局缓存端口未装配：无法重置用户布局态";
+
+        store.ResetSplitterRatios();
+        store.Flush();
+        FrontEndDrivenLog.Log("Ui_ResetLayoutState", new { scope = "*" });
+        return "布局用户态已重置：分隔比例缓存已清空，下次加载恢复设计比例";
     }
 
     /// <summary>组装请求体：载入模板对象 → 应用输入覆盖 → 序列化（JSONC 容忍，注释跳过）。参数支持 @&lt;Control&gt; 解引用。

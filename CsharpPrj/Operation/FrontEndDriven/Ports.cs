@@ -467,6 +467,11 @@ public sealed class WinFormsOutputPort
 
     private readonly Dictionary<object, Action> _splitterUnsubscribeActions = new();
 
+    /// <summary>真实鼠标拖拽标记（SplitterMoving 只由鼠标移动触发；程序化 SetSplitterDistance 不会触发）。</summary>
+    private readonly Dictionary<object, SplitterCancelEventHandler> _splitterMovingHandlers = new();
+
+    private readonly HashSet<object> _splitterDragActive = new();
+
     private bool _suppressProjectionEvents;
 
     public WinFormsOutputPort(
@@ -562,6 +567,9 @@ public sealed class WinFormsOutputPort
         // （PropertyApplier.SetBounds 分支）保证，此处不再创建期补丁（S3·单一权威）。
         ApplyControlBehavior(entity, control);
 
+        // P1-6·原生控件属性规格统一（仅属性，不改绘制管线/不新增 owner-draw）。
+        ApplyNativeControlSpec(control);
+
         // 静态数据应用（items/selectedIndex/checkedItems/columns/view/checked/dropDownStyle 创建期应用，
         // 经 ControlStaticDataApplier 类型驱动；与 ApplyControlBehavior 同构，单点应用，不做快照差异重复应用）。
         ApplyStaticData(entity, control);
@@ -595,6 +603,41 @@ public sealed class WinFormsOutputPort
 
         if (behavior.ReadOnly)
             textBoxBase.ReadOnly = true;
+    }
+
+    /// <summary>
+    /// P1-6·原生控件属性规格统一：树/列表/页签/输入框按固定规格落属性，语义色仍由材质（PropertyProjector）驱动。
+    /// 只改属性，不做 owner-draw；圆角/自绘树留给 P2。
+    /// </summary>
+    private static void ApplyNativeControlSpec(Control control)
+    {
+        switch (control)
+        {
+            case TreeView tree:
+                tree.ShowLines = false;
+                tree.ShowPlusMinus = true;
+                tree.Indent = 14;
+                tree.FullRowSelect = true;
+                tree.HideSelection = false;
+                break;
+            case ListView list:
+                list.FullRowSelect = true;
+                list.GridLines = false;
+                list.OwnerDraw = false;
+                // 行高：SmallImageList(1×22) 抬高行距（仅未装配时补，避免覆盖调用方图标）。
+                list.SmallImageList ??= new ImageList { ImageSize = new Size(1, 22) };
+                break;
+            case TabControl tabs:
+                tabs.Appearance = TabAppearance.Normal;
+                if (tabs.ItemSize.Height < 28)
+                    tabs.ItemSize = new Size(tabs.ItemSize.Width, 28);
+                tabs.Padding = new Point(12, 4);
+                break;
+            case TextBox textBox:
+                // 输入框保留 1px 边框；间距由容器布局控制。
+                textBox.BorderStyle = BorderStyle.FixedSingle;
+                break;
+        }
     }
 
     /// <summary>
@@ -685,6 +728,14 @@ public sealed class WinFormsOutputPort
         var unsubscribe = _adapter.SubscribeSplitterMoved(control,
             (sender, e) => OnSplitterMoved(sender, e, entity));
         _splitterUnsubscribeActions[control] = unsubscribe;
+
+        // P1·真实拖拽标记来源：SplitterMoving 仅由鼠标移动产生（键盘/程序化调整不触发）。
+        if (control is SplitContainer splitContainer && !splitContainer.IsDisposed)
+        {
+            SplitterCancelEventHandler onMoving = (_, _) => _splitterDragActive.Add(control);
+            splitContainer.SplitterMoving += onMoving;
+            _splitterMovingHandlers[control] = onMoving;
+        }
     }
 
     public void UnsubscribeSplitterMoved(object control)
@@ -694,6 +745,15 @@ public sealed class WinFormsOutputPort
             unsubscribe();
             _splitterUnsubscribeActions.Remove(control);
         }
+
+        if (_splitterMovingHandlers.TryGetValue(control, out var onMoving)
+            && control is SplitContainer splitContainer && !splitContainer.IsDisposed)
+        {
+            splitContainer.SplitterMoving -= onMoving;
+        }
+
+        _splitterMovingHandlers.Remove(control);
+        _splitterDragActive.Remove(control);
     }
 
     public void UnsubscribeSplitterMoved(Entity entity)
@@ -712,6 +772,12 @@ public sealed class WinFormsOutputPort
         // 若此时物理尺寸尚未收敛到 ECS，按 distance/物理宽 回写会把配置比例固化失真（启动后二次 Resize 即触发）。
         if (_suppressProjectionEvents
             || FrontEndDriven.ControlRender.Layout.LayoutProjector.IsProjectionInProgress)
+            return;
+
+        // P1·只在真实鼠标拖拽时落盘：SplitterMoved 在 MouseUp 触发（此时 MouseButtons 已为 None，
+        // 不能用它判定），故以 SplitterMoving（仅鼠标移动触发）作为「真实拖拽」证据；
+        // 键盘微调/程序化 SetSplitterDistance 不写用户态缓存。
+        if (!_splitterDragActive.Remove(sender))
             return;
 
         try

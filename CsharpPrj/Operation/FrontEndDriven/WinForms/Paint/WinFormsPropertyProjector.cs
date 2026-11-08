@@ -76,6 +76,11 @@ public static class WinFormsPropertyProjector
         var border = stroke ?? ControlPaint.Dark(baseColor, 0.15f);
         switch (control)
         {
+            case Button button:
+                // P1-6·按钮规格统一：去系统 3D 边（BorderSize=0）+ 材质色 ±8% 的 hover/pressed，
+                // 最小高度 24 DIP（不再是 32 统一），避免「系统 3D 边 + 白岛」。
+                ApplyButtonSpec(button, baseColor, border);
+                return;
             case ButtonBase buttonBase when buttonBase.FlatStyle == FlatStyle.Standard:
                 buttonBase.FlatStyle = FlatStyle.Flat;
                 buttonBase.FlatAppearance.BorderColor = border;
@@ -91,6 +96,30 @@ public static class WinFormsPropertyProjector
             default:
                 return;
         }
+    }
+
+    /// <summary>
+    /// 按钮统一规格（P1-6）：Flat + BorderSize=0 + 居中 + Padding(8,0) + 不画视觉样式背景；
+    /// hover/pressed 取材质底色 ±8%，最小高度 24 DIP。幂等，属性应用可重复调用。
+    /// </summary>
+    private static void ApplyButtonSpec(Button button, Color baseColor, Color border)
+    {
+        if (button.FlatStyle != FlatStyle.Flat)
+        {
+            button.FlatStyle = FlatStyle.Flat;
+            button.FlatAppearance.BorderColor = border;
+        }
+
+        button.FlatAppearance.BorderSize = 0;
+        button.TextAlign = ContentAlignment.MiddleCenter;
+        button.Padding = new Padding(8, 0, 8, 0);
+        button.UseVisualStyleBackColor = false;
+        button.FlatAppearance.MouseOverBackColor = ControlPaint.Light(baseColor, 0.08f);
+        button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(baseColor, 0.08f);
+
+        var minHeight = (int)Math.Round(24 * button.DeviceDpi / 96.0);
+        if (button.MinimumSize.Height < minHeight)
+            button.MinimumSize = new Size(button.MinimumSize.Width, minHeight);
     }
 
     /// <summary>材质声明的描边色（首个 <c>stroke</c> 层；未声明/不可解析 ⇒ null）。</summary>

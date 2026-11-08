@@ -68,14 +68,5 @@ public static class SurfaceFrameEdgePainter
     }
 
     private static BorderStroke? LastStrokeOf(ResolvedMaterial? material)
-    {
-        if (material is null) return null;
-        var strokes = BorderSpecProjection.From(material).Strokes;
-        for (var index = strokes.Count - 1; index >= 0; index--)
-        {
-            if (strokes[index].HasVisibleWidth) return strokes[index];
-        }
-
-        return null;
-    }
+        => SurfaceMaterialFace.DeclaredStroke(material);
 }

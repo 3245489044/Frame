@@ -183,7 +183,17 @@ public static class SurfacePaintEngine
             }
 
             if (fatal || spec.Border.Strokes.Count == 0) return false;
-            SurfaceBorderPainter.DrawStroke(graphics, bounds, spec.Border.Strokes[spec.Border.Strokes.Count - 1], graphics.DpiX);
+            // 描边取值与属性通道/边框宿主同口径：末条「可见宽度」描边（不是盲取最后一条）。
+            var strokes = spec.Border.Strokes;
+            var stroke = strokes[strokes.Count - 1];
+            for (var index = strokes.Count - 1; index >= 0; index--)
+            {
+                if (!strokes[index].HasVisibleWidth) continue;
+                stroke = strokes[index];
+                break;
+            }
+
+            SurfaceBorderPainter.DrawStroke(graphics, bounds, stroke, graphics.DpiX);
             return true;
         }
 

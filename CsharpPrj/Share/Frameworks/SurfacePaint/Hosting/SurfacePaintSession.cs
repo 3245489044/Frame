@@ -10,7 +10,6 @@ using Share.SurfacePaint.Diagnostics;
 using Share.SurfacePaint.Engine;
 using Share.SurfacePaint.Materials;
 using UiBackend;
-using UiBackend;
 
 namespace Share.SurfacePaint.Hosting;
 
@@ -31,7 +30,8 @@ public readonly record struct SurfaceFrameResult(long Frame, SurfacePaintReport 
 /// </summary>
 public sealed class SurfacePaintSession : IDisposable
 {
-    private const int BackdropRefreshMs = 2000;
+    /// <summary>背板重建节流（毫秒；唯一常量，载体背板采集间隔引用本值）。</summary>
+    public const int BackdropRefreshMs = 2000;
 
     private static readonly SurfacePaintTelemetry Telemetry = new(
         SurfaceRenderProfile.Begin, SurfaceRenderProfile.RecordLayer, SurfaceRenderProfile.RecordBlur);
@@ -49,13 +49,14 @@ public sealed class SurfacePaintSession : IDisposable
     private Bitmap? _cache;
     private string? _cacheKey;
     private int _backdropVersion;
-    private int _cacheBackdropVersion;
     private long _lastBackdropTick;
     private long _frame;
     private SurfacePaintReport? _lastReport;
     private SurfacePaintReport? _baseReport;
     private string? _decorMissing;
     private SurfaceRenderInputs? _pinned;
+    private bool _engineFallbackLogged;
+    private bool _backdropFallbackLogged;
 
     /// <summary>构造会话。</summary>
     /// <param name="hostId">宿主标识（诊断/缓存键；同进程唯一）。</param>
@@ -132,13 +133,14 @@ public sealed class SurfacePaintSession : IDisposable
         _cache = null;
         _cacheKey = null;
         _backdropVersion = 0;
-        _cacheBackdropVersion = 0;
         _lastBackdropTick = 0;
         _material = null;
         _materialKey = null;
         _pinned = null;
         _baseReport = null;
         _lastReport = null;
+        _engineFallbackLogged = false;
+        _backdropFallbackLogged = false;
         SurfaceAmbientScene.Release(_hostId);
     }
 
@@ -231,10 +233,14 @@ public sealed class SurfacePaintSession : IDisposable
             : facts.EngineOwnsFace;
         if (snapshot is null && engineOwnsFace && engineFrame is null)
         {
-            // Gather 事实与帧泵事实不一致 ⇒ 按泵事实降级，并显式记账。
+            // Gather 事实与帧泵事实不一致 ⇒ 按泵事实降级，并显式记账（每宿主一次，防逐帧刷屏）。
             ownership = SurfaceStageOwnership.Carrier;
             engineOwnsFace = false;
-            _log.Write("surface.gather.fallback", new { host = _hostId, reason = "engine-frame-missing" });
+            if (!_engineFallbackLogged)
+            {
+                _engineFallbackLogged = true;
+                _log.Write("surface.gather.fallback", new { host = _hostId, reason = "engine-frame-missing" });
+            }
         }
         else if (snapshot is null && !engineOwnsFace && engineFrame is not null)
         {
@@ -242,8 +248,11 @@ public sealed class SurfacePaintSession : IDisposable
             engineFrame = null;
         }
 
-        if (snapshot is null && !facts.Backdrop.Available)
+        if (engineFrame is not null) _engineFallbackLogged = false;
+
+        if (snapshot is null && !facts.Backdrop.Available && !_backdropFallbackLogged)
         {
+            _backdropFallbackLogged = true;
             _log.Write("surface.gather.fallback", new { host = _hostId, reason = "backdrop-unavailable" });
         }
 
@@ -369,9 +378,9 @@ public sealed class SurfacePaintSession : IDisposable
 
         _cache?.Dispose();
         _cache = bitmap;
-        _cacheBackdropVersion = inputs?.BackdropVersion ?? 0;
-        if (pinned is null && inputs is not null) _backdropVersion = inputs.BackdropVersion;
-        _cacheKey = CacheKey(bounds, baseLight, _cacheBackdropVersion);
+        var builtBackdropVersion = inputs?.BackdropVersion ?? 0;
+        if (pinned is null && inputs is not null) _backdropVersion = builtBackdropVersion;
+        _cacheKey = CacheKey(bounds, baseLight, builtBackdropVersion);
         _lastBackdropTick = Environment.TickCount64;
         _baseReport = skipped;
         owned?.Dispose();

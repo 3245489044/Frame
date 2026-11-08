@@ -14,6 +14,13 @@ public static class FrontEndDrivenLog
 
     private static readonly ModuleLogChannel Channel = ModuleLog.CreateChannel(ModuleName, KeyPrefix);
 
+    static FrontEndDrivenLog()
+    {
+        // 兼容层（Share.SurfacePaint.Compat）宿主注入点：下沉后的诊断/字体组件经此回写本门面。
+        Share.SurfacePaint.Compat.SurfaceCompatLog.Sink = (id, data) => Log(id, data);
+        Share.SurfacePaint.Compat.SurfaceFontDefaults.FallbackFamily = FrontEndDriven.FrontEndDrivenConstants.DefaultFontFamily;
+    }
+
     public static void Initialize(string jsonFilePath) => Channel.Initialize(jsonFilePath);
 
     public static void Log(string messageId, object? data = null) => Channel.Log(messageId, data);

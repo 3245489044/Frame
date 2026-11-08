@@ -4,12 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint;
 using UiBackend;
 
-namespace FrontEndDriven.WinForms.Paint;
+namespace Share.SurfacePaint.Compat;
 
 /// <summary>外观运行态快照（纯数据；断言与日志共用的唯一读取面）。</summary>
 /// <param name="Enabled">owner-draw 是否启用。</param>
@@ -153,7 +152,7 @@ public static class SkinDiagnostics
         }
 
         _lastPaintSummary[materialId] = summary;
-        FrontEndDrivenLog.Log("SkinDecorator_paint_count", new
+        SurfaceCompatLog.Log("SkinDecorator_paint_count", new
         {
             material = materialId,
             paintedLayers = report.PaintedLayers,
@@ -195,7 +194,7 @@ public static class SkinDiagnostics
     public static void RecordAnchorProbe(string virtualScreen, string controlRect, string anchor)
     {
         if (Interlocked.Exchange(ref _anchorProbeWritten, 1) == 1) return;
-        FrontEndDrivenLog.Log("SkinDiagnostics_anchor_probe", new
+        SurfaceCompatLog.Log("SkinDiagnostics_anchor_probe", new
         {
             virtualScreen,
             controlRect,
@@ -243,7 +242,7 @@ public static class SkinDiagnostics
         }
 
         if (!first) return;
-        FrontEndDrivenLog.Log("SkinDiagnostics_light_sample_degraded", new
+        SurfaceCompatLog.Log("SkinDiagnostics_light_sample_degraded", new
         {
             reason,
             count = entry.Count,
@@ -296,7 +295,7 @@ public static class SkinDiagnostics
             }
         }
 
-        FrontEndDrivenLog.Log("SkinDiagnostics_light_push", new
+        SurfaceCompatLog.Log("SkinDiagnostics_light_push", new
         {
             viewer,
             instance = instance.ToString(),
@@ -320,7 +319,7 @@ public static class SkinDiagnostics
             if (!_carrierBoundsReported.Add(carrier)) return;
         }
 
-        FrontEndDrivenLog.Log("SkinDiagnostics_carrier_out_of_bounds", new { carrier, detail });
+        SurfaceCompatLog.Log("SkinDiagnostics_carrier_out_of_bounds", new { carrier, detail });
     }
 
     private static readonly Dictionary<string, string> _carrierProjectionLast = new(StringComparer.Ordinal);
@@ -348,7 +347,7 @@ public static class SkinDiagnostics
 
         var reconstructedX = local.X + frame.ScreenXDip;
         var reconstructedY = local.Y + frame.ScreenYDip;
-        FrontEndDrivenLog.Log("SkinDiagnostics_carrier_projection", new
+        SurfaceCompatLog.Log("SkinDiagnostics_carrier_projection", new
         {
             carrier,
             world = FormattableString.Invariant($"{world.X:F1},{world.Y:F1}"),

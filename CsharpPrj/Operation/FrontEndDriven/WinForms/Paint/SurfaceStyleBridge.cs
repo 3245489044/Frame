@@ -38,12 +38,26 @@ public static class SurfaceStyleBridge
     /// <summary>是否应剥离声明 <c>BackColor</c>（唯一写者归材质通道）。</summary>
     /// <param name="desc">控件描述符。</param>
     /// <param name="control">目标控件。</param>
+    /// <summary>
+    /// 是否应剥离声明 <c>ForeColor</c>（前景色唯一裁决 = 材质通道对比度）。
+    /// <para>判据与 <see cref="SuppressStyleBackColor"/> 同族：玻璃族 / 非 DirectColor 角色。</para>
+    /// </summary>
+    /// <param name="desc">控件描述符。</param>
+    /// <param name="control">目标控件。</param>
+    public static bool SuppressStyleForeColor(ControlDescriptor desc, Control control)
+        => SuppressStyleColor(desc, control);
+
     public static bool SuppressStyleBackColor(ControlDescriptor desc, Control control)
+        => SuppressStyleColor(desc, control);
+
+    /// <summary>剥离声明色判据（前景/背景同一条规则；实现唯一）。</summary>
+    private static bool SuppressStyleColor(ControlDescriptor desc, Control control)
     {
         var family = WinFormsControlFamilyMap.Resolve(control, desc.Type);
         // C3：玻璃族的声明色一律不写控件 BackColor（材质通道是唯一写者；
         // styles.json / 旧样式不得覆盖玻璃面，否则出现第二个写者）。
-        if (family?.FallbackPolicy == SurfaceFallbackPolicy.RequireGlassFace) return true;
+        // ERR-03：关肤（SkinDecorator.Enabled=false）时无人接盘 ⇒ 必须归还声明侧，禁剥成白岛。
+        if (family?.FallbackPolicy == SurfaceFallbackPolicy.RequireGlassFace) return SkinDecorator.Enabled;
         var role = RoleFor(desc, family);
         if (role == SurfaceStyleRole.DirectColor) return false;
         return family?.OwnsBackColor ?? SkinDecorator.IsPropertyChannelOwned(control);

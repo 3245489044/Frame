@@ -6,12 +6,10 @@ using System.Drawing;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint;
 
-namespace FrontEndDriven.WinForms.Paint;
+namespace Share.SurfacePaint.Compat;
 
-/// <summary>
-/// 绘制范围（宿主侧别名；判定与排序已在 <see cref="SurfacePaintPlan"/>）。
-/// </summary>
-internal enum PaintScope
+/// <summary>绘制范围（宿主侧别名；判定与排序已在 <see cref="SurfacePaintPlan"/>）。</summary>
+public enum PaintScope
 {
     /// <summary>全部相位（含高光）。</summary>
     All,
@@ -24,7 +22,7 @@ internal enum PaintScope
 }
 
 /// <summary>
-/// WinForms 适配门面（**薄层**）：只做范围映射、报告映射与成本采样接线；
+/// 宿主适配门面（薄层）：只做范围映射、报告映射与成本采样接线；
 /// 绘制实现单源 = <see cref="SurfacePaintEngine"/>（Share.SurfacePaint，载体无关）。
 /// </summary>
 public static class SkinPaintEngine
@@ -83,7 +81,7 @@ public static class SkinPaintEngine
     }
 
     /// <summary>绘制并回传宿主报告（K6）；实现单源 = 框架引擎。</summary>
-    internal static SkinPaintReport PaintReport(
+    public static SkinPaintReport PaintReport(
         Graphics graphics, Rectangle bounds, ResolvedMaterial? material, Image? backdrop,
         SurfaceLightState? light, PaintScope scope)
     {

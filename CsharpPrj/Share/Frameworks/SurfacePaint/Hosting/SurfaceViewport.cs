@@ -44,6 +44,12 @@ public readonly record struct SurfaceViewport(
     /// <summary>宿主 DPI 缩放。</summary>
     public float HostScale => HostDpi > 0 ? HostDpi / 96f : 1f;
 
+    /// <summary>宿主客户区宽（DIP）：与控件 DIP 原点同口径，光探针/覆盖区一律取本值。</summary>
+    public double HostWidthDip => HostDpi > 0 ? HostWidth * 96.0 / HostDpi : HostWidth;
+
+    /// <summary>宿主客户区高（DIP）。</summary>
+    public double HostHeightDip => HostDpi > 0 ? HostHeight * 96.0 / HostDpi : HostHeight;
+
     /// <summary>空视口（无尺寸 ⇒ 绘制应直接跳过）。</summary>
     public static readonly SurfaceViewport Empty = new(0, 0, 96, 0, 0, 96, 0, 0, 0, 0, 0, 0);
 

@@ -63,18 +63,10 @@ internal static class SurfaceQualitySettings
     /// <summary>按覆盖项改写令牌表（只覆盖已设置的项；其余保持声明值）。</summary>
     internal static Dictionary<string, string> MergeTokens(
         IReadOnlyDictionary<string, string> declared, Values values)
-    {
-        var tokens = new Dictionary<string, string>(declared, StringComparer.OrdinalIgnoreCase);
-
-        if (values.AmbientEnabled is { } ambient)
-            tokens["ambient_enabled"] = ambient ? "1" : "0";
-        if (values.RadialAlpha is { } radial)
-            tokens["ambient_radial_alpha"] = radial.ToString("0.###", CultureInfo.InvariantCulture);
-        if (values.EdgeWidth is { } edge)
-            tokens["ambient_edge_width"] = edge.ToString("0.###", CultureInfo.InvariantCulture);
-
-        return tokens;
-    }
+        => Share.SurfacePaint.Materials.SurfaceAmbientTokenMerge.Merge(
+            declared,
+            new Share.SurfacePaint.Materials.SurfaceAmbientOverride(
+                values.AmbientEnabled, values.RadialAlpha, values.EdgeWidth));
 
     private static bool? ParseBool(string? text)
         => text?.ToLowerInvariant() switch

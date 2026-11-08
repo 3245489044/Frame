@@ -1,6 +1,9 @@
 #nullable enable
 
 using System.Drawing;
+using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Windows.Forms;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint.Ambient;
@@ -65,10 +68,25 @@ internal static class SurfaceAmbient
             origin.Y * scale);
     }
 
-    /// <summary>控件稳定标识（缓存/诊断键）。</summary>
+    /// <summary>
+    /// 控件稳定标识（缓存/诊断键，**唯一实现**）：实例序号 + 名称。
+    /// <para>用实例序号而不是 <see cref="object.GetHashCode"/>：哈希可碰撞且不可读，
+    /// 会让卡片键/诊断键错配（原先 LightSource 另有一套不含序号的命名）。</para>
+    /// </summary>
     internal static string IdOf(Control control)
     {
+        var box = Ids.GetValue(control, static _ => new IdBox(Interlocked.Increment(ref _idSeed)));
         var name = string.IsNullOrWhiteSpace(control.Name) ? control.GetType().Name : control.Name;
-        return "winforms:" + control.GetHashCode().ToString("X8") + ":" + name;
+        return "winforms:" + box.Serial.ToString("X8", CultureInfo.InvariantCulture) + ":" + name;
+    }
+
+    private static readonly ConditionalWeakTable<Control, IdBox> Ids = new();
+    private static int _idSeed;
+
+    private sealed class IdBox
+    {
+        internal IdBox(int serial) => Serial = serial;
+
+        internal int Serial { get; }
     }
 }

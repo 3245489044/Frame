@@ -3,7 +3,7 @@
 using System;
 using Modules.Gather;
 
-namespace FrontEndDriven.WinForms.Paint;
+namespace Strategy.Refresh.Surface;
 
 /// <summary>
 /// 窗口帧视图的**显式回退**（仅在声明面不可用时使用）：形状与
@@ -26,7 +26,7 @@ internal static class SurfaceFrameViewFallback
 
     private static GatherViewSpec Create()
     {
-        FrontEndDriven.Diagnostics.FrontEndDrivenLog.Log(
+        Share.SurfacePaint.Compat.SurfaceCompatLog.Log(
             "surface-frame-view-unavailable",
             new { view = ViewId, reason = "declaration-source-missing", action = "visible-fallback" });
 

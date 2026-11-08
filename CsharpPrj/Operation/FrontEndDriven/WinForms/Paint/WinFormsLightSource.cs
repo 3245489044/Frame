@@ -70,6 +70,5 @@ internal sealed class WinFormsLightSource : ISurfaceLightSource
         return sample.HasValue ? SurfaceLightState.From(sample) : null;
     }
 
-    private string CarrierId()
-        => "winforms:" + (string.IsNullOrEmpty(_control.Name) ? _control.GetType().Name : _control.Name);
+    private string CarrierId() => SurfaceAmbient.IdOf(_control);
 }

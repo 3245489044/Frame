@@ -18,8 +18,8 @@ namespace FrontEndDriven.WinForms.Paint;
 /// </summary>
 internal static class SurfaceWindowBackdropSource
 {
-    /// <summary>采集间隔（毫秒）。</summary>
-    internal const int CaptureIntervalMs = 2000;
+    /// <summary>采集间隔（毫秒；单源 = <see cref="Share.SurfacePaint.Hosting.SurfacePaintSession.BackdropRefreshMs"/>）。</summary>
+    internal const int CaptureIntervalMs = Share.SurfacePaint.Hosting.SurfacePaintSession.BackdropRefreshMs;
 
     private const int WM_PRINT = 0x0317;
     private const int PRF_CLIENT = 0x04;
@@ -95,6 +95,8 @@ internal static class SurfaceWindowBackdropSource
                 "bitmap",
                 string.Empty,
                 "window-capture");
+            // 缓存替换：旧帧位图必须释放（否则每 CaptureIntervalMs 累积一块整窗位图）。
+            if (state.Frame?.Content is IDisposable previous) previous.Dispose();
             state.Frame = frame;
             state.Width = size.Width;
             state.Height = size.Height;
@@ -113,14 +115,20 @@ internal static class SurfaceWindowBackdropSource
         }
     }
 
-    /// <summary>清空缓存（卸载/测试）。</summary>
+    /// <summary>清空缓存（卸载/测试）：释放缓存位图并重置版本与计数。</summary>
     internal static void Reset()
     {
+        foreach (var pair in States)
+        {
+            if (pair.Value.Frame?.Content is IDisposable previous) previous.Dispose();
+        }
+
         States.Clear();
         System.Threading.Volatile.Write(ref _capturing, 0);
         System.Threading.Volatile.Write(ref _captures, 0);
         System.Threading.Volatile.Write(ref _unavailable, 0);
         System.Threading.Volatile.Write(ref _skipped, 0);
+        System.Threading.Interlocked.Exchange(ref _version, 0);
     }
 
     private static SurfaceTextureFrame Unavailable(string reason)

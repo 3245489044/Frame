@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Forms;
 using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
+using Share.SurfacePaint;
 using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -53,7 +54,7 @@ public static class WinFormsPropertyProjector
         }
 
         var baseColor = Color.FromArgb(baseArgb);
-        var contrast = Contrast(baseColor);
+        var contrast = Color.FromArgb(SurfaceForegroundPolicy.ForegroundFor(baseArgb));
         var needsBackColor = control.BackColor.ToArgb() != baseArgb;
         var needsForeColor = control.ForeColor.ToArgb() != contrast.ToArgb();
         var framed = control is ButtonBase or ComboBox;
@@ -110,29 +111,24 @@ public static class WinFormsPropertyProjector
             button.FlatAppearance.BorderColor = border;
         }
 
-        button.FlatAppearance.BorderSize = 0;
+        button.FlatAppearance.BorderSize = SurfaceButtonSpec.BorderSize;
         button.TextAlign = ContentAlignment.MiddleCenter;
-        button.Padding = new Padding(8, 0, 8, 0);
+        button.Padding = new Padding(SurfaceButtonSpec.PaddingXDip, 0, SurfaceButtonSpec.PaddingXDip, 0);
         button.UseVisualStyleBackColor = false;
-        button.FlatAppearance.MouseOverBackColor = ControlPaint.Light(baseColor, 0.08f);
-        button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(baseColor, 0.08f);
+        button.FlatAppearance.MouseOverBackColor = ControlPaint.Light(baseColor, SurfaceButtonSpec.HoverLighten);
+        button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(baseColor, SurfaceButtonSpec.PressedDarken);
 
-        var minHeight = (int)Math.Round(24 * button.DeviceDpi / 96.0);
+        var minHeight = (int)Math.Round(SurfaceButtonSpec.MinHeightDip * button.DeviceDpi / 96.0);
         if (button.MinimumSize.Height < minHeight)
             button.MinimumSize = new Size(button.MinimumSize.Width, minHeight);
     }
 
-    /// <summary>材质声明的描边色（首个 <c>stroke</c> 层；未声明/不可解析 ⇒ null）。</summary>
+    /// <summary>材质声明的描边色（唯一口径 = <see cref="SurfaceMaterialFace.DeclaredStroke"/>：末条可见描边；无声明 ⇒ null）。</summary>
     /// <param name="material">已解析材质。</param>
     public static Color? DeclaredStroke(ResolvedMaterial material)
     {
-        foreach (var layerSpec in ResolvedLayerSpecProjection.ParseCached(material.Layers).Specs)
-        {
-            if (layerSpec.Kind != LayerPrimitive.Stroke || !layerSpec.HasColor) continue;
-            return Color.FromArgb(layerSpec.ColorArgb);
-        }
-
-        return null;
+        var stroke = SurfaceMaterialFace.DeclaredStroke(material);
+        return stroke is null ? null : Color.FromArgb(stroke.Colors.Left);
     }
 
     /// <summary>无法表达描边的一次性降级记账（每控件一条，防日志噪声）。</summary>
@@ -166,10 +162,25 @@ public static class WinFormsPropertyProjector
         return false;
     }
 
-    /// <summary>反差文字色（按底色亮度在黑/白之间二选一）。</summary>
-    private static Color Contrast(Color background)
-    {
-        var luminance = (0.299 * background.R + 0.587 * background.G + 0.114 * background.B) / 255.0;
-        return luminance < 0.55 ? Color.FromArgb(230, 237, 243) : Color.FromArgb(30, 34, 40);
-    }
+    /// <summary>
+    /// 给定面底色的可读前景色：实现单源 = <see cref="SurfaceForegroundPolicy"/>（WCAG 相对亮度 + 对比度比）。
+    /// <para>属性通道与自绘外壳（C1）共用本入口，禁在载体侧再写第二份亮度公式。</para>
+    /// </summary>
+    /// <param name="background">面底色。</param>
+    public static Color ForegroundFor(Color background)
+        => Color.FromArgb(SurfaceForegroundPolicy.ForegroundFor(background.ToArgb()));
+
+    /// <summary>给定材质与宿主控件的可读前景色（无法取不透明底 ⇒ 深色墨）。</summary>
+    /// <param name="control">目标控件（提供父级不透明底）。</param>
+    /// <param name="material">已解析材质。</param>
+    public static Color ContrastOf(Control control, ResolvedMaterial material)
+        => TryGetOpaqueBase(control, material, out var argb)
+            ? Color.FromArgb(SurfaceForegroundPolicy.ForegroundFor(argb))
+            : Color.FromArgb(SurfaceForegroundPolicy.DarkInkArgb);
+
+    /// <summary>两色 WCAG 对比度比（判据用；1..21）。</summary>
+    /// <param name="a">颜色 A。</param>
+    /// <param name="b">颜色 B。</param>
+    public static double ContrastRatio(Color a, Color b)
+        => SurfaceForegroundPolicy.ContrastRatio(a.ToArgb(), b.ToArgb());
 }

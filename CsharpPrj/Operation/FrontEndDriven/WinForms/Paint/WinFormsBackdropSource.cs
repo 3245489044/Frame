@@ -3,7 +3,6 @@
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Threading;
 using System.Windows.Forms;
 using FrontEndDriven.Diagnostics;
 using Share.SurfacePaint.Hosting;
@@ -17,8 +16,6 @@ namespace FrontEndDriven.WinForms.Paint;
 /// </summary>
 internal sealed class WinFormsBackdropSource : ISurfaceBackdropSource
 {
-    private static int _serial;
-
     private readonly Control _control;
 
     internal WinFormsBackdropSource(Control control) => _control = control;
@@ -56,6 +53,11 @@ internal sealed class WinFormsBackdropSource : ISurfaceBackdropSource
             graphics.DrawImage(window, new Rectangle(0, 0, target.Width, target.Height), target, GraphicsUnit.Pixel);
         }
 
-        return new SurfaceBackdropCapture(crop, Interlocked.Increment(ref _serial));
+        // 版本 = 内容摘要（窗口帧版本 + 切片坐标/尺寸 + DPI），不是调用序号：
+        // 调用序号每次必变会让「缓存键 / 引擎帧 token」恒失效，静态底图永远重画。
+        var version = HashCode.Combine(
+            frame.Version, target.X, target.Y, target.Width, target.Height, viewport.Dpi) & 0x7FFFFFFF;
+        if (version == 0) version = 1;
+        return new SurfaceBackdropCapture(crop, version);
     }
 }

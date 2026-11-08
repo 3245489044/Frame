@@ -2,7 +2,7 @@
 
 using Modules.Gather;
 
-namespace FrontEndDriven.WinForms.Paint;
+namespace Strategy.Refresh.Surface;
 
 /// <summary>
 /// 窗口帧视图声明端口（声明单源 = 聚拢声明面 <c>gather-views.ushar</c>）：

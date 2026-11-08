@@ -20,6 +20,20 @@ internal static class WinFormsSurfacePorts
 
     /// <summary>事件日志端口（默认空实现）。</summary>
     internal static ISurfaceEventLog Log { get; set; } = NullSurfaceEventLog.Instance;
+
+    /// <summary>装配期唯一接线点（幂等）：引擎/日志端口 + 兼容层日志与字体缺省。</summary>
+    internal static void Configure()
+    {
+        Engine = WinFormsSurfaceEnginePort.Instance;
+        Log = WinFormsSurfaceLog.Instance;
+        Share.SurfacePaint.Ambient.SurfaceAmbientLog.Log = Log;
+        // 兼容层（Share.SurfacePaint.Compat）日志/字体缺省的唯一注入点：
+        // 使下沉后的 SkinDiagnostics / SurfaceFontResolver 不反向依赖 FrontEndDriven。
+        Share.SurfacePaint.Compat.SurfaceCompatLog.Sink = FrontEndDriven.Diagnostics.FrontEndDrivenLog.Log;
+        Share.SurfacePaint.Compat.SurfaceFontDefaults.FallbackFamily = FrontEndDrivenConstants.DefaultFontFamily;
+    }
+
+    static WinFormsSurfacePorts() => Configure();
 }
 
 /// <summary>

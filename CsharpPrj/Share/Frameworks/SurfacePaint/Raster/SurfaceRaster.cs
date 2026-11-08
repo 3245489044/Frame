@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using Share.SurfacePaint;
 using UiBackend;
 
 namespace Share.SurfacePaint.Raster;
@@ -111,26 +112,11 @@ public static class SurfaceRaster
         }
     }
 
-    /// <summary>圆角矩形路径（radius 按半径口径：直径 = 2×radius，夹到短边）。</summary>
+    /// <summary>圆角矩形路径（radius 按半径口径：直径 = 2×radius，夹到短边）。实现单源 = <see cref="SurfaceGeometry.Path"/>。</summary>
     /// <param name="rect">目标矩形。</param>
     /// <param name="radius">圆角半径（DIP/像素由调用方换算）。</param>
     public static GraphicsPath RoundedRect(RectangleF rect, float radius)
-    {
-        var path = new GraphicsPath();
-        var diameter = Math.Min(radius * 2f, Math.Min(rect.Width, rect.Height));
-        if (diameter <= 0.5f)
-        {
-            path.AddRectangle(rect);
-            return path;
-        }
-
-        path.AddArc(rect.X, rect.Y, diameter, diameter, 180f, 90f);
-        path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270f, 90f);
-        path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0f, 90f);
-        path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90f, 90f);
-        path.CloseFigure();
-        return path;
-    }
+        => SurfaceGeometry.Path(rect, CornerRadii.Uniform(Math.Max(0f, radius)));
 
     /// <summary>
     /// 逐像素沿带中心线把 (a,b) 推进一个族内色相（**ΔY 恒为 0 ⇒ L* 不动**）。

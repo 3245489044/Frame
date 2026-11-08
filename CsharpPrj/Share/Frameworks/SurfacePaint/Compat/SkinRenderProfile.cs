@@ -5,12 +5,12 @@ using System.Globalization;
 using System.Linq;
 using Share.SurfacePaint.Diagnostics;
 
-namespace FrontEndDriven.WinForms.Paint;
+namespace Share.SurfacePaint.Compat;
 
 /// <summary>单层成本（累计耗时 + 采样次数）。</summary>
 public readonly record struct SkinLayerCost(double AvgMs, long Count);
 
-/// <summary>单次采样快照（WinForms 兼容视图；实现单源 = <see cref="SurfaceRenderProfile"/>）。</summary>
+/// <summary>单次采样快照（宿主兼容视图；实现单源 = <see cref="SurfaceRenderProfile"/>）。</summary>
 public sealed record SkinRenderProfileSnapshot(
     long Paints,
     long Hits,
@@ -38,9 +38,7 @@ public sealed record SkinRenderProfileSnapshot(
     }
 }
 
-/// <summary>
-/// 绘制成本采样（WinForms 兼容门面）：实现单源 = <see cref="SurfaceRenderProfile"/>（Share.SurfacePaint）。
-/// </summary>
+/// <summary>绘制成本采样（宿主兼容门面）：实现单源 = <see cref="SurfaceRenderProfile"/>。</summary>
 public static class SkinRenderProfile
 {
     /// <summary>采样开关（关闭即清空累计）。</summary>
@@ -53,7 +51,7 @@ public static class SkinRenderProfile
     /// <summary>清空累计。</summary>
     public static void Reset() => SurfaceRenderProfile.Reset();
 
-    /// <summary>当前累计快照（映射为 WinForms 视图类型）。</summary>
+    /// <summary>当前累计快照（映射为宿主视图类型）。</summary>
     public static SkinRenderProfileSnapshot Snapshot()
     {
         var snapshot = SurfaceRenderProfile.Snapshot();
@@ -75,17 +73,24 @@ public static class SkinRenderProfile
             layers);
     }
 
-    internal static long Begin() => SurfaceRenderProfile.Begin();
+    /// <summary>开始一次采样。</summary>
+    public static long Begin() => SurfaceRenderProfile.Begin();
 
-    internal static void RecordPaint(long begin, bool hit) => SurfaceRenderProfile.RecordPaint(begin, hit);
+    /// <summary>记录一次绘制。</summary>
+    public static void RecordPaint(long begin, bool hit) => SurfaceRenderProfile.RecordPaint(begin, hit);
 
-    internal static void RecordFailure() => SurfaceRenderProfile.RecordFailure();
+    /// <summary>记录失败。</summary>
+    public static void RecordFailure() => SurfaceRenderProfile.RecordFailure();
 
-    internal static void RecordRender(long begin) => SurfaceRenderProfile.RecordRender(begin);
+    /// <summary>记录渲染耗时。</summary>
+    public static void RecordRender(long begin) => SurfaceRenderProfile.RecordRender(begin);
 
-    internal static void RecordSnapshot(long begin) => SurfaceRenderProfile.RecordSnapshot(begin);
+    /// <summary>记录快照耗时。</summary>
+    public static void RecordSnapshot(long begin) => SurfaceRenderProfile.RecordSnapshot(begin);
 
-    internal static void RecordBlur(long begin) => SurfaceRenderProfile.RecordBlur(begin);
+    /// <summary>记录模糊耗时。</summary>
+    public static void RecordBlur(long begin) => SurfaceRenderProfile.RecordBlur(begin);
 
-    internal static void RecordLayer(string primitive, long begin) => SurfaceRenderProfile.RecordLayer(primitive, begin);
+    /// <summary>记录单层耗时。</summary>
+    public static void RecordLayer(string primitive, long begin) => SurfaceRenderProfile.RecordLayer(primitive, begin);
 }

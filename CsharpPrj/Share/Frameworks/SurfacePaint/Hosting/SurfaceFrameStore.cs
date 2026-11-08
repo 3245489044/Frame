@@ -66,11 +66,12 @@ public sealed class SurfaceFrameStore
         return true;
     }
 
-    /// <summary>清空（卸载/测试）。</summary>
+    /// <summary>清空（卸载/测试）：当前代与上一代引用一并丢弃，避免卸载后仍读到旧帧。</summary>
     public void Clear()
     {
         lock (_gate)
         {
+            _latest.Clear();
             _previous.Clear();
         }
     }

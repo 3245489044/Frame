@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Forms;
 using Modules.CapabilityResolution;
 using Share.Conversation.Rendering.Surface;
+using Share.SurfacePaint;
 using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -30,7 +31,7 @@ public sealed record SurfaceFace(
 /// </summary>
 public static class SurfaceHostCompositor
 {
-    // 注意：Value 虽只写不读，但已被 PublicApiAdditive 基线收录（public 声明删除即红），故保留。
+    // 每控件缓存上次 revision（颜色/DPI/尺寸未变 ⇒ 复用，避免重复摘要计算）。
     private static readonly ConditionalWeakTable<Control, RevisionBox> Revisions = new();
 
     /// <summary>
@@ -48,22 +49,11 @@ public static class SurfaceHostCompositor
     public static bool TrySolidFace(Control control, ResolvedMaterial material, out SurfaceFace face)
     {
         face = default!;
-        foreach (var layerSpec in ResolvedLayerSpecProjection.ParseCached(material.Layers).Specs)
-        {
-            if (layerSpec.Kind is not (LayerPrimitive.Fill or LayerPrimitive.Gradient) || !layerSpec.HasColor) continue;
+        // 填充取值单源 = SurfaceMaterialFace（与页底色/属性通道同一口径：fill|gradient、A>0 叠底）。
+        if (!SurfaceMaterialFace.TryGetOpaqueFill(material, OpaqueBehind(control), out var argb)) return false;
 
-            var foreground = layerSpec.ColorArgb;
-            if (((foreground >> 24) & 0xFF) == 0) continue;
-
-            face = new SurfaceFace(
-                SurfaceColorComposition.Over(foreground, OpaqueBehind(control)),
-                material.MaterialId,
-                material.FallbackStep,
-                RevisionOf(control));
-            return true;
-        }
-
-        return false;
+        face = new SurfaceFace(argb, material.MaterialId, material.FallbackStep, RevisionOf(control));
+        return true;
     }
 
     /// <summary>
@@ -83,19 +73,36 @@ public static class SurfaceHostCompositor
         return SkinMaterialCatalog.PageBackground?.ToArgb() ?? SystemColors.Control.ToArgb();
     }
 
-    /// <summary>宿主链底色/DPI 摘要（颜色或 DPI 变化 ⇒ revision 变）。</summary>
+    /// <summary>宿主链底色/DPI 摘要（颜色或 DPI/尺寸变化 ⇒ revision 变；未变化 ⇒ 复用上次值）。</summary>
     /// <param name="control">目标控件。</param>
     public static int RevisionOf(Control control)
     {
         var box = Revisions.GetValue(control, static _ => new RevisionBox());
         var behind = OpaqueBehind(control);
-        var revision = HashCode.Combine(behind, control.DeviceDpi, control.Width, control.Height);
-        box.Value = revision;
-        return revision;
+        var dpi = control.DeviceDpi;
+        var width = control.Width;
+        var height = control.Height;
+        if (box.Valid && box.Behind == behind && box.Dpi == dpi && box.Width == width && box.Height == height)
+        {
+            return box.Value;
+        }
+
+        box.Behind = behind;
+        box.Dpi = dpi;
+        box.Width = width;
+        box.Height = height;
+        box.Value = HashCode.Combine(behind, dpi, width, height);
+        box.Valid = true;
+        return box.Value;
     }
 
     private sealed class RevisionBox
     {
         public int Value { get; set; } = -1;
+        public int Behind { get; set; }
+        public int Dpi { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public bool Valid { get; set; }
     }
 }

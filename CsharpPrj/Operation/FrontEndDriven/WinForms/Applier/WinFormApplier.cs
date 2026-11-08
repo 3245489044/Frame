@@ -249,6 +249,12 @@ public sealed class WinFormApplier
                 || (SurfaceStyleBridge.SuppressStyleBackColor(desc, control) && SkinMaterialCatalog.GlobalProperty is not null))
                 normalized.Remove(UIProtocol.Prop_BackColor);
 
+            // U1·前景色同源：材质通道已裁决对比色时，声明的 ForeColor（如 styles.json 的白字）
+            // 不得再写，否则会在材质面上覆盖成不可见文字（P-A 根因）。
+            if (SkinDecorator.IsPropertyChannelOwned(control)
+                || (SurfaceStyleBridge.SuppressStyleForeColor(desc, control) && SkinMaterialCatalog.GlobalProperty is not null))
+                normalized.Remove(UIProtocol.Prop_ForeColor);
+
             // R3·布局真源收敛（SingleImplementation）：ECS 布局托管实体（proportional / dock·anchor 原生意图）
             // 的像素 Bounds 不再由内容 Apply 写入——物理 Bounds 唯一由 LayoutProjector（纯 ECS 父原点）在挂载后投影。
             // dock/anchor 由原生布局引擎接管（Dock/Anchor 属性仍由属性投影设置），两者均不依赖本处像素 Bounds。

@@ -150,7 +150,8 @@ public static class SkinDecorator
             });
         }
 
-        var key = SurfacePaintSession.FingerprintOf(material);
+        // 幂等键必须含边缘模式：仅族 EdgeMode 变化（材质不变）时，也要把新模式推给会话。
+        var key = SurfacePaintSession.FingerprintOf(material) + "|" + state.EdgeMode;
         if (string.Equals(state.MaterialKey, key, StringComparison.Ordinal) && state.Handler is not null)
         {
             return; // 同材质：不重挂、不重绘
@@ -300,11 +301,13 @@ public static class SkinDecorator
         var frame = SurfaceLightRegistry.Current;
         if (frame is null) return null;
 
+        // 覆盖区与控件探针同口径（DIP）：HostWidth/Height 是像素，必须走 HostWidthDip/HostHeightDip，
+        // 否则 150% DPI 下窗口级光斑/明暗范围偏大，与控件 CPU 路径结论不一致。
         var coverage = new SurfaceLightCoverage(
             (float)viewport.HostOriginXDip,
             (float)viewport.HostOriginYDip,
-            viewport.HostWidth,
-            viewport.HostHeight);
+            (float)Math.Max(1.0, viewport.HostWidthDip),
+            (float)Math.Max(1.0, viewport.HostHeightDip));
         var probe = new SurfaceLightProbe(
             coverage.X, coverage.Y, coverage.Width, coverage.Height, ZOrder: 0, Dpi: viewport.HostDpi);
         return SurfaceLightState.From(SurfaceLightPort.Sample(frame, probe));
@@ -367,15 +370,19 @@ public static class SkinDecorator
             var result = session.Paint(e.Graphics, bounds, snapshot);
             var report = result.Report;
 
-            SurfaceRefreshHost.ReleaseConsumed(control, snapshot);
-
-            SkinDiagnostics.RecordFrame(report);
-            if (session.Material is { } material)
+            // 探针只读：绘制由探针触发时不得改写生产状态（释放窗口帧/推进诊断账）。
+            var probing = SkinPixelProbe.IsProbing;
+            if (!probing)
             {
-                SkinDiagnostics.RecordPaintCount(material.MaterialId, report);
+                SurfaceRefreshHost.ReleaseConsumed(control, snapshot);
+                SkinDiagnostics.RecordFrame(report);
+                if (session.Material is { } material)
+                {
+                    SkinDiagnostics.RecordPaintCount(material.MaterialId, report);
+                }
             }
 
-            if (report.Details.Count > 0)
+            if (report.Details.Count > 0 && !probing)
             {
                 FrontEndDrivenLog.Log("SkinDecorator_skipped", new
                 {

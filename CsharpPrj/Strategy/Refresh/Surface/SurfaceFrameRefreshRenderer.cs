@@ -9,17 +9,17 @@ using Share.SurfacePaint.Hosting;
 using Strategy.Refresh.Model;
 using Strategy.Refresh.Ports;
 
-namespace FrontEndDriven.WinForms.Paint;
+namespace Strategy.Refresh.Surface;
 
 /// <summary>窗口帧渲染器（Refresh 的唯一 Renderer）：Gather 取数 → 组合快照 → 指纹裁决。</summary>
-internal sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
+public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
 {
     private readonly SurfaceFrameComposer _composer;
     private readonly GatherViewSpec _view;
     private readonly GatherHub _hub;
     private string? _lastFingerprint;
 
-    internal SurfaceFrameRefreshRenderer(
+    public SurfaceFrameRefreshRenderer(
         string slotKey, Func<SurfaceFrameInput?> capture, SurfaceFrameComposer composer,
         ISurfaceFrameGatherSource? viewSource = null)
     {
@@ -84,7 +84,7 @@ internal sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
         }
         catch (Exception ex)
         {
-            FrontEndDriven.Diagnostics.FrontEndDrivenLog.Log(
+            Share.SurfacePaint.Compat.SurfaceCompatLog.Log(
                 "surface.refresh.failed", new { slot = SlotKey, error = ex.Message });
             return RefreshArtifact.Failed("surface-refresh-failed");
         }
@@ -114,11 +114,11 @@ internal sealed class SurfaceFrameGatherModule : IGatherModule
 }
 
 /// <summary>帧落地端口：快照写入 <see cref="Share.Composition.AssemblyFramework.KeyedSnapshotStore{TValue}"/>，由宿主触发失效。</summary>
-internal sealed class SurfaceFrameRefreshSink : IRefreshSink
+public sealed class SurfaceFrameRefreshSink : IRefreshSink
 {
     private readonly Action<SurfaceFrameSnapshot> _deliver;
 
-    internal SurfaceFrameRefreshSink(Action<SurfaceFrameSnapshot> deliver)
+    public SurfaceFrameRefreshSink(Action<SurfaceFrameSnapshot> deliver)
     {
         _deliver = deliver;
     }

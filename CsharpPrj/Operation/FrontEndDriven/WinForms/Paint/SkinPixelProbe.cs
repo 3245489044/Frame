@@ -8,6 +8,7 @@ using System.Linq;
 using System.Windows.Forms;
 using Modules.Common.Drawing;
 using Share.Conversation.Rendering.Surface;
+using Share.SurfacePaint;
 using Share.SurfacePaint.Hosting;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -128,12 +129,17 @@ public sealed record GoldenPixelReport(
 /// <summary>
 /// 像素探针：把控件真实绘制结果与「未换肤基线」或「独立金样」比对。
 /// <para>判据载体 = 像素值（结构事实），不是 Enabled/Count 等代理指标：Enabled=true 但层值不是色值时，这里必红。</para>
-/// <para>同源约束：<see cref="Inspect"/> 的期望位图由 <see cref="SkinPaintEngine"/> 自绘（回归诊断，不产出 pass/fail）；
+/// <para>同源约束：<see cref="Inspect"/> 的期望位图由 <see cref="SurfacePaintEngine"/> 自绘（回归诊断，不产出 pass/fail）；
 /// 判定入口是 <see cref="InspectAgainstGolden"/>，期望只来自金样文件，**代码路径上无法取得实现自绘的期望**。
 /// 运行时"材质是否落像素"用 <see cref="Probe"/>（只读实测，无期望）。</para>
 /// </summary>
 public static class SkinPixelProbe
 {
+    private static int _probeDepth;
+
+    /// <summary>是否处于探针绘制（探针只读：生产侧据此不改写窗口帧/诊断账）。</summary>
+    internal static bool IsProbing => System.Threading.Volatile.Read(ref _probeDepth) > 0;
+
     /// <summary>
     /// 回归模式：采样并与「同一实现自绘的期望」比对。
     /// <para>**不产出 pass/fail**：期望与实测同源，只用于观察差异；门禁判据必须用 <see cref="InspectAgainstGolden"/>。</para>
@@ -234,6 +240,10 @@ public static class SkinPixelProbe
     /// <summary>未换肤基线：控件 BackColor（透明 ⇒ 取父级 BackColor；无父 ⇒ 系统窗体色）。</summary>
     private static Color BaselineOf(Control control)
     {
+        // 属性通道已接管（材质写过 BackColor）⇒ 该值不再代表未换肤基线；用系统面代替，
+        // 否则 实际≈基线 ⇒ MaxDelta≈0，把「已生效」误判成「材质未落像素」。
+        if (SkinDecorator.IsPropertyChannelOwned(control)) return SystemColors.Control;
+
         var color = control.BackColor;
         if (color.A != 0) return color;
         return control.Parent is { } parent && parent.BackColor.A != 0 ? parent.BackColor : SystemColors.Control;
@@ -269,7 +279,15 @@ public static class SkinPixelProbe
         try
         {
             using var pin = SkinDecorator.PinInputs(control, raster.Inputs);
-            control.DrawToBitmap(bitmap, new Rectangle(0, 0, width, height));
+            System.Threading.Interlocked.Increment(ref _probeDepth);
+            try
+            {
+                control.DrawToBitmap(bitmap, new Rectangle(0, 0, width, height));
+            }
+            finally
+            {
+                System.Threading.Interlocked.Decrement(ref _probeDepth);
+            }
         }
         catch (Exception ex)
         {
@@ -306,9 +324,11 @@ public static class SkinPixelProbe
         graphics.Clear(baseline);
         var bounds = new Rectangle(0, 0, width, height);
         // 与实际 owner-draw 同序：静态段不含 specular，动态段只画 sheen（单趟拟合会漏掉两段时点差异 ⇒ 假绿）。
-        SkinPaintEngine.Paint(
-            graphics, bounds, material, inputs.Backdrop, inputs.Light, includeSpecular: false);
-        SkinPaintEngine.PaintDynamic(graphics, bounds, material, inputs.Light);
+        // 引擎入口唯一 = SurfacePaintEngine（不再经 Compat 门面，避免同语义第二条绘制入口）。
+        SurfacePaintEngine.Paint(
+            graphics, bounds, material, inputs.Backdrop, inputs.Light, SurfacePaintScope.Static);
+        SurfacePaintEngine.Paint(
+            graphics, bounds, material, null, inputs.Light, SurfacePaintScope.Dynamic);
         return bitmap;
     }
 

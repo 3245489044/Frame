@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Linq;
 using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
+using Share.SurfacePaint;
 using Share.SurfacePaint.Ambient;
 using UiBackend;
 
@@ -71,14 +72,16 @@ public static class SkinAppearanceInstaller
             {
                 if (container.Materials.Count == 0) continue;
                 byKey[container.Id] = container.Materials;
-                byKey.TryAdd(container.Key, container.Materials);
+                if (!string.Equals(container.Key, container.Id, StringComparison.Ordinal))
+                    byKey.TryAdd(container.Key, container.Materials);
             }
 
             foreach (var container in resolvedProperty.Containers)
             {
                 if (container.Materials.Count == 0) continue;
                 byKeyProperty[container.Id] = container.Materials;
-                byKeyProperty.TryAdd(container.Key, container.Materials);
+                if (!string.Equals(container.Key, container.Id, StringComparison.Ordinal))
+                    byKeyProperty.TryAdd(container.Key, container.Materials);
             }
         }
 
@@ -98,10 +101,8 @@ public static class SkinAppearanceInstaller
             "winforms-owner-draw"));
         SurfaceHostFacts.DeclareBudget(SurfaceFrameBudget.Default);
         SurfaceHostFacts.DeclareTier(quality.Tier ?? GlassTier.T0);
-        // 2026-11-08：端口装配（引擎/日志）——框架侧只读端口，不依赖 Registry/TConfig。
-        WinFormsSurfacePorts.Engine = WinFormsSurfaceEnginePort.Instance;
-        WinFormsSurfacePorts.Log = WinFormsSurfaceLog.Instance;
-        SurfaceAmbientLog.Log = WinFormsSurfacePorts.Log;
+        // 2026-11-08：端口装配（引擎/日志/兼容层）走唯一装配点，避免与静态构造器两处接线。
+        WinFormsSurfacePorts.Configure();
         // 引擎帧开关/质量档（配置态，非代码分支；缺失 ⇒ 默认 on/balanced）；用户设置优先。
         var engineEnabled = !program.Settings.TryGetValue("surface_engine", out var engineSwitch)
             || !string.Equals(engineSwitch, "off", StringComparison.OrdinalIgnoreCase);
@@ -114,10 +115,8 @@ public static class SkinAppearanceInstaller
             : null;
         if (!string.IsNullOrWhiteSpace(quality.EngineQuality))
             engineQuality = quality.EngineQuality;
-        if (!string.IsNullOrWhiteSpace(engineQuality))
-        {
-            SurfaceFramePump.Quality = engineQuality!;
-        }
+        // 覆盖项被清空 ⇒ 回到声明默认（原先只在非空时赋值，清空设置后旧档位残留）。
+        SurfaceFramePump.Quality = string.IsNullOrWhiteSpace(engineQuality) ? "balanced" : engineQuality!;
         // 记账：开了装饰却把结构主容器映射到未声明能力的材质 ⇒ 落日志（禁静默变成「没有装饰」）。
         var decorUndeclared = ambient.HasScene
             ? string.Join(",", StructuralSlots.Where(required =>
@@ -209,14 +208,10 @@ public static class SkinAppearanceInstaller
             {
                 foreach (var material in container.Materials.Values)
                 {
-                    foreach (var layer in material.Layers)
-                    {
-                        if (!string.Equals(layer.Primitive, "fill", StringComparison.Ordinal)) continue;
-                        if (!layer.Params.TryGetValue("value", out var value) || value.Length == 0) continue;
-                        if (!SurfaceColor.TryParseColor(value, out var argb)) continue;
-                        if ((argb & unchecked((int)0xFF000000)) != unchecked((int)0xFF000000)) continue;
+                    // 取值口径单源 = SurfaceMaterialFace（fill|gradient、A>0 叠到系统面）：
+                    // 与属性通道/宿主合成器同一判据，避免「有材质却无页底色」回落成系统灰。
+                    if (SurfaceMaterialFace.TryGetOpaqueFill(material, SystemColors.Control.ToArgb(), out var argb))
                         return Color.FromArgb(argb);
-                    }
                 }
             }
         }

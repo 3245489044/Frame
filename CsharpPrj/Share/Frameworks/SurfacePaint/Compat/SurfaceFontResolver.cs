@@ -5,9 +5,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing.Text;
 using System.Linq;
-using FrontEndDriven.Diagnostics;
 
-namespace FrontEndDriven.WinForms.Paint;
+namespace Share.SurfacePaint.Compat;
 
 /// <summary>
 /// 声明字体族归一化（**唯一实现**）：CSS 候选列表 → 本机已安装的第一个 family。
@@ -42,7 +41,7 @@ public static class SurfaceFontResolver
     /// <param name="declared">声明原文（可空）。</param>
     public static Resolution Resolve(string? declared)
     {
-        var fallback = FrontEndDrivenConstants.DefaultFontFamily;
+        var fallback = SurfaceFontDefaults.FallbackFamily;
         var text = declared?.Trim() ?? string.Empty;
         if (text.Length == 0) return new Resolution(fallback, text, false);
 
@@ -56,7 +55,7 @@ public static class SurfaceFontResolver
 
         if (Logged.TryAdd(text, 0))
         {
-            FrontEndDrivenLog.Log("FontFallback", new { declared = text, used = fallback });
+            SurfaceCompatLog.Log("FontFallback", new { declared = text, used = fallback });
         }
 
         return new Resolution(fallback, text, true);
@@ -90,10 +89,10 @@ public static class SurfaceFontResolver
             catch (Exception ex)
             {
                 // 枚举失败不静默：所有候选按未命中处理（回落默认族），并记一条可见降级。
-                FrontEndDrivenLog.Log("FontFallback", new
+                SurfaceCompatLog.Log("FontFallback", new
                 {
                     declared = "*",
-                    used = FrontEndDrivenConstants.DefaultFontFamily,
+                    used = SurfaceFontDefaults.FallbackFamily,
                     reason = "enumeration-failed:" + ex.GetType().Name,
                 });
             }

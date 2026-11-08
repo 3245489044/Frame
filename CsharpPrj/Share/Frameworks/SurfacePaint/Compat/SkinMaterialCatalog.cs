@@ -5,11 +5,10 @@ using System.Drawing;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint.Materials;
 
-namespace FrontEndDriven.WinForms.Paint;
+namespace Share.SurfacePaint.Compat;
 
 /// <summary>
-/// 材质目录（WinForms 兼容门面）：实现单源 = <see cref="SurfaceMaterialCatalog"/>（Share.SurfacePaint）。
-/// <para>2026-11-08：通用实现已下沉；本类只做转发，保留既有公共 API。</para>
+/// 材质目录（宿主兼容门面）：实现单源 = <see cref="SurfaceMaterialCatalog"/>。
 /// </summary>
 public static class SkinMaterialCatalog
 {

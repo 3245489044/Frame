@@ -848,6 +848,15 @@ public sealed class SurfaceAmbientTokens
 
         var gradientFrom = ParseColor("page_gradient_from");
         var gradientTo = ParseColor("page_gradient_to");
+        // 页底色单源：装饰层已声明（ambient_enabled）但缺 stop 色时，用材质推导的页面底色兜底，
+        // 避免「页底色」与「页场渐变起点」两处来源各说各话（玻璃快照/属性通道取前者）。
+        if (tokens.ContainsKey("ambient_enabled") && gradientFrom is null
+            && SurfaceMaterialCatalog.PageBackground is { } pageColor)
+        {
+            gradientFrom = pageColor;
+        }
+
+        if (gradientTo is null) gradientTo = gradientFrom;
         var sparkle = ParseColor("ambient_sparkle");
         var shadow = ParseColor("ambient_shadow");
 

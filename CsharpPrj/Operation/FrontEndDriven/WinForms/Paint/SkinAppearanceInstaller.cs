@@ -133,7 +133,6 @@ public static class SkinAppearanceInstaller
             ambient = ambient.HasScene,
             ambientGutter = ambient.Gutter,
             ambientRibbon = ambient.RibbonWidth,
-            decorMaterials = string.Join(",", decorMaterials),
             decorUndeclared,
         });
         return SkinDecorator.Enabled;

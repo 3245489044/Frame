@@ -105,6 +105,12 @@ public sealed record PresentationLabels(IReadOnlyDictionary<string, LabelSource>
         /// <summary>概览：恒等式不成立文案。</summary>
         public const string OverviewUnbalanced = "overviewUnbalanced";
 
+        /// <summary>概览：分类分布标签。</summary>
+        public const string OverviewByCategory = "overviewByCategory";
+
+        /// <summary>概览：恒等式不可判定文案（⊥ 专用，禁用「不成立」标签）。</summary>
+        public const string OverviewUndetermined = "overviewUndetermined";
+
         /// <summary>概览：视角选中数。</summary>
         public const string OverviewSelected = "overviewSelected";
 

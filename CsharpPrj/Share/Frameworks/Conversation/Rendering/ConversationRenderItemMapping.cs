@@ -18,7 +18,7 @@ public static class ConversationRenderItemMapping
         return messages
             .Select(m => new ConversationRenderItem(
                 m.Role, m.Stage, m.SubAgent, m.Text ?? string.Empty, m.Round, m.Channel, m.Targets,
-                m.Terminal, m.Archived, m.Presentation, m.Fields))
+                m.Terminal, m.Archived, m.Presentation, m.Fields, ConversationOrdering.KindOf(m)))
             .ToList();
     }
 

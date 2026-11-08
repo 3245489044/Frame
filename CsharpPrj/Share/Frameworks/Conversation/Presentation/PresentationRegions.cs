@@ -66,8 +66,11 @@ public sealed record DeclaredLens(
     IReadOnlyList<string> Surfaces,
     bool IsDefault = false)
 {
+    /// <summary>命中即选中的分类标识（空 = 不限分类）。</summary>
+    public IReadOnlyList<string> Categories { get; init; } = Array.Empty<string>();
+
     /// <summary>谓词是否为空（⇒ 全量视角）。</summary>
-    public bool IsUnfiltered => Classes.Count == 0 && Surfaces.Count == 0;
+    public bool IsUnfiltered => Classes.Count == 0 && Surfaces.Count == 0 && Categories.Count == 0;
 }
 
 /// <summary>
@@ -210,7 +213,10 @@ public sealed record PresentationRegions(
                 ReadString(item, "labelKey")?.Trim() ?? id.Trim(),
                 ReadStringList(item, "classes"),
                 ReadStringList(item, "surfaces"),
-                item.TryGetProperty("default", out var isDefault) && isDefault.ValueKind == JsonValueKind.True));
+                item.TryGetProperty("default", out var isDefault) && isDefault.ValueKind == JsonValueKind.True)
+            {
+                Categories = ReadStringList(item, "categories"),
+            });
         }
 
         return lenses;

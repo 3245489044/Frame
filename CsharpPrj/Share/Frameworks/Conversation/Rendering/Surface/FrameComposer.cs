@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Modules.Node.Frame;
@@ -64,6 +65,12 @@ public sealed record FrameComposerOptions(
 /// </summary>
 public static class FrameComposer
 {
+    /// <summary>折叠种类：段横幅（单行摘要，收起不渲染段体）。</summary>
+    public const string BannerFoldKind = "banner";
+
+    /// <summary>折叠种类：行摘要（首个字段为主，展开见其余字段）。</summary>
+    public const string RowFoldKind = "row";
+
     /// <summary>合成计划（items 源序；policy 可空 ⇒ 扁平）。</summary>
     public static RenderPlan Compose(
         IReadOnlyList<ConversationRenderItem> items,
@@ -90,14 +97,35 @@ public static class FrameComposer
 
         if (top.Lead.Count > 0)
         {
-            var leadRows = new List<UiSurfaceNode>(top.Lead.Count);
-            for (var i = 0; i < top.Lead.Count; i++)
+            var leadPlan = AttachPlanner.PlanLead(top.Lead, effective);
+            var segmented = leadPlan.Groups.Count > 1
+                           || (leadPlan.Groups.Count == 1
+                               && !string.Equals(leadPlan.Groups[0].Kind, "lead", StringComparison.Ordinal));
+            foreach (var group in leadPlan.Groups)
             {
-                leadRows.Add(BuildRow(top.Lead[i], $"lead:{i}", options, null, null, diagnostics));
+                var spec = CategorySpecOf(group.Kind, options.Presentation);
+                var leadRows = new List<UiSurfaceNode>(group.Rows.Count);
+                for (var i = 0; i < group.Rows.Count; i++)
+                {
+                    var row = group.Rows[i];
+                    leadRows.Add(BuildRow(
+                        row.Source, $"lead:{group.Kind}:{i}", options, row.ResultText, row.ResultLabel, diagnostics, spec));
+                }
+
+                rowCount += leadRows.Count;
+                if (spec is not null
+                    && string.Equals(spec.Render, PresentationCategorySpec.RenderStream, StringComparison.Ordinal))
+                {
+                    // 流式段（思考）：不建组节点，行直接挂父级（保持源序）。
+                    roots.AddRange(leadRows);
+                    continue;
+                }
+
+                var key = segmented ? $"lead:{group.Kind}" : "lead";
+                roots.Add(BuildGroupNode(key, group.Label, group.Kind, leadRows, group.Rows, options.Presentation));
             }
 
-            rowCount += leadRows.Count;
-            roots.Add(BuildGroupNode("lead", "lead", leadRows, options.Presentation));
+            mergedCount += leadPlan.MergedCount;
         }
 
         var anchorIndex = 0;
@@ -112,14 +140,25 @@ public static class FrameComposer
             var attachPlan = AttachPlanner.PlanGroups(entry.Attach, effective);
             foreach (var group in attachPlan.Groups)
             {
+                var spec = CategorySpecOf(group.Kind, options.Presentation);
                 var rows = new List<UiSurfaceNode>(group.Rows.Count);
                 for (var i = 0; i < group.Rows.Count; i++)
                 {
                     var row = group.Rows[i];
-                    rows.Add(BuildRow(row.Source, $"{group.Kind}:{i}", options, row.ResultText, row.ResultLabel, diagnostics));
+                    rows.Add(BuildRow(
+                        row.Source, $"{group.Kind}:{i}", options, row.ResultText, row.ResultLabel, diagnostics, spec));
                 }
 
-                children.Add(BuildGroupNode($"group:{group.Kind}", group.Label, rows, options.Presentation));
+                if (spec is not null
+                    && string.Equals(spec.Render, PresentationCategorySpec.RenderStream, StringComparison.Ordinal))
+                {
+                    // 流式段：行直接挂父级（不建组节点，源序不变）。
+                    children.AddRange(rows);
+                    continue;
+                }
+
+                children.Add(BuildGroupNode(
+                    $"group:{group.Kind}", group.Label, group.Kind, rows, group.Rows, options.Presentation));
             }
 
             // 行数 = 组内行；合并数 = 输入帧 - 行（同一实现给出，禁差值倒推）。
@@ -140,7 +179,10 @@ public static class FrameComposer
 
         return new RenderPlan(viewKey, roots)
         {
-            Counts = new RenderPlanCounts(items.Count, rowCount, mergedCount),
+            Counts = new RenderPlanCounts(items.Count, rowCount, mergedCount)
+            {
+                ByCategory = CountCategories(items, options.Presentation),
+            },
             Diagnostics = new RenderDiagnostics(diagnostics, Array.Empty<string>()),
         };
     }
@@ -151,34 +193,224 @@ public static class FrameComposer
         FrameComposerOptions options,
         string? resultText,
         string? resultLabel,
-        List<UnknownFieldRecord> diagnostics)
+        List<UnknownFieldRecord> diagnostics,
+        PresentationCategorySpec? category)
     {
         var resolved = PresentationResolver.Resolve(options.Presentation, item);
+        var rowFold = category?.RowFold == true;
+        var fields = BuildFields(item, resolved.Origin, options, resultText, resultLabel, diagnostics);
+        if (rowFold)
+        {
+            fields = Prioritize(fields, options.Presentation.PrimaryOf(resolved.ClassId));
+        }
+
+        // 角色只表达载体形态：气泡/折叠行/普通行。结构面仍由声明面裁决（锚点判定不变）。
+        var role = rowFold
+            ? SurfaceRoleIds.Fold
+            : options.Presentation.IsBubbleRender(resolved.ClassId)
+                ? SurfaceRoleIds.Bubble
+                : SurfaceRoleIds.FieldRow;
+
         return new UiSurfaceNode(
-            SurfaceRoleIds.FieldRow,
+            role,
             $"row:{key}",
             options.Presentation.SurfaceOf(resolved.ClassId),
             resolved.ClassId,
-            BuildFields(item, resolved.Origin, options, resultText, resultLabel, diagnostics),
+            fields,
             Array.Empty<UiSurfaceNode>(),
-            UiNodeState.Open,
-            new[] { "toggleFold", "copy" });
+            rowFold ? UiNodeState.Closed : UiNodeState.Open,
+            new[] { "toggleFold", "copy" })
+        {
+            FoldKind = rowFold ? RowFoldKind : null,
+            SummaryMaxChars = rowFold ? options.Presentation.RowFoldMaxChars : 0,
+            Style = options.Presentation.StyleOf(resolved.ClassId),
+        };
     }
 
     private static UiSurfaceNode BuildGroupNode(
         string key,
         string label,
+        string groupKind,
         IReadOnlyList<UiSurfaceNode> children,
+        IReadOnlyList<FrameRowSpec<ConversationRenderItem>> rows,
         PresentationDeclaration presentation)
-        => new(
+    {
+        var spec = CategorySpecOf(groupKind, presentation);
+        var abnormal = CountAbnormal(rows);
+        var span = SpanOf(rows);
+
+        // 折叠态：open ⇒ 展开；open-on-error ⇒ 有异常才展开；其余收起（旧行为不变）。
+        var open = spec is not null && (spec.OpensByDefault || (spec.OpensOnError && abnormal > 0));
+
+        // 段横幅：组头收敛为**单个** header 字段（count/span/abnormal 进结构事实，不再各占一行）。
+        var banner = spec is not null
+                     && string.Equals(spec.Render, PresentationCategorySpec.RenderBanner, StringComparison.Ordinal);
+        var fields = banner
+            ? new List<UiField>
+            {
+                new("header", SurfaceCellIds.Badge, HeaderText(label, rows.Count, span, abnormal)),
+            }
+            : LegacyFields(label, rows.Count, span, abnormal);
+
+        var facts = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["count"] = rows.Count.ToString(CultureInfo.InvariantCulture),
+        };
+        if (span is not null) facts["span"] = span;
+        if (abnormal > 0) facts["abnormal"] = abnormal.ToString(CultureInfo.InvariantCulture);
+
+        return new UiSurfaceNode(
             SurfaceRoleIds.Group,
             key,
             PresentationSurface.Process,
-            presentation.GroupClass is { Length: > 0 } declared ? declared : "process",
-            new[] { new UiField("group", SurfaceCellIds.Badge, label) },
+            presentation.GroupClass is { Length: > 0 } declaredGroup ? declaredGroup : "process",
+            fields,
             children,
-            UiNodeState.Closed,
-            new[] { "toggleFold" });
+            open ? UiNodeState.Open : UiNodeState.Closed,
+            new[] { "toggleFold" })
+        {
+            FoldHint = open ? "open" : "closed",
+            FoldKind = banner ? BannerFoldKind : null,
+            Facts = facts,
+        };
+    }
+
+    /// <summary>组头单行文本：<c>label count · span !abnormal</c>（缺省项不渲染）。</summary>
+    private static string HeaderText(string label, int count, string? span, int abnormal)
+    {
+        var text = label + " " + count.ToString(CultureInfo.InvariantCulture);
+        if (span is not null) text += " · " + span;
+        if (abnormal > 0) text += " !" + abnormal.ToString(CultureInfo.InvariantCulture);
+        return text;
+    }
+
+    /// <summary>旧口径组字段（非分类段/非 banner 段保持原样，零回归）。</summary>
+    private static List<UiField> LegacyFields(string label, int count, string? span, int abnormal)
+    {
+        var fields = new List<UiField>
+        {
+            new("group", SurfaceCellIds.Badge, label),
+            new("count", SurfaceCellIds.Badge, count.ToString(CultureInfo.InvariantCulture), "count"),
+        };
+        if (span is not null) fields.Add(new UiField("span", SurfaceCellIds.Duration, span, "span"));
+        if (abnormal > 0)
+        {
+            fields.Add(new UiField(
+                "abnormal", SurfaceCellIds.Badge, abnormal.ToString(CultureInfo.InvariantCulture), "abnormal"));
+        }
+
+        return fields;
+    }
+
+    /// <summary>把主字段移到首位（缺失/已是首位/声明 first-field ⇒ 保持原序）。</summary>
+    private static IReadOnlyList<UiField> Prioritize(IReadOnlyList<UiField> fields, string primary)
+    {
+        if (fields.Count < 2
+            || string.Equals(primary, PresentationClassSpec.PrimaryFirstField, StringComparison.Ordinal))
+        {
+            return fields;
+        }
+
+        var index = -1;
+        for (var i = 0; i < fields.Count; i++)
+        {
+            if (string.Equals(fields[i].Name, primary, StringComparison.Ordinal))
+            {
+                index = i;
+                break;
+            }
+        }
+
+        if (index <= 0) return fields;
+
+        var ordered = new List<UiField>(fields.Count) { fields[index] };
+        for (var i = 0; i < fields.Count; i++)
+        {
+            if (i != index) ordered.Add(fields[i]);
+        }
+
+        return ordered;
+    }
+
+    /// <summary>分类声明（非分类段 ⇒ null）。</summary>
+    private static PresentationCategorySpec? CategorySpecOf(
+        string groupKind, PresentationDeclaration presentation)
+    {
+        var categoryId = CategoryOfKind(groupKind);
+        return categoryId is not null && presentation.Categories.TryGetValue(categoryId, out var spec)
+            ? spec
+            : null;
+    }
+
+    /// <summary>分组段词 → 分类标识（<c>category:&lt;id&gt;</c>；非分类段 ⇒ null）。</summary>
+    private static string? CategoryOfKind(string kind)
+        => kind.StartsWith("category:", StringComparison.Ordinal)
+            ? kind.Substring("category:".Length)
+            : null;
+
+    /// <summary>组内异常帧数（结构事实判据：帧字段 status/ok；禁文本叙述推断）。</summary>
+    private static int CountAbnormal(IReadOnlyList<FrameRowSpec<ConversationRenderItem>> rows)
+    {
+        var count = 0;
+        foreach (var row in rows)
+        {
+            if (IsAbnormal(row.Source)) count++;
+        }
+
+        return count;
+    }
+
+    private static bool IsAbnormal(ConversationRenderItem item)
+    {
+        if (item.Fields is null) return false;
+        if (item.Fields.TryGetValue("status", out var status) && !string.IsNullOrEmpty(status))
+        {
+            return status.Contains("error", StringComparison.OrdinalIgnoreCase)
+                   || status.Contains("fail", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return item.Fields.TryGetValue("ok", out var ok)
+               && string.Equals(ok, "false", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>组时间跨度（秒；有效 at 不足两个 ⇒ null，不渲染）。</summary>
+    private static string? SpanOf(IReadOnlyList<FrameRowSpec<ConversationRenderItem>> rows)
+    {
+        long? min = null;
+        long? max = null;
+        foreach (var row in rows)
+        {
+            if (row.Source.Fields is null
+                || !row.Source.Fields.TryGetValue("at_unix_ms", out var text)
+                || !long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var at))
+            {
+                continue;
+            }
+
+            if (min is null || at < min.Value) min = at;
+            if (max is null || at > max.Value) max = at;
+        }
+
+        if (min is null || max is null || max.Value <= min.Value) return null;
+        var span = TimeSpan.FromMilliseconds(max.Value - min.Value);
+        return span.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture) + "s";
+    }
+
+    /// <summary>分类计数（与段分组同一判据；未注册分类归 unknown，可见不静默）。</summary>
+    private static IReadOnlyDictionary<string, int> CountCategories(
+        IReadOnlyList<ConversationRenderItem> items, PresentationDeclaration presentation)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var item in items)
+        {
+            var classId = PresentationResolver.Resolve(
+                presentation, item.Role, item.Channel, item.Presentation, item.Terminal).ClassId;
+            var category = presentation.CategoryOf(classId) ?? "unknown";
+            counts[category] = counts.TryGetValue(category, out var current) ? current + 1 : 1;
+        }
+
+        return counts;
+    }
 
     private static IReadOnlyList<UiField> BuildFields(
         ConversationRenderItem item,
@@ -189,7 +421,7 @@ public static class FrameComposer
         List<UnknownFieldRecord> diagnostics)
     {
         var fields = new List<UiField>();
-        var kind = item.Stage ?? string.Empty;
+        var kind = item.EffectiveKind;
         if (options.FieldContracts.TryGetValue(kind, out var contracts))
         {
             foreach (var contract in contracts)
@@ -319,7 +551,7 @@ public static class FrameComposer
         {
             // 正文来源单源 = 帧字段袋（message 优先、text 兼容），**不回退 shaping summary**：
             // item.Text 已是塑形摘要（可能等于 stage 等其他字段），回退会造成同一行 `X · X` 重复。
-            "text" => FieldOf(item, "text") ?? item.Text,
+            "text" => FieldOf(item, "text") ?? (string.IsNullOrWhiteSpace(item.Text) ? null : item.Text),
             "message" => FieldOf(item, "message") ?? FieldOf(item, "text"),
             "terminal" => item.Terminal,
             "archived" => item.Archived,

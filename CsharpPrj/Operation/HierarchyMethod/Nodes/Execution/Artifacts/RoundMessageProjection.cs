@@ -45,12 +45,17 @@ public static class RoundMessageProjection
     public static ConversationMessage ToMessage(string? mark, string nodeKey, string text, int round, DateTimeOffset atUtc)
     {
         var isTerminal = NodeTags.IsTerminal(mark);
-        return new ConversationMessage(
-            isTerminal ? ConversationRole.Assistant : ConversationRole.Tool,
-            nodeKey,
-            isTerminal ? null : nodeKey,
-            text,
-            round,
-            atUtc == default ? DateTimeOffset.UtcNow : atUtc);
+        return new ConversationFrame(
+                isTerminal ? ConversationRole.Assistant : ConversationRole.Tool,
+                nodeKey ?? string.Empty,
+                text,
+                round,
+                string.IsNullOrWhiteSpace(nodeKey)
+                    ? ConversationFacts.Empty
+                    : ConversationFacts.FromPairs(("kind", nodeKey)),
+                Stage: nodeKey,
+                SubAgent: isTerminal ? null : nodeKey,
+                AtUtc: atUtc == default ? DateTimeOffset.UtcNow : atUtc)
+            .ToMessage();
     }
 }

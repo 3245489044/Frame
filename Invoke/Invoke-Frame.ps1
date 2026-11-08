@@ -200,6 +200,9 @@ Import-Module $governorPath -Force -DisableNameChecking
 $callPolicy = Import-CallGovernance -RepoRoot $repoRoot
 if ($StrictCalls) { $callPolicy['Mode'] = 'enforce' }
 $ledger = Open-CallLedger -Policy $callPolicy -RepoRoot $repoRoot -Batch $Batch -Phase $Phase
+# 批次/相位经进程环境向子门禁传播（账实对账只读结构事实；不改变任何判定）
+[Environment]::SetEnvironmentVariable('WF_CALL_BATCH', $Batch)
+[Environment]::SetEnvironmentVariable('WF_CALL_PHASE', $Phase)
 $admission = Resolve-CallAdmissibility -Policy $callPolicy -Ledger $ledger -Action $Action -Phase $Phase `
     -DroppedParams $droppedParams -Ticket $Ticket -Discriminates $Discriminates
 if ($admission.Hard) {

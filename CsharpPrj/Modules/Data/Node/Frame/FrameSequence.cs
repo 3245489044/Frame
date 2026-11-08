@@ -92,6 +92,9 @@ public sealed class FrameSequencer<T>
     private readonly Func<T, FrameItem> _project;
     private readonly Func<T, bool> _isAnchor;
     private readonly FrameGroupText _labels;
+    private readonly Func<T, string?>? _categoryOf;
+    private readonly Func<string, string?>? _categoryLabelOf;
+    private readonly string _groupingMode;
 
     /// <param name="roles">kind → 角色/徽标（声明投影；缺省 = plain/无徽标）。</param>
     /// <param name="labels">分组文案（宿主注入）。</param>
@@ -101,12 +104,18 @@ public sealed class FrameSequencer<T>
         IReadOnlyDictionary<string, FrameRoleSpec> roles,
         FrameGroupText labels,
         Func<T, FrameItem> project,
-        Func<T, bool> isAnchor)
+        Func<T, bool> isAnchor,
+        Func<T, string?>? categoryOf = null,
+        Func<string, string?>? categoryLabelOf = null,
+        string groupingMode = "none")
     {
         _roles = roles ?? throw new ArgumentNullException(nameof(roles));
         _labels = labels ?? throw new ArgumentNullException(nameof(labels));
         _project = project ?? throw new ArgumentNullException(nameof(project));
         _isAnchor = isAnchor ?? throw new ArgumentNullException(nameof(isAnchor));
+        _categoryOf = categoryOf;
+        _categoryLabelOf = categoryLabelOf;
+        _groupingMode = groupingMode ?? "none";
     }
 
     /// <summary>顶层分组（含前导折叠集）：事实锚点 + 前最近锚点折叠（输入恰消费一次 ⇒ 前导 + 顶层 + 挂靠 = 全集）。</summary>
@@ -136,8 +145,15 @@ public sealed class FrameSequencer<T>
         return new FrameTopLevelPlan<T>(lead, entries);
     }
 
+    /// <summary>段首（首锚之前）分组：只按分类分段（边界/收束语义不参与）。</summary>
+    public FrameAttachPlan<T> PlanLead(IReadOnlyList<T> lead)
+        => Bucketize(lead, honorRoleBoundaries: false);
+
     /// <summary>顺序分组：边界开组 / 收束只收本类 / 收束后异类开新组 / 调用与结果配对。</summary>
     public FrameAttachPlan<T> PlanGroups(IReadOnlyList<T> attach)
+        => Bucketize(attach, honorRoleBoundaries: true);
+
+    private FrameAttachPlan<T> Bucketize(IReadOnlyList<T> attach, bool honorRoleBoundaries)
     {
         ArgumentNullException.ThrowIfNull(attach);
         var buckets = new List<Bucket>();
@@ -149,13 +165,13 @@ public sealed class FrameSequencer<T>
             var kind = _project(item).Kind;
             var role = RoleOf(kind);
 
-            if (role == FrameRoleIds.Boundary)
+            if (honorRoleBoundaries && role == FrameRoleIds.Boundary)
             {
                 iteration++;
                 current = new Bucket("iteration", string.Format(_labels.Iteration, iteration));
                 buckets.Add(current);
             }
-            else if (role == FrameRoleIds.Trailer)
+            else if (honorRoleBoundaries && role == FrameRoleIds.Trailer)
             {
                 if (current is null || current.Kind != "trailer")
                 {
@@ -165,12 +181,18 @@ public sealed class FrameSequencer<T>
             }
             else if (current is null)
             {
-                current = new Bucket("lead", _labels.Lead);
+                current = NewBucket(item, _labels.Lead);
                 buckets.Add(current);
             }
-            else if (current.Kind == "trailer")
+            else if (honorRoleBoundaries && current.Kind == "trailer")
             {
                 current = new Bucket("post", _labels.PostTrailer);
+                buckets.Add(current);
+            }
+            else if (CategoryOf(item) is { } category
+                     && !string.Equals(current.Category, category, StringComparison.Ordinal))
+            {
+                current = NewBucket(item, _labels.Lead);
                 buckets.Add(current);
             }
 
@@ -191,6 +213,25 @@ public sealed class FrameSequencer<T>
         }
 
         return new FrameAttachPlan<T>(attach.Count, rowCount, textCount, groups, mergedCount);
+    }
+
+    /// <summary>分类受控词（未声明分类/未启用分组 ⇒ null，行为与旧版一致）。</summary>
+    private string? CategoryOf(T item)
+        => string.Equals(_groupingMode, "continuous-category", StringComparison.Ordinal)
+            ? _categoryOf?.Invoke(item)
+            : null;
+
+    /// <summary>新桶：分类启用 ⇒ 按分类建桶（标签缺省回退分类词，可见不静默）。</summary>
+    private Bucket NewBucket(T item, string fallbackLabel)
+    {
+        var category = CategoryOf(item);
+        if (category is null) return new Bucket("lead", fallbackLabel);
+
+        var label = _categoryLabelOf?.Invoke(category);
+        return new Bucket("category:" + category, string.IsNullOrWhiteSpace(label) ? category : label!)
+        {
+            Category = category,
+        };
     }
 
     /// <summary>派生帧边（锚点归属 / 调用-结果 / 组内成员）；读侧关系，不落库。</summary>
@@ -293,6 +334,10 @@ public sealed class FrameSequencer<T>
 
         public string Kind { get; }
         public string Label { get; }
+
+        /// <summary>分类标识（非分类桶 ⇒ null）。</summary>
+        public string? Category { get; init; }
+
         public List<T> Items { get; } = new();
     }
 }

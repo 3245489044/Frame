@@ -13,6 +13,10 @@ namespace Share.Conversation.Rendering.Surface;
 /// </summary>
 public sealed record RenderPlanCounts(int Total, int Rows, int Merged)
 {
+    /// <summary>分类计数（按呈现分类分区；空 = 未统计/声明不可用 ⇒ 消费方判 ⊥）。</summary>
+    public IReadOnlyDictionary<string, int> ByCategory { get; init; }
+        = new Dictionary<string, int>(StringComparer.Ordinal);
+
     /// <summary>空计数。</summary>
     public static readonly RenderPlanCounts Empty = new(0, 0, 0);
 

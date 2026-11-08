@@ -35,12 +35,13 @@ public static class ConversationMessageMappings
             if (msg is not Dictionary<string, object> dict ||
                 !dict.TryGetValue("role", out var role) || !dict.TryGetValue("content", out var content))
                 continue;
-            list.Add(new ConversationMessage(
-                ParseRole(role?.ToString()),
-                null, null,
-                content?.ToString() ?? string.Empty,
-                0,
-                DateTimeOffset.UtcNow));
+            list.Add(new ConversationFrame(
+                    ParseRole(role?.ToString()),
+                    string.Empty,
+                    content?.ToString() ?? string.Empty,
+                    0,
+                    ConversationFacts.Empty)
+                .ToMessage());
         }
         return list;
     }

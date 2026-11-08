@@ -20,18 +20,34 @@ public sealed class ConversationNodeMapper : IConversationNodeMapper
         var round = Math.Max(1, startRound);
 
         if (!string.IsNullOrWhiteSpace(userInput))
-            list.Add(new ConversationMessage(ConversationRole.User, null, null, userInput, round, DateTimeOffset.UtcNow));
+            list.Add(new ConversationFrame(
+                    ConversationRole.User, string.Empty, userInput, round, ConversationFacts.Empty)
+                .ToMessage());
 
         if (contributions is not null)
             foreach (var c in contributions)
             {
                 if (c is null || string.IsNullOrWhiteSpace(c.Text)) continue;
                 var r = c.Round > 0 ? c.Round : round;
-                list.Add(new ConversationMessage(ConversationRole.Tool, c.Stage, c.SubAgent, c.Text, r, DateTimeOffset.UtcNow, Targets: c.Targets));
+                list.Add(new ConversationFrame(
+                        ConversationRole.Tool,
+                        c.Stage ?? string.Empty,
+                        c.Text,
+                        r,
+                        string.IsNullOrWhiteSpace(c.Stage)
+                            ? ConversationFacts.Empty
+                            : ConversationFacts.FromPairs(("kind", c.Stage)),
+                        Stage: c.Stage,
+                        SubAgent: c.SubAgent,
+                        Channel: MessageChannel.Process,
+                        Targets: c.Targets)
+                    .ToMessage());
             }
 
         if (!string.IsNullOrWhiteSpace(assistantAnswer))
-            list.Add(new ConversationMessage(ConversationRole.Assistant, null, null, assistantAnswer, round, DateTimeOffset.UtcNow));
+            list.Add(new ConversationFrame(
+                    ConversationRole.Assistant, string.Empty, assistantAnswer, round, ConversationFacts.Empty)
+                .ToMessage());
 
         return list;
     }

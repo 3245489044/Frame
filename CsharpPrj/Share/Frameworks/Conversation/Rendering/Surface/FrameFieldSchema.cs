@@ -71,7 +71,8 @@ public sealed class FrameFieldSchema
         if (!IsDeclared || kind is not { Length: > 0 }) return null;
         if (!_keys.TryGetValue(kind, out var keys)) return null;
         if (key is not { Length: > 0 }) return false;
-        return keys.Contains(key) || _readPaths.Contains(key);
+        // 判据只读该 kind 的声明键集：全局读写事实键不构成「该 kind 应有此键」（E11）。
+        return keys.Contains(key);
     }
 
     /// <summary>
@@ -92,7 +93,7 @@ public sealed class FrameFieldSchema
         if (!_keys.TryGetValue(kind, out var keys)) return FrameFieldVisibility.Undeclared;
         if (valuePresent) return FrameFieldVisibility.Known;
 
-        var declared = key is { Length: > 0 } && (keys.Contains(key) || _readPaths.Contains(key));
+        var declared = key is { Length: > 0 } && keys.Contains(key);
         if (!declared) return FrameFieldVisibility.NotApplicable;
         return required ? FrameFieldVisibility.Unknown : FrameFieldVisibility.NotApplicable;
     }

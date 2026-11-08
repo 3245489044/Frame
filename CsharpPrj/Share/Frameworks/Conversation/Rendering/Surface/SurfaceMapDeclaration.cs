@@ -63,6 +63,21 @@ public sealed class SurfaceMapDeclaration
             : null;
     }
 
+    /// <summary>取某后端在某键上的属性（**不回退缺省键**：键不存在 ⇒ false）。</summary>
+    /// <param name="backendId">后端 id。</param>
+    /// <param name="key">角色/单元键。</param>
+    /// <param name="props">属性表（未声明 ⇒ null）。</param>
+    public bool TryProps(string backendId, string key, out IReadOnlyDictionary<string, string>? props)
+    {
+        if (key is not null && _roles.TryGetValue(key, out var entry) && entry.TryGetValue(backendId, out props))
+        {
+            return true;
+        }
+
+        props = null;
+        return false;
+    }
+
     /// <summary>缺省键（未声明键的兜底来源）。</summary>
     public const string DefaultKey = "__default";
 

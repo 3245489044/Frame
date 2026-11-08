@@ -670,6 +670,26 @@
         Note   = '视图读面契约（P1 起）：C1 ViewCompiler 定义点=1 / C2 ViewSnapshot 定义点=1 / C3 契约件齐备 / C4 View 平台层零 Agent 依赖 / C5 装配器零数据源字面量 / C6（-Stage p2）UI 不直取端口 / C8 黄金样本四态覆盖+唯一 id；双定义·using Agent.·smsg 字面量负对照必红'
     }
 
+    ConversationFrameCarrier = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '会话帧载体单源：消息/渲染项构造点仅 Frame 工厂；生产路径禁 Fields/Facts: null（事实字段袋显式 Empty）'
+    }
+
+    FactProducerCoverage = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'Drift'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '帧字段生产者覆盖：canon 写侧显式落 kind（硬）；always 字段 from ∈ read-paths.facts（报告）'
+    }
+
     DeclarationParity = @{
         Domain = 'Agent'
         Family = 'Runtime'

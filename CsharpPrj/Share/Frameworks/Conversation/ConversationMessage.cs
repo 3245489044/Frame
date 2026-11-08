@@ -25,6 +25,8 @@ namespace Share.Conversation;
 /// null = 未知。尾参，不影响既有位置构造调用。</param>
 /// <param name="Presentation">写侧呈现词（<c>presentation</c> 帧字段/声明投影；<see cref="Presentation.PresentationWords"/> 受控词）。
 /// null = 未声明（读侧走事实/旧数据分支）。尾参，不影响既有位置构造调用。</param>
+/// <param name="Kind">帧类别（<c>frame-kinds.json</c> 主键；与 <c>Stage</c> 正交）。null = 旧数据（读侧按
+/// <c>Fields.kind</c> / <c>Stage</c> 迁移兼容）。尾参，不影响既有位置构造调用。</param>
 public sealed record ConversationMessage(
     ConversationRole Role,
     string? Stage,
@@ -39,4 +41,5 @@ public sealed record ConversationMessage(
     bool? Terminal = null,
     bool? Archived = null,
     string? Presentation = null,
-    IReadOnlyDictionary<string, string>? Fields = null);
+    IReadOnlyDictionary<string, string>? Fields = null,
+    string? Kind = null);

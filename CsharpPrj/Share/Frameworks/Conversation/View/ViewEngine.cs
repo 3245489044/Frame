@@ -148,16 +148,11 @@ public sealed class ViewEngine
         }
 
         // 去重：spine 优先；补位仅补齐 spine 未覆盖的帧（键 = 类别+轮次+域内序）。
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        // 同键帧改为**事实并集**（E3：禁先到者整条丢弃后到源的独有事实）。
+        var seen = new Dictionary<string, int>(StringComparer.Ordinal);
         var collected = new List<(ReadSource Source, ViewFrame Frame)>(spineFrames.Count + supplementFrames.Count);
-        foreach (var entry in spineFrames)
-        {
-            if (seen.Add(FrameKey(entry.Frame))) collected.Add(entry);
-        }
-        foreach (var entry in supplementFrames)
-        {
-            if (seen.Add(FrameKey(entry.Frame))) collected.Add(entry);
-        }
+        foreach (var entry in spineFrames) AddFrame(collected, seen, entry);
+        foreach (var entry in supplementFrames) AddFrame(collected, seen, entry);
 
         // 终答候选：terminal=true 且满足 Authority + Eligible；Select 顺序即优先级（同级 last-wins）。
         var answer = plan.Answer;
@@ -230,6 +225,49 @@ public sealed class ViewEngine
 
     private static string FrameKey(ViewFrame frame)
         => $"{frame.Kind}\u001F{frame.Round}\u001F{frame.Seq}";
+
+    /// <summary>同键帧合并：先到者身份胜出，字段袋取并集（后到源独有事实不丢）。</summary>
+    private static void AddFrame(
+        List<(ReadSource Source, ViewFrame Frame)> collected,
+        Dictionary<string, int> seen,
+        (ReadSource Source, ViewFrame Frame) entry)
+    {
+        var key = FrameKey(entry.Frame);
+        if (seen.TryGetValue(key, out var index))
+        {
+            collected[index] = (collected[index].Source, MergeFrame(collected[index].Frame, entry.Frame));
+            return;
+        }
+
+        seen[key] = collected.Count;
+        collected.Add(entry);
+    }
+
+    private static ViewFrame MergeFrame(ViewFrame winner, ViewFrame other)
+    {
+        IReadOnlyDictionary<string, string>? fields = winner.Fields;
+        if (other.Fields is { Count: > 0 })
+        {
+            var merged = winner.Fields is null
+                ? new Dictionary<string, string>(StringComparer.Ordinal)
+                : new Dictionary<string, string>(winner.Fields, StringComparer.Ordinal);
+            foreach (var pair in other.Fields)
+            {
+                if (!merged.ContainsKey(pair.Key)) merged[pair.Key] = pair.Value;
+            }
+
+            fields = merged;
+        }
+
+        return winner with
+        {
+            Text = string.IsNullOrWhiteSpace(winner.Text) ? other.Text : winner.Text,
+            Presentation = winner.Presentation ?? other.Presentation,
+            Terminal = winner.Terminal ?? other.Terminal,
+            Archived = winner.Archived ?? other.Archived,
+            Fields = fields,
+        };
+    }
 
     /// <summary>终答资格：terminal=true 且权威级允许、帧类别可投影。</summary>
     private static bool IsTerminalCandidate(AnswerRule rule, ViewFrame frame)

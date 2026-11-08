@@ -58,7 +58,17 @@ public sealed class ConversationLog
             ConversationRole.User => NextRound + 1,
             _ => AlignRound(),
         };
-        _messages.Add(new ConversationMessage(role, stage, subAgent, text ?? string.Empty, round, DateTimeOffset.UtcNow));
+        _messages.Add(new ConversationFrame(
+                role,
+                stage ?? string.Empty,
+                text ?? string.Empty,
+                round,
+                string.IsNullOrWhiteSpace(stage)
+                    ? ConversationFacts.Empty
+                    : ConversationFacts.FromPairs(("kind", stage)),
+                Stage: stage,
+                SubAgent: subAgent)
+            .ToMessage());
         if (role == ConversationRole.User) NextRound += 1;
     }
 
@@ -104,7 +114,13 @@ public sealed class ConversationLog
     {
         var result = new List<ConversationMessage>
         {
-            new(ConversationRole.System, null, null, "[上下文摘要] 已压缩前文上下文，保留关键信息。", 0, DateTimeOffset.UtcNow),
+            new ConversationFrame(
+                    ConversationRole.System,
+                    string.Empty,
+                    "[上下文摘要] 已压缩前文上下文，保留关键信息。",
+                    0,
+                    ConversationFacts.Empty)
+                .ToMessage(),
         };
         result.AddRange(RecentNonSystem(keep));
         return result;

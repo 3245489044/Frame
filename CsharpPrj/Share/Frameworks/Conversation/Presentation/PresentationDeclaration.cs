@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 namespace Share.Conversation.Presentation;
@@ -44,8 +45,87 @@ public sealed record PresentationClassSpec(
 {
     /// <summary>强调 token（视觉策略声明位；缺省 = 不强调）。</summary>
     public string? Emphasis { get; init; }
+
+    /// <summary>行摘要主字段（受控词；缺省 <see cref="PrimaryFirstField"/>）。</summary>
+    public string Primary { get; init; } = PrimaryFirstField;
+
+    /// <summary>行形态（受控词；surface 不变，只决定载体角色）。</summary>
+    public string Render { get; init; } = RenderRow;
+
+    /// <summary>主字段 = 字段序首个可见字段。</summary>
+    public const string PrimaryFirstField = "first-field";
+
+    /// <summary>行形态 = 气泡（结构面仍由 <see cref="Surface"/> 裁决，不作锚点）。</summary>
+    public const string RenderBubble = "bubble";
+
+    /// <summary>行形态 = 普通行。</summary>
+    public const string RenderRow = "row";
+
+    /// <summary>行形态受控词（声明校验用）。</summary>
+    public static readonly IReadOnlyList<string> Renders = new[] { RenderBubble, RenderRow };
+
+    /// <summary>主字段受控词（声明校验用）。</summary>
+    public static readonly IReadOnlyList<string> Primaries = new[]
+    {
+        PrimaryFirstField, "text", "result", "reasoning",
+    };
 }
 
+/// <summary>
+/// **呈现分类声明**（语义分组轴）：一组呈现类 → 一个分类（分区：互斥且覆盖）。
+/// <para>分类只决定「显示成哪一段」，不决定呈现身份（身份仍由 <see cref="PresentationResolver"/> 裁决）。</para>
+/// </summary>
+/// <param name="Id">分类标识（受控词，声明面给出）。</param>
+/// <param name="LabelKey">文案键（labels.json；宿主装载时解析为 <see cref="Label"/>）。</param>
+/// <param name="Order">段序权重（声明序）。</param>
+/// <param name="Fold">默认折叠态（open / closed / open-on-error）。</param>
+/// <param name="Classes">归属本分类的呈现类（分区：互斥）。</param>
+public sealed record PresentationCategorySpec(
+    string Id,
+    string LabelKey,
+    int Order,
+    string Fold,
+    IReadOnlyList<string> Classes)
+{
+    /// <summary>默认展开。</summary>
+    public const string FoldOpen = "open";
+
+    /// <summary>默认收起。</summary>
+    public const string FoldClosed = "closed";
+
+    /// <summary>有异常时展开（无异常收起）。</summary>
+    public const string FoldOpenOnError = "open-on-error";
+
+    /// <summary>折叠受控词（声明校验用）。</summary>
+    public static readonly IReadOnlyList<string> Folds = new[] { FoldOpen, FoldClosed, FoldOpenOnError };
+
+    /// <summary>已解析文案（宿主按 labels.json 解析；空 ⇒ 回退标识，可见不静默）。</summary>
+    public string Label { get; init; } = string.Empty;
+
+    /// <summary>段渲染形态（受控词；缺省 <see cref="RenderBanner"/>）。</summary>
+    public string Render { get; init; } = RenderBanner;
+
+    /// <summary>段内行是否折叠为摘要行（缺省 false）。</summary>
+    public bool RowFold { get; init; }
+
+    /// <summary>段横幅（单行摘要，收起不渲染段体）。</summary>
+    public const string RenderBanner = "banner";
+
+    /// <summary>流式段（不建组节点，行直接挂父级）。</summary>
+    public const string RenderStream = "stream";
+
+    /// <summary>平铺段（保留逐字段行，不合成横幅）。</summary>
+    public const string RenderPlain = "plain";
+
+    /// <summary>段渲染形态受控词（声明校验用）。</summary>
+    public static readonly IReadOnlyList<string> Renders = new[] { RenderBanner, RenderStream, RenderPlain };
+
+    /// <summary>是否默认展开。</summary>
+    public bool OpensByDefault => string.Equals(Fold, FoldOpen, StringComparison.Ordinal);
+
+    /// <summary>是否「有异常才展开」。</summary>
+    public bool OpensOnError => string.Equals(Fold, FoldOpenOnError, StringComparison.Ordinal);
+}
 
 /// <summary>
 /// **呈现声明**（唯一策略来源，产品侧声明式给出）：呈现类清单 + 事实到类的映射。
@@ -67,6 +147,28 @@ public sealed record PresentationDeclaration(
 
     /// <summary>组节点呈现类（facts.groupClass；缺省 process）。</summary>
     public string GroupClass { get; init; } = "process";
+
+    /// <summary>分组模式：<see cref="GroupingNone"/>（不按分类分段）| <see cref="GroupingContinuousCategory"/>（连续同类成段）。</summary>
+    public string GroupingMode { get; init; } = GroupingNone;
+
+    /// <summary>不按分类分段（零回归位）。</summary>
+    public const string GroupingNone = "none";
+
+    /// <summary>连续同类成段：类切换即开新段（保全局时序）。</summary>
+    public const string GroupingContinuousCategory = "continuous-category";
+
+    /// <summary>分组受控词（声明校验用）。</summary>
+    public static readonly IReadOnlyList<string> GroupingModes = new[] { GroupingNone, GroupingContinuousCategory };
+
+    /// <summary>行折叠摘要截断上限（字符数；0 = 不截断）。</summary>
+    public int RowFoldMaxChars { get; init; } = DefaultRowFoldMaxChars;
+
+    /// <summary>行折叠摘要缺省截断上限。</summary>
+    public const int DefaultRowFoldMaxChars = 120;
+
+    /// <summary>分类声明（class → category 的唯一来源；空 ⇒ 分类能力未声明）。</summary>
+    public IReadOnlyDictionary<string, PresentationCategorySpec> Categories { get; init; }
+        = new Dictionary<string, PresentationCategorySpec>(StringComparer.Ordinal);
 
     /// <summary>空声明（声明不可用）：无类、无映射。</summary>
     public static readonly PresentationDeclaration Empty = new(
@@ -109,6 +211,74 @@ public sealed record PresentationDeclaration(
     /// <param name="id">呈现类标识。</param>
     public string? EmphasisOf(string? id) => Of(id)?.Emphasis;
 
+    /// <summary>行摘要主字段（未声明/未知 ⇒ <see cref="PresentationClassSpec.PrimaryFirstField"/>）。</summary>
+    /// <param name="id">呈现类标识。</param>
+    public string PrimaryOf(string? id)
+        => Of(id)?.Primary is { Length: > 0 } primary ? primary : PresentationClassSpec.PrimaryFirstField;
+
+    /// <summary>行形态是否气泡（未声明 ⇒ false：普通行）。</summary>
+    /// <param name="id">呈现类标识。</param>
+    public bool IsBubbleRender(string? id)
+        => string.Equals(Of(id)?.Render, PresentationClassSpec.RenderBubble, StringComparison.Ordinal);
+
+    /// <summary>段渲染形态（未声明/未知 ⇒ <see cref="PresentationCategorySpec.RenderBanner"/>）。</summary>
+    /// <param name="categoryId">分类标识。</param>
+    public string RenderOf(string? categoryId)
+        => categoryId is not null && Categories.TryGetValue(categoryId, out var spec)
+            ? spec.Render
+            : PresentationCategorySpec.RenderBanner;
+
+    /// <summary>段内行是否折叠（未声明 ⇒ false）。</summary>
+    /// <param name="categoryId">分类标识。</param>
+    public bool RowFoldOf(string? categoryId)
+        => categoryId is not null && Categories.TryGetValue(categoryId, out var spec) && spec.RowFold;
+
+    /// <summary>呈现类所属分类（未声明/未注册 ⇒ null：调用方须显式可见化，禁猜）。</summary>
+    /// <param name="classId">呈现类标识。</param>
+    public PresentationCategorySpec? CategorySpecOf(string? classId)
+    {
+        if (string.IsNullOrEmpty(classId)) return null;
+        foreach (var spec in Categories.Values)
+        {
+            if (spec.Classes.Contains(classId, StringComparer.Ordinal)) return spec;
+        }
+
+        return null;
+    }
+
+    /// <summary>呈现类所属分类标识（未注册 ⇒ null）。</summary>
+    /// <param name="classId">呈现类标识。</param>
+    public string? CategoryOf(string? classId) => CategorySpecOf(classId)?.Id;
+
+    /// <summary>分类文案（未解析/未声明 ⇒ 回退标识，可见不静默）。</summary>
+    /// <param name="categoryId">分类标识。</param>
+    public string CategoryLabel(string? categoryId)
+        => categoryId is not null
+           && Categories.TryGetValue(categoryId, out var spec)
+           && spec.Label.Length > 0
+            ? spec.Label
+            : categoryId ?? string.Empty;
+
+    /// <summary>解析分类文案（宿主装载期调用一次；loc 单源仍在 labels.json）。</summary>
+    /// <param name="lookup">标签键 → 文案（返回 null/空 ⇒ 回退分类标识）。</param>
+    public PresentationDeclaration ResolveCategoryLabels(Func<string, string?> lookup)
+    {
+        ArgumentNullException.ThrowIfNull(lookup);
+        if (Categories.Count == 0) return this;
+
+        var resolved = new Dictionary<string, PresentationCategorySpec>(StringComparer.Ordinal);
+        foreach (var pair in Categories)
+        {
+            var text = lookup(pair.Value.LabelKey);
+            resolved[pair.Key] = pair.Value with
+            {
+                Label = string.IsNullOrWhiteSpace(text) ? pair.Key : text!,
+            };
+        }
+
+        return this with { Categories = resolved };
+    }
+
     /// <summary>声明是否可用（类清单非空）。</summary>
     public bool IsDeclared => Classes.Count > 0;
 
@@ -138,9 +308,23 @@ public sealed record PresentationDeclaration(
                 var style = ReadString(property.Value, "style") ?? id;
                 var badge = ReadBool(property.Value, "answerBadge");
                 var emphasis = ReadString(property.Value, "emphasis");
+                var primary = Normalize(ReadString(property.Value, "primary") ?? string.Empty);
+                if (!PresentationClassSpec.Primaries.Contains(primary, StringComparer.Ordinal))
+                {
+                    primary = PresentationClassSpec.PrimaryFirstField;
+                }
+
+                var classRender = Normalize(ReadString(property.Value, "render") ?? string.Empty);
+                if (!PresentationClassSpec.Renders.Contains(classRender, StringComparer.Ordinal))
+                {
+                    classRender = PresentationClassSpec.RenderRow;
+                }
+
                 classes[id] = new PresentationClassSpec(id, surface, template, style, badge)
                 {
                     Emphasis = emphasis is { Length: > 0 } ? Normalize(emphasis) : null,
+                    Primary = primary,
+                    Render = classRender,
                 };
             }
         }
@@ -150,6 +334,45 @@ public sealed record PresentationDeclaration(
         var process = string.Empty;
         var groupClass = "process";
         var roleFallback = new Dictionary<ConversationRole, string>();
+
+        var categories = new Dictionary<string, PresentationCategorySpec>(StringComparer.Ordinal);
+        if (root.TryGetProperty("categories", out var categoryMap) && categoryMap.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in categoryMap.EnumerateObject())
+            {
+                if (property.Value.ValueKind != JsonValueKind.Object) continue;
+                var id = Normalize(property.Name);
+                if (id.Length == 0) continue;
+                var fold = Normalize(ReadString(property.Value, "fold") ?? PresentationCategorySpec.FoldClosed);
+                var categoryRender = Normalize(ReadString(property.Value, "render") ?? string.Empty);
+                categories[id] = new PresentationCategorySpec(
+                    id,
+                    ReadString(property.Value, "labelKey")?.Trim() ?? id,
+                    ReadInt(property.Value, "order", categories.Count),
+                    PresentationCategorySpec.Folds.Contains(fold, StringComparer.Ordinal)
+                        ? fold
+                        : PresentationCategorySpec.FoldClosed,
+                    ReadStringList(property.Value, "classes"))
+                {
+                    Render = PresentationCategorySpec.Renders.Contains(categoryRender, StringComparer.Ordinal)
+                        ? categoryRender
+                        : PresentationCategorySpec.RenderBanner,
+                    RowFold = ReadBool(property.Value, "rowFold"),
+                };
+            }
+        }
+
+        var groupingMode = GroupingNone;
+        var rowFoldMaxChars = DefaultRowFoldMaxChars;
+        if (root.TryGetProperty("grouping", out var grouping) && grouping.ValueKind == JsonValueKind.Object)
+        {
+            var declaredMode = Normalize(ReadString(grouping, "mode") ?? GroupingNone);
+            groupingMode = GroupingModes.Contains(declaredMode, StringComparer.Ordinal) ? declaredMode : GroupingNone;
+            if (grouping.TryGetProperty("rowFold", out var rowFold) && rowFold.ValueKind == JsonValueKind.Object)
+            {
+                rowFoldMaxChars = ReadInt(rowFold, "maxChars", DefaultRowFoldMaxChars);
+            }
+        }
 
         if (root.TryGetProperty("facts", out var facts) && facts.ValueKind == JsonValueKind.Object)
         {
@@ -173,6 +396,9 @@ public sealed record PresentationDeclaration(
         return new PresentationDeclaration(classes, terminal, operation, process, roleFallback)
         {
             GroupClass = groupClass,
+            Categories = categories,
+            GroupingMode = groupingMode,
+            RowFoldMaxChars = rowFoldMaxChars,
         };
     }
 
@@ -185,6 +411,31 @@ public sealed record PresentationDeclaration(
 
     private static bool ReadBool(JsonElement element, string name)
         => element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.True;
+
+    private static int ReadInt(JsonElement element, string name, int fallback)
+        => element.TryGetProperty(name, out var property)
+           && property.ValueKind == JsonValueKind.Number
+           && property.TryGetInt32(out var value)
+            ? value
+            : fallback;
+
+    private static IReadOnlyList<string> ReadStringList(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var array) || array.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<string>();
+        }
+
+        var values = new List<string>(array.GetArrayLength());
+        foreach (var item in array.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String) continue;
+            var value = item.GetString();
+            if (!string.IsNullOrWhiteSpace(value)) values.Add(value!.Trim());
+        }
+
+        return values;
+    }
 
     private static PresentationSurface ParseSurface(string? word)
         => word?.Trim().ToLowerInvariant() switch

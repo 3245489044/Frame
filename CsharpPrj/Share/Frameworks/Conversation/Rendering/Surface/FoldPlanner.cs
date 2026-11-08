@@ -73,12 +73,13 @@ public static class FoldPlanner
             var children = Decorate(node.Children, policy);
             if (string.Equals(node.Role, SurfaceRoleIds.Group, StringComparison.Ordinal))
             {
-                // 组默认收起（中层可折叠）；轮段由 Apply 统一包装。
+                // 组默认收起（中层可折叠）；声明为 open 的分类组保持展开（FoldHint 为结构事实）。
+                var open = string.Equals(node.FoldHint, "open", StringComparison.Ordinal);
                 list.Add(node with
                 {
                     Role = SurfaceRoleIds.Fold,
                     Children = children,
-                    State = UiNodeState.Closed,
+                    State = open ? UiNodeState.Open : UiNodeState.Closed,
                     Actions = node.Actions ?? new[] { "toggleFold" },
                 });
                 continue;

@@ -9,8 +9,16 @@
     Schema = 'call-governance-v1'
 
     # shadow = 只记录+可见化（不拒绝）；enforce = 按 ReasonCodes 拒绝（fail-closed）
-    # 迁移期默认 shadow：先拿到「有多少次无凭证/无区分力调用」的实测，再翻 enforce。
-    Mode = 'shadow'
+    # 已翻档 enforce（2026-11-08）：shadow 期暴露「裸调绕过入口」——只有 enforce 能让
+    # 缺票据/缺相位/超预算在调用点被拒（exit 3）并留下拒绝条目。
+    Mode = 'enforce'
+
+    # 环境完整性（R9）：批次/相位 = 调用前凭证；缺失即越权（事后补记不构成许可）。
+    RequireBatch = $true
+    RequirePhase = $true
+
+    # 迁移边界：shadow→enforce 之前的账本不追溯（条目 at 早于该时刻 ⇒ 整账跳过）。
+    DisciplineSince = '2026-11-08T00:00:00'
 
     # 低风险动作（免票据/免区分力）：产品运行时归一面，不承担「证据采集」职责。
     # 判据载体 = 动作名表项（结构事实）；新增项须同时说明为何不产生 verifiable 结论。
@@ -33,6 +41,7 @@
         R6 = 'phase-violation'    # 相位白名单外
         R7 = 'attribution-unsettled' # 归属未判即继续探索
         R8 = 'mergeable'          # 同批同目的可合并
+        R9 = 'envelope-missing'   # 缺批次/相位（调用前凭证不完整）
     }
 
     # 分账上限（数值权威 = .clinerules\axioms.md §9；本表仅操作口径）

@@ -30,19 +30,54 @@ public static class ConversationOrdering
             .ThenBy(static m => RolePriority(m.Role))
             .ToList();
 
-    /// <summary>按源序去重（先出现者胜）。</summary>
+    /// <summary>
+    /// 按源序去重（先出现者胜）；**重复项合并事实字段袋**（先非空者胜），
+    /// 防「同一事实多源到达时先到者字段少 ⇒ 后到者的事实被整条丢弃」。
+    /// </summary>
     public static List<ConversationMessage> Distinct(
         IEnumerable<ConversationMessage> messages, bool includeBinding = false)
     {
         var result = new List<ConversationMessage>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var index = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var message in messages ?? Enumerable.Empty<ConversationMessage>())
         {
             if (message is null) continue;
-            if (seen.Add(Key(message, includeBinding))) result.Add(message);
+            var key = Key(message, includeBinding);
+            if (index.TryGetValue(key, out var existing))
+            {
+                result[existing] = MergeFacts(result[existing], message);
+                continue;
+            }
+
+            index[key] = result.Count;
+            result.Add(message);
         }
 
         return result;
+    }
+
+    /// <summary>同键消息的事实合并（左 = 高优先级；字段袋并集，事实标量取先非空者）。</summary>
+    private static ConversationMessage MergeFacts(ConversationMessage winner, ConversationMessage other)
+    {
+        var winnerFacts = ConversationFacts.From(winner.Fields);
+        var mergedFacts = winnerFacts.Merge(ConversationFacts.From(other.Fields));
+        if (mergedFacts.Count == winnerFacts.Count
+            && winner.Terminal is not null
+            && winner.Archived is not null
+            && winner.Presentation is not null
+            && winner.Kind is not null)
+        {
+            return winner;
+        }
+
+        return winner with
+        {
+            Terminal = winner.Terminal ?? other.Terminal,
+            Archived = winner.Archived ?? other.Archived,
+            Presentation = winner.Presentation ?? other.Presentation,
+            Kind = winner.Kind ?? other.Kind ?? mergedFacts.Text("kind"),
+            Fields = mergedFacts.Values,
+        };
     }
 
     /// <summary>去重 + 稳定排序（合并语义唯一实现）。</summary>
@@ -54,7 +89,25 @@ public static class ConversationOrdering
     public static string Key(ConversationMessage message, bool includeBinding = false)
     {
         if (message is null) throw new ArgumentNullException(nameof(message));
-        var key = $"{message.Round}|{message.Role}|{message.Stage}|{message.SubAgent}|{PromptSnapshotBuilder.Hash(message.Text)}";
+        var key = $"{message.Round}|{message.Role}|{KindOf(message)}|{message.SubAgent}|{PromptSnapshotBuilder.Hash(message.Text)}";
         return includeBinding ? key + "|" + message.Binding?.Key.Value : key;
+    }
+
+    /// <summary>
+    /// 生效帧类别（唯一口径）：显式 <see cref="ConversationMessage.Kind"/> → 字段袋 <c>kind</c> → 旧 Stage。
+    /// 去重/分组/呈现一律经本方法，禁直接以 Stage 当类别。
+    /// </summary>
+    public static string KindOf(ConversationMessage message)
+    {
+        if (message is null) throw new ArgumentNullException(nameof(message));
+        if (!string.IsNullOrWhiteSpace(message.Kind)) return message.Kind!;
+        if (message.Fields is not null
+            && message.Fields.TryGetValue("kind", out var kind)
+            && !string.IsNullOrWhiteSpace(kind))
+        {
+            return kind;
+        }
+
+        return message.Stage ?? string.Empty;
     }
 }

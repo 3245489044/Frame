@@ -42,6 +42,11 @@ public static class AttachPlanner
         IReadOnlyList<ConversationRenderItem> attach, FramePolicy policy)
         => Sequencer(policy).PlanGroups(attach);
 
+    /// <summary>段首（首锚之前）分组：与 <see cref="PlanGroups"/> 同一分组实现（只按分类分段）。</summary>
+    public static FrameAttachPlan<ConversationRenderItem> PlanLead(
+        IReadOnlyList<ConversationRenderItem> lead, FramePolicy? policy)
+        => Sequencer(policy).PlanLead(lead);
+
     private static FrameSequencer<ConversationRenderItem> Sequencer(FramePolicy? policy)
     {
         var declaration = policy?.Presentation ?? PresentationDeclaration.Empty;
@@ -51,12 +56,17 @@ public static class AttachPlanner
             roles,
             new FrameGroupText(labels.Lead, labels.Iteration, labels.Trailer, labels.PostTrailer),
             static item => new FrameItem(
-                item.Stage ?? string.Empty,
+                item.EffectiveKind,
                 item.Round,
                 item.Text ?? string.Empty,
                 item.Presentation,
                 null,
                 item.Terminal),
-            item => IsBubbleAnchor(item, declaration));
+            item => IsBubbleAnchor(item, declaration),
+            categoryOf: item => declaration.CategoryOf(
+                PresentationResolver.Resolve(
+                    declaration, item.Role, item.Channel, item.Presentation, item.Terminal).ClassId),
+            categoryLabelOf: declaration.CategoryLabel,
+            groupingMode: declaration.GroupingMode);
     }
 }

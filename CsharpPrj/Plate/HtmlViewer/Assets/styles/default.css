@@ -49,6 +49,14 @@ details.fold-layer[open] > .fold-summary::before { content: "▾ "; }
     background: transparent; color: var(--muted);
     border: 1px dashed var(--border); font-size: 13px;
 }
+/* 思考气泡：弱化呈现（淡色/虚线边/斜体）——值仍来自 --bg/--fg/--border，不新增色值。 */
+.block.bubble-reasoning {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius, 0);
+    padding: var(--pad, 0);
+    font-style: italic;
+    color: var(--muted);
+}
 /* ── 呈现类分派：终答沿用助手气泡样式；过程/通知行不占气泡面 ── */
 .block.answer .block-body {
     background: var(--agent-bg); color: var(--agent-fg);

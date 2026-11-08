@@ -38,13 +38,13 @@ function Import-CallGovernance {
     }
 
     $policy = Import-PowerShellDataFile -LiteralPath $Path
-    foreach ($required in @('Schema', 'Mode', 'ReasonCodes', 'Budgets', 'ActionClass', 'PhaseDeny', 'Attribution', 'LedgerDir')) {
+    foreach ($required in @('Schema', 'Mode', 'ReasonCodes', 'Budgets', 'ActionClass', 'PhaseDeny', 'Attribution', 'LedgerDir', 'RequireBatch', 'RequirePhase')) {
         if (-not $policy.ContainsKey($required)) {
             throw "[CallGovernor] 策略声明缺键 '$required'：$Path"
         }
     }
 
-    foreach ($required in @('OK', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8')) {
+    foreach ($required in @('OK', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9')) {
         if (-not $policy.ReasonCodes.ContainsKey($required)) {
             throw "[CallGovernor] 原因码缺项 '$required'（受控词不闭合）：$Path"
         }
@@ -85,6 +85,8 @@ function Open-CallLedger {
             counts  = [pscustomobject]@{ shell = 0; diagnose = 0; verify = 0; rejected = 0; zeroGain = 0 }
             entries = @()
         }
+        # 开批即落盘（批次开始置 0）：账本在位本身是「非裸调」的结构证据（门禁 G8 判据）。
+        $doc | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8
     }
 
     return [pscustomobject]@{ Id = $id; Path = $path; Doc = $doc; Policy = $Policy }
@@ -104,7 +106,7 @@ function Get-CallActionClass {
 function Resolve-CallAdmissibility {
     <#
     .SYNOPSIS
-        表驱动裁决：相位 → 票据/区分力 → 参数契约 → 分账预算 → 零增益重复。
+        表驱动裁决：相位 → 环境完整性 → 票据/区分力 → 参数契约 → 分账预算 → 零增益重复。
     .OUTPUTS
         @{ Allowed; ReasonCode; Message; Hard; Warnings; Ledger; ActionClass }
     #>
@@ -144,6 +146,22 @@ function Resolve-CallAdmissibility {
     # R1 票据 + 区分力（写不出「结果A⇒H1 / 结果B⇒H2」⇒ 不该调用）
     # 例外：LowRiskActions（产品运行时归一面）不承担证据采集职责 ⇒ 免票据/免区分力（判据载体 = 表项）。
     $lowRisk = $Policy.ContainsKey('LowRiskActions') -and (@($Policy.LowRiskActions) -contains $Action)
+
+    # R9 环境完整性（批次/相位 = 调用前凭证；缺失即越权，事后补记不构成许可）
+    if (-not $lowRisk) {
+        if ($Policy.ContainsKey('RequireBatch') -and [bool]$Policy.RequireBatch) {
+            $batchId = [string]$Ledger.Doc.batch
+            if ([string]::IsNullOrWhiteSpace($batchId) -or $batchId -like 'adhoc-*') {
+                return New-Verdict $codes.R9 '缺批次声明（-Batch；无批次 ⇒ 无法账实对账，禁以 adhoc 代跑）' $true
+            }
+        }
+        if ($Policy.ContainsKey('RequirePhase') -and [bool]$Policy.RequirePhase) {
+            if ([string]::IsNullOrWhiteSpace($Phase)) {
+                return New-Verdict $codes.R9 '缺相位声明（-Phase diagnose|edit|verify；相位不可逆，事后补记不构成许可）' $true
+            }
+        }
+    }
+
     if (-not $lowRisk) {
         if ($Policy.RequireTicket -and [string]::IsNullOrWhiteSpace($Ticket)) {
             return New-Verdict $codes.R1 '缺调用票据（须声明 Purpose/ExpectedOutcome/Discriminates/CostClass）' $true

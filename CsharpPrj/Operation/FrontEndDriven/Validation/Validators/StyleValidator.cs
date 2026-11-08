@@ -14,7 +14,7 @@ public class StyleValidator : IEntityValidator
         "Arial", "Calibri", "Cambria", "Candara", "Comic Sans MS", "Consolas",
         "Courier New", "David", "Franklin Gothic Medium", "Georgia", "Impact",
         "Lucida Console", "Lucida Sans Unicode", "Microsoft Sans Serif",
-        "Microsoft YaHei", "MingLiU", "Palatino Linotype", "Segoe UI",
+        "Microsoft YaHei", "Microsoft YaHei UI", "MingLiU", "Palatino Linotype", "Segoe UI",
         "SimHei", "SimSun", "Tahoma", "Times New Roman", "Trebuchet MS",
         "Verdana", "Webdings", "Wingdings", "宋体", "微软雅黑", "黑体", "楷体"
     };

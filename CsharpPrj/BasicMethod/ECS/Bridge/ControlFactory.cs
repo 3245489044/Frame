@@ -162,7 +162,7 @@ public class ControlFactory
 
             _entityManager.AddComponent(entity, new FontStyleComponent
             {
-                FontFamily = style.FontFamily ?? "Microsoft Sans Serif",
+                FontFamily = style.FontFamily ?? StyleConfig.DefaultFontFamily,
                 FontSize = style.FontSize,
                 Bold = style.FontStyle?.Contains("Bold") ?? false,
                 Italic = style.FontStyle?.Contains("Italic") ?? false

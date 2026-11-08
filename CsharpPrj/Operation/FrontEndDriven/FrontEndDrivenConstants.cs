@@ -1,4 +1,5 @@
 using FrontEndDriven.Shared;
+using TConfig;
 
 namespace FrontEndDriven
 {
@@ -12,11 +13,11 @@ namespace FrontEndDriven
 
         public const int DefaultFormMinHeight = 600;
 
-        /// <summary>默认字体族（WinForms 门面默认）。StyleSystem 与 Collect/Canonical 输出共用，避免魔法字面量分散。</summary>
-        public const string DefaultFontFamily = "Microsoft Sans Serif";
+        /// <summary>默认字体族（WinForms 门面默认）。唯一来源 = <see cref="StyleConfig"/>，StyleSystem 与 Collect/Canonical 输出共用。</summary>
+        public const string DefaultFontFamily = StyleConfig.DefaultFontFamily;
 
         /// <summary>默认字体尺寸（pt）。</summary>
-        public const float DefaultFontSize = 9f;
+        public const float DefaultFontSize = StyleConfig.DefaultFontSize;
 
         public static HashSet<string> ContainerTypes => ControlTypeRegistry.ContainerTypes;
 

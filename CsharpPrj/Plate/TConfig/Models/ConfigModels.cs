@@ -94,15 +94,19 @@ public class DataBindingConfig
 
 public class StyleConfig
 {
+    public const string DefaultFontFamily = "Microsoft YaHei UI";
+
+    public const float DefaultFontSize = 10f;
+
     public string? FontName { get; set; }
-    public float FontSize { get; set; } = 9f;
+    public float FontSize { get; set; } = DefaultFontSize;
     public string? ForeColor { get; set; }
     public string? BackColor { get; set; }
 
-    public string FontFamily { get; set; } = "Microsoft Sans Serif";
+    public string FontFamily { get; set; } = DefaultFontFamily;
     public string FontStyle { get; set; } = "Regular";
-    public string BorderColor { get; set; } = "#CCCCCC";
-    public int BorderWidth { get; set; } = 1;
+    public string BorderColor { get; set; } = string.Empty;
+    public int BorderWidth { get; set; } = 0;
     public string BorderStyle { get; set; } = "FixedSingle";
     [JsonIgnore]
     public string? StyleReference { get; set; }

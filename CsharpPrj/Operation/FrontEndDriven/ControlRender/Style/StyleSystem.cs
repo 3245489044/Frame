@@ -30,10 +30,10 @@ public class StyleSystem : PendingEcsSystem<PendingStyleComponent>
     {
         var merged = new MergedStyleComponent
         {
-            BackColor = "#F0F0F0",
+            BackColor = string.Empty,
             ForeColor = "#000000",
-            BorderColor = "#CCCCCC",
-            BorderWidth = 1,
+            BorderColor = string.Empty,
+            BorderWidth = 0,
             FontFamily = FrontEndDrivenConstants.DefaultFontFamily,
             FontSize = FrontEndDrivenConstants.DefaultFontSize,
             Bold = false,

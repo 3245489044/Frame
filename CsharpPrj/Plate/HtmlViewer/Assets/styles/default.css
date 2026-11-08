@@ -3,8 +3,8 @@
 * { box-sizing: border-box; }
 body {
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-    margin: 0; padding: 14px 16px;
-    font-size: 15px; line-height: 1.7;
+    margin: 0; padding: 10px 12px;
+    font-size: 14px; line-height: 1.55;
     color: var(--fg); background: var(--bg);
     word-wrap: break-word;
 }

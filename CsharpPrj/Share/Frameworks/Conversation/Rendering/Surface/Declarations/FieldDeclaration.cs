@@ -93,8 +93,7 @@ public sealed class FieldDeclaration
     public static FieldDeclaration Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        using var document = JsonDocument.Parse(json);
-        var root = document.RootElement;
+        var root = ConversationJson.Root(json);
 
         var types = new Dictionary<string, FieldTypeSpec>(StringComparer.Ordinal);
         if (root.TryGetProperty("types", out var typesElement) && typesElement.ValueKind == JsonValueKind.Object)

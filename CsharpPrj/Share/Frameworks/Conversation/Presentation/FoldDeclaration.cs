@@ -92,8 +92,7 @@ public sealed record FoldDeclaration(IReadOnlyDictionary<string, FoldModeSpec> M
     public static FoldDeclaration Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        using var document = JsonDocument.Parse(json);
-        var root = document.RootElement;
+        var root = ConversationJson.Root(json);
 
         var modes = new Dictionary<string, FoldModeSpec>(StringComparer.Ordinal);
         if (root.TryGetProperty("modes", out var modeMap) && modeMap.ValueKind == JsonValueKind.Object)

@@ -162,8 +162,7 @@ public sealed class SurfaceProgramDeclaration
     public static SurfaceProgramDeclaration Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        using var document = JsonDocument.Parse(json);
-        var root = document.RootElement;
+        var root = ConversationJson.Root(json);
         if (!string.Equals(Str(root, "schema"), SchemaName, StringComparison.Ordinal)) return Empty;
 
         var views = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);

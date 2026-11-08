@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -8,7 +9,12 @@ namespace Share.Conversation;
 /// <summary>
 /// 会话历史容器存储端口 —— 以 <see cref="ConversationLog"/> 为统一存储模型（History 空壳已废弃，无往返）。
 /// 写入整条会话日志（幂等 upsert，SnapshotJson = ConversationLog 全量序列化）；读取返回 ConversationLog。
+/// <para>
+/// **迁移中**：与 <c>Share.Conversation.Ports.ISessionTranscriptStore</c> 表达同一能力（整条日志 upsert / 读回），
+/// 后者使用 <c>SessionKey</c> 强类型键。新代码优先用后者；本接口保留仅为既有消费方二进制兼容。
+/// </para>
 /// </summary>
+[Obsolete("会话日志能力已归并为 ISessionTranscriptStore（强类型 SessionKey）；新代码勿用。")]
 public interface IConversationLogStore
 {
     /// <summary>幂等建表（ur_histories）。</summary>

@@ -37,6 +37,12 @@ internal static class AnchorKeyRules
         "session.", "session:", "history:", "task:", "node:",
     };
 
+    /// <summary>已知段前缀（后缀必须非空，否则视为悬空锚点）。</summary>
+    private static readonly string[] KnownPrefixes =
+    {
+        "prompt.", "skill.", "tool.",
+    };
+
     /// <summary>锚点可解析判定：非空且命中已知锚点/端点族；未命中 ⇒ false + 可见原因。</summary>
     public static bool TryResolve(string key, out string detail)
     {
@@ -68,10 +74,17 @@ internal static class AnchorKeyRules
             }
         }
 
-        if (key.StartsWith("prompt.", StringComparison.Ordinal)
-            || key.StartsWith("skill.", StringComparison.Ordinal)
-            || key.StartsWith("tool.", StringComparison.Ordinal))
+        foreach (var prefix in KnownPrefixes)
         {
+            if (!key.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            // 前缀即锚点族：后缀为空 = 悬空键（如 "prompt."），不得通过 R5。
+            var suffix = key[prefix.Length..].Trim();
+            if (suffix.Length == 0)
+            {
+                detail = $"锚点命中前缀 '{prefix}' 但后缀为空（悬空）";
+                return false;
+            }
+
             detail = string.Empty;
             return true;
         }
@@ -85,6 +98,15 @@ internal static class AnchorKeyRules
 
         if (!key.Contains('.') && !key.Contains('@'))
         {
+            foreach (var ch in key)
+            {
+                if (char.IsWhiteSpace(ch))
+                {
+                    detail = "裸节点键含空白字符";
+                    return false;
+                }
+            }
+
             detail = string.Empty;
             return true;
         }

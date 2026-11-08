@@ -139,8 +139,7 @@ public sealed record PresentationLabels(IReadOnlyDictionary<string, LabelSource>
     public static PresentationLabels Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        using var document = JsonDocument.Parse(json);
-        var root = document.RootElement;
+        var root = ConversationJson.Root(json);
 
         var entries = new Dictionary<string, LabelSource>(StringComparer.Ordinal);
         if (!root.TryGetProperty("labels", out var labelMap) || labelMap.ValueKind != JsonValueKind.Object)

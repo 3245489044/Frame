@@ -28,6 +28,12 @@
     <ProjectReference Include="$(Proj_Share_Projection)" />
     <!-- 通用能力内核（层 × 能力三态/值域 × fallback）：表面解析的层裁剪与降级委托此内核（单实现）。 -->
     <ProjectReference Include="$(Proj_CapabilityResolution)" />
+    <!-- 缓存带判据单源（B0..B6 / 前缀资格）：ContextBinding 的兼容枚举委托此内核，禁第二套判据。 -->
+    <ProjectReference Include="$(Proj_Share_ContextGeometry)" />
+    <!-- 键去重合并 + 稳定排序内核（KeyedMerge）：会话/帧/读引擎三处去重收敛到同一实现。 -->
+    <ProjectReference Include="$(Proj_Keyed)" />
+    <!-- 平台级 JSON 框架（唯一 JSON 出口）：声明解析/线格式/归档序列化一律经 Plate.JsonMethod。 -->
+    <ProjectReference Include="$(Proj_JsonMethod)" />
     <!-- 聚拢契约（IGatherModule / GatherModuleBuilder）：2026-11-08 随 Share.SurfaceModel 并入（表面聚拢模块）。 -->
     <ProjectReference Include="$(Proj_Gather)" />
     <!-- 表面色值契约（UiBackend.SurfaceColor / SurfaceColorDomain）：值域分类与不透明合成的单点。 -->

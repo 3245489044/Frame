@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using System.Text.Json;
+using Plate.JsonMethod.Serialization;
 
 namespace Share.Conversation.Rendering.Surface;
 
@@ -36,14 +36,15 @@ public static class SurfaceKeyCanonical
         return builder.ToString();
     }
 
-    /// <summary>值 → 稳定文本（空 = 空串；字符串换行转义；可格式化值走 InvariantCulture）。</summary>
+    /// <summary>值 → 稳定文本（字符串换行转义；可格式化值走 InvariantCulture）。
+    /// <para><c>null</c> 与空串**必须可区分**（否则计划指纹碰撞）：<c>null ⇒ "\0null"</c>，空串 ⇒ 空串。</para></summary>
     /// <param name="value">待规范化值。</param>
     public static string CanonicalValue(object? value)
         => value switch
         {
-            null => string.Empty,
+            null => "\0null",
             string text => text.Replace("\n", "\\n", StringComparison.Ordinal),
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => JsonSerializer.Serialize(value),
+            _ => ConversationJson.Serialize(value, JsonSerializerFactory.BclDefault),
         };
 }

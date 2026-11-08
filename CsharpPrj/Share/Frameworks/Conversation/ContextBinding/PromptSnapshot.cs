@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using Plate.JsonMethod.Serialization;
 using Share.Composition;
 
 namespace Share.Conversation.ContextBinding;
@@ -82,9 +83,9 @@ public sealed class PromptSnapshot
 
     /// <summary>序列化为 JSON（落 __prompt_snapshot 归档；仅存段字段，Bindings/System 反序列化时重建）。</summary>
     public string ToJson()
-        => JsonSerializer.Serialize(new PromptSnapshotData(
+        => ConversationJson.Serialize(new PromptSnapshotData(
             L0, SkillBlock, L1, L2, SelectedSkills, ToolBlock, SelectedTools, Mode, L0Bands, SubAgent, ResourceBlock,
-            TaskRuntime, SchemaVersion));
+            TaskRuntime, SchemaVersion), JsonSerializerFactory.BclDefault);
 
     /// <summary>从 JSON 反序列化并重建 Bindings；null/空/非法 → null（无快照）。</summary>
     public static PromptSnapshot? FromJson(string? json)
@@ -92,7 +93,7 @@ public sealed class PromptSnapshot
         if (string.IsNullOrWhiteSpace(json)) return null;
         try
         {
-            var d = JsonSerializer.Deserialize<PromptSnapshotData>(json);
+            var d = ConversationJson.Deserialize<PromptSnapshotData>(json, JsonSerializerFactory.BclDefault);
             if (d is null) return null;
             // 旧归档（无 SchemaVersion 字段）按 Legacy 读取并显式标记来源，不静默当新版。
             var declaredVersion = HasSchemaVersion(json) ? d.SchemaVersion : 1;
@@ -115,9 +116,9 @@ public sealed class PromptSnapshot
     {
         try
         {
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.ValueKind == JsonValueKind.Object
-                   && doc.RootElement.TryGetProperty(nameof(PromptSnapshotData.SchemaVersion), out var value)
+            var root = ConversationJson.Root(json);
+            return root.ValueKind == JsonValueKind.Object
+                   && root.TryGetProperty(nameof(PromptSnapshotData.SchemaVersion), out var value)
                    && value.ValueKind == JsonValueKind.Number;
         }
         catch (JsonException)

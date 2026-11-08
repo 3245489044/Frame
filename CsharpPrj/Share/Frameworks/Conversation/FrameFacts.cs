@@ -29,31 +29,17 @@ public static class FrameFacts
     /// <summary>轮次字段名。</summary>
     public const string RoundField = "round";
 
-    /// <summary>帧字段 → 三态事实（缺失/不可解析 ⇒ <c>null</c> = 未知）。</summary>
+    /// <summary>帧字段 → 三态事实（缺失/不可解析 ⇒ <c>null</c> = 未知）。单源 = <see cref="ConversationFacts.FlagOf"/>。</summary>
     /// <param name="fields">帧字段袋。</param>
     /// <param name="field">事实字段名。</param>
     public static bool? Read(IReadOnlyDictionary<string, string>? fields, string field)
-    {
-        if (fields is null || !fields.TryGetValue(field, out var text) || string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
+        => ConversationFacts.FlagOf(fields, field);
 
-        return bool.TryParse(text.Trim(), out var value) ? value : null;
-    }
-
-    /// <summary>帧字段 → 文本（缺失 ⇒ <c>null</c>；不伪造空串）。</summary>
+    /// <summary>帧字段 → 文本（缺失 ⇒ <c>null</c>；不伪造空串）。单源 = <see cref="ConversationFacts.TextOf"/>。</summary>
     /// <param name="fields">帧字段袋。</param>
     /// <param name="field">字段名。</param>
     public static string? Text(IReadOnlyDictionary<string, string>? fields, string field)
-    {
-        if (fields is null || !fields.TryGetValue(field, out var text) || string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
-
-        return text;
-    }
+        => ConversationFacts.TextOf(fields, field);
 
     /// <summary>帧字段 → 轮次（缺失/非法 ⇒ 0 = 会话级，不伪造第 1 轮）。</summary>
     /// <param name="fields">帧字段袋。</param>

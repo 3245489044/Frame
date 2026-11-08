@@ -11,25 +11,9 @@ namespace Share.Conversation.Rendering;
 /// </summary>
 public static class ConversationRolePresentation
 {
-    /// <summary>角色 → 结构样式 token（<c>user/assistant/proc/system/error</c>）。</summary>
-    public static string ClassOf(ConversationRole role)
-        => role switch
-        {
-            ConversationRole.User => "user",
-            ConversationRole.Assistant => "assistant",
-            ConversationRole.Tool => "proc",
-            ConversationRole.Error => "error",
-            _ => "system",
-        };
+    /// <summary>角色 → 结构样式 token（<c>user/assistant/proc/system/error</c>）。单源 = <see cref="ConversationRoleWordingMap"/>。</summary>
+    public static string ClassOf(ConversationRole role) => ConversationRoleWordingMap.Of(role).Class;
 
-    /// <summary>角色 → 展示标签（中文标签为会话域默认文案，可由上层覆盖）。</summary>
-    public static string LabelOf(ConversationRole role)
-        => role switch
-        {
-            ConversationRole.User => "用户",
-            ConversationRole.Assistant => "助手",
-            ConversationRole.Tool => "工具",
-            ConversationRole.Error => "错误",
-            _ => "系统",
-        };
+    /// <summary>角色 → 展示标签（中文标签为会话域默认文案，可由上层覆盖）。单源 = <see cref="ConversationRoleWordingMap"/>。</summary>
+    public static string LabelOf(ConversationRole role) => ConversationRoleWordingMap.Of(role).Label;
 }

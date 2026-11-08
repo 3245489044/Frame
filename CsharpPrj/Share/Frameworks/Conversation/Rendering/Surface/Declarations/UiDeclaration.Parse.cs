@@ -15,8 +15,7 @@ public sealed partial class UiDeclaration
         ArgumentNullException.ThrowIfNull(json);
 
         var diagnostics = new List<string>();
-        using var document = JsonDocument.Parse(json);
-        var root = document.RootElement;
+        var root = ConversationJson.Root(json);
 
         var fingerprint = ReadText(root, "fingerprint") ?? string.Empty;
         var slots = ParseSlots(root, diagnostics);

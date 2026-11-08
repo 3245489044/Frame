@@ -46,25 +46,9 @@ public static class ConversationMessageMappings
         return list;
     }
 
-    /// <summary>角色枚举 → 传输/展示角色名（system/user/assistant/tool/error）。</summary>
-    public static string RoleName(ConversationRole role) => role switch
-    {
-        ConversationRole.System => "system",
-        ConversationRole.User => "user",
-        ConversationRole.Assistant => "assistant",
-        ConversationRole.Tool => "tool",
-        ConversationRole.Error => "error",
-        _ => "system",
-    };
+    /// <summary>角色枚举 → 传输/展示角色名（system/user/assistant/tool/error）。单源 = <see cref="ConversationRoleWordingMap"/>。</summary>
+    public static string RoleName(ConversationRole role) => ConversationRoleWordingMap.Of(role).Wire;
 
-    /// <summary>角色名（大小写不敏感）→ 角色枚举；未知 → User（与历史既有宽容读取一致）。</summary>
-    public static ConversationRole ParseRole(string? role) => string.Equals(role, "system", StringComparison.OrdinalIgnoreCase)
-        ? ConversationRole.System
-        : string.Equals(role, "assistant", StringComparison.OrdinalIgnoreCase)
-            ? ConversationRole.Assistant
-            : string.Equals(role, "tool", StringComparison.OrdinalIgnoreCase)
-                ? ConversationRole.Tool
-                : string.Equals(role, "error", StringComparison.OrdinalIgnoreCase)
-                    ? ConversationRole.Error
-                    : ConversationRole.User;
+    /// <summary>角色名（大小写不敏感）→ 角色枚举；未知 → User（与历史既有宽容读取一致）。单源 = <see cref="ConversationRoleWordingMap"/>。</summary>
+    public static ConversationRole ParseRole(string? role) => ConversationRoleWordingMap.Parse(role);
 }

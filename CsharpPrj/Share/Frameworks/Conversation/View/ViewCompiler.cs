@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Modules.CapabilityResolution;
 
 namespace Share.Conversation.View;
 
@@ -548,7 +548,8 @@ public static class ViewCompiler
             }
         }
 
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()))).ToLowerInvariant();
+        // 摘要单源 = Modules.CapabilityResolution.Signature.Sha256（小写十六进制）。
+        return Signature.Sha256(builder.ToString());
     }
 
     // ---------- JSON 原语 ----------
@@ -564,8 +565,7 @@ public static class ViewCompiler
 
         try
         {
-            using var document = JsonDocument.Parse(json);
-            root = document.RootElement.Clone();
+            root = ConversationJson.Root(json);
             // fail-closed：根必须是 JSON 对象；否则必须记 error，禁「返回 false 但无诊断」的静默空表。
             if (root.ValueKind != JsonValueKind.Object)
             {

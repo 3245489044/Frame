@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Modules.Foundations.Collections.Keyed;
 using Share.Conversation.ContextBinding;
 
 namespace Share.Conversation;
@@ -57,46 +58,21 @@ public static class ConversationFrameMerge
         };
     }
 
-    /// <summary>去重（先到者胜；重复项合并事实袋，不丢失后到源独有字段）。</summary>
+    /// <summary>去重（先到者胜；重复项合并事实袋，不丢失后到源独有字段）。单源 = <see cref="KeyedMerge.DistinctMerge{T}"/>。</summary>
     public static IReadOnlyList<ConversationFrame> Distinct(IEnumerable<ConversationFrame>? frames)
-    {
-        if (frames is null) return Array.Empty<ConversationFrame>();
+        => KeyedMerge.DistinctMerge(frames, Key, Merge);
 
-        var result = new List<ConversationFrame>();
-        var index = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var frame in frames)
-        {
-            if (frame is null) continue;
-            var key = Key(frame);
-            if (index.TryGetValue(key, out var existing))
-            {
-                result[existing] = Merge(result[existing], frame);
-                continue;
-            }
-
-            index[key] = result.Count;
-            result.Add(frame);
-        }
-
-        return result;
-    }
-
-    /// <summary>稳定序：Round 升序 → 轮内角色序（同序保持源序）。</summary>
+    /// <summary>稳定序：Round 升序 → 轮内角色序（同序保持源序）。单源 = <see cref="KeyedMerge.StableOrder{T}"/>。</summary>
     public static IReadOnlyList<ConversationFrame> Order(IEnumerable<ConversationFrame>? frames)
-    {
-        if (frames is null) return Array.Empty<ConversationFrame>();
-
-        var ordered = new List<ConversationFrame>(frames);
-        ordered.Sort(static (left, right) =>
-        {
-            var round = left.Round.CompareTo(right.Round);
-            if (round != 0) return round;
-            var role = RolePriority(left.Role).CompareTo(RolePriority(right.Role));
-            if (role != 0) return role;
-            return left.Seq.CompareTo(right.Seq);
-        });
-        return ordered;
-    }
+        => KeyedMerge.StableOrder(
+            frames,
+            static (left, right) =>
+            {
+                var round = left.Round.CompareTo(right.Round);
+                if (round != 0) return round;
+                var role = RolePriority(left.Role).CompareTo(RolePriority(right.Role));
+                return role != 0 ? role : left.Seq.CompareTo(right.Seq);
+            });
 
     /// <summary>去重 + 稳定排序（读面合并唯一入口）。</summary>
     public static IReadOnlyList<ConversationFrame> Merge(IEnumerable<ConversationFrame>? frames)

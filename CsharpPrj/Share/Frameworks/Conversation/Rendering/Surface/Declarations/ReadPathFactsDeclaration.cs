@@ -39,9 +39,9 @@ public sealed class ReadPathFactsDeclaration
     public static ReadPathFactsDeclaration Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        using var document = JsonDocument.Parse(json);
+        var root = ConversationJson.Root(json);
         var facts = new HashSet<string>(StringComparer.Ordinal);
-        if (document.RootElement.TryGetProperty("paths", out var paths) && paths.ValueKind == JsonValueKind.Array)
+        if (root.TryGetProperty("paths", out var paths) && paths.ValueKind == JsonValueKind.Array)
         {
             foreach (var path in paths.EnumerateArray())
             {

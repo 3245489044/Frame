@@ -88,19 +88,35 @@ public sealed class ConversationFacts
         return copy is null ? this : new ConversationFacts(copy);
     }
 
-    /// <summary>取文本字段（不存在/空 ⇒ null）。</summary>
-    public string? Text(string key)
-        => !string.IsNullOrWhiteSpace(key) && _values.TryGetValue(key, out var value) && !string.IsNullOrEmpty(value)
-            ? value
-            : null;
+    /// <summary>取文本字段（不存在/空 ⇒ null）。单源 = <see cref="TextOf"/>。</summary>
+    public string? Text(string key) => TextOf(_values, key);
 
-    /// <summary>取布尔字段（<c>true/false</c> 或 <c>1/0</c>；不存在/不可解析 ⇒ null = 未知）。</summary>
-    public bool? Flag(string key)
+    /// <summary>取布尔字段（<c>true/false</c> 或 <c>1/0</c>；不存在/不可解析 ⇒ null = 未知）。单源 = <see cref="FlagOf"/>。</summary>
+    public bool? Flag(string key) => FlagOf(_values, key);
+
+    /// <summary>
+    /// 字段袋 → 文本（不存在/空 ⇒ null；**唯一读取口径**，禁各处再写 <c>TryGetValue</c> 副本）。
+    /// </summary>
+    /// <param name="values">字段袋（可空）。</param>
+    /// <param name="key">字段名。</param>
+    public static string? TextOf(IReadOnlyDictionary<string, string>? values, string key)
     {
-        var text = Text(key);
+        if (values is null || string.IsNullOrWhiteSpace(key)) return null;
+        return values.TryGetValue(key, out var value) && !string.IsNullOrEmpty(value) ? value : null;
+    }
+
+    /// <summary>
+    /// 字段袋 → 三态布尔（<c>true/false</c>、<c>1/0</c>；缺失/不可解析 ⇒ null = 未知，**不默认 false**）。
+    /// <para>唯一实现：`FrameFacts` / 读引擎 / 事实投影共用，消除「同一字段两读一真一未知」。</para>
+    /// </summary>
+    /// <param name="values">字段袋（可空）。</param>
+    /// <param name="key">字段名。</param>
+    public static bool? FlagOf(IReadOnlyDictionary<string, string>? values, string key)
+    {
+        var text = TextOf(values, key);
         if (text is null) return null;
         if (bool.TryParse(text, out var parsed)) return parsed;
-        return text switch
+        return text.Trim() switch
         {
             "1" => true,
             "0" => false,

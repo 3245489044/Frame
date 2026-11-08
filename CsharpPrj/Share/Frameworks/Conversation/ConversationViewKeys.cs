@@ -21,22 +21,24 @@ public static class ConversationViewKeys
     public const string Region = "region";
 
     /// <summary>标准作用域词 → 视图键（未知 ⇒ <see cref="Node"/>，保持读计划既有缺省）。</summary>
-    public static string FromScope(string? scope)
-        => scope?.Trim().ToLowerInvariant() switch
+    public static string FromScope(string? scope) => Resolve(scope, Node);
+
+    /// <summary>视图词（消息桥 data-type）→ 视图键（未知 ⇒ <see cref="History"/>）。</summary>
+    public static string FromViewToken(string? token) => Resolve(token, History);
+
+    /// <summary>
+    /// 视图词归一（**唯一映射表**）：只此一处声明 "task"/"node"/"nodes"/"history"/"region" 的归一。
+    /// 两个入口的缺省值不同属产品策略（已显式参数化），不再各写一张表。
+    /// </summary>
+    /// <param name="token">原始词（可空）。</param>
+    /// <param name="fallback">未命中缺省。</param>
+    private static string Resolve(string? token, string fallback)
+        => token?.Trim().ToLowerInvariant() switch
         {
             Task => Task,
             Node or "nodes" => Node,
             History => History,
             Region => Region,
-            _ => Node,
-        };
-
-    /// <summary>视图词（消息桥 data-type）→ 视图键（未知 ⇒ <see cref="History"/>）。</summary>
-    public static string FromViewToken(string? token)
-        => token?.Trim().ToLowerInvariant() switch
-        {
-            Task => Task,
-            Node or "nodes" => Node,
-            _ => History,
+            _ => fallback,
         };
 }

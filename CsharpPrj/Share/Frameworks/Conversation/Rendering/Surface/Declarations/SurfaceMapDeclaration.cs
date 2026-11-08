@@ -86,11 +86,11 @@ public sealed class SurfaceMapDeclaration
     public static SurfaceMapDeclaration Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        using var document = JsonDocument.Parse(json);
+        var root = ConversationJson.Root(json);
         var roles = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>>(
             StringComparer.Ordinal);
 
-        if (document.RootElement.TryGetProperty("roles", out var rolesElement) && rolesElement.ValueKind == JsonValueKind.Object)
+        if (root.TryGetProperty("roles", out var rolesElement) && rolesElement.ValueKind == JsonValueKind.Object)
         {
             foreach (var role in rolesElement.EnumerateObject())
             {

@@ -10,17 +10,10 @@ namespace Share.Conversation;
 /// </summary>
 public static class WindowSlice
 {
-    /// <summary>取尾部 <paramref name="take"/> 条；<paramref name="take"/> ≤ 0 归一为 1（与既有窗口语义一致）。</summary>
+    /// <summary>取尾部 <paramref name="take"/> 条；<paramref name="take"/> ≤ 0 归一为 1（与既有窗口语义一致）。
+    /// 单源 = 带 <paramref name="skipFromEnd"/> 的切片实现（禁第二份拷贝）。</summary>
     public static IReadOnlyList<T> TakeLast<T>(IReadOnlyList<T> source, int take)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        var limit = Math.Max(1, take);
-        if (source.Count <= limit) return source;
-
-        var result = new List<T>(limit);
-        for (var i = source.Count - limit; i < source.Count; i++) result.Add(source[i]);
-        return result;
-    }
+        => TakeLast(source, take, 0);
 
     /// <summary>取尾部 <paramref name="take"/> 条（可枚举源；有界缓冲）。</summary>
     public static IReadOnlyList<T> TakeLast<T>(IEnumerable<T> source, int take)

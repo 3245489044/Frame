@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using Plate.JsonMethod.Serialization;
 
 namespace Share.Conversation;
 
@@ -15,12 +15,10 @@ namespace Share.Conversation;
 /// </summary>
 public sealed class ConversationLog
 {
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        WriteIndented = false,
-        Converters = { new JsonStringEnumConverter() },
-    };
+    // 平台选项单源（经 JsonSerializerFactory）；显式关闭 camelCase 以保持既有归档形态（PascalCase）不变。
+    private static readonly JsonSerializerOptions JsonOpts = JsonSerializerFactory.Create(
+        JsonContext.Compact,
+        static options => options.PropertyNamingPolicy = null);
 
     private readonly List<ConversationMessage> _messages = new();
 
@@ -60,12 +58,13 @@ public sealed class ConversationLog
         };
         _messages.Add(new ConversationFrame(
                 role,
-                stage ?? string.Empty,
+                // Kind 只能是 frame-kinds 主键；Stage 是正交的工作流阶段，禁作 Kind 替身（E-01）。
+                string.Empty,
                 text ?? string.Empty,
                 round,
                 string.IsNullOrWhiteSpace(stage)
                     ? ConversationFacts.Empty
-                    : ConversationFacts.FromPairs(("kind", stage)),
+                    : ConversationFacts.FromPairs(("stage", stage)),
                 Stage: stage,
                 SubAgent: subAgent)
             .ToMessage());
@@ -80,11 +79,14 @@ public sealed class ConversationLog
         _messages.Add(message);
     }
 
-    /// <summary>移除指定轮次（Round=n）的全部消息（会话级 System Round=0 不受影响）；用于幂等重归档同一轮。</summary>
+    /// <summary>
+    /// 移除指定轮次（Round=n）的全部消息（会话级 System Round=0 不受影响）；用于幂等重归档同一轮。
+    /// <para>删轮后重算 <see cref="NextRound"/>：否则「删轮 + 重归档同轮」会跳到下一轮号，幂等不成立。</para>
+    /// </summary>
     public void DropRound(int round)
     {
         if (round <= 0) return;
-        _messages.RemoveAll(m => m.Round == round);
+        if (_messages.RemoveAll(m => m.Round == round) > 0) RebuildNextRound();
     }
 
     /// <summary>获取指定轮次（Round=n，会话级 0 除外）的全部消息；无该轮返回空列表。</summary>
@@ -158,23 +160,33 @@ public sealed class ConversationLog
     }
 
     /// <summary>序列化为 JSON（存 Data.__conversation 归档）。</summary>
-    public string Serialize() => JsonSerializer.Serialize(_messages, JsonOpts);
+    public string Serialize() => ConversationJson.Serialize(_messages, JsonOpts);
 
-    /// <summary>从 JSON 反序列化；缺省/非法 → 空会话；旧数据（无 Stage/SubAgent）向后兼容读取。</summary>
-    public static ConversationLog Deserialize(string? json)
+    /// <summary>从 JSON 反序列化；缺省/非法 → 空会话（原因经 <see cref="Deserialize(string?, out string?)"/> 可见化）。</summary>
+    public static ConversationLog Deserialize(string? json) => Deserialize(json, out _);
+
+    /// <summary>
+    /// 从 JSON 反序列化（**失败可见**）：缺省 → 空会话 + <paramref name="error"/>=null；
+    /// 非法 JSON → 空会话 + <paramref name="error"/>=原因（禁静默吞错，对齐 NoSilentOutlet 的 D 出口）。
+    /// </summary>
+    /// <param name="json">归档 JSON。</param>
+    /// <param name="error">失败原因（成功为 null）。</param>
+    public static ConversationLog Deserialize(string? json, out string? error)
     {
         var log = new ConversationLog();
+        error = null;
         if (string.IsNullOrWhiteSpace(json)) return log;
         try
         {
-            var list = JsonSerializer.Deserialize<List<ConversationMessage>>(json, JsonOpts);
+            var list = ConversationJson.Deserialize<List<ConversationMessage>>(json, JsonOpts);
             if (list is not null)
                 foreach (var m in list)
                     log._messages.Add(m);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // 旧/非法数据 → 空会话（容错，不丢运行；AX-META.ContextPollutionIsolation）
+            // 旧/非法数据 → 空会话（容错，不丢运行），但原因必须可观测。
+            error = ex.Message;
         }
         log.RebuildNextRound();
         return log;

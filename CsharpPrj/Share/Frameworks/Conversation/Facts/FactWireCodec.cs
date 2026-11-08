@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Plate.JsonMethod.Serialization;
 using Share.Conversation.Ids;
 
 namespace Share.Conversation.Facts;
@@ -41,8 +42,8 @@ public sealed record FactWire(
 /// </summary>
 public static class FactWireCodec
 {
-    /// <summary>序列化选项（camelCase 字段名 / 枚举名原样 / 中文不转义以便人可读取证）。</summary>
-    public static readonly JsonSerializerOptions Options = CreateOptions();
+    /// <summary>序列化选项（**平台单源** = JsonContext.Compact：camelCase / 忽略 null / 枚举名 / 中文不转义）。</summary>
+    public static readonly JsonSerializerOptions Options = JsonSerializerFactory.GetOptions(JsonContext.Compact);
 
     /// <summary>序列化为一行 JSON（不含换行符）。</summary>
     /// <param name="fact">事实条目。</param>
@@ -50,12 +51,13 @@ public static class FactWireCodec
     {
         ArgumentNullException.ThrowIfNull(fact);
 
-        // 载荷在读侧即成对校验（SessionFactWriter 拒收非法载荷）；此处为防御性兜底：非法即空对象。
-        var payloadJson = FactPayload.IsWellFormed(fact.PayloadJson)
-            ? fact.PayloadJson
-            : FactPayload.Empty;
+        // 载荷非法即 fail-fast：静默替换为 {} 会把「产事实错误」压平成「合法空载荷」，
+        // 使下游无法发现（NoSilentOutlet 的 T 出口）。SessionFactWriter 已在写入口拒收。
+        if (!FactPayload.IsWellFormed(fact.PayloadJson))
+            throw new InvalidOperationException(
+                $"事实载荷非法（kind={fact.Kind}）：须为 JSON 对象，实得 '{fact.PayloadJson}'");
 
-        using var payload = JsonDocument.Parse(payloadJson);
+        var root = ConversationJson.Root(fact.PayloadJson);
         var wire = new FactWire(
             fact.V,
             fact.KeyText,
@@ -65,10 +67,10 @@ public static class FactWireCodec
             fact.Actor,
             fact.Source,
             fact.Authority,
-            payload.RootElement.Clone(),
+            root,
             fact.ExternalRefs ?? Array.Empty<ExternalRef>());
 
-        return JsonSerializer.Serialize(wire, Options);
+        return ConversationJson.Serialize(wire, Options);
     }
 
     /// <summary>解析一行 JSON（键不合法 / JSON 破损 → false，**不猜测**）。</summary>
@@ -82,7 +84,7 @@ public static class FactWireCodec
         FactWire? wire;
         try
         {
-            wire = JsonSerializer.Deserialize<FactWire>(line!, Options);
+            wire = ConversationJson.Deserialize<FactWire>(line!, Options);
         }
         catch (JsonException)
         {
@@ -104,18 +106,5 @@ public static class FactWireCodec
             wire.Payload.ValueKind == JsonValueKind.Object ? wire.Payload.GetRawText() : FactPayload.Empty,
             wire.ExternalRefs ?? Array.Empty<ExternalRef>());
         return true;
-    }
-
-    private static JsonSerializerOptions CreateOptions()
-    {
-        var options = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            WriteIndented = false,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        };
-        options.Converters.Add(new JsonStringEnumConverter());
-        return options;
     }
 }

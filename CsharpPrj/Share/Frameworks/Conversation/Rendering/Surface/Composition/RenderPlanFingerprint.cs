@@ -3,9 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Modules.CapabilityResolution;
 
 namespace Share.Conversation.Rendering.Surface;
 
@@ -29,8 +29,8 @@ public static class RenderPlanFingerprint
             AppendNode(sb, root, 0);
         }
 
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString()));
-        return Convert.ToHexString(bytes).ToLowerInvariant();
+        // 摘要单源 = Modules.CapabilityResolution.Signature.Sha256（小写十六进制）。
+        return Signature.Sha256(sb.ToString());
     }
 
     private static void AppendNode(StringBuilder sb, UiSurfaceNode node, int depth)

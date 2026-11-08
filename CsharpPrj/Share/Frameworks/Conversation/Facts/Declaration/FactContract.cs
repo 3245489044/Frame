@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Plate.JsonMethod.Serialization;
 
 namespace Share.Conversation.Facts.Declaration;
 
@@ -52,7 +53,7 @@ public sealed record FactContract(
             throw new ArgumentException("契约 JSON 不得为空", nameof(json));
 
         var suffix = Suffix(resourceSuffix);
-        var dto = JsonSerializer.Deserialize<SchemaDto>(json, JsonOptions)
+        var dto = ConversationJson.Deserialize<SchemaDto>(json, JsonOptions)
             ?? throw new InvalidOperationException($"契约 JSON 无法解析（{suffix}）");
 
         var events = (dto.Events ?? new List<EventDto>())
@@ -114,13 +115,8 @@ public sealed record FactContract(
     private static string Suffix(string? resourceSuffix)
         => string.IsNullOrWhiteSpace(resourceSuffix) ? DefaultResourceSuffix : resourceSuffix!;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true,
-    };
+    /// <summary>契约解析选项（**平台单源** = UIConfig：camelCase / 大小写不敏感 / 注释与尾随逗号容忍）。</summary>
+    private static readonly JsonSerializerOptions JsonOptions = JsonSerializerFactory.GetOptions(JsonContext.UIConfig);
 
     /// <summary>契约 JSON 传输对象（仅本类型内部使用）。</summary>
     private sealed record SchemaDto

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Share.Conversation.ContextBinding;
 
 namespace Share.Conversation.View;
 
@@ -224,7 +226,14 @@ public sealed class ViewEngine
     }
 
     private static string FrameKey(ViewFrame frame)
-        => $"{frame.Kind}\u001F{frame.Round}\u001F{frame.Seq}";
+    {
+        // Seq 是「域内到达序」；缺省 0 不代表同一帧。退回文本哈希，
+        // 禁把同轮同 Kind 的多个过程帧并成一帧（原实现会实际丢帧）。
+        var seq = frame.Seq > 0
+            ? frame.Seq.ToString(CultureInfo.InvariantCulture)
+            : "t:" + PromptSnapshotBuilder.Hash(frame.Text);
+        return $"{frame.Kind}\u001F{frame.Round}\u001F{seq}";
+    }
 
     /// <summary>同键帧合并：先到者身份胜出，字段袋取并集（后到源独有事实不丢）。</summary>
     private static void AddFrame(
@@ -285,11 +294,8 @@ public sealed class ViewEngine
     }
 
     private static string? ReadAuthority(ViewFrame frame)
-    {
-        if (frame.Fields is null) return null;
-        if (frame.Fields.TryGetValue("authority", out var lower)) return lower;
-        return frame.Fields.TryGetValue("Authority", out var upper) ? upper : null;
-    }
+        => ConversationFacts.TextOf(frame.Fields, "authority")
+           ?? ConversationFacts.TextOf(frame.Fields, "Authority");
 
     /// <summary>选择优先级：Select 顺序即优先级；未列出的合格帧排最后（仍可被选中）。</summary>
     private static int SelectRank(AnswerRule rule, string kind)

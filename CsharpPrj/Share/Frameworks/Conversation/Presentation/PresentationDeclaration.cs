@@ -29,11 +29,6 @@ public enum PresentationSurface
 /// <summary>单个呈现类声明（词 = 产品策略；本类型只承载数据）。</summary>
 /// <param name="Id">呈现类标识（声明词，规范化小写）。</param>
 /// <param name="Surface">结构面（决定"能不能成气泡/进操作面板"）。</param>
-/// <param name="Template">行模板键（渲染层按此键取模板；缺省由宿主给）。</param>
-/// <param name="StyleToken">样式 token（缺省 = <paramref name="Id"/>）。</param>
-/// <summary>单个呈现类声明（词 = 产品策略；本类型只承载数据）。</summary>
-/// <param name="Id">呈现类标识（声明词，规范化小写）。</param>
-/// <param name="Surface">结构面（决定"能不能成气泡/进操作面板"）。</param>
 /// <param name="Template">行模板键（渲染层按此键取模板）。</param>
 /// <param name="StyleToken">样式 token。</param>
 public sealed record PresentationClassSpec(
@@ -291,8 +286,7 @@ public sealed record PresentationDeclaration(
     public static PresentationDeclaration Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
+        var root = ConversationJson.Root(json);
 
         var classes = new Dictionary<string, PresentationClassSpec>(StringComparer.Ordinal);
         if (root.TryGetProperty("classes", out var classesElement) && classesElement.ValueKind == JsonValueKind.Object)

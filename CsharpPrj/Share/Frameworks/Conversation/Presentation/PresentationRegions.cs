@@ -137,8 +137,7 @@ public sealed record PresentationRegions(
     public static PresentationRegions Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        using var document = JsonDocument.Parse(json);
-        var root = document.RootElement;
+        var root = ConversationJson.Root(json);
 
         var regions = new Dictionary<string, string>(StringComparer.Ordinal);
         if (root.TryGetProperty("regions", out var regionMap) && regionMap.ValueKind == JsonValueKind.Object)

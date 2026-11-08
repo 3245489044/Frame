@@ -37,8 +37,7 @@ public sealed record DiagnosticDeclaration(IReadOnlyDictionary<string, Diagnosti
     public static DiagnosticDeclaration Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        using var document = JsonDocument.Parse(json);
-        var root = document.RootElement;
+        var root = ConversationJson.Root(json);
 
         var codes = new Dictionary<string, DiagnosticSpec>(StringComparer.Ordinal);
         if (!root.TryGetProperty("codes", out var codeMap) || codeMap.ValueKind != JsonValueKind.Object)

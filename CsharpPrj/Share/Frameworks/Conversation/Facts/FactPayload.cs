@@ -33,24 +33,13 @@ public static class FactPayload
             payload[key] = value;
         }
 
-        return payload.Count == 0 ? Empty : JsonSerializer.Serialize(payload);
+        return payload.Count == 0 ? Empty : ConversationJson.Serialize(payload);
     }
 
     /// <summary>是否为合法 JSON 对象载荷（非对象 / 非法 JSON 一律 false；写入侧据此拒收）。</summary>
     /// <param name="payloadJson">载荷文本。</param>
     public static bool IsWellFormed(string? payloadJson)
-    {
-        if (string.IsNullOrWhiteSpace(payloadJson)) return false;
-        try
-        {
-            using var document = JsonDocument.Parse(payloadJson!);
-            return document.RootElement.ValueKind == JsonValueKind.Object;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
+        => ConversationJson.TryRoot(payloadJson) is { ValueKind: JsonValueKind.Object };
 
     /// <summary>读字符串字段（按候选键序首命中；缺失 / 空值 → null）。</summary>
     /// <param name="payloadJson">载荷文本。</param>
@@ -121,26 +110,15 @@ public static class FactPayload
     {
         if (string.IsNullOrWhiteSpace(payloadJson) || keys is null || keys.Length == 0) return;
 
-        JsonDocument? document = null;
-        try
-        {
-            document = JsonDocument.Parse(payloadJson!);
-            if (document.RootElement.ValueKind != JsonValueKind.Object) return;
+        var parsed = ConversationJson.TryRoot(payloadJson);
+        if (parsed is not { ValueKind: JsonValueKind.Object }) return;
+        var root = parsed.Value;
 
-            foreach (var key in keys)
-            {
-                if (string.IsNullOrWhiteSpace(key)) continue;
-                if (!document.RootElement.TryGetProperty(key, out var element)) continue;
-                if (onHit(element)) return;
-            }
-        }
-        catch (JsonException)
+        foreach (var key in keys)
         {
-            // 载荷非法：事实层容错（不抛出），由判据层经 Completeness / Projector 可见化。
-        }
-        finally
-        {
-            document?.Dispose();
+            if (string.IsNullOrWhiteSpace(key)) continue;
+            if (!root.TryGetProperty(key, out var element)) continue;
+            if (onHit(element)) return;
         }
     }
 }

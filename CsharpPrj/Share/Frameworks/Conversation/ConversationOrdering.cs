@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using Modules.Foundations.Collections.Keyed;
 using Share.Conversation.ContextBinding;
 
 namespace Share.Conversation;
@@ -23,58 +24,43 @@ public static class ConversationOrdering
         _ => 3,
     };
 
-    /// <summary>稳定序：Round 升序 → 轮内角色序（同序保持源序）。</summary>
+    /// <summary>稳定序：Round 升序 → 轮内角色序（同序保持源序）。单源 = <see cref="KeyedMerge.StableOrder{T}"/>。</summary>
     public static IReadOnlyList<ConversationMessage> Order(IEnumerable<ConversationMessage> messages)
-        => (messages ?? Enumerable.Empty<ConversationMessage>())
-            .OrderBy(static m => m.Round)
-            .ThenBy(static m => RolePriority(m.Role))
-            .ToList();
+        => KeyedMerge.StableOrder(
+            messages,
+            static (left, right) =>
+            {
+                var round = left.Round.CompareTo(right.Round);
+                return round != 0 ? round : RolePriority(left.Role).CompareTo(RolePriority(right.Role));
+            });
 
     /// <summary>
     /// 按源序去重（先出现者胜）；**重复项合并事实字段袋**（先非空者胜），
     /// 防「同一事实多源到达时先到者字段少 ⇒ 后到者的事实被整条丢弃」。
+    /// <para>去重原语单源 = <see cref="KeyedMerge.DistinctMerge{T}"/>（与会话帧合并共用）。</para>
     /// </summary>
     public static List<ConversationMessage> Distinct(
         IEnumerable<ConversationMessage> messages, bool includeBinding = false)
-    {
-        var result = new List<ConversationMessage>();
-        var index = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var message in messages ?? Enumerable.Empty<ConversationMessage>())
-        {
-            if (message is null) continue;
-            var key = Key(message, includeBinding);
-            if (index.TryGetValue(key, out var existing))
-            {
-                result[existing] = MergeFacts(result[existing], message);
-                continue;
-            }
+        => KeyedMerge.DistinctMerge(
+            messages,
+            message => Key(message, includeBinding),
+            MergeFacts);
 
-            index[key] = result.Count;
-            result.Add(message);
-        }
-
-        return result;
-    }
-
-    /// <summary>同键消息的事实合并（左 = 高优先级；字段袋并集，事实标量取先非空者）。</summary>
+    /// <summary>同键消息的事实合并（左 = 高优先级；补齐后到源的全部非空字段 + 字段袋并集）。</summary>
     private static ConversationMessage MergeFacts(ConversationMessage winner, ConversationMessage other)
     {
         var winnerFacts = ConversationFacts.From(winner.Fields);
         var mergedFacts = winnerFacts.Merge(ConversationFacts.From(other.Fields));
-        if (mergedFacts.Count == winnerFacts.Count
-            && winner.Terminal is not null
-            && winner.Archived is not null
-            && winner.Presentation is not null
-            && winner.Kind is not null)
-        {
-            return winner;
-        }
-
         return winner with
         {
+            Stage = winner.Stage ?? other.Stage,
+            SubAgent = winner.SubAgent ?? other.SubAgent,
+            Channel = winner.Channel ?? other.Channel,
+            Targets = winner.Targets ?? other.Targets,
             Terminal = winner.Terminal ?? other.Terminal,
             Archived = winner.Archived ?? other.Archived,
             Presentation = winner.Presentation ?? other.Presentation,
+            Binding = winner.Binding ?? other.Binding,
             Kind = winner.Kind ?? other.Kind ?? mergedFacts.Text("kind"),
             Fields = mergedFacts.Values,
         };

@@ -31,12 +31,13 @@ public sealed class ConversationNodeMapper : IConversationNodeMapper
                 var r = c.Round > 0 ? c.Round : round;
                 list.Add(new ConversationFrame(
                         ConversationRole.Tool,
-                        c.Stage ?? string.Empty,
+                        // Kind 只能是 frame-kinds 主键；Stage 正交，禁作 Kind 替身（E-01）。
+                        string.Empty,
                         c.Text,
                         r,
                         string.IsNullOrWhiteSpace(c.Stage)
                             ? ConversationFacts.Empty
-                            : ConversationFacts.FromPairs(("kind", c.Stage)),
+                            : ConversationFacts.FromPairs(("stage", c.Stage)),
                         Stage: c.Stage,
                         SubAgent: c.SubAgent,
                         Channel: MessageChannel.Process,
@@ -52,14 +53,16 @@ public sealed class ConversationNodeMapper : IConversationNodeMapper
         return list;
     }
 
-    /// <summary>反向映射（history → nodes）：提取 Tool 消息为节点贡献（保留 Stage/SubAgent/Round）；非 Tool/空文本跳过。</summary>
+    /// <summary>反向映射（history → nodes）：提取 Tool 消息为节点贡献（保留 Stage/SubAgent/Round）；非 Tool/空文本跳过。
+    /// 缺失字段保留空串（禁以 "node"/"tool" 等默认值伪造事实）。</summary>
     public IReadOnlyList<ConversationNodeContribution> ToContributions(IReadOnlyList<ConversationMessage>? messages)
     {
         if (messages is null) return Array.Empty<ConversationNodeContribution>();
         var list = new List<ConversationNodeContribution>();
         foreach (var m in messages)
             if (m.Role == ConversationRole.Tool && !string.IsNullOrWhiteSpace(m.Text))
-                list.Add(new ConversationNodeContribution(m.Stage ?? "node", m.SubAgent ?? "tool", m.Text, m.Round, m.Targets));
+                list.Add(new ConversationNodeContribution(
+                    m.Stage ?? string.Empty, m.SubAgent ?? string.Empty, m.Text, m.Round, m.Targets));
         return list;
     }
 }

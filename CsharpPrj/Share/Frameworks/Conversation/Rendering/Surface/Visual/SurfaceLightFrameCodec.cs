@@ -21,8 +21,7 @@ public static class SurfaceLightFrameCodec
 
         try
         {
-            using var document = JsonDocument.Parse(json);
-            var root = document.RootElement;
+            var root = ConversationJson.Root(json);
 
             if (root.TryGetProperty("diag", out var diagnostic)
                 && diagnostic.ValueKind == JsonValueKind.String

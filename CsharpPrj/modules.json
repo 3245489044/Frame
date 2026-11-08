@@ -172,8 +172,6 @@
 
     "CircuitFramework": "Share\\Frameworks\\CircuitFramework\\CircuitFramework.csproj",
     "Share.Conversation": "Share\\Frameworks\\Conversation\\Share.Conversation.csproj",
-    "Share.SurfaceModel": "Share\\Frameworks\\SurfaceModel\\SurfaceModel.csproj",
-    "Share.SurfaceRaster": "Share\\Frameworks\\SurfaceRaster\\Share.SurfaceRaster.csproj",
     "Share.SurfacePaint": "Share\\Frameworks\\SurfacePaint\\Share.SurfacePaint.csproj",
     "Share.Messaging": "Share\\Frameworks\\Messaging\\Share.Messaging.csproj",
     "Share.ContextGeometry": "Share\\Frameworks\\ContextGeometry\\Share.ContextGeometry.csproj",

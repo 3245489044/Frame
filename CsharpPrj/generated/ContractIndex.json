@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-06T18:32:10.6684480Z",
+  "builtAt": "2026-11-08T09:52:31.8938401Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -285,14 +285,14 @@
       "kind": "KeyFamily",
       "pattern": "#R",
       "note": "事实 id 前缀",
-      "total": 136,
+      "total": 154,
       "truncated": false,
       "byRole": {
         "Gate": 8,
-        "Test": 43,
+        "Test": 45,
         "Declaration": 0,
-        "Code": 25,
-        "Doc": 56,
+        "Code": 29,
+        "Doc": 68,
         "Other": 4
       },
       "hits": [
@@ -312,6 +312,20 @@
         },
         {
           "repo": "Frame",
+          "file": "CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/Surface/CssSurfaceProjector.cs",
+          "line": 447,
+          "role": "Code",
+          "text": "/// <summary>#RRGGBB / #RRGGBBAA → rgba(...)；非法值原样返回（可见化，不静默吞）。</summary>"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/Surface/CssSurfaceProjector.cs",
+          "line": 477,
+          "role": "Code",
+          "text": "/// <summary>打包 ARGB → CSS 颜色（不透明输出 <c>#RRGGBB</c>，半透明输出 <c>#RRGGBBAA</c>）。</summary>"
+        },
+        {
+          "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/Validation/Validators/StyleValidator.cs",
           "line": 145,
           "role": "Code",
@@ -327,21 +341,21 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Plate/Surface/SurfaceColor.cs",
-          "line": 9,
+          "line": 10,
           "role": "Code",
           "text": "/// <para>CSS 8 位 hex = <c>#RRGGBBAA</c>（alpha 在最后）；GDI+/Win32 打包值 = <c>0xAARRGGBB</c>（alpha 在最前）。"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Plate/Surface/SurfaceColor.cs",
-          "line": 15,
+          "line": 16,
           "role": "Code",
           "text": "/// <summary>解析 <c>#RGB</c> / <c>#RGBA</c> / <c>#RRGGBB</c> / <c>#RRGGBBAA</c>（CSS 语义；8 位 = RRGGBBAA）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Plate/Surface/SurfaceColor.cs",
-          "line": 66,
+          "line": 269,
           "role": "Code",
           "text": "/// <summary>打包 ARGB → CSS hex（固定 <c>#RRGGBBAA</c>，alpha 最后）。</summary>"
         },
@@ -508,6 +522,20 @@
         },
         {
           "repo": "Frame",
+          "file": "CsharpPrj/Share/Frameworks/Conversation/Rendering/Surface/SurfaceResolver.cs",
+          "line": 499,
+          "role": "Code",
+          "text": "// 全透明层（#RRGGBB00）在解析期剔除，不进入渲染栈：它本来就不可见，"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Share/Frameworks/Conversation/Rendering/Surface/SurfaceResolver.cs",
+          "line": 516,
+          "role": "Code",
+          "text": "/// <summary>层不可见 = 主色 alpha 为 00（只识别 <c>#RRGGBBAA</c> 的完全透明，其余原样保留）。</summary>"
+        },
+        {
+          "repo": "Frame",
           "file": "PowerShellScript/doc/Agent门禁模块化分类与通用框架抽取.md",
           "line": 434,
           "role": "Doc",
@@ -557,6 +585,48 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/distill/WinForms光栅化-重复冗余错误.md",
+          "line": 86,
+          "role": "Doc",
+          "text": "| G8 | token 判据与运行期解析不同源：接受任意数值、拒绝 `#RGBA`/`rgb()`/`none`；只扫 color 不扫 width/radius | `SkinDiagnostics.cs`·`IsLiteralColor`/`CountUnresolved` | 复用 `SurfaceColorParse`，扫描全部声明参数 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/engine-ui/00-跨层聚拢方案.md",
+          "line": 108,
+          "role": "Doc",
+          "text": "- C：`ColorExtensions` 把 8 位 hex 当 `#AARRGGBB`，`SurfaceColor` 当 `#RRGGBBAA`，同一 token 出两种颜色；`glass_fill` 左边读成 `A=c0`，右边读成 `A=2b/B=c0`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/engine-ui/C-WinForms光栅化.md",
+          "line": 42,
+          "role": "Doc",
+          "text": "| `SurfaceColor.TryParseHex/TryParseColor` | [SurfaceColor.cs:18](file:///D:/Project/Main/Frame/CsharpPrj/Plate/Surface/SurfaceColor.cs#L18) | CSS：8 位 = `#RRGGBBAA`（权威） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/engine-ui/C-WinForms光栅化.md",
+          "line": 293,
+          "role": "Doc",
+          "text": "| G8 | **token 判据与运行期解析器不同源**：`IsLiteralColor` 接受任意数值（运行期必失败）、拒绝 `#RGBA`/`rgb()`/`none`（运行期成功）；且只扫 `ColorPrimitives.value`，不校验 width/radius/angle | [Diagnostics.cs:213-237](file:///D:/Project/Main/Fra"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/engine-ui/C-WinForms光栅化.md",
+          "line": 373,
+          "role": "Doc",
+          "text": "| A6 | 非法参数（\"1.5\" width、\"#R\"、纯数值 value）必须出现 `SurfaceIssue`，且 `unresolvedTokens` 非 0 | `IntParam` 静默回退 + `IsLiteralColor` 误判 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/engine-ui/D-HTML载体.md",
+          "line": 307,
+          "role": "Doc",
+          "text": "- `SurfaceColor` 明确以 CSS 语义解析 8 位（`#RRGGBBAA`），产出打包 `0xAARRGGBB`（[L9-L17](file:///D:/Project/Main/Frame/CsharpPrj/Plate/Surface/SurfaceColor.cs#L9-L17)），并提供 `ToCssHex` 固定输出 `RRGGBBAA`（[L150-L151](file"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/11/11.7/glass-transparency/01-现状与透明化瓶颈.md",
           "line": 285,
           "role": "Doc",
@@ -575,6 +645,48 @@
           "line": 44,
           "role": "Doc",
           "text": "- `ToCssHex`：固定输出 `#RRGGBBAA`（alpha 最后）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/glass-transparency/08-边框体系设计与断点定位.md",
+          "line": 258,
+          "role": "Doc",
+          "text": "| `Color` / `Colors` | `Pen.Color`（`Color.FromArgb(argb)`） | `border-*-color` | 色值统一经 `UiBackend.SurfaceColor`（CSS 为 `#RRGGBBAA`，GDI 为 `AARRGGBB`） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-visual/11-两档主题框架-令牌档位与切换点.md",
+          "line": 162,
+          "role": "Doc",
+          "text": "**深档等价的第二道保险**：GDI+ 对全透明形状在圆角抗锯齿边缘仍会写 1 通道残差（实测 2132 px 差 1 位）。因此 `SurfaceResolver` 新增“全透明层解析期剔除”（`#RRGGBB00` 不进渲染栈），使“某档把令牌置为全透明”严格等于“没有这一层”，深档像素门重新回到 0 差异。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-visual/lightface-recipe/plan.md",
+          "line": 73,
+          "role": "Doc",
+          "text": "做法：给 `SurfaceMaterial` 增加可复用的不透明面材质（如 `panel_solid` / `panel_raised` / `panel_sunken` / `panel_focus`），profile 按槽映射；`glass_fill` 的浅档值改成**不透明**色（`#RRGGBB`，无 alpha），深档不动（`#2b4a63c0` 保持）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-visual/render-appearance-batch/spec.md",
+          "line": 84,
+          "role": "Doc",
+          "text": "实现：解析 `#RRGGBB`（失败回落 `GlassBackdropHex`），`0.2126/0.7152/0.0722` 线性加权（sRGB 去伽马），`lum >= 0.5` ⇒ `#0D1117`，否则 `#FAFBFC`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-visual/ring-ownership/spec.md",
+          "line": 56,
+          "role": "Doc",
+          "text": "3. 现成的像素等价契约只有一条：**全透明层（`#RRGGBB00`）在解析期剔除**（`SurfaceResolver.IsInvisible`）。用 `strength = 0` 关环走不到这条契约，证明强度更弱。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.8/2026-11-08-Surface核心契约层-等价重构记录.md",
+          "line": 58,
+          "role": "Doc",
+          "text": "1. `SurfaceResolver.IsInvisible` 只识别长度 9 的 `#RRGGBBAA`；`transparent`、`rgba(0,0,0,0)`、`#RGBA` 形式的全透明层不会被解析期剔除。契约目前只承诺 `#RRGGBB00`，若要扩大需同步改生成器与像素基线。"
         },
         {
           "repo": "Main",
@@ -1026,6 +1138,13 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/SkinRenderCostTests.cs",
+          "line": 426,
+          "role": "Test",
+          "text": "Assert.AreEqual(9, raw!.Length, \"必须是 CSS 8 位 #RRGGBBAA：\" + raw);"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/FactIdTests.cs",
           "line": 23,
           "role": "Test",
@@ -1177,6 +1296,13 @@
           "line": 1,
           "role": "Gate",
           "text": "#Requires -Version 7.0"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/Tools/Gate/Agent/Presentation/VisualAcceptance/VisualAcceptance.psm1",
+          "line": 17,
+          "role": "Test",
+          "text": "if ($s.Length -ne 6) { throw \"颜色非法：'$Hex'（期望 #RRGGBB）\" }"
         },
         {
           "repo": "Main",
@@ -1550,38 +1676,38 @@
       "truncated": true,
       "byRole": {
         "Gate": 1,
-        "Test": 37,
+        "Test": 25,
         "Declaration": 1,
         "Code": 18,
-        "Doc": 261,
+        "Doc": 273,
         "Other": 82
       },
       "hits": [
         {
           "repo": "Frame",
           "file": "CallCenter/CallCenter.Mcp/TsScriptCompiler.cs",
-          "line": 92,
+          "line": 94,
           "role": "Code",
           "text": "var stdout = proc.StandardOutput.ReadToEndAsync(ct);"
         },
         {
           "repo": "Frame",
           "file": "CallCenter/CallCenter.Mcp/TsScriptCompiler.cs",
-          "line": 93,
+          "line": 95,
           "role": "Code",
           "text": "var stderr = proc.StandardError.ReadToEndAsync(ct);"
         },
         {
           "repo": "Frame",
           "file": "CallCenter/CallCenter.Mcp/TsScriptCompiler.cs",
-          "line": 94,
+          "line": 96,
           "role": "Code",
           "text": "await proc.WaitForExitAsync(ct).ConfigureAwait(false);"
         },
         {
           "repo": "Frame",
           "file": "CallCenter/CallCenter.Mcp/TsScriptCompiler.cs",
-          "line": 95,
+          "line": 97,
           "role": "Code",
           "text": "var exit = proc.ExitCode;"
         },
@@ -3596,6 +3722,90 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/encoding/2026-11-07-Agent任务面板问号-编码边界逐层取证与修复方案.md",
+          "line": 54,
+          "role": "Doc",
+          "text": "样本中每一段中文都逐字存活，且与库内文本**逐字一致**（见 3.3 的 `proc.2bf8e278759d4804` 取证：首条 `llm-text` = `我先并行探查仓库结构，并定位关键结构事实，包括入口、调度、轮次、边与端口、nodes 声明面以及提示词渲染链路。`）。丢失的是中文之外的符号。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/encoding/2026-11-07-Agent任务面板问号-编码边界逐层取证与修复方案.md",
+          "line": 186,
+          "role": "Doc",
+          "text": "| U+FFFD | 333（分布于 `proc.2bf8…` / `obs.2bf8…` 的**工具结果片段**与 `cline_execute`，见 X1） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/encoding/2026-11-07-Agent任务面板问号-编码边界逐层取证与修复方案.md",
+          "line": 187,
+          "role": "Doc",
+          "text": "| `proc.2bf8e278759d4804` | 505,764 字符 / 155 帧 / **非 GBK 字符 = 0** |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/encoding/2026-11-07-Agent任务面板问号-编码边界逐层取证与修复方案.md",
+          "line": 267,
+          "role": "Doc",
+          "text": "- `proc.2bf8e278759d4804` 内 162 处 U+FFFD，全部位于**工具结果片段**："
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/encoding/2026-11-07-Agent任务面板问号-编码边界逐层取证与修复方案.md",
+          "line": 314,
+          "role": "Doc",
+          "text": "| L-c 持久化 | 只读 SQL：`select Doc from ur_nodes where NodeKey like 'proc.%'` | 标记串码点完整；`?` = 0；`????` = 0；非 GBK 字符 = 计数（应 = `🙂⊘▸ℹ▶⟳` 共 6 个） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/encoding/2026-11-07-Agent任务面板问号-编码边界逐层取证与修复方案.md",
+          "line": 408,
+          "role": "Doc",
+          "text": "`D:\\Project\\Main\\Data`（排除 `Tests`/`Backups`）扫描：不得出现 `?daemon`、`?{3,}`；`proc.*` Doc 的 `????` 计数 = 0。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/encoding/2026-11-07-Agent任务面板问号-编码边界逐层取证与修复方案.md",
+          "line": 419,
+          "role": "Doc",
+          "text": "1. 持久化层对样本**完全干净**：`ur_nodes` 内 `????` = 0、`proc.2bf8…` Doc 非 GBK 字符 = 0、中文与样本逐字一致。（数据证据）"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/encoding/2026-11-07-Agent任务面板问号-编码边界逐层取证与修复方案.md",
+          "line": 503,
+          "role": "Doc",
+          "text": "- 数量：`proc.2bf8e278759d4804` / `obs.2bf8…` 共 **162 处**，全部位于**工具结果片段**（`发一次工具调用��等待`，原文应为「，」；`（由 transport 提供���`，原文应为「）」）。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/encoding/2026-11-07-Agent任务面板问号-编码边界逐层取证与修复方案.md",
+          "line": 553,
+          "role": "Doc",
+          "text": "doc = c.execute(\"select Doc from ur_nodes where NodeKey='proc.2bf8e278759d4804'\").fetchone()[0]"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/encoding/spec.md",
+          "line": 22,
+          "role": "Doc",
+          "text": "| F8 | DB 侧干净：`ur_nodes` 中 `????`=0、`proc.2bf8e278759d4804` 非 GBK 字符=0 | 文档 §1/§3 取证记录 |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-ia/10-未知泛滥-三框架收口（Gather×墙×桥）-重构设计.md",
+          "line": 40,
+          "role": "Doc",
+          "text": "任务 `2e2e072d44263fac`：`obs.2e2e…` 与 `proc.2e2e…` 各 **31 帧**，kind 集："
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-ia/12-字段口径聚拢落地与后续批次-重复冗余错误逻辑清单.md",
+          "line": 137,
+          "role": "Doc",
+          "text": "| **D8** | 进程帧双写 | `ProcessNodes.Append` 同步写 `proc.*` 与 `obs.*`（`ProcessNodes.cs:114-122`）· 读侧 `MergeObservabilityAsync` 按 `stage+text` 去重 | 去重按内容而非键，跨任务可能误合（`11.3` R-10） | G4 后单写或按键去重 |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.25/过程节点闭环-框架层实施分析.md",
           "line": 17,
           "role": "Doc",
@@ -4192,14 +4402,21 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
-          "line": 89,
+          "line": 78,
+          "role": "Test",
+          "text": "\"proc.task1.r1.stage.1\", \"stage\", null, \"engine-run-start\", null,"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
+          "line": 111,
           "role": "Test",
           "text": "new NodePanelRow(\"proc.task1.r1.tool-call.1\", \"调用\", null, \"输入\", null),"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
-          "line": 100,
+          "line": 122,
           "role": "Test",
           "text": "Assert.AreEqual(\"proc.task1.r1.tool-call.1\", messages[0].Binding!.Key.Value);"
         },
@@ -4265,97 +4482,6 @@
           "line": 96,
           "role": "Test",
           "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.c1.r2.tool\", out _, out _, out _, out _));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/DomainKeyFamiliesTests.cs",
-          "line": 97,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.c1.\", out _, out _, out _, out _));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
-          "line": 29,
-          "role": "Test",
-          "text": "{ \"family\": \"domain.process\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\" }, \"rendered\": \"proc.c1\", \"source\": \"declaration\", \"stage\": \"KB1\" },"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
-          "line": 30,
-          "role": "Test",
-          "text": "{ \"family\": \"domain.process\", \"surface\": \"Display\", \"values\": { \"container\": \"c1\", \"round\": \"2\", \"kind\": \"tool\", \"ordinal\": \"9\" }, \"rendered\": \"proc.c1.r2.tool.9\", \"source\": \"old-impl\", \"stage\": \"KB1\""
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
-          "line": 31,
-          "role": "Test",
-          "text": "{ \"family\": \"domain.process\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\", \"round\": \"2\", \"ordinal\": \"9\" }, \"rendered\": \"proc.c1.r2.step9\", \"source\": \"old-impl\", \"parseOnly\": true, \"stage\": \"KB"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/Fixtures/keys.golden.json",
-          "line": 32,
-          "role": "Test",
-          "text": "{ \"family\": \"domain.process\", \"surface\": \"Storage\", \"values\": { \"container\": \"c1\" }, \"rendered\": \"proc.c1.\", \"source\": \"manual\", \"valid\": false, \"stage\": \"KB1\" },"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 43,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.\", ProcessKeys.FamilyPrefix);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 45,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.{container}\", ProcessKeys.PositionKeyTemplate, \"写侧位置键恒单键\");"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 48,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.{container}.r{round:digits}.{kind}.{ordinal:digits}\", ProcessKeys.MultiRowPositionKeyTemplate);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 59,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.task-1.r2.tool-call.37\", position);"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 74,
-          "role": "Test",
-          "text": "Assert.AreEqual(\"proc.task-1\", ProcessKeys.StreamPositionKey(\"task-1\"));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 88,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.task.r2.step37\", out var container, out var round, out var kind, out var ordinal),"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 95,
-          "role": "Test",
-          "text": "Assert.IsTrue(ProcessKeys.TryParse(\"proc.a.b.r1.step1\", out var dotted, out _, out _, out _));"
-        },
-        {
-          "repo": "Main",
-          "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/NodeCarriers/ProcessKeysContractTests.cs",
-          "line": 98,
-          "role": "Test",
-          "text": "Assert.IsFalse(ProcessKeys.TryParse(\"proc.task.r2.step\", out _, out _, out _, out _), \"legacy 序数缺失\");"
         }
       ]
     },
@@ -4364,14 +4490,14 @@
       "kind": "KeyFamily",
       "pattern": "relations.",
       "note": "关系键族前缀",
-      "total": 176,
+      "total": 177,
       "truncated": false,
       "byRole": {
         "Gate": 9,
         "Test": 5,
         "Declaration": 9,
         "Code": 87,
-        "Doc": 65,
+        "Doc": 66,
         "Other": 1
       },
       "hits": [
@@ -4574,7 +4700,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Applier/WinFormApplier.cs",
-          "line": 289,
+          "line": 309,
           "role": "Code",
           "text": "result.RelationsProcessed = relations.Count;"
         },
@@ -5340,6 +5466,13 @@
           "line": 120,
           "role": "Declaration",
           "text": "surface graph.declaration/Storage | templates=relations.{workflowId}.{relationId} | prefix=relations. | readOnly="
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/doc/UI信息架构-分离聚类与声明式设计.md",
+          "line": 477,
+          "role": "Doc",
+          "text": "**建议文件**：`D:\\Project\\Main\\Projects\\Plug\\Agent\\Config\\ui\\ui-relations.ushar`"
         },
         {
           "repo": "Projects",
@@ -8432,17 +8565,24 @@
       "kind": "Vocabulary",
       "pattern": "tool-call",
       "note": "识别词表条目（过程类别）",
-      "total": 399,
-      "truncated": false,
+      "total": 400,
+      "truncated": true,
       "byRole": {
-        "Gate": 7,
-        "Test": 88,
-        "Declaration": 61,
-        "Code": 19,
-        "Doc": 223,
+        "Gate": 5,
+        "Test": 101,
+        "Declaration": 59,
+        "Code": 9,
+        "Doc": 225,
         "Other": 1
       },
       "hits": [
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Share/Frameworks/Conversation/Rendering/Surface/ResolvedUi.cs",
+          "line": 92,
+          "role": "Code",
+          "text": "/// <param name=\"classId\">呈现类 id（tool-call/answer…）。</param>"
+        },
         {
           "repo": "Frame",
           "file": "PowerShellScript/Share/Index/Build-ContractIndex.ps1",
@@ -9754,6 +9894,55 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-ia/00-实施计划.md",
+          "line": 175,
+          "role": "Doc",
+          "text": "3. 用现有 fixture 在内存渲染 HTML（**不落 golden 文件**），断言 `text/reasoning/tool-call/tool-result/attachment/error` 六类的 `data-part` 两两互异（≥6 个不同 `class_*`）；golden 由 S5 在 B2 末尾统一重算。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-ia/01-实施进度与后续.md",
+          "line": 61,
+          "role": "Doc",
+          "text": "| `Projects\\Plug\\Agent\\Config\\nodes\\frame-kinds.json` | 同步 14 行 `presentation`（`class` 列未动）：`tool/tool-call/tool-progress → tool-call`、`tool-result → tool-result`、`cost → accounting`、`workflow-plan/wo"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-ia/01-实施进度与后续.md",
+          "line": 62,
+          "role": "Doc",
+          "text": "| `Projects\\Plug\\Agent\\Config\\nodes\\presentation.json` | 新增细类：`trace-text / reasoning / tool-call / tool-result / plan / runtime / accounting / attachment / error`；`error` 增 `emphasis: danger`；`facts`"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-ia/01-实施进度与后续.md",
+          "line": 176,
+          "role": "Doc",
+          "text": "- 内存渲染探针断言 6 个 `data-part` 两两互异：`text / reasoning / tool-call / tool-result / attachment / error`。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-ia/07-会话呈现面-框架级缺陷归并与通用收口设计.md",
+          "line": 41,
+          "role": "Doc",
+          "text": "| A4 | 该任务观测载荷 | `obs.2bf8...` 505,761 字符，**155 帧**（llm-iteration 35 / tool-call 33 / tool-result 29 / llm-reasoning 18 / usage 18 / stage 12 / llm-text 8 / cost 1 / endpoint 1） |"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-ia/10-未知泛滥-三框架收口（Gather×墙×桥）-重构设计.md",
+          "line": 42,
+          "role": "Doc",
+          "text": "`endpoint(2) · stage(15) · llm-iteration(4) · usage(2) · llm-text(2) · llm-reasoning(2) · tool-call(1) · tool-result(1) · done(1) · llm-call(1)`"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.7/ui-ia/10-未知泛滥-三框架收口（Gather×墙×桥）-重构设计.md",
+          "line": 54,
+          "role": "Doc",
+          "text": "| `tool-call` | `tool, callId, input` |"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/9/9.11/2026-09-11-Cline工具调用测试-下一步debug方案.md",
           "line": 202,
           "role": "Doc",
@@ -10062,6 +10251,20 @@
         },
         {
           "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/Conversation/PageOverviewRendererTests.cs",
+          "line": 30,
+          "role": "Test",
+          "text": "[\"tool-call\"] = new(\"tool-call\", PresentationSurface.Process, \"processRow\", \"tool-call\"),"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/AgentTest/Agent.Launcher.Tests/Conversation/PageOverviewRendererTests.cs",
+          "line": 45,
+          "role": "Test",
+          "text": "\"execution\", \"groupExecution\", 1, PresentationCategorySpec.FoldOpen, new[] { \"tool-call\" }),"
+        },
+        {
+          "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ObservabilityMessageSourceTests.cs",
           "line": 30,
           "role": "Test",
@@ -10140,42 +10343,42 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
-          "line": 89,
+          "line": 111,
           "role": "Test",
           "text": "new NodePanelRow(\"proc.task1.r1.tool-call.1\", \"调用\", null, \"输入\", null),"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Context/ProcessNodeProjectionTests.cs",
-          "line": 100,
+          "line": 122,
           "role": "Test",
           "text": "Assert.AreEqual(\"proc.task1.r1.tool-call.1\", messages[0].Binding!.Key.Value);"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Gather/NodeGatherDeclarationTests.cs",
-          "line": 64,
+          "line": 51,
           "role": "Test",
           "text": "new[] { \"tool\", \"tool-call\", \"tool-progress\", \"tool-result\" },"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Gather/NodeGatherDeclarationTests.cs",
-          "line": 66,
+          "line": 53,
           "role": "Test",
           "text": "\"tools 族须与 process.json.selections.tools 谓词一致（kind in (tool;tool-call;tool-progress;tool-result)）\");"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Gather/TextNodesAllTasksGatherTests.cs",
-          "line": 23,
+          "line": 21,
           "role": "Test",
           "text": "/// 判据（G2）：两个任务的文本帧都入面板、非文本帧（tool-call）被 selection 滤除、组键 = 任务。"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/AgentTest/Agent.Modules.Tests/Gather/TextNodesAllTasksGatherTests.cs",
-          "line": 84,
+          "line": 66,
           "role": "Test",
           "text": "Frame(2, \"tool-call\", \"read_files\"))),"
         },
@@ -10511,14 +10714,21 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/HtmlStreamRendererTests.cs",
-          "line": 319,
+          "line": 106,
+          "role": "Test",
+          "text": "\"llm-iteration\", \"tool-call\", \"tool-result\", \"done\", \"task.create\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/HtmlStreamRendererTests.cs",
+          "line": 358,
           "role": "Test",
           "text": "[\"tool-call\"] = new(\"tool-call\", FrameRoleIds.Call, null),"
         },
         {
           "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/HtmlStreamRendererTests.cs",
-          "line": 326,
+          "line": 365,
           "role": "Test",
           "text": "new ConversationRenderItem(ConversationRole.Tool, \"tool-call\", null, \"read_files\", 1),"
         },
@@ -10535,6 +10745,76 @@
           "line": 48,
           "role": "Test",
           "text": "Assert.IsTrue(DelegationPolicy.ShouldDelegate(\"tool-call\", 100, null));"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/ClassPartProbeTests.cs",
+          "line": 22,
+          "role": "Test",
+          "text": "\"trace-text\", \"reasoning\", \"tool-call\", \"tool-result\", \"attachment\", \"error\","
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/PresentationClassTests.cs",
+          "line": 21,
+          "role": "Test",
+          "text": "\"tool-call\": { \"surface\": \"process\", \"template\": \"processRow\", \"style\": \"tool-call\" },"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/PresentationClassTests.cs",
+          "line": 50,
+          "role": "Test",
+          "text": "[DataRow(\"tool\", \"tool-call\", \"tool-call\")]"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/PresentationClassTests.cs",
+          "line": 54,
+          "role": "Test",
+          "text": "[DataRow(\"tool-call\", \"tool-call\", \"tool-call\")]"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/PresentationClassTests.cs",
+          "line": 55,
+          "role": "Test",
+          "text": "[DataRow(\"tool-progress\", \"tool-call\", \"tool-call\")]"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/RealDeclarationUnknownProbeTests.cs",
+          "line": 107,
+          "role": "Test",
+          "text": "Item(\"tool-call\", \"read_files · {\\\"files\\\":[]}\", new Dictionary<string, string>(StringComparer.Ordinal)"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/UiThemeTests.cs",
+          "line": 88,
+          "role": "Test",
+          "text": "var theme = UiDeclaration.Parse(UiJson).Resolve().ThemeFor(SurfaceRoleIds.FieldRow, \"tool-call\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/UiThemeTests.cs",
+          "line": 116,
+          "role": "Test",
+          "text": "var theme = UiDeclaration.Parse(UiJson).Resolve().ThemeFor(\"no-such-role\", \"tool-call\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/UiThemeTests.cs",
+          "line": 134,
+          "role": "Test",
+          "text": "var plan = SingleNode(SurfaceRoleIds.FieldRow, \"tool-call\");"
+        },
+        {
+          "repo": "Main",
+          "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/UiThemeTests.cs",
+          "line": 151,
+          "role": "Test",
+          "text": "StringAssert.StartsWith(text.TrimEnd(), \"- tool-call\", \"文本结构前缀来自角色部件\");"
         },
         {
           "repo": "Main",
@@ -10959,9 +11239,30 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/frame-kinds.json",
-          "line": 181,
+          "line": 198,
+          "role": "Declaration",
+          "text": "\"presentation\": \"tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/frame-kinds.json",
+          "line": 221,
           "role": "Declaration",
           "text": "\"kind\": \"tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/frame-kinds.json",
+          "line": 223,
+          "role": "Declaration",
+          "text": "\"presentation\": \"tool-call\","
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/frame-kinds.json",
+          "line": 253,
+          "role": "Declaration",
+          "text": "\"presentation\": \"tool-call\","
         },
         {
           "repo": "Projects",
@@ -11008,9 +11309,23 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
+          "line": 105,
+          "role": "Declaration",
+          "text": "shaping tool | family=tools | titleKey=tool | summary=tool,ok,error | badge=工具 | timeKey=atUtc | presentation=tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
           "line": 109,
           "role": "Declaration",
-          "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc | role=call"
+          "text": "shaping tool-call | family=tools | titleKey=tool | summary=tool,input | badge=调用 | timeKey=atUtc | role=call | presentation=tool-call"
+        },
+        {
+          "repo": "Projects",
+          "file": "Plug/Agent/Config/nodes/gather/node-gather.ushar",
+          "line": 110,
+          "role": "Declaration",
+          "text": "shaping tool-progress | family=tools | titleKey=tool | summary=update | badge=进度 | timeKey=atUtc | role=result | presentation=tool-call"
         },
         {
           "repo": "Projects",
@@ -11060,181 +11375,6 @@
           "line": 14,
           "role": "Declaration",
           "text": "tools = kind in (tool;tool-call;tool-progress;tool-result)"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/task/process.ushar",
-          "line": 14,
-          "role": "Declaration",
-          "text": "tools = kind in (tool;tool-call;tool-progress;tool-result)"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/task/task-node.ushar",
-          "line": 36,
-          "role": "Declaration",
-          "text": "role.tool-call = 6"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/nodes/task/task-node.ushar",
-          "line": 61,
-          "role": "Declaration",
-          "text": "owns-tool = \"role.tool-call\""
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/prompt/skills.ushar",
-          "line": 28,
-          "role": "Declaration",
-          "text": "[Skill] tool-call: module=internal | kind=operation | body=skills/internal/tool-call/SKILL.md | trigger=tool-call | tags=subagent,tool,call,invoke"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/rules/local-llm.rules.ushar",
-          "line": 11,
-          "role": "Declaration",
-          "text": "[Rule] r-cline-tool-call"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/rules/local-llm.rules.ushar",
-          "line": 19,
-          "role": "Declaration",
-          "text": "[Rule] r-cline-tool-call-final"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/Config/rules/local-llm.rules.ushar",
-          "line": 67,
-          "role": "Declaration",
-          "text": "comment = 命中「USHARP_TOOLCALL_TASK」→ create_node_reference（SubAgentTag=tool-call + 结构化 UserInput，确定性直调）"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/doc/NodeTaxonomy.md",
-          "line": 27,
-          "role": "Doc",
-          "text": "| 工具调用 | `tool-call` | action | invoke | round | agent | confirmed |"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/PowerShellScript/Check-AgenticWorkflow.ps1",
-          "line": 37,
-          "role": "Gate",
-          "text": "@{ Tag = 'tool-call'; Executor = 'subagent-tool-call' },"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/PowerShellScript/Check-NodeTaxonomy.ps1",
-          "line": 37,
-          "role": "Gate",
-          "text": "role       = @('subagent-face','workflow-root','workflow-step','workflow-observation','result-summary','tool-call','tool-result','prompt-context')"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/skills/internal/tool-call/SKILL.md",
-          "line": 2,
-          "role": "Doc",
-          "text": "name: tool-call"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/skills/internal/tool-call/SKILL.md",
-          "line": 7,
-          "role": "Doc",
-          "text": "trigger: tool-call"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/skills/internal/tool-call/SKILL.md",
-          "line": 9,
-          "role": "Doc",
-          "text": "# tool-call — 工具调用子智能体"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/skills/internal/tool-call/SKILL.md",
-          "line": 38,
-          "role": "Doc",
-          "text": "- 层级任务经 `create_node_reference` 建任务时：`SubAgentTag=\"tool-call\"` ⇒ `UserInput` 必须是上表结构化 JSON；只给目标时省略 `tool` 键，由执行腿走 LLM 辅助。"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/Generated/GeneratedContractConstants.g.cs",
-          "line": 291,
-          "role": "Code",
-          "text": "public const string ToolCall = \"tool-call\";"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Contract/NodeDomain/ObservabilitySelections.cs",
-          "line": 18,
-          "role": "Code",
-          "text": "/// <summary>工具类帧（<c>kind in (tool;tool-call;tool-progress;tool-result)</c>）。</summary>"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Launcher/Composition/Hosting/Storage/DataStoreHosting.cs",
-          "line": 225,
-          "role": "Code",
-          "text": "[\"subagent-tool-call\"] = Agent.Modules.SubAgent.SingleStep.SingleStepSubAgentTaskExecutor.ExecutorId,"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Cline/Cline/Pool/ClineDaemonHost.cs",
-          "line": 122,
-          "role": "Code",
-          "text": "WriteToolResult(callId, false, null, \"tool-call 缺 name\");"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Cline/Cline/Pool/ClineDaemonIpc.cs",
-          "line": 33,
-          "role": "Code",
-          "text": "/// <summary>收到反向工具调用帧（type:\"tool-call\"）时触发（参数 = 原始 JSON 行），供宿主执行工具面并回填 tool-result。</summary>"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Cline/Cline/Pool/ClineDaemonIpc.cs",
-          "line": 73,
-          "role": "Code",
-          "text": "if (resp.Type == \"tool-call\")"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/Response/Runtime/HistorySubmissionClassifier.cs",
-          "line": 18,
-          "role": "Code",
-          "text": "HistoryLoopCatalog.ReadDefaultTagCached(HistoryLoopCatalog.DefaultToolSubAgentKey, \"tool-call\");"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/ToolCall/ToolCallSubAgentTools.cs",
-          "line": 18,
-          "role": "Code",
-          "text": "public const string AgentTagName = \"tool-call\";"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/ToolCall/ToolCallSubAgentTools.cs",
-          "line": 29,
-          "role": "Code",
-          "text": "args => InvokeAsync(args, ct), Source: \"subagent-tool-call\"),"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/Workflow/Context/LegacyContextKinds.cs",
-          "line": 13,
-          "role": "Code",
-          "text": "public const string ToolCall = \"tool-call\";"
-        },
-        {
-          "repo": "Projects",
-          "file": "Plug/Agent/src/Agent.Modules/SubAgent/Agents/Workflow/WorkflowNodeOwnership.cs",
-          "line": 30,
-          "role": "Code",
-          "text": "\"tool-call\" or \"tool-result\" => OwnerKind.ToolCallTask,"
         }
       ]
     },
@@ -11877,7 +12017,7 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Modules/Framework/NodeSpec/AgentNodeSpec.cs",
-          "line": 59,
+          "line": 60,
           "role": "Code",
           "text": "/// 过程是**运行态事实**：运行中住内存（读侧 overlay 源），整体跑完经唯一写门落库（位置 <c>process-node</c>）。"
         },
@@ -11893,31 +12033,32 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1672.0,
+    "hitCount": 1692.0,
     "byRole": {
-      "Gate": 29,
-      "Test": 194,
-      "Declaration": 104,
-      "Code": 348,
-      "Doc": 896,
+      "Gate": 27,
+      "Test": 197,
+      "Declaration": 102,
+      "Code": 342,
+      "Doc": 923,
       "Other": 101
     },
     "truncatedFacts": [
       "key.proc",
-      "key.session"
+      "key.session",
+      "kind.toolcall"
     ],
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 462
+        "lines": 467
       },
       {
         "repo": "Projects",
-        "lines": 338
+        "lines": 361
       },
       {
         "repo": "Main",
-        "lines": 1388
+        "lines": 1436
       }
     ]
   }

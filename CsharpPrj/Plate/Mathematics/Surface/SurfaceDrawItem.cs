@@ -92,6 +92,9 @@ public static class SurfaceDrawKind
     public const ushort Texture = 5;
     public const ushort Shadow = 6;
     public const ushort Noise = 7;
+
+    /// <summary>背后内容（真玻璃基底；旧实现被压平成 <see cref="Fill"/> 而丢失模糊语义）。</summary>
+    public const ushort Backdrop = 8;
 }
 
 /// <summary>绘制项标志位。</summary>

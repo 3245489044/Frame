@@ -1,6 +1,6 @@
 #nullable enable
 
-namespace Share.SurfaceModel.Selection;
+namespace Share.Conversation.Rendering.Surface.Selection;
 
 /// <summary>选择源（装配期注入；producer 不读静态单例）。</summary>
 public interface ISurfaceSelectionSource

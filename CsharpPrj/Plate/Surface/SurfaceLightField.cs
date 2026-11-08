@@ -535,6 +535,7 @@ public static class SurfaceLightRegistry
 {
     private static volatile SurfaceLightFrame? _current;
     private static long _revision;
+    private static long _publishedTick;
 
     /// <summary>当前帧（null ⇒ 光源不可用）。</summary>
     public static SurfaceLightFrame? Current => _current;
@@ -542,16 +543,30 @@ public static class SurfaceLightRegistry
     /// <summary>发布代数（只增不减；用于触发重绘/缓存失效）。</summary>
     public static long Revision => Interlocked.Read(ref _revision);
 
+    /// <summary>最近一次实际发布的单调时钟（ms）；E-17 陈旧判定用。</summary>
+    public static long PublishedTick => Interlocked.Read(ref _publishedTick);
+
+    /// <summary>帧是否已陈旧（超过 <paramref name="ttlMs"/> 未发布）。</summary>
+    /// <param name="ttlMs">存活时间（ms）。</param>
+    public static bool IsStale(int ttlMs)
+        => _current is not null
+           && Environment.TickCount64 - Interlocked.Read(ref _publishedTick) > ttlMs;
+
     /// <summary>
     /// 帧变更通知（低频生产者线程同步触发；消费方异常不得阻断发布）。
     /// <para>HTML 侧据此刷新 <c>:root --sl-*</c>，与 WinForms 侧同源同频。</para>
     /// </summary>
     public static event Action? Changed;
 
-    /// <summary>整帧替换（同一 <see cref="SurfaceLightFrame.Signature"/> 可重复发布，视为幂等）。</summary>
+    /// <summary>整帧替换（同一 <see cref="SurfaceLightFrame.Signature"/> 不触发 Changed，E-18）。</summary>
     public static void Publish(SurfaceLightFrame? frame)
     {
+        var previous = _current;
+        if (frame is null && previous is null) return;
+        if (frame is not null && previous is not null && frame.Signature == previous.Signature) return;
+
         _current = frame;
+        Interlocked.Exchange(ref _publishedTick, Environment.TickCount64);
         Interlocked.Increment(ref _revision);
         try
         {

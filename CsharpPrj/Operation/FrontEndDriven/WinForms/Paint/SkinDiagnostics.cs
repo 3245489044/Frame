@@ -204,27 +204,69 @@ public static class SkinDiagnostics
 
     private static int _anchorProbeWritten;
 
-    private static readonly HashSet<string> _lightDegradedReasons = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, LightDegradedEntry> _lightDegradedCounts = new(StringComparer.Ordinal);
+
+    /// <summary>光样降级计数条目（L-4：同因重复时只递增计数，不刷屏）。</summary>
+    public readonly record struct LightDegradedEntry(int Count, DateTime FirstUtc, DateTime LastUtc, string DetailTail);
 
     /// <summary>
-    /// 光样降级一次性诊断（P0-3 可诊断性）：按**原因码**各打印一次，用于区分「没有光帧」与「视口为空」。
-    /// <para>旧实现两种情形都不产出探针日志，日志长得一样，无法归因。</para>
-    /// <para>原因码：<c>frame-null</c>（无光帧，<see cref="SurfaceLightRegistry.Current"/> 为空）、
-    /// <c>surface-null</c>（表面未解析，根本未进入取光）、<c>port-parse-null</c>/<c>port-exception</c>（端口已调用但无有效帧）、
-    /// <c>viewport-resolver-null</c>/<c>viewport-viewer-null</c>/<c>viewport-viewer-disposed</c>/
-    /// <c>viewport-viewer-no-handle</c>/<c>viewport-layout-pending</c>/<c>viewport-exception</c>
-    /// （光帧在但 WebView 视口解析失败的各环节）。按原因码去重：每种原因进程内只写一条。</para>
+    /// 光样降级诊断（L-4 计数式）：按原因码计数；首次出现落日志，之后只更新计数与尾因。
+    /// <para>原因码：<c>engine-frame-unavailable</c> / <c>gather-fallback</c> / <c>port-parse-null</c> /
+    /// <c>port-exception</c> / <c>light-frame-mismatch</c> / <c>surface-frame:*</c>（帧泵原因码）。</para>
     /// </summary>
-    /// <param name="reason">稳定原因码（同一原因进程内只写一次）。</param>
-    /// <param name="detail">该原因的结构事实（引擎注册状态 / 视口失败环节）。</param>
+    /// <param name="reason">稳定原因码。</param>
+    /// <param name="detail">该原因的结构事实（只保留尾部）。</param>
     public static void RecordLightDegraded(string reason, string detail)
     {
+        var now = DateTime.UtcNow;
+        LightDegradedEntry entry;
+        var first = false;
         lock (Gate)
         {
-            if (!_lightDegradedReasons.Add(reason)) return;
+            if (_lightDegradedCounts.TryGetValue(reason, out var existing))
+            {
+                entry = existing with
+                {
+                    Count = existing.Count + 1,
+                    LastUtc = now,
+                    DetailTail = Tail(detail, 160),
+                };
+            }
+            else
+            {
+                first = true;
+                entry = new LightDegradedEntry(1, now, now, Tail(detail, 160));
+            }
+
+            _lightDegradedCounts[reason] = entry;
         }
-        FrontEndDrivenLog.Log("SkinDiagnostics_light_sample_degraded", new { reason, detail });
+
+        if (!first) return;
+        FrontEndDrivenLog.Log("SkinDiagnostics_light_sample_degraded", new
+        {
+            reason,
+            count = entry.Count,
+            firstUtc = entry.FirstUtc,
+            lastUtc = entry.LastUtc,
+            detail = entry.DetailTail,
+        });
     }
+
+    /// <summary>光样降级计数快照（诊断/验收读取面）。</summary>
+    public static IReadOnlyDictionary<string, LightDegradedEntry> LightDegradedCounts
+    {
+        get
+        {
+            lock (Gate)
+            {
+                return new Dictionary<string, LightDegradedEntry>(_lightDegradedCounts, StringComparer.Ordinal);
+            }
+        }
+    }
+
+    private static string Tail(string? value, int limit)
+        => string.IsNullOrEmpty(value) ? string.Empty
+            : value.Length <= limit ? value : value[^limit..];
 
     private static readonly HashSet<Guid> _pushFailureReported = new();
 

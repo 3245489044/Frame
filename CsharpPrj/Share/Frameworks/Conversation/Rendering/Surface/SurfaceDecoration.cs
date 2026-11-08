@@ -127,8 +127,7 @@ public sealed record SurfaceDecorPlan(
                                                && (declared & SurfaceDecoration.PageField) != 0,
                 SurfacePaintStage.Base => true,
                 SurfacePaintStage.Dynamic => true,
-                SurfacePaintStage.Chrome => pageFieldAvailable
-                                            && (declared & SurfaceDecoration.Chrome) != 0,
+                SurfacePaintStage.Chrome => (declared & SurfaceDecoration.Chrome) != 0,
                 SurfacePaintStage.FrameEdge => scope == SurfaceDecorScope.PageHost,
                 _ => false,
             };

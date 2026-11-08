@@ -28,7 +28,9 @@
     <ProjectReference Include="$(Proj_Plate_Surface)" />
     <ProjectReference Include="$(Proj_Mathematics)" />
     <ProjectReference Include="$(Proj_Share_Conversation)" />
-    <ProjectReference Include="$(Proj_Share_SurfaceRaster)" />
+    <!-- 2026-11-08 合并：原 Share.SurfaceRaster 工程已并入本工程 Raster/ 子目录（命名空间 Share.SurfacePaint.Raster），
+         减少表面专用工程数量；光栅原语仍是载体无关纯函数。 -->
+
   </ItemGroup>
 
 </Project>

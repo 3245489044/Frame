@@ -1,7 +1,7 @@
 <!--
   此文件由 Generate-ModulePaths.ps1 自动生成，请勿手动编辑。
   模块目录定义请修改 Frame/CsharpPrj/modules.json，然后重新运行 Generate-ModulePaths.ps1。
-  生成时间: 2026-11-08 13:35:33
+  生成时间: 2026-11-08 19:04:09
 -->
 <Project>
 
@@ -149,8 +149,6 @@
     <Mod_Share_Llm>$(CsharpPrjDir)Share\Frameworks\Llm\</Mod_Share_Llm>
     <Mod_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\</Mod_CircuitFramework>
     <Mod_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\</Mod_Share_Conversation>
-    <Mod_Share_SurfaceModel>$(CsharpPrjDir)Share\Frameworks\SurfaceModel\</Mod_Share_SurfaceModel>
-    <Mod_Share_SurfaceRaster>$(CsharpPrjDir)Share\Frameworks\SurfaceRaster\</Mod_Share_SurfaceRaster>
     <Mod_Share_SurfacePaint>$(CsharpPrjDir)Share\Frameworks\SurfacePaint\</Mod_Share_SurfacePaint>
     <Mod_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\</Mod_Share_Messaging>
     <Mod_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\</Mod_Share_ContextGeometry>
@@ -302,8 +300,6 @@
     <Proj_Share_Llm>$(CsharpPrjDir)Share\Frameworks\Llm\Share.Llm.csproj</Proj_Share_Llm>
     <Proj_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\CircuitFramework.csproj</Proj_CircuitFramework>
     <Proj_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\Share.Conversation.csproj</Proj_Share_Conversation>
-    <Proj_Share_SurfaceModel>$(CsharpPrjDir)Share\Frameworks\SurfaceModel\SurfaceModel.csproj</Proj_Share_SurfaceModel>
-    <Proj_Share_SurfaceRaster>$(CsharpPrjDir)Share\Frameworks\SurfaceRaster\Share.SurfaceRaster.csproj</Proj_Share_SurfaceRaster>
     <Proj_Share_SurfacePaint>$(CsharpPrjDir)Share\Frameworks\SurfacePaint\Share.SurfacePaint.csproj</Proj_Share_SurfacePaint>
     <Proj_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\Share.Messaging.csproj</Proj_Share_Messaging>
     <Proj_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\Share.ContextGeometry.csproj</Proj_Share_ContextGeometry>

@@ -3,6 +3,7 @@
 using System;
 using System.Windows.Forms;
 using FrontEndDriven.WinForms.Applier;
+using Share.Conversation.Rendering.Surface;
 using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -39,7 +40,7 @@ public static class SurfaceStyleBridge
     /// <param name="control">目标控件。</param>
     public static bool SuppressStyleBackColor(ControlDescriptor desc, Control control)
     {
-        var family = SurfaceControlFamilyRegistry.ForControl(control, desc.Type);
+        var family = WinFormsControlFamilyMap.Resolve(control, desc.Type);
         var role = RoleFor(desc, family);
         if (role == SurfaceStyleRole.DirectColor) return false;
         return family?.OwnsBackColor ?? SkinDecorator.IsPropertyChannelOwned(control);

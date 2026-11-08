@@ -10,6 +10,12 @@ public readonly record struct AmbientLightSample(
     float ShadowX, float ShadowY, float Phase, int TintArgb)
 {
     public static readonly AmbientLightSample Declared = new(135f, 0.30f, 0.18f, 1f, 0f, 0f, 0.5f, unchecked((int)0xFFDCEBFF));
+
+    /// <summary>
+    /// 无光（引擎未发布帧）：Shade=0 关闭径向光与动态调制，相位取中性。
+    /// <para>不得再用 <see cref="Declared"/> 冒充真实太阳（那会让每个载体各自编一份光）。</para>
+    /// </summary>
+    public static readonly AmbientLightSample None = new(0f, 0.5f, 0.5f, 0f, 0f, 0f, 0.5f, unchecked((int)0xFFDCEBFF));
 }
 
 /// <summary>CIELAB（L*, a*, b*）。</summary>

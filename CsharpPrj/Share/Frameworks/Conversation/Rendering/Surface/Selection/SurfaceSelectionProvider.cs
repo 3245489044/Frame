@@ -6,7 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Share.SurfaceModel.Selection;
+namespace Share.Conversation.Rendering.Surface.Selection;
 
 /// <summary>
 /// 进程内选择源（**最小实现**）：当前档 + 覆盖 + 指纹。

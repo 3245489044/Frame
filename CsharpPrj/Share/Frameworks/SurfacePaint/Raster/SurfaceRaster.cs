@@ -7,7 +7,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using UiBackend;
 
-namespace Share.SurfaceRaster;
+namespace Share.SurfacePaint.Raster;
 
 /// <summary>
 /// 表面光栅原语（**载体无关**）：噪声瓦片、径向掩膜、模糊近似、圆角路径。

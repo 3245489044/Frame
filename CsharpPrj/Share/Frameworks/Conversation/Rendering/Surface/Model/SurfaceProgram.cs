@@ -6,7 +6,7 @@ using System.Linq;
 using Modules.CapabilityResolution;
 using Share.Conversation.Rendering.Surface;
 
-namespace Share.SurfaceModel;
+namespace Share.Conversation.Rendering.Surface;
 
 /// <summary>
 /// 表面程序门面（跨产品）：包装 <see cref="SurfaceProgramDeclaration"/>，把能力矩阵/视图索引一并收口。

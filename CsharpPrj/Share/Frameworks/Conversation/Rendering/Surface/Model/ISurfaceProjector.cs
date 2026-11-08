@@ -2,7 +2,7 @@
 
 using Share.Conversation.Rendering.Surface;
 
-namespace Share.SurfaceModel;
+namespace Share.Conversation.Rendering.Surface;
 
 /// <summary>
 /// 载体投影器（每载体恰一个实现）：把已解析表面投影为该载体的产物。

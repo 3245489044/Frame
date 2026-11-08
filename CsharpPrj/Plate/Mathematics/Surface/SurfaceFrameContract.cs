@@ -19,8 +19,8 @@ public static class SurfaceFrameContract
     /// <summary>帧输出面 magic（'WFSF'）。</summary>
     public const uint FrameMagic = 0x46534657;
 
-    /// <summary>契约版本。</summary>
-    public const int Version = 1;
+    /// <summary>契约版本（v2：请求新增 backdrop 段；不匹配 ⇒ contract-version-mismatch）。</summary>
+    public const int Version = 2;
 
     /// <summary>绘制头部字节数。</summary>
     public const int HeaderSize = 64;

@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Share.SurfaceModel.Selection;
+namespace Share.Conversation.Rendering.Surface.Selection;
 
 /// <summary>一次外观选择快照（视图 × 档 × 载体 × 覆盖 + 指纹）。</summary>
 /// <param name="ViewKey">请求视图键（产品视图键，不要求等于表面声明键）。</param>

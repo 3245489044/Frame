@@ -149,34 +149,6 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
 /// </summary>
 public static class SurfaceLight
 {
-    /// <summary>缺省覆盖区（仅用于无帧回落的中心采样；按组件取光请直接用 <see cref="SurfaceLightPort.Sample"/>）。</summary>
-    public static readonly SurfaceLightCoverage DefaultCoverage = new(0f, 0f, 1920f, 1080f);
-
-    /// <summary>
-    /// 无发布帧时的**声明式回落帧**：默认太阳（方位 135°、高度 38°，与 05 文档实测一致），
-    /// 1×1 单元、无时间/光标依赖。生产可达路径（引擎未加载、启动前 1 秒、连续采样失败）
-    /// 用它代替 <see cref="SurfaceLightState.Unavailable"/>，避免整屏退化成无光。
-    /// </summary>
-    public static SurfaceLightFrame DefaultFrame(SurfaceLightCoverage coverage)
-    {
-        const int tint = unchecked((int)0xFFDCEBFF);
-        var sun = new SurfaceLightDirection(-0.557f, -0.557f, 0.616f).Normalized();
-        return new SurfaceLightFrame(
-            signature: -1L,
-            worldSignature: 0L,
-            configSignature: 0L,
-            epoch: 0L,
-            coverage: coverage,
-            columns: 1,
-            rows: 1,
-            sun: sun,
-            sunIntensity: 0.85f,
-            ambient: 0.18f,
-            warmth: 0.12f,
-            tintArgb: tint,
-            cells: new[] { new SurfaceLightCell(sun.X, sun.Y, sun.Z, 0.6f, 0.55f, tint) });
-    }
-
     /// <summary>取全局帧中心处的光参数（旧签名保留，参数不再参与计算）。</summary>
     /// <param name="localTime">保留参数；不再读取时间。</param>
     /// <param name="cursorX">保留参数；不再做光标偏转。</param>
@@ -187,9 +159,11 @@ public static class SurfaceLight
         _ = cursorX;
         _ = width;
 
-        var frame = SurfaceLightRegistry.Current ?? DefaultFrame(DefaultCoverage);
-        var coverage = frame.Coverage;
+        var read = SurfaceLightReader.Read();
+        if (read.Frame is null) return SurfaceLightState.Unavailable;
+
+        var coverage = read.Frame.Coverage;
         var probe = new SurfaceLightProbe(coverage.X, coverage.Y, coverage.Width, coverage.Height);
-        return SurfaceLightState.From(SurfaceLightPort.Sample(frame, probe));
+        return SurfaceLightState.From(SurfaceLightPort.Sample(read.Frame, probe));
     }
 }

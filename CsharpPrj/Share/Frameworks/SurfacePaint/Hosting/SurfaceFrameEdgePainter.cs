@@ -2,9 +2,10 @@
 
 using System.Drawing;
 using Share.Conversation.Rendering.Surface;
+using Share.SurfacePaint.Materials;
 using UiBackend;
 
-namespace FrontEndDriven.WinForms.Paint;
+namespace Share.SurfacePaint.Hosting;
 
 /// <summary>
 /// 边框宿主（批次 1.5）：为无法在自身材质上表达描边的控件/结构宿主补一圈 1px 内衬玻璃边。
@@ -12,7 +13,7 @@ namespace FrontEndDriven.WinForms.Paint;
 /// 边框不改变面，只把「宿主改平后丢掉的那条边」补回来（borderToPanel 归零即此因）。</para>
 /// <para>描边来源不硬编码颜色：优先取宿主自身材质的 stroke 层，缺失时取同档全局玻璃材质（panel_frost）的 stroke 层。</para>
 /// </summary>
-public static class SurfaceFrameHost
+public static class SurfaceFrameEdgePainter
 {
     /// <summary>
     /// 取可用于边框宿主的描边（宿主材质优先，其次全局玻璃材质；都没有 ⇒ null）。
@@ -22,7 +23,7 @@ public static class SurfaceFrameHost
     public static BorderStroke? EdgeStrokeFor(ResolvedMaterial? material)
     {
         var own = LastStrokeOf(material);
-        return own ?? LastStrokeOf(SkinMaterialCatalog.Global);
+        return own ?? LastStrokeOf(SurfaceMaterialCatalog.Global);
     }
 
     /// <summary>
@@ -62,7 +63,7 @@ public static class SurfaceFrameHost
             return false;
         }
 
-        BorderPainter.DrawStroke(graphics, bounds, stroke, dpi);
+        SurfaceBorderPainter.DrawStroke(graphics, bounds, stroke, dpi);
         return true;
     }
 

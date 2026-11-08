@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 using Modules.CapabilityResolution;
 using Modules.Gather;
 using Share.Conversation.Rendering.Surface;
-using Share.SurfaceModel.Selection;
+using Share.Conversation.Rendering.Surface.Selection;
 
-namespace Share.SurfaceModel.Gather;
+namespace Share.Conversation.Rendering.Surface.Gather;
 
 /// <summary>
 /// 表面聚拢模块（产品无关）：提供六个中性域，producer 由装配期注入。

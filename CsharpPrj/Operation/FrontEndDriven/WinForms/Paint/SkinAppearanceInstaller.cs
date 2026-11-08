@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Linq;
 using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
+using Share.SurfacePaint.Ambient;
 using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -73,8 +74,23 @@ public static class SkinAppearanceInstaller
 
         SkinMaterialCatalog.SetPageBackground(pageBackground);
         // 页面装饰层：唯一取值来源 = 当前档令牌（浅档主/深档备），代码端零颜色分支。
-        var ambient = SurfaceAmbientParams.FromTokens(SurfaceResolver.TokensForProfile(program, profile));
+        var ambient = SurfaceAmbientTokens.FromTokens(SurfaceResolver.TokensForProfile(program, profile));
         SurfaceAmbient.Configure(ambient);
+        // G-1 宿主合成真值登记（唯一装配入口）：能力/预算/声明上限；背景由载体快照在绘制期补登。
+        // Q2 默认 T0、Q6 默认 balanced（G-6 落点：只改这里的取值，不改 Clamp）。
+        SurfaceHostFacts.DeclareComposition(new SurfaceCompositionCapability(
+            SurfaceCompositionMode.EngineComposition,
+            SurfaceAlphaMode.Premultiplied,
+            SupportsOwnerDraw: true,
+            SupportsGpuComposition: true,
+            SupportsDesktopBackdrop: false,
+            "winforms-owner-draw"));
+        SurfaceHostFacts.DeclareBudget(SurfaceFrameBudget.Default);
+        SurfaceHostFacts.DeclareTier(GlassTier.T0);
+        // 2026-11-08：端口装配（引擎/日志）——框架侧只读端口，不依赖 Registry/TConfig。
+        WinFormsSurfacePorts.Engine = WinFormsSurfaceEnginePort.Instance;
+        WinFormsSurfacePorts.Log = WinFormsSurfaceLog.Instance;
+        SurfaceAmbientLog.Log = WinFormsSurfacePorts.Log;
         // 引擎帧开关/质量档（配置态，非代码分支；缺失 ⇒ 默认 on/balanced）。
         SurfaceFramePump.Enabled = !program.Settings.TryGetValue("surface_engine", out var engineSwitch)
             || !string.Equals(engineSwitch, "off", StringComparison.OrdinalIgnoreCase);
@@ -200,5 +216,7 @@ public static class SkinAppearanceInstaller
         SurfaceAmbient.Reset();
         SkinDecorator.Disable();
         SkinDiagnostics.RecordUninstall();
+        // E-21：卸载即清宿主事实，避免测试/重装配串状态。
+        SurfaceHostFacts.Reset();
     }
 }

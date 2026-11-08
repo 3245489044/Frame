@@ -15,7 +15,8 @@ public sealed record EngineSurfaceRequest(
     int Width, int Height, int Dpi,
     string LightToken, string Quality,
     SurfaceFrameLightData Light,
-    IReadOnlyList<SurfaceDrawItem> Items);
+    IReadOnlyList<SurfaceDrawItem> Items,
+    UiBackend.SurfaceBackdropFrame? Backdrop = null);
 
 /// <summary>整帧光照参数（与引擎契约同序）。</summary>
 public readonly record struct SurfaceFrameLightData(
@@ -65,7 +66,18 @@ public static class EngineSurfaceBridge
         {
             using var itemsMapping = WriteItems(items, out var itemsShm);
             var json = BuildRequest(request, token, itemsShm, items.Count);
-            var response = port(json);
+            string? response;
+            try
+            {
+                response = port(json);
+            }
+            catch (Exception ex)
+            {
+                // 端口调用本身抛出（跨 ALC 类型/序列化等）：与「响应不可解析」分开归因。
+                reason = "port-call-exception:" + ex.GetType().Name;
+                return null;
+            }
+
             if (string.IsNullOrWhiteSpace(response))
             {
                 reason = "port-empty";
@@ -106,7 +118,7 @@ public static class EngineSurfaceBridge
         }
         catch (Exception ex)
         {
-            reason = "port-exception:" + ex.GetType().Name;
+            reason = "response-parse-error:" + ex.GetType().Name;
             return null;
         }
     }
@@ -118,7 +130,8 @@ public static class EngineSurfaceBridge
         builder.Append(request.Width).Append('x').Append(request.Height)
             .Append('@').Append(request.Dpi)
             .Append('|').Append(request.LightToken)
-            .Append('|').Append(request.Quality);
+            .Append('|').Append(request.Quality)
+            .Append('|').Append(request.Backdrop?.Version ?? 0L);
         foreach (var item in items)
         {
             builder.Append('|').Append(item.X.ToString("F1", CultureInfo.InvariantCulture))
@@ -136,15 +149,28 @@ public static class EngineSurfaceBridge
         EngineSurfaceRequest request, string token, string itemsShm, int itemCount)
     {
         var light = request.Light;
-        return string.Create(CultureInfo.InvariantCulture,
-            $"{{\"v\":1,\"width\":{request.Width},\"height\":{request.Height},\"dpi\":{request.Dpi},"
-            + $"\"frameToken\":\"{token}\",\"lightToken\":\"{Escape(request.LightToken)}\","
-            + $"\"quality\":\"{Escape(request.Quality)}\",\"itemsShm\":\"{Escape(itemsShm)}\","
+        var backdrop = request.Backdrop is { Available: true } frame
+            ? string.Create(CultureInfo.InvariantCulture,
+                $"\"backdrop\":{{\"shm\":\"{Escape(frame.Handle as string)}\",\"width\":{(int)Math.Max(1f, frame.Coverage.Width)},\"height\":{(int)Math.Max(1f, frame.Coverage.Height)},\"dpi\":{frame.Dpi},\"version\":{frame.Version},\"originX\":{frame.OriginX:F2},\"originY\":{frame.OriginY:F2}}},")
+            : "\"backdrop\":{\"available\":false,\"reason\":\"backdrop-unavailable\"},";
+        var head = string.Empty + (string)(
+            $"{{\"v\":2,\"width\":{request.Width},\"height\":{request.Height},\"dpi\":{request.Dpi},"
+            + $"\"frameToken\":\"{token}\",\"lightToken\":\"{Escape(request.LightToken)}\",\""
+            + $"\"quality\":\"{Escape(request.Quality)}\",\"itemsShm\":\"{Escape(itemsShm)}\",\""
             + $"\"itemCount\":{itemCount},"
-            + $"\"light\":{{\"dirX\":{light.DirectionX:F4},\"dirY\":{light.DirectionY:F4},\"dirZ\":{light.DirectionZ:F4},"
-            + $"\"intensity\":{light.Intensity:F4},\"ambient\":{light.Ambient:F4},\"warmth\":{light.Warmth:F4},"
-            + $"\"tint\":{light.TintArgb},\"spotX\":{light.SpotLocalX:F2},\"spotY\":{light.SpotLocalY:F2},"
-            + $"\"spotRadius\":{light.SpotRadiusDips:F2},\"shade\":{light.Shade:F3}}}}}");
+        );
+
+            var backdropPart = backdrop;
+            var tail = string.Empty + (string)(
+
+            string.Empty
+
+            + $"\"light\":{{\"dirX\":{light.DirectionX:F4},\"dirY\":{light.DirectionY:F4},\"dirZ\":{light.DirectionZ:F4},\""
+            + $"\"intensity\":{light.Intensity:F4},\"ambient\":{light.Ambient:F4},\"warmth\":{light.Warmth:F4},\""
+            + $"\"tint\":{light.TintArgb},\"spotX\":{light.SpotLocalX:F2},\"spotY\":{light.SpotLocalY:F2},\""
+            + $"\"spotRadius\":{light.SpotRadiusDips:F2},\"shade\":{light.Shade:F3}}}}}}}");
+        return head + backdropPart + tail;
+
     }
 
     private static MemoryMappedFile WriteItems(IReadOnlyList<SurfaceDrawItem> items, out string name)

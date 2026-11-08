@@ -44,7 +44,7 @@ public static class SkinDecorator
 
         // 族声明的材质槽优先：结构宿主（host_surface）不得被背景槽（panel_surface→panel_frost）顶替，
         // 否则 SplitContainer 自身与两个 SplitterPanel 会把整窗铺成同一块玻璃面（panelToPage → 1.0）。
-        var family = SurfaceControlFamilyRegistry.ForControl(control, descriptor.Type);
+        var family = WinFormsControlFamilyMap.Resolve(control, descriptor.Type);
         var familyDraw = SkinMaterialCatalog.FamilyDraw(family?.MaterialSlot);
         var material = familyDraw
             ?? (descriptor.SkinRefs is { Count: > 0 }
@@ -220,7 +220,7 @@ public static class SkinDecorator
     /// <summary>是否支持 owner-draw（容器/文本承载类；其余控件自绘内容）。</summary>
     private static bool SupportsOwnerDraw(Control control)
     {
-        var family = SurfaceControlFamilyRegistry.ForControl(control, null);
+        var family = WinFormsControlFamilyMap.Resolve(control, null);
         if (family is not null)
         {
             return family.Strategy is SurfaceStrategy.OwnerDrawContainer or SurfaceStrategy.InheritParent;
@@ -259,33 +259,59 @@ public static class SkinDecorator
         var bounds = new Rectangle(Point.Empty, control.ClientSize);
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
-        // 正常路径：整帧像素由引擎产生，宿主只贴位图（0 GDI 图元）。
-        if (SurfaceFramePump.Enabled)
+        var pinned = state.Pinned;
+        var baseLight = pinned is { } frozenBase
+            ? frozenBase.Light
+            : NeedsLight(material) ? ResolveLight(control) : (SurfaceLightState?)null;
+
+        // 结构宿主（FrameHost）的背景由页面装饰层统一接管：用同一张页面场位图，不再铺纯色 flat。
+        var plan = SurfaceDecorPlan.Resolve(material, DecorScopeOf(state.EdgeMode), SurfaceAmbient.Enabled);
+        if (plan.Missing.Length > 0 && !string.Equals(state.DecorMissing, plan.Missing, StringComparison.Ordinal))
         {
-            var engineLight = state.Pinned is { } frozenEngine
-                ? frozenEngine.Light
-                : NeedsLight(material) ? ResolveLight(control) : (SurfaceLightState?)null;
-            var engineFrame = SurfaceFramePump.TryFrame(
-                control, material, engineLight, SurfaceFramePump.Quality);
-            if (engineFrame is not null)
+            state.DecorMissing = plan.Missing;
+            FrontEndDrivenLog.Log("SkinDecorator_decor_undeclared", new
             {
-                e.Graphics.DrawImageUnscaled(engineFrame, bounds);
-                state.Frame++;
-                state.LastReport = new SkinPaintReport(1, 1, 0, 0, 0, new[] { "engine-frame" });
-                return;
-            }
+                type = control.GetType().Name,
+                material = material.MaterialId,
+                detail = plan.Missing,
+            });
+        }
+
+        // 引擎帧只接管它拥有的阶段（Base/Dynamic/PageField）：页场/chrome/边恒由载体执行，不再整帧 return。
+        var facts = SurfaceHostFacts.Current;
+        var glass = SurfaceHostFacts.Glass();
+        var engineFrame = SurfaceFramePump.Enabled
+            ? SurfaceFramePump.TryFrame(control, material, baseLight, SurfaceFramePump.Quality, facts.Backdrop)
+            : null;
+        // G-2：有真实背景源时才由 Gather 事实裁决；否则按泵事实回退并显式记账（不静默改行为）。
+        var ownership = facts.Backdrop.Available
+            ? SurfaceStageOwnership.Resolve(glass.Tier, facts.Composition.Mode)
+            : engineFrame is not null
+                ? SurfaceStageOwnership.EngineFrameOnly
+                : SurfaceStageOwnership.Carrier;
+        if (!facts.Backdrop.Available)
+        {
+            SkinDiagnostics.RecordLightDegraded("gather-fallback", "backdrop-unavailable");
+        }
+
+        var engineOwnsFace = ownership.OwnedBy(SurfacePaintStage.Base, SurfaceStageOwner.EngineFrame);
+        if (engineOwnsFace && engineFrame is null)
+        {
+            // Gather 事实与帧泵事实不一致 ⇒ 按泵事实降级，并显式记账。
+            ownership = SurfaceStageOwnership.Carrier;
+            engineOwnsFace = false;
+            SkinDiagnostics.RecordLightDegraded("gather-fallback", "engine-frame-missing");
+        }
+        else if (!engineOwnsFace && engineFrame is not null)
+        {
+            // 玻璃层不可达 ⇒ 即使引擎能出帧也不接管（G-2：Tier=Unsupported ⇒ 归载体）。
+            engineFrame = null;
         }
 
         var paintBegin = SkinRenderProfile.Begin();
         var baseReport = state.BaseReport;
         try
         {
-            // 静态/动态拆分：backdrop+fill+edge 只随「分钟光 + 背后快照」变化，缓存成底图；
-            // 只有 specular 随秒级时间/光标变化，逐帧重画（一次渐变填充，成本恒定）。
-            var pinned = state.Pinned;
-            var baseLight = pinned is { } frozen
-                ? frozen.Light
-                : NeedsLight(material) ? ResolveLight(control) : (SurfaceLightState?)null;
             var now = Environment.TickCount64;
             var backdropDue = pinned is null && HasBackdrop(material)
                 && (state.Cache is null || now - state.LastBackdropTick >= BackdropRefreshMs);
@@ -296,36 +322,39 @@ public static class SkinDecorator
             var hit = state.Cache is not null
                       && !backdropDue
                       && string.Equals(state.CacheKey, key, StringComparison.Ordinal);
-            // 结构宿主（FrameHost）的背景由页面装饰层统一接管：用同一张页面场位图，不再铺纯色 flat。
-            var plan = SurfaceDecorPlan.Resolve(material, DecorScopeOf(state.EdgeMode), SurfaceAmbient.Enabled);
-            if (plan.Missing.Length > 0 && !string.Equals(state.DecorMissing, plan.Missing, StringComparison.Ordinal))
-            {
-                state.DecorMissing = plan.Missing;
-                FrontEndDrivenLog.Log("SkinDecorator_decor_undeclared", new
-                {
-                    type = control.GetType().Name,
-                    material = material.MaterialId,
-                    detail = plan.Missing,
-                });
-            }
 
-            if (!hit) baseReport = RebuildBase(control, material, bounds, state, pinned, baseLight);
-            // 页面场接管背景或命中缓存但首帧尚无 BaseReport 时，baseReport 可为 null；
-            // 此处归一为空报告，保证 K6 合并面始终有值。
-            if (baseReport is null) baseReport = SkinPaintReport.Empty;
+            if (!engineOwnsFace)
+            {
+                if (!hit) baseReport = RebuildBase(control, material, bounds, state, pinned, baseLight);
+                // 页面场接管背景或命中缓存但首帧尚无 BaseReport 时，baseReport 可为 null；
+                // 此处归一为空报告，保证 K6 合并面始终有值。
+                if (baseReport is null) baseReport = SkinPaintReport.Empty;
+            }
 
             // 阶段 1：页面场（只有页场宿主承载；普通面的背景是自己的基底）。
             if (plan.Paints(SurfacePaintStage.PageField)) SurfaceAmbient.PaintHostSurface(control, e.Graphics);
-            // 阶段 2：面基底（无静态层的材质底图是全透明，贴图即空操作）。
-            if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
 
-            var light = pinned is { } frozenLight
-                ? frozenLight.Light
-                : NeedsLight(material) ? ResolveLight(control) : (SurfaceLightState?)null;
-            // K6：静态底图 + 动态层合并成一份帧报告；PaintCount 在这里（每帧一次）推进。
-            var dynamicReport = SkinPaintEngine.PaintReport(
-                e.Graphics, bounds, material, null, light, PaintScope.Dynamic);
-            var frameReport = baseReport.Merge(dynamicReport);
+            SkinPaintReport frameReport;
+            if (engineOwnsFace)
+            {
+                // 阶段 2+3：面基底与动态层由同一引擎帧产出，宿主只贴图。
+                e.Graphics.DrawImageUnscaled(engineFrame!, bounds);
+                frameReport = new SkinPaintReport(1, 1, 0, 0, 0, new[] { "engine-frame" });
+            }
+            else
+            {
+                // 阶段 2：面基底（无静态层的材质底图是全透明，贴图即空操作）。
+                if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
+
+                var light = pinned is { } frozenLight
+                    ? frozenLight.Light
+                    : NeedsLight(material) ? ResolveLight(control) : (SurfaceLightState?)null;
+                // K6：静态底图 + 动态层合并成一份帧报告；PaintCount 在这里（每帧一次）推进。
+                var dynamicReport = SkinPaintEngine.PaintReport(
+                    e.Graphics, bounds, material, null, light, PaintScope.Dynamic);
+                frameReport = (baseReport ?? SkinPaintReport.Empty).Merge(dynamicReport);
+            }
+
             // 阶段 4：卡片 chrome（留白环/外发光/彩带/纹理），画在不透明面之上。
             if (plan.Paints(SurfacePaintStage.Chrome))
             {
@@ -365,6 +394,7 @@ public static class SkinDecorator
             });
         }
     }
+
 
     /// <summary>重建静态底图：backdrop（快照+模糊）+ fill + edge；specular 不进入底图。</summary>
     private static SkinPaintReport RebuildBase(
@@ -434,6 +464,23 @@ public static class SkinDecorator
         var backdrop = TryCaptureBehind(control, bounds, state);
         SkinRenderProfile.RecordSnapshot(snapshotBegin);
         var version = backdrop is null ? 0 : Interlocked.Increment(ref _backdropSerial);
+        if (backdrop is not null)
+        {
+            // G-1/D-8：背景源单一生产者（载体快照）→ 供 Gather/玻璃选层与帧泵消费。
+            var carrier = SurfaceLightCarrierOrigin.Of(control);
+            SurfaceHostFacts.DeclareBackdrop(new UiBackend.SurfaceBackdropFrame(
+                UiBackend.SurfaceBackdropKind.ParentSnapshot,
+                new UiBackend.SurfaceLightCoverage(
+                    carrier.ScreenXDip, carrier.ScreenYDip, carrier.WidthDip, carrier.HeightDip),
+                control.DeviceDpi > 0 ? control.DeviceDpi : 96,
+                carrier.ScreenXDip,
+                carrier.ScreenYDip,
+                version,
+                backdrop,
+                string.Empty,
+                "carrier-parent-snapshot"));
+        }
+
         return SkinRenderInputs.Create(resolvedLight, backdrop, version);
     }
 
@@ -459,7 +506,7 @@ public static class SkinDecorator
     internal readonly record struct SkinFrameReport(long Frame, SkinPaintReport Report);
 
     private static int _backdropSerial;
-    private static bool _lightFallbackLogged;
+    private static readonly HashSet<Control> _lightFallbackLogged = new(ReferenceEqualityComparer.Instance);
 
     private sealed class PinScope : IDisposable
     {
@@ -489,23 +536,27 @@ public static class SkinDecorator
     /// <summary>
     /// 运行时光：只从全局光场 <see cref="SurfaceLightRegistry.Current"/> 采样；没有帧 ⇒ null（载体保持声明值）。
     /// <para>不再读取时间/光标；组件的位置与尺寸是唯一输入。</para>
+    /// <para>无帧不再伪造声明式太阳（D1）：动态光显式取消，唯一原因码 engine-frame-unavailable。</para>
     /// </summary>
     private static SurfaceLightState? ResolveLight(Control control)
     {
         if (LightOverride is { } over) return over(control);
 
         SurfaceLightPump.EnsureStarted(control);
-        // 无帧（启动前 1 秒 / 引擎未加载 / 连续采样失败）⇒ 声明式默认太阳，而不是整屏无光。
-        var current = SurfaceLightRegistry.Current;
-        if (current is null && !_lightFallbackLogged)
+        var read = SurfaceLightReader.Read();
+        if (read.Frame is null)
         {
-            _lightFallbackLogged = true;
-            SkinDiagnostics.RecordLightDegraded("frame-fallback", "engine-frame-unavailable");
+            if (!_lightFallbackLogged.Contains(control))
+            {
+                _lightFallbackLogged.Add(control);
+                SkinDiagnostics.RecordLightDegraded(read.Reason, "SurfaceLightReader=null");
+            }
+
+            return null;
         }
 
-        var frame = current ?? SurfaceLight.DefaultFrame(SurfaceLightPump.ScreenCoverage(control));
         var probe = ProbeOf(control);
-        var sample = SurfaceLightPort.Sample(frame, probe);
+        var sample = SurfaceLightPort.Sample(read.Frame, probe);
         if (sample.HasValue && !sample.SpotInsideBounds)
         {
             // 越界只记账、不夹取：光斑允许落在面板之外，是否受光由 Shade 判定。

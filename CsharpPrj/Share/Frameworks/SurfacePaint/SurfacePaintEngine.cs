@@ -8,7 +8,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using MathematicalAlgorithms.Lighting;
 using Share.Conversation.Rendering.Surface;
-using Share.SurfaceRaster;
+using Share.SurfacePaint.Raster;
 using UiBackend;
 
 namespace Share.SurfacePaint;
@@ -17,7 +17,7 @@ namespace Share.SurfacePaint;
 /// 表面绘制引擎（**载体无关**）：已解析材质层栈 → GDI+ 图元。
 /// <para>支持 fill/gradient/stroke/shadow/innerShadow/backdrop/specular；texture/decal 缺资源进 Skipped（禁静默纯色）。</para>
 /// <para>backdrop：有宿主快照时「采样背后 + 模糊」；无快照才回退近似并记账 <c>backdrop:emulated</c>，禁伪装原生模糊。</para>
-/// <para>宿主（WinForms 等）只做生命周期与参数装配；排序/几何/颜色/光栅全部在本程序集与 Plate.Surface / Share.SurfaceRaster。</para>
+/// <para>宿主（WinForms 等）只做生命周期与参数装配；排序/几何/颜色/光栅全部在本程序集与 Plate.Surface / Share.SurfacePaint.Raster。</para>
 /// </summary>
 public static class SurfacePaintEngine
 {
@@ -262,7 +262,7 @@ public static class SurfacePaintEngine
                     {
                         if (path is not null) graphics.SetClip(path);
                         var blurBegin = SurfacePaintTelemetry.Current.Begin();
-                        using var blurred = Share.SurfaceRaster.SurfaceRaster.Blur(backdrop, (int)Math.Round(Math.Max(0, spec.Blur)));
+                        using var blurred = SurfaceRaster.Blur(backdrop, (int)Math.Round(Math.Max(0, spec.Blur)));
                         SurfacePaintTelemetry.Current.RecordBlur(blurBegin);
                         graphics.DrawImage(blurred, bounds);
                     }
@@ -650,7 +650,7 @@ public static class SurfacePaintEngine
             if (clip is not null) graphics.SetClip(clip, CombineMode.Intersect);
 
             // 预渲染的 128 像素 径向 alpha 掩膜 + ColorMatrix 着色：一次缩放贴图，避免每帧 PathGradientBrush。
-            var mask = Share.SurfaceRaster.SurfaceRaster.SpotMask();
+            var mask = SurfaceRaster.SpotMask();
             using var attributes = new ImageAttributes();
             attributes.SetColorMatrix(new ColorMatrix(new[]
             {

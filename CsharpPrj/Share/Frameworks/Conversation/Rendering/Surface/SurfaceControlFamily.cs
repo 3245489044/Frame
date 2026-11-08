@@ -2,10 +2,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Windows.Forms;
 using Modules.CapabilityResolution;
 
-namespace FrontEndDriven.WinForms.Paint;
+namespace Share.Conversation.Rendering.Surface;
 
 /// <summary>控件族的表面策略（替代原 <c>SupportsOwnerDraw</c> 白名单与 SplitterPanel 过滤）。</summary>
 public enum SurfaceStrategy
@@ -93,13 +92,6 @@ public static class SurfaceControlFamilyRegistry
         lock (Gate) return ByType.TryGetValue(typeKey, out var spec) ? spec : null;
     }
 
-    /// <summary>按控件/描述符类型取族（描述符键优先，运行时类型兜底）。</summary>
-    public static SurfaceControlFamilySpec? ForControl(Control control, string? typeKey)
-    {
-        var byDescriptor = For(typeKey);
-        if (byDescriptor is not null) return byDescriptor;
-        return For(RuntimeKey(control));
-    }
 
     /// <summary>全部登记（诊断/门禁扫描）。</summary>
     public static IReadOnlyCollection<SurfaceControlFamilySpec> Families
@@ -189,31 +181,4 @@ public static class SurfaceControlFamilyRegistry
         }
     }
 
-    private static string RuntimeKey(Control control)
-        => control switch
-        {
-            SplitterPanel => "splitterpanel",
-            SplitContainer => "splitcontainer",
-            CheckBox => "checkbox",
-            ButtonBase => "button",
-            TextBoxBase => "textbox",
-            ListView => "listview",
-            ListBox => "listbox",
-            ComboBox => "combobox",
-            TreeView => "treeview",
-            GroupBox => "groupbox",
-            Label => "label",
-            TableLayoutPanel => "tablelayoutpanel",
-            FlowLayoutPanel => "flowlayoutpanel",
-            UserControl => "usercontrol",
-            Panel => "panel",
-            StatusStrip => "statusstrip",
-            MenuStrip => "menustrip",
-            ToolStrip => "toolstrip",
-            ProgressBar => "progressbar",
-            TrackBar => "trackbar",
-            NumericUpDown => "numericupdown",
-            DateTimePicker => "datetimepicker",
-            _ => control.GetType().Name.ToLowerInvariant(),
-        };
 }

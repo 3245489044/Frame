@@ -205,6 +205,10 @@ public sealed class SurfacePaintSession : IDisposable
 
         // 唯一读取面：光 / 背景 / 玻璃计划 / 所有权 / 降级。
         var facts = snapshot?.Facts ?? SurfaceRenderFactsReader.Read(TextureFrameOf(viewport, inputs));
+        // 快照模式：页面场/chrome 与卡片共用同一窗口级光态（禁逐卡采样）。
+        var lightContext = snapshot is null
+            ? null
+            : new SurfaceFrameLightContext(snapshot.Light, snapshot.Facts, snapshot.Generation);
         var ownership = facts.Ownership;
         var engineLight = inputs?.Light ?? baseLight;
         var engineFrame = card?.Frame;
@@ -260,7 +264,7 @@ public sealed class SurfacePaintSession : IDisposable
             {
                 // 快照模式：页面场已由窗口生产者统一决策；载体不再自行请求引擎（避免每控件一帧）。
                 SurfaceAmbientScene.PaintHostSurface(
-                    viewport, _hostId, graphics, snapshot is null ? _engine : null, _log);
+                    viewport, _hostId, graphics, snapshot is null ? _engine : null, _log, lightContext);
             }
 
             SurfacePaintReport frameReport;
@@ -284,7 +288,7 @@ public sealed class SurfacePaintSession : IDisposable
             // 阶段 4：卡片 chrome（留白环/外发光/彩带/纹理），画在不透明面之上。
             if (plan.Paints(SurfacePaintStage.Chrome))
             {
-                SurfaceAmbientScene.PaintPanelChrome(_hostId, viewport, graphics, bounds, material);
+                SurfaceAmbientScene.PaintPanelChrome(_hostId, viewport, graphics, bounds, material, lightContext);
             }
 
             // 阶段 5：结构宿主的 1px 内衬边（最后画，保证不被面或 chrome 盖掉）。

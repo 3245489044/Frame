@@ -329,5 +329,34 @@ public static class EngineSurfaceBridge
         => element.TryGetProperty(name, out var value) && value.TryGetSingle(out var parsed) ? parsed : 0f;
 
     private static string Escape(string? value)
-        => (value ?? string.Empty).Replace("\\", "\\\\").Replace("\"", "\\\"", StringComparison.Ordinal);
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        var builder = new StringBuilder(value.Length + 8);
+        foreach (var ch in value)
+        {
+            switch (ch)
+            {
+                case '\\': builder.Append("\\\\"); break;
+                case '"': builder.Append("\\\""); break;
+                case '\n': builder.Append("\\n"); break;
+                case '\r': builder.Append("\\r"); break;
+                case '\t': builder.Append("\\t"); break;
+                case '\b': builder.Append("\\b"); break;
+                case '\f': builder.Append("\\f"); break;
+                default:
+                    if (ch < 0x20)
+                    {
+                        builder.Append("\\u").Append(((int)ch).ToString("x4", CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        builder.Append(ch);
+                    }
+
+                    break;
+            }
+        }
+
+        return builder.ToString();
+    }
 }

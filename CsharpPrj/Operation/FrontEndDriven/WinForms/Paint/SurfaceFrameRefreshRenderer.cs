@@ -20,28 +20,13 @@ internal sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
     private string? _lastFingerprint;
 
     internal SurfaceFrameRefreshRenderer(
-        string slotKey, Func<SurfaceFrameInput?> capture, SurfaceFrameComposer composer)
+        string slotKey, Func<SurfaceFrameInput?> capture, SurfaceFrameComposer composer,
+        ISurfaceFrameGatherSource? viewSource = null)
     {
         SlotKey = slotKey;
         _composer = composer;
-        _view = new GatherViewSpec(
-            "surface-frame",
-            new[]
-            {
-                new GatherStageSpec(
-                    "frame",
-                    new[] { "surface-frame-input" },
-                    Array.Empty<string>(),
-                    new[] { "frame" }),
-            },
-            new[]
-            {
-                new GatherNeedSpec("surface-frame-input", "window", GatherCostClass.High, Reusable: false),
-            },
-            new[]
-            {
-                new GatherProduceSpec("surface-frame", "bitmap-frame", "transient", "micro"),
-            });
+        // 声明单源：优先取宿主注入的声明面视图；缺失 ⇒ 显式回退（记录 surface-frame-view-unavailable）。
+        _view = viewSource?.View ?? SurfaceFrameViewFallback.View;
 
         var registry = GatherRegistry.Build(new IGatherModule[]
         {

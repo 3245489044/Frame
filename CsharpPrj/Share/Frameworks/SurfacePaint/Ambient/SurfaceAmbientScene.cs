@@ -37,6 +37,11 @@ public static class SurfaceAmbientScene
     private static readonly Dictionary<string, ChromeSnapshot> Chromes = new(StringComparer.Ordinal);
     private static SceneSnapshot? _scene;
     public static int SceneBuildCount { get; private set; }
+
+    private static int _lightSamples;
+
+    /// <summary>实际光采样次数（诊断/断言：每拍应 ≤ 窗口数）。</summary>
+    public static int LightSampleCount => System.Threading.Volatile.Read(ref _lightSamples);
     private static SurfaceAmbientTokens _params = SurfaceAmbientTokens.Empty;
     private static Bitmap? _noise;
     private static float _noiseAlpha;
@@ -95,14 +100,16 @@ public static class SurfaceAmbientScene
     /// </summary>
     public static void PaintHostSurface(
         SurfaceViewport viewport, string hostId, Graphics graphics,
-        ISurfaceEnginePort? enginePort = null, ISurfaceEventLog? log = null)
+        ISurfaceEnginePort? enginePort = null, ISurfaceEventLog? log = null,
+        SurfaceFrameLightContext? context = null)
     {
         if (!viewport.IsValid) return;
 
         // 正常路径：页面场也由 Engine 产生（同一虚拟矩阵光）；失败才走下面 CPU 降级。
         if (SurfaceEngineFramePump.Enabled && enginePort is not null)
         {
-            var light = ResolveState(viewport, hostId);
+            // 快照上下文 ⇒ 用窗口级唯一光态；无上下文才自行采样（兼容旧宿主/测试）。
+            var light = context is null ? ResolveState(viewport, hostId) : context.Light;
             if (light is not { HasValue: true })
             {
                 // 光样缺失 ⇒ 不进 D3D（P0-5：降级判断与执行路径互锁），直接走 CPU 降级。
@@ -122,7 +129,7 @@ public static class SurfaceAmbientScene
             }
         }
 
-        var scene = EnsureScene(viewport, hostId);
+        var scene = EnsureScene(viewport, hostId, context);
         if (scene is null) return;
 
         var offset = new Point(viewport.OffsetX, viewport.OffsetY);
@@ -158,27 +165,31 @@ public static class SurfaceAmbientScene
     /// <para>结果按「控件尺寸/屏幕位置/光签名/档位」缓存；命中时只贴一张位图。</para>
     /// </summary>
     public static void PaintPanelChrome(
-        string hostId, SurfaceViewport viewport, Graphics graphics, Rectangle bounds, ResolvedMaterial material)
+        string hostId, SurfaceViewport viewport, Graphics graphics, Rectangle bounds, ResolvedMaterial material,
+        SurfaceFrameLightContext? context = null)
     {
         // chrome 恒由载体绘制：引擎帧只接管 Base/Dynamic（阶段所有权），此处不得再整帧贴图（否则重复绘制）。
-        var chrome = EnsureChrome(hostId, viewport, bounds, material);
+        var chrome = EnsureChrome(hostId, viewport, bounds, material, context);
         if (chrome is null) return;
         var begin = SurfaceRenderProfile.Begin();
         graphics.DrawImageUnscaled(chrome.Image, bounds.X, bounds.Y);
         SurfaceRenderProfile.RecordLayer("decor:chrome", begin);
     }
 
-    private static SceneSnapshot? EnsureScene(SurfaceViewport viewport, string hostId)
+    private static SceneSnapshot? EnsureScene(
+        SurfaceViewport viewport, string hostId, SurfaceFrameLightContext? context = null)
     {
         if (!Enabled) return null;
         var dpi = BorderUnits.NormalizeDpi(viewport.HostDpi);
         var size = new Size(viewport.HostWidth, viewport.HostHeight);
         if (size.Width <= 0 || size.Height <= 0) return null;
 
-        var state = ResolveState(viewport, hostId);
+        // 快照上下文 ⇒ 窗口级唯一光态（不再逐卡采样）；无上下文才采样（兼容旧宿主/测试）。
+        var state = context is null ? ResolveState(viewport, hostId) : context.Light;
         // 装饰层是“静态艺术底”，不跟随 1Hz 光签名抖动：只取量化后的方向/相位（分钟级才换）。
+        var generation = context?.Generation ?? 0;
         var token = string.Create(CultureInfo.InvariantCulture,
-            $"{size.Width}x{size.Height}|{dpi:F0}|{_params.Token}|{LightToken(state)}");
+            $"{size.Width}x{size.Height}|{dpi:F0}|{_params.Token}|{LightToken(state)}|g{generation}");
 
         lock (Gate)
         {
@@ -353,14 +364,15 @@ public static class SurfaceAmbientScene
     }
 
     private static ChromeSnapshot? EnsureChrome(
-        string hostId, SurfaceViewport viewport, Rectangle bounds, ResolvedMaterial material)
+        string hostId, SurfaceViewport viewport, Rectangle bounds, ResolvedMaterial material,
+        SurfaceFrameLightContext? context = null)
     {
-        var scene = EnsureScene(viewport, hostId);
+        var scene = EnsureScene(viewport, hostId, context);
         if (scene is null || bounds.Width <= 0 || bounds.Height <= 0) return null;
 
         var offset = new Point(viewport.OffsetX, viewport.OffsetY);
         var dpi = BorderUnits.NormalizeDpi(viewport.Dpi);
-        var light = ResolveState(viewport, hostId);
+        var light = context is null ? ResolveState(viewport, hostId) : context.Light;
         var decoration = material.Decoration;
         var key = string.Create(CultureInfo.InvariantCulture,
             $"{bounds.Width}x{bounds.Height}@{offset.X},{offset.Y}|{dpi:F0}|{scene.Token}|{_params.Token}|{(int)decoration}");
@@ -686,6 +698,7 @@ public static class SurfaceAmbientScene
     /// </summary>
     private static SurfaceLightState? ResolveState(SurfaceViewport viewport, string hostId)
     {
+        System.Threading.Interlocked.Increment(ref _lightSamples);
         var read = SurfaceLightReader.Read();
         var frame = read.Frame;
         if (frame is null)

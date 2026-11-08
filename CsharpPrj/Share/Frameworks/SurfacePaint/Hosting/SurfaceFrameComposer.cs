@@ -49,12 +49,16 @@ public sealed class SurfaceFrameComposer
         var degradations = new List<string>(input.Degradations);
         SurfaceRenderFacts? facts = null;
 
+        // 窗口级背景单次装配：所有卡片复用同一份事实/纹理（不再逐卡抓取）。
+        var windowFacts = SurfaceRenderFactsReader.Read(input.Backdrop);
+
         foreach (var card in input.Cards)
         {
             ct.ThrowIfCancellationRequested();
 
-            var cardFacts = SurfaceRenderFactsReader.Read(card.Backdrop);
+            var cardFacts = card.Backdrop is null ? windowFacts : SurfaceRenderFactsReader.Read(card.Backdrop);
             facts ??= cardFacts;
+            var backdrop = card.Backdrop ?? input.Backdrop;
 
             // 资格门：只有材质本身需要光/背景才进引擎；composition 为 Engine 不等于所有控件都要 GPU。
             var needsEngine = SurfacePaintSession.NeedsLight(card.Material)
@@ -70,7 +74,7 @@ public sealed class SurfaceFrameComposer
                     input.Light,
                     SurfaceEngineFramePump.Quality,
                     _engine,
-                    card.Backdrop,
+                    backdrop,
                     cardFacts.Glass.Spec,
                     _log);
             }
@@ -89,6 +93,11 @@ public sealed class SurfaceFrameComposer
                 frame,
                 ownsFace,
                 CardFingerprint(card, frame, input.Light));
+        }
+
+        if (facts is null)
+        {
+            facts = windowFacts;
         }
 
         var generation = Interlocked.Increment(ref _generation);

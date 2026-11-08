@@ -27,6 +27,12 @@ public static class SkinDecorator
     /// <summary>是否启用 owner-draw（回退开关；默认关闭）。</summary>
     public static bool Enabled { get; set; }
 
+    /// <summary>
+    /// 窗口帧视图声明端口（装配期由宿主注入一次；null ⇒ 渲染器走显式回退并记
+    /// <c>surface-frame-view-unavailable</c>）。
+    /// </summary>
+    public static ISurfaceFrameGatherSource? FrameGatherSource { get; set; }
+
     private static readonly ConditionalWeakTable<Control, SkinState> States = new();
 
     /// <summary>属性通道已由材质投影器接管的控件（单一写者判据：声明属性不得再写 BackColor）。</summary>
@@ -242,12 +248,17 @@ public static class SkinDecorator
 
         if (cards.Count == 0) return null;
 
+        // 窗口级背景：唯一 producer（2s 节流 + 重入闸）；失败为显式 Unavailable，不伪造像素。
+        var backdrop = SurfaceWindowBackdropSource.Capture(form);
+        SurfaceHostFacts.DeclareBackdrop(backdrop);
+
         return new SurfaceFrameInput(
             SurfaceAmbient.IdOf(form),
             windowViewport,
             ResolveWindowLight(windowViewport),
             cards,
-            Array.Empty<string>());
+            Array.Empty<string>(),
+            backdrop);
     }
 
     private static SurfaceLightState? ResolveWindowLight(SurfaceViewport viewport)
@@ -303,7 +314,7 @@ public static class SkinDecorator
     private static void PaintControl(Control control, SkinState state, PaintEventArgs e)
     {
         // 生成 backdrop 快照时，本控件会被父级 DrawToBitmap 重入；此时留白（父级背景即「背后」），防递归。
-        if (state.SuppressPaint) return;
+        if (state.SuppressPaint || SurfaceWindowBackdropSource.IsCapturing) return;
 
         var session = state.Session;
         if (session is null) return;
@@ -312,6 +323,8 @@ public static class SkinDecorator
         var snapshot = SurfaceRefreshHost.SnapshotOf(control.FindForm());
         var result = session.Paint(e.Graphics, bounds, snapshot);
         var report = result.Report;
+
+        SurfaceRefreshHost.ReleaseConsumed(control, snapshot);
 
         SkinDiagnostics.RecordFrame(report);
         if (session.Material is { } material)

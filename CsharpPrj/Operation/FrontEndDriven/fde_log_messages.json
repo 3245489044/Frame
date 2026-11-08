@@ -17,6 +17,21 @@
       "level": "Debug",
       "category": "FrontEndDriven.Skin"
     },
+    "surface.refresh": {
+      "template": "[表面] 窗口帧刷新调度 — name={name}, data={data}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface.refresh.failed": {
+      "template": "[表面] 窗口帧刷新失败（已按可见降级继续） — slot={slot}, error={error}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface-frame-view-unavailable": {
+      "template": "[表面] 窗口帧视图声明不可用（显式回退，不静默内联） — view={view}, reason={reason}, action={action}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
     "SkinDiagnostics_anchor_probe": {
       "template": "[表面] 锚点坐标一次性诊断 — virtual={virtualScreen}, control={controlRect}, coverage/anchor={anchor}",
       "level": "Info",

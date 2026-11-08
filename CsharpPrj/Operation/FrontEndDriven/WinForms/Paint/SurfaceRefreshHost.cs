@@ -28,12 +28,21 @@ internal sealed class SurfaceRefreshHost
     private readonly Form _form;
     private readonly string _windowId;
     private readonly string _slotKey;
-    private readonly KeyedSnapshotStore<SurfaceFrameSnapshot> _store = new();
+    private readonly SurfaceFrameStore _store = new();
     private readonly SurfaceFrameRefreshRenderer _renderer;
     private readonly SurfaceFrameRefreshSink _sink;
     private readonly SurfaceLightRefreshSource _lightSource = new();
     private readonly SurfaceLayoutRefreshSource _layoutSource;
     private RefreshService? _service;
+
+    private static long _pushes;
+    private static long _unchanged;
+
+    /// <summary>窗口帧推送次数（诊断；框架 UnchangedDeliveries 恒 0，故自建）。</summary>
+    internal static long PushCount => System.Threading.Interlocked.Read(ref _pushes);
+
+    /// <summary>未变化帧的交付次数（诊断；自建计数）。</summary>
+    internal static long UnchangedDeliveries => System.Threading.Interlocked.Read(ref _unchanged);
 
     private SurfaceRefreshHost(Form form)
     {
@@ -46,7 +55,8 @@ internal sealed class SurfaceRefreshHost
             CaptureInput,
             new SurfaceFrameComposer(
                 WinFormsSurfacePorts.Engine ?? WinFormsSurfaceEnginePort.Instance,
-                WinFormsSurfacePorts.Log));
+                WinFormsSurfacePorts.Log),
+            SkinDecorator.FrameGatherSource);
         _layoutSource = new SurfaceLayoutRefreshSource(form);
         _form.FormClosed += (_, _) => Detach();
     }
@@ -78,24 +88,21 @@ internal sealed class SurfaceRefreshHost
         if (Hosts.TryGetValue(form, out var host)) host._service?.MarkDirty(scope);
     }
 
+    /// <summary>绘制完成后释放更早代（幂等；借用位图仍归帧泵所有）。</summary>
+    internal static void ReleaseConsumed(Control? control, SurfaceFrameSnapshot? snapshot)
+    {
+        if (snapshot is null) return;
+        var form = control?.FindForm();
+        if (form is null || !Hosts.TryGetValue(form, out var host)) return;
+        host._store.Release(snapshot.WindowId, snapshot.Generation);
+    }
+
     private void Attach()
     {
         if (_service is not null) return;
 
-        // 窗口级背景事实（V1）：声明 ParentSnapshot 能力，避免每控件 backdrop 采集；
-        // 真实位图由后续窗口级 producer 补入（Content=null 时引擎只跳过模糊，不伪造像素）。
-        SurfaceHostFacts.DeclareBackdrop(new SurfaceTextureFrame(
-            SurfaceTextureKind.ParentSnapshot,
-            new SurfaceLightCoverage(0f, 0f, Math.Max(1, _form.ClientSize.Width), Math.Max(1, _form.ClientSize.Height)),
-            _form.DeviceDpi > 0 ? _form.DeviceDpi : 96,
-            0f,
-            0f,
-            Version: Environment.TickCount64,
-            Content: null,
-            Transport: "bitmap",
-            Reason: string.Empty,
-            Detail: "window-level-placeholder"));
-
+        // 背景事实由真实 producer（SkinDecorator → SurfaceWindowBackdropSource）在采集后写入；
+        // 这里不再登记占位（Content=null）以免冒充可用背景。
         var service = new RefreshService(
             PushOnceAsync,
             _sink,
@@ -115,6 +122,12 @@ internal sealed class SurfaceRefreshHost
         if (_service is null) return false;
         var request = new RefreshRequest(_slotKey, scopes?.ToArray());
         var result = await _service.ExecuteAsync(request, RefreshTrigger.Change, ct).ConfigureAwait(false);
+        System.Threading.Interlocked.Increment(ref _pushes);
+        if (result.Outcome == RefreshOutcome.Unchanged)
+        {
+            System.Threading.Interlocked.Increment(ref _unchanged);
+        }
+
         return result.Outcome != RefreshOutcome.Failed;
     }
 
@@ -123,6 +136,7 @@ internal sealed class SurfaceRefreshHost
         _lightSource.Stop();
         _layoutSource.Stop();
         _service?.Detach();
+        _store.Clear();
         _service = null;
     }
 
@@ -146,7 +160,7 @@ internal sealed class SurfaceRefreshHost
 
     private void Deliver(SurfaceFrameSnapshot snapshot)
     {
-        _store.Write(snapshot.WindowId, snapshot);
+        _store.Publish(snapshot);
         if (_form.IsDisposed || !_form.IsHandleCreated) return;
         _form.BeginInvoke(new Action(() =>
         {

@@ -71,6 +71,12 @@ public sealed record SurfaceFrameSnapshot(
 
     /// <summary>是否有可消费内容。</summary>
     public bool HasContent => PageField is not null || Cards.Count > 0;
+
+    /// <summary>
+    /// 释放自有副本（引擎卡片帧为**借用**，所有权归帧泵，禁在此 Dispose）。
+    /// <para>消费方只读快照；释放由生产者/存储按代次推进。</para>
+    /// </summary>
+    public void ReleaseFrames() => PageField?.Dispose();
 }
 
 /// <summary>一张卡片的帧生产请求（宿主在 UI 线程采集，组合器在后台消费）。</summary>
@@ -95,7 +101,8 @@ public sealed record SurfaceFrameInput(
     SurfaceViewport Viewport,
     SurfaceLightState? Light,
     IReadOnlyList<SurfaceCardRequest> Cards,
-    IReadOnlyList<string> Degradations);
+    IReadOnlyList<string> Degradations,
+    SurfaceTextureFrame? Backdrop = null);
 
 /// <summary>
 /// 帧消费者契约（载体实现）：只接快照、只贴图；禁自行请求引擎/解析光/采集背景。

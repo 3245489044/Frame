@@ -23,6 +23,12 @@ public static class SurfaceEngineFramePump
     private static readonly object Gate = new();
     private static readonly Dictionary<string, Bitmap> Cache = new(StringComparer.Ordinal);
 
+    /// <summary>缓存 LRU 序（尾=最近使用；容量上限内只淘汰最旧一项，不再整表清空）。</summary>
+    private static readonly LinkedList<string> CacheOrder = new();
+
+    /// <summary>缓存容量上限。</summary>
+    private const int CacheCapacity = 24;
+
     /// <summary>已退役但可能仍被上一帧绘制引用的位图（延迟一代释放，避免绘制中 Dispose）。</summary>
     private static readonly List<Bitmap> Retired = new();
 
@@ -118,6 +124,7 @@ public static class SurfaceEngineFramePump
             if (Cache.TryGetValue(token, out var cached))
             {
                 Interlocked.Increment(ref _cacheHits);
+                Touch(token);
                 return cached;
             }
         }
@@ -138,26 +145,52 @@ public static class SurfaceEngineFramePump
             {
                 bitmap.Dispose();
                 Interlocked.Increment(ref _cacheHits);
+                Touch(token);
                 return existing;
             }
 
-            if (Cache.Count > 24)
+            // LRU：只淘汰最旧一项（上一代延迟释放，避免绘制中 Dispose）。
+            if (Cache.Count >= CacheCapacity && CacheOrder.First is { } oldest)
             {
-                // 延迟一代释放：先回收上一代（此时上一帧绘制已结束），本代转入退役区。
-                foreach (var stale in Retired) stale.Dispose();
-                Retired.Clear();
-                foreach (var value in Cache.Values) Retired.Add(value);
-                Cache.Clear();
+                CacheOrder.RemoveFirst();
+                if (Cache.Remove(oldest.Value, out var evicted))
+                {
+                    Retired.Add(evicted);
+                }
+
+                while (Retired.Count > CacheCapacity)
+                {
+                    Retired[0].Dispose();
+                    Retired.RemoveAt(0);
+                }
             }
 
             // 查/存键必须同源（P0-1）：缓存键 = 请求指纹 token，不再使用引擎自报 FrameToken。
             Cache[token] = bitmap;
+            CacheOrder.AddLast(token);
         }
 
         RecordSuccess();
         return bitmap;
     }
 
+
+    /// <summary>把命中项移到 LRU 尾部（调用方持 <see cref="Gate"/>）。</summary>
+    private static void Touch(string token)
+    {
+        var node = CacheOrder.Find(token);
+        if (node is null)
+        {
+            CacheOrder.AddLast(token);
+            return;
+        }
+
+        if (!ReferenceEquals(node, CacheOrder.Last))
+        {
+            CacheOrder.Remove(node);
+            CacheOrder.AddLast(node);
+        }
+    }
 
     /// <summary>清空帧缓存（换肤/测试）。延迟一代释放：本代转入退役区，下次清空时才 Dispose。</summary>
     public static void ClearCache()
@@ -168,6 +201,7 @@ public static class SurfaceEngineFramePump
             Retired.Clear();
             foreach (var value in Cache.Values) Retired.Add(value);
             Cache.Clear();
+            CacheOrder.Clear();
         }
     }
 

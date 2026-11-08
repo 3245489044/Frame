@@ -247,7 +247,10 @@ public sealed class SurfaceProgramDeclaration
                 {
                     if (entry.Value.ValueKind != JsonValueKind.Object) continue;
                     materials[entry.Name] = new SurfaceMaterialSpec(
-                        entry.Name, Str(entry.Value, "fallback"), StrMap(entry.Value, "layers"));
+                        entry.Name, Str(entry.Value, "fallback"), StrMap(entry.Value, "layers"))
+                    {
+                        Decor = Str(entry.Value, "decor"),
+                    };
                 }
             }
 

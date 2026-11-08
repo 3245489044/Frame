@@ -66,7 +66,11 @@ public sealed record SurfaceLayerSpec(
 /// <param name="Fallback">回退材质（空 = 无）。</param>
 /// <param name="Layers">层角色 → 层名。</param>
 public sealed record SurfaceMaterialSpec(
-    string Name, string Fallback, IReadOnlyDictionary<string, string> Layers);
+    string Name, string Fallback, IReadOnlyDictionary<string, string> Layers)
+{
+    /// <summary>装饰能力声明原文（<c>decor</c> 列；空 = 未声明）。解析成能力位在 <see cref="SurfaceResolver"/>。</summary>
+    public string Decor { get; init; } = string.Empty;
+}
 
 /// <summary>外观档（Profile）：继承链 + 值覆盖 + 语义槽 → 材质映射。</summary>
 /// <param name="Name">档名。</param>

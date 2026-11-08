@@ -17,6 +17,16 @@ namespace FrontEndDriven.WinForms.Paint;
 /// </summary>
 public static class SkinAppearanceInstaller
 {
+    /// <summary>区域主容器槽 → 必须具备的最低装饰能力（叶子槽不在此列）。</summary>
+    private static readonly (string Slot, SurfaceDecoration Required)[] StructuralSlots =
+    {
+        ("host_surface", SurfaceDecoration.PageField | SurfaceDecoration.Ring),
+        ("panel_surface", SurfaceDecoration.Chrome | SurfaceDecoration.Ring),
+        ("sidebar_surface", SurfaceDecoration.Chrome | SurfaceDecoration.Ring),
+        ("composer_surface", SurfaceDecoration.Chrome | SurfaceDecoration.Ring),
+        ("stream_surface", SurfaceDecoration.Ring),
+    };
+
     /// <summary>按声明安装（幂等；可重复调用以换档）。</summary>
     /// <param name="program">表面声明（<c>surface.generated.json</c> 解析结果）。</param>
     /// <param name="profileId">外观档（null/空 ⇒ 声明 <c>active_profile</c>）。</param>
@@ -65,6 +75,13 @@ public static class SkinAppearanceInstaller
         // 页面装饰层：唯一取值来源 = 当前档令牌（浅档主/深档备），代码端零颜色分支。
         var ambient = SurfaceAmbientParams.FromTokens(SurfaceResolver.TokensForProfile(program, profile));
         SurfaceAmbient.Configure(ambient);
+        // 记账：开了装饰却把结构主容器映射到未声明能力的材质 ⇒ 落日志（禁静默变成「没有装饰」）。
+        var decorUndeclared = ambient.HasScene
+            ? string.Join(",", StructuralSlots.Where(required =>
+                SurfaceResolver.ResolveProfileSlot(program, context, profile, carrierId, required.Slot) is not { } decorMaterial
+                || (decorMaterial.Decoration & required.Required) != required.Required)
+                .Select(required => required.Slot))
+            : string.Empty;
         var global = SelectGlobal(byKey, "panel_surface");
         // 属性通道全局回退：优先声明档的 row_surface（实心 muted 材质），缺失才回落面板槽（零回归）。
         var globalProperty = SurfaceResolver.ResolveProfileSlot(
@@ -116,6 +133,8 @@ public static class SkinAppearanceInstaller
             ambient = ambient.HasScene,
             ambientGutter = ambient.Gutter,
             ambientRibbon = ambient.RibbonWidth,
+            decorMaterials = string.Join(",", decorMaterials),
+            decorUndeclared,
         });
         return SkinDecorator.Enabled;
     }

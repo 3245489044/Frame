@@ -34,6 +34,12 @@ public sealed record ResolvedMaterial(
 {
     /// <summary>回落梯度步（L0–L5；属性通道最低 L2，默认 L0 保持旧调用方零变化）。</summary>
     public SurfaceFallbackStep FallbackStep { get; init; } = SurfaceFallbackStep.L0Full;
+
+    /// <summary>材质显式声明的装饰能力（<c>decor</c> 列；None = 未声明）。</summary>
+    public SurfaceDecoration Decoration { get; init; } = SurfaceDecoration.None;
+
+    /// <summary>材质是否写了 <c>decor</c> 列（区分「声明为空」与「根本没声明」）。</summary>
+    public bool DecorDeclared { get; init; }
 }
 
 /// <summary>已解析容器（结构 + 容器级外观）。</summary>

@@ -280,14 +280,27 @@ public static class SkinDecorator
                       && !backdropDue
                       && string.Equals(state.CacheKey, key, StringComparison.Ordinal);
             // 结构宿主（FrameHost）的背景由页面装饰层统一接管：用同一张页面场位图，不再铺纯色 flat。
-            var ambientHost = state.EdgeMode == SurfaceEdgeMode.FrameHost && SurfaceAmbient.Enabled;
-            if (!hit && !ambientHost) baseReport = RebuildBase(control, material, bounds, state, pinned, baseLight);
-            // 页面装饰层接管背景（ambientHost）或命中缓存但首帧尚无 BaseReport 时，baseReport 可为 null；
-            // 此处归一为空报告，保证 K6 合并面始终有值（不改 SurfaceAmbient 语义）。
+            var plan = SurfaceDecorPlan.Resolve(material, DecorScopeOf(state.EdgeMode), SurfaceAmbient.Enabled);
+            if (plan.Missing.Length > 0 && !string.Equals(state.DecorMissing, plan.Missing, StringComparison.Ordinal))
+            {
+                state.DecorMissing = plan.Missing;
+                FrontEndDrivenLog.Log("SkinDecorator_decor_undeclared", new
+                {
+                    type = control.GetType().Name,
+                    material = material.MaterialId,
+                    detail = plan.Missing,
+                });
+            }
+
+            if (!hit) baseReport = RebuildBase(control, material, bounds, state, pinned, baseLight);
+            // 页面场接管背景或命中缓存但首帧尚无 BaseReport 时，baseReport 可为 null；
+            // 此处归一为空报告，保证 K6 合并面始终有值。
             if (baseReport is null) baseReport = SkinPaintReport.Empty;
 
-            if (ambientHost) SurfaceAmbient.PaintHostSurface(control, e.Graphics);
-            else if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
+            // 阶段 1：页面场（只有页场宿主承载；普通面的背景是自己的基底）。
+            if (plan.Paints(SurfacePaintStage.PageField)) SurfaceAmbient.PaintHostSurface(control, e.Graphics);
+            // 阶段 2：面基底（无静态层的材质底图是全透明，贴图即空操作）。
+            if (state.Cache is not null) e.Graphics.DrawImageUnscaled(state.Cache, bounds);
 
             var light = pinned is { } frozenLight
                 ? frozenLight.Light
@@ -296,16 +309,16 @@ public static class SkinDecorator
             var dynamicReport = SkinPaintEngine.PaintReport(
                 e.Graphics, bounds, material, null, light, PaintScope.Dynamic);
             var frameReport = baseReport.Merge(dynamicReport);
-            // 边框宿主：内容之上补 1px 内衬边（host_surface=flat 本身没有 stroke，必须由宿主补）。
-            if (state.EdgeMode == SurfaceEdgeMode.FrameHost)
-            {
-                SurfaceFrameHost.TryDraw(e.Graphics, bounds, state.EdgeMode, material, control.DeviceDpi, out _);
-            }
-
-            // 卡片唯一装饰消费入口：同一份页面场（留白环/外发光/双形态边缘光/纹理/丝带），无卡片分支。
-            if (SurfaceAmbient.ShouldChrome(material))
+            // 阶段 4：卡片 chrome（留白环/外发光/彩带/纹理），画在不透明面之上。
+            if (plan.Paints(SurfacePaintStage.Chrome))
             {
                 SurfaceAmbient.PaintPanelChrome(control, e.Graphics, bounds, material);
+            }
+
+            // 阶段 5：结构宿主的 1px 内衬边（最后画，保证不被面或 chrome 盖掉）。
+            if (plan.Paints(SurfacePaintStage.FrameEdge))
+            {
+                SurfaceFrameHost.TryDraw(e.Graphics, bounds, state.EdgeMode, material, control.DeviceDpi, out _);
             }
 
             state.Frame++;
@@ -690,6 +703,10 @@ public static class SkinDecorator
                ?? SkinMaterialCatalog.ForProperty(descriptor.Name))
            ?? SkinMaterialCatalog.GlobalProperty;
 
+    /// <summary>族边缘归属 → 装饰角色（唯一映射；不参与装饰取舍）。</summary>
+    private static SurfaceDecorScope DecorScopeOf(SurfaceEdgeMode edgeMode)
+        => edgeMode == SurfaceEdgeMode.FrameHost ? SurfaceDecorScope.PageHost : SurfaceDecorScope.Face;
+
     /// <summary>缓存键（唯一实现：<see cref="SkinCacheKey"/>；含资产代，防换根后旧底图假命中）。</summary>
     private static string CacheKey(
         string fingerprint, Rectangle bounds, int dpi, SurfaceLightState? light, int backdropVersion)
@@ -731,5 +748,8 @@ public static class SkinDecorator
 
         /// <summary>最近一次静态底图报告（命中缓存时复用）。</summary>
         internal SkinPaintReport? BaseReport { get; set; }
+
+        /// <summary>已记账的缺声明原因（去重，避免逐帧刷日志）。</summary>
+        internal string? DecorMissing { get; set; }
     }
 }

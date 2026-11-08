@@ -476,6 +476,21 @@ public static class SurfaceResolver
             }
         }
 
+        // 装饰能力：取**实际生效材质**的显式声明（回退时按回退材质算，避免声明与层栈错位）。
+        var decorSource = material;
+        if (!string.IsNullOrEmpty(resolution.FallbackUsed)
+            && program.Materials.TryGetValue(resolution.FallbackUsed, out var effectiveMaterial))
+        {
+            decorSource = effectiveMaterial;
+        }
+
+        var decoration = SurfaceDecorPlan.Parse(decorSource.Decor, out var unknownDecor);
+        var decorDeclared = !string.IsNullOrWhiteSpace(decorSource.Decor);
+        foreach (var token in unknownDecor)
+        {
+            issues.Add(new SurfaceIssue("decor-unknown", decorSource.Name + ":" + token));
+        }
+
         foreach (var issue in issues) containerIssues.Add(issue);
 
         var layers = new List<ResolvedLayer>(resolution.Layers.Count);
@@ -495,7 +510,7 @@ public static class SurfaceResolver
             : SurfaceFallbackStepPolicy.Draw(resolution.Degraded, resolution.FallbackUsed);
 
         return new ResolvedMaterial(slot, materialId, resolution.FallbackUsed, layers, issues)
-            with { FallbackStep = step };
+            with { FallbackStep = step, Decoration = decoration, DecorDeclared = decorDeclared };
     }
 
     /// <summary>层不可见 = 主色 alpha 为 00（只识别 <c>#RRGGBBAA</c> 的完全透明，其余原样保留）。</summary>

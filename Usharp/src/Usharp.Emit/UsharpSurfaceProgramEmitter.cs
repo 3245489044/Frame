@@ -214,6 +214,8 @@ public static class UsharpSurfaceProgramEmitter
                 {
                     ["name"] = name,
                     ["fallback"] = UsharpRecordJson.Str(record.Body, "fallback", string.Empty),
+                    // 装饰能力显式声明（pageField/chrome/ring/edgeBand/texture；空 = 未声明）。
+                    ["decor"] = UsharpRecordJson.Str(record.Body, "decor", string.Empty),
                     ["layers"] = Nested(record.Body, "layers"),
                 };
             }

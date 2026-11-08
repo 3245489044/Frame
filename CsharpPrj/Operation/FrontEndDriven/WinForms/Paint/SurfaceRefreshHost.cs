@@ -34,6 +34,7 @@ internal sealed class SurfaceRefreshHost
     private readonly SurfaceLightRefreshSource _lightSource = new();
     private readonly SurfaceLayoutRefreshSource _layoutSource;
     private RefreshService? _service;
+    private string? _deliveredFingerprint;
 
     private static long _pushes;
     private static long _unchanged;
@@ -103,6 +104,8 @@ internal sealed class SurfaceRefreshHost
 
         // 背景事实由真实 producer（SkinDecorator → SurfaceWindowBackdropSource）在采集后写入；
         // 这里不再登记占位（Content=null）以免冒充可用背景。
+        // TickMs 是「脏集合并发节拍」，不是周期重绘源：无脏集/无在飞源时 tick 不产帧（空闲零重绘）。
+        // 0/负值会被 RefreshScheduler 拒绝（见 RefreshContract），故保留 1000ms 作为合并上限。
         var service = new RefreshService(
             PushOnceAsync,
             _sink,
@@ -162,9 +165,18 @@ internal sealed class SurfaceRefreshHost
     {
         _store.Publish(snapshot);
         if (_form.IsDisposed || !_form.IsHandleCreated) return;
+
+        // 结构与上一帧完全相同 ⇒ 不失效（空闲零重绘；渲染器已去重，这里是最后一道门）。
+        if (string.Equals(snapshot.Fingerprint, _deliveredFingerprint, StringComparison.Ordinal)) return;
+        _deliveredFingerprint = snapshot.Fingerprint;
+
+        var keys = snapshot.Cards.Keys.ToArray();
         _form.BeginInvoke(new Action(() =>
         {
-            if (!_form.IsDisposed) _form.Invalidate(invalidateChildren: true);
+            if (_form.IsDisposed) return;
+            // 只重绘窗体自身 + 帧内卡片，不失效整窗子树。
+            _form.Invalidate(invalidateChildren: false);
+            SkinDecorator.InvalidateCards(_form, keys);
         }));
     }
 }

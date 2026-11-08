@@ -156,7 +156,7 @@ public static class SkinDecorator
         if (state.Session is null)
         {
             var host = new WinFormsSurfaceHost(control);
-            var backdrop = new WinFormsBackdropSource(control, value => state.SuppressPaint = value, MaterialOf);
+            var backdrop = new WinFormsBackdropSource(control);
             var light = new WinFormsLightSource(control);
             state.Session = new SurfacePaintSession(
                 SurfaceAmbient.IdOf(control), host, backdrop, light,
@@ -217,6 +217,23 @@ public static class SkinDecorator
     /// <param name="control">目标控件。</param>
     public static ResolvedMaterial? MaterialOf(Control? control)
         => control is not null && States.TryGetValue(control, out var state) ? state.Session?.Material : null;
+
+    /// <summary>
+    /// 按窗口帧卡片键失效（仅命中本窗口已挂载控件；供 <see cref="SurfaceRefreshHost"/> 的逐卡片失效使用）。
+    /// </summary>
+    internal static void InvalidateCards(Form? form, IReadOnlyCollection<string> keys)
+    {
+        if (form is null || keys.Count == 0) return;
+
+        var wanted = new HashSet<string>(keys, StringComparer.Ordinal);
+        foreach (var pair in States)
+        {
+            var control = pair.Key;
+            if (control.IsDisposed || !ReferenceEquals(control.FindForm(), form)) continue;
+            if (!wanted.Contains(SurfaceAmbient.IdOf(control))) continue;
+            control.Invalidate();
+        }
+    }
 
     /// <summary>
     /// 采集窗口级帧输入（**UI 线程**）：控件/材质/视口 → 不可变请求集；组合器随后可在后台执行。
@@ -310,34 +327,79 @@ public static class SkinDecorator
         return true;
     }
 
-    /// <summary>一帧绘制：委托 <see cref="SurfacePaintSession"/>；本层只做重入闸与诊断记账。</summary>
+    /// <summary>一帧绘制：委托 <see cref="SurfacePaintSession"/>；本层只做重入闸、异常隔离与诊断记账。</summary>
     private static void PaintControl(Control control, SkinState state, PaintEventArgs e)
     {
-        // 生成 backdrop 快照时，本控件会被父级 DrawToBitmap 重入；此时留白（父级背景即「背后」），防递归。
-        if (state.SuppressPaint || SurfaceWindowBackdropSource.IsCapturing) return;
+        // 窗口级背板采集期间会被父级 WM_PRINT 重入；此时留白（父级背景即「背后」），防递归。
+        if (SurfaceWindowBackdropSource.IsCapturing) return;
 
         var session = state.Session;
         if (session is null) return;
 
-        var bounds = new Rectangle(Point.Empty, control.ClientSize);
-        var snapshot = SurfaceRefreshHost.SnapshotOf(control.FindForm());
-        var result = session.Paint(e.Graphics, bounds, snapshot);
-        var report = result.Report;
-
-        SurfaceRefreshHost.ReleaseConsumed(control, snapshot);
-
-        SkinDiagnostics.RecordFrame(report);
-        if (session.Material is { } material)
+        // 失败后不再走绘制通道（避免同帧反复抛）；保持属性实心面。
+        if (state.Failed)
         {
-            SkinDiagnostics.RecordPaintCount(material.MaterialId, report);
+            ApplyDegradedFace(control, state);
+            return;
         }
 
-        if (report.Details.Count > 0)
+        try
         {
-            FrontEndDrivenLog.Log("SkinDecorator_skipped", new
+            var bounds = new Rectangle(Point.Empty, control.ClientSize);
+            var snapshot = SurfaceRefreshHost.SnapshotOf(control.FindForm());
+            var result = session.Paint(e.Graphics, bounds, snapshot);
+            var report = result.Report;
+
+            SurfaceRefreshHost.ReleaseConsumed(control, snapshot);
+
+            SkinDiagnostics.RecordFrame(report);
+            if (session.Material is { } material)
             {
+                SkinDiagnostics.RecordPaintCount(material.MaterialId, report);
+            }
+
+            if (report.Details.Count > 0)
+            {
+                FrontEndDrivenLog.Log("SkinDecorator_skipped", new
+                {
+                    material = session.Material?.MaterialId,
+                    skipped = string.Join(";", report.Details),
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            // P2-2：绘制链异常不得穿透消息泵；记账后降级到属性实心面。
+            state.Failed = true;
+            FrontEndDrivenLog.Log("SkinDecorator_paint_failed", new
+            {
+                type = control.GetType().Name,
+                control = control.Name,
                 material = session.Material?.MaterialId,
-                skipped = string.Join(";", report.Details),
+                exception = ex.ToString(),
+            });
+            ApplyDegradedFace(control, state);
+        }
+    }
+
+    /// <summary>绘制失败后的属性通道降级（唯一写点仍走投影器；失败只记账）。</summary>
+    private static void ApplyDegradedFace(Control control, SkinState state)
+    {
+        var material = state.Session?.Material;
+        if (material is null) return;
+
+        try
+        {
+            ApplyFallbackTheme(control, material);
+        }
+        catch (Exception ex)
+        {
+            FrontEndDrivenLog.Log("SkinDecorator_paint_failed", new
+            {
+                type = control.GetType().Name,
+                control = control.Name,
+                material = material.MaterialId,
+                exception = ex.ToString(),
             });
         }
     }
@@ -402,8 +464,8 @@ public static class SkinDecorator
         /// <summary>通用绘制会话（缓存/阶段/报告）。</summary>
         internal SurfacePaintSession? Session { get; set; }
 
-        /// <summary>快照生成期间抑制本控件自绘（防递归）。</summary>
-        internal bool SuppressPaint { get; set; }
+        /// <summary>绘制链已失败（后续帧走属性实心面，不再重复抛）。</summary>
+        internal bool Failed { get; set; }
     }
 }
 

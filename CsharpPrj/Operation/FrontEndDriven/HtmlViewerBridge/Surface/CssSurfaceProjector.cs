@@ -260,7 +260,7 @@ public static class CssSurfaceProjector
                 }
 
                 backgrounds.Add(
-                    "radial-gradient(circle var(--sl-spot-r, 22vmin) at var(--sl-anchor-x, 30vw) var(--sl-anchor-y, 18vh), " +
+                    "radial-gradient(circle var(--sl-spot-r, 22vmin) at var(--sl-anchor-x, 50%) var(--sl-anchor-y, 30%), " +
                     $"var(--sl-spot-color, {CssColor(sheen.Argb)}) 0%, transparent 100%)");
                 backgroundAttachments.Add("fixed");
             }
@@ -416,7 +416,7 @@ public static class CssSurfaceProjector
         var radialAlpha = Number(tokens, "ambient_radial_alpha", 0.42f);
         var radialRadius = Number(tokens, "ambient_radial_radius", 200f);
         images.Add(
-            $"radial-gradient(circle {FormatPx(radialRadius)} at var(--sl-anchor-x,30vw) var(--sl-anchor-y,18vh), " +
+            $"radial-gradient(circle {FormatPx(radialRadius)} at var(--sl-anchor-x,50%) var(--sl-anchor-y,30%), " +
             $"rgba(255,255,255,{FormatRatio(radialAlpha)}) 0%, transparent 100%)");
         attachments.Add("fixed");
 

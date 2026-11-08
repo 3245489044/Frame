@@ -7,6 +7,16 @@
       "level": "Info",
       "category": "FrontEndDriven.Layout"
     },
+    "ConfigDrivenControlFactory_layout_cache_stale": {
+      "template": "[布局] 用户比例缓存已失效（回退配置设计值） — scope={scope}, control={controlName}, ratio={ratio}, configured={configured}, reason={reason}",
+      "level": "Info",
+      "category": "FrontEndDriven.Layout"
+    },
+    "Ui_ResetLayoutState": {
+      "template": "[布局] 用户布局态已重置 — scope={scope}",
+      "level": "Info",
+      "category": "FrontEndDriven.Layout"
+    },
     "Layout_MinWidth_Overflow": {
       "template": "[布局] 最小宽度溢出 — effective={effective}, nominalWidth={nominalWidth}, minWidthPx={minWidthPx}, allocatedWidth={allocatedWidth}, overflowPx={overflowPx}",
       "level": "Warn",
@@ -58,7 +68,17 @@
       "category": "FrontEndDriven.Skin"
     },
     "SkinDecorator_paint_failed": {
-      "template": "[皮肤] 绘制帧失败（已记录 Failed 报告并继续，不中断重绘） — type={type}, material={material}, exception={exception}",
+      "template": "[皮肤] 绘制帧失败（已记录 Failed 报告并继续，不中断重绘） — type={type}, control={control}, material={material}, exception={exception}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface-anchor-unbound": {
+      "template": "[表面] 无光帧 ⇒ 锚点回退到页面中心（50%/30%） — viewer={viewer}, instance={instance}, reason={reason}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface-anchor-collision": {
+      "template": "[表面] 多 viewer 锚点值相同（疑换算共用） — signature={signature}, first={first}, second={second}",
       "level": "Warning",
       "category": "FrontEndDriven.Skin"
     },

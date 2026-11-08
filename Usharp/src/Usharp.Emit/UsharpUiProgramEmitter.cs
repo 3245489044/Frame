@@ -45,6 +45,9 @@ public static class UsharpUiProgramEmitter
     /// <summary>载体清单记录前缀（载体集合单源）。</summary>
     public const string CarrierPrefix = "ui_carrier_";
 
+    /// <summary>token → 载体变量别名记录前缀（N-03：别名数据单源）。</summary>
+    public const string AliasPrefix = "ui_alias_";
+
     /// <summary>发射（声明缺项 ⇒ 不产出 + 诊断）。</summary>
     /// <param name="compilation">声明编译结果。</param>
     public static UsharpUiProgramResult Emit(UsharpCompilation compilation)
@@ -56,6 +59,7 @@ public static class UsharpUiProgramEmitter
         var slots = new JsonObject();
         var skins = new JsonObject();
         var parts = new JsonObject();
+        var aliases = new JsonObject();
         var carrierIds = new List<string>();
 
         foreach (var record in compilation.Records)
@@ -98,6 +102,14 @@ public static class UsharpUiProgramEmitter
                 var id = Name(record, CarrierPrefix, "id");
                 if (!carrierIds.Contains(id)) carrierIds.Add(id);
             }
+            else if (record.RecordId.StartsWith(AliasPrefix, StringComparison.Ordinal))
+            {
+                var token = Name(record, AliasPrefix, "token");
+                var node = new JsonObject { ["var"] = Str(record.Body, "var", string.Empty) };
+                var unit = StrOrNull(record.Body, "unit");
+                if (unit is not null) node["unit"] = unit;
+                aliases[token] = node;
+            }
             else if (record.RecordId.StartsWith(PartPrefix, StringComparison.Ordinal))
             {
                 var name = Name(record, PartPrefix, "name");
@@ -127,6 +139,7 @@ public static class UsharpUiProgramEmitter
             ["tokens"] = tokens,
             ["skins"] = skins,
             ["parts"] = parts,
+            ["aliases"] = aliases,
             ["carriers"] = new JsonArray(carrierIds.Select(id => (JsonNode?)JsonValue.Create(id)).ToArray()),
         };
 

@@ -46,6 +46,10 @@
     <ProjectReference Include="$(Proj_Node)" />
     <!-- 文本段组合内核（Modules\Data\NodeText，BCL-only）：声明的块/模板/计划/摘要单源（CV-03）。 -->
     <ProjectReference Include="$(Proj_Modules_Data_NodeText)" />
+    <!-- 组合内核（Share.Composition）单程序集归属（N-01）。 -->
+    <ProjectReference Include="$(Proj_AssemblyFramework)" />
+    <!-- 声明编译骨架（Parse→ValidateCross→指纹 单实现）（N-08）。 -->
+    <ProjectReference Include="$(Proj_ValidationFramework)" />
   </ItemGroup>
 
 </Project>

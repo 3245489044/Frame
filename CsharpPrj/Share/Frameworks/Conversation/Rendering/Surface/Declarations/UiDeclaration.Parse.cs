@@ -23,12 +23,43 @@ public sealed partial class UiDeclaration
         var skins = ParseSkins(root, diagnostics);
         var parts = ParseParts(root, diagnostics);
         var carriers = ParseCarriers(root, diagnostics);
+        var aliases = ParseAliases(root, diagnostics);
 
         var declared = slots.Count > 0 && tokens.Count > 0 && parts.Count > 0;
         if (!declared) diagnostics.Add("declaration-empty");
         if (carriers.Count == 0) diagnostics.Add("carriers-undeclared");
 
-        return new UiDeclaration(slots, tokens, skins, parts, carriers, fingerprint, declared, diagnostics);
+        return new UiDeclaration(slots, tokens, skins, parts, aliases, carriers, fingerprint, declared, diagnostics);
+    }
+
+    /// <summary>token → 载体变量别名（单源 = [Table] UiAlias；缺声明 ⇒ 空 + 可见诊断）。</summary>
+    private static List<UiAliasSpec> ParseAliases(JsonElement root, List<string> diagnostics)
+    {
+        var aliases = new List<UiAliasSpec>();
+        if (!root.TryGetProperty("aliases", out var element) || element.ValueKind != JsonValueKind.Object) return aliases;
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.Value.ValueKind != JsonValueKind.Object)
+            {
+                diagnostics.Add($"alias-shape:{property.Name}");
+                continue;
+            }
+
+            var variable = ReadText(property.Value, "var");
+            if (string.IsNullOrWhiteSpace(variable))
+            {
+                diagnostics.Add($"alias-variable-missing:{property.Name}");
+                continue;
+            }
+
+            aliases.Add(new UiAliasSpec(
+                property.Name,
+                variable!,
+                ReadText(property.Value, "unit") ?? string.Empty));
+        }
+
+        return aliases;
     }
 
     /// <summary>载体清单（单源 = [Table] UiCarrier；缺声明 ⇒ 空 + 可见诊断）。</summary>

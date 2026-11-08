@@ -8,6 +8,14 @@ using Plate.JsonMethod.Serialization;
 namespace Share.Conversation;
 
 /// <summary>
+/// 会话轮次游标（N-04：轮次口径唯一载体）——当前轮 / 最近用户轮 / 下一轮。
+/// </summary>
+/// <param name="Current">最近一条非系统消息的轮次（空会话 = 0）。</param>
+/// <param name="LastUser">最近一条用户消息的轮次（无用户消息 ⇒ null）。</param>
+/// <param name="Next">下一用户消息应使用的轮次（累计高水位）。</param>
+public readonly record struct RoundCursor(int? Current, int? LastUser, int Next);
+
+/// <summary>
 /// 会话对话日志 —— 纯逻辑模型，零 Agent 依赖。消息列表只增不丢（AX-CORE.InformationMonotonicity）；
 /// 会话累计轮次 <see cref="NextRound"/> 单调递增（= 用户消息计数，区别于循环轮次 AgentTaskItem.Round）。
 /// <see cref="Stage"/> 是会话工作流步骤标识（声明式，不限定层数/子智能体），仅透传步骤名，不感知具体集合。
@@ -29,7 +37,10 @@ public sealed class ConversationLog
     public int NextRound { get; private set; }
 
     /// <summary>当前所在用户轮次（最近一条 user 消息的 Round；无 user 消息为 null）。</summary>
-    public int? LastUserRound => _messages.LastOrDefault(m => m.Role == ConversationRole.User)?.Round;
+    public int? LastUserRound => ComputeLastUserRound();
+
+    /// <summary>轮次游标（N-04：三套口径的唯一读取点）。</summary>
+    public RoundCursor Cursor => new(ComputeCurrentRound(), ComputeLastUserRound(), NextRound);
 
     /// <summary>追加一条用户消息（Round = NextRound+1，推进累计轮次）。</summary>
     public void AppendUser(string text) => Append(ConversationRole.User, null, null, text);
@@ -93,16 +104,26 @@ public sealed class ConversationLog
     public IReadOnlyList<ConversationMessage> GetRound(int round)
         => _messages.Where(m => m.Round == round).ToList();
 
-    /// <summary>按轮次分组（升序键）；系统消息（Round=0）归入键 0 组。</summary>
-    public IReadOnlyList<KeyValuePair<int, IReadOnlyList<ConversationMessage>>> GroupByRound()
+    /// <summary>按轮次分组（升序键）；系统消息（Round=0）默认归入键 0 组。</summary>
+    /// <param name="includeSessionLevel">是否把会话级（Round=0）作为一组返回（N-09：默认 true 保持既有行为）。</param>
+    public IReadOnlyList<KeyValuePair<int, IReadOnlyList<ConversationMessage>>> GroupByRound(bool includeSessionLevel = true)
         => _messages
+            .Where(m => includeSessionLevel || m.Round > 0)
             .GroupBy(m => m.Round)
             .OrderBy(g => g.Key)
             .Select(g => new KeyValuePair<int, IReadOnlyList<ConversationMessage>>(g.Key, g.ToList()))
             .ToList();
 
+    /// <summary>会话级消息（Round=0）显式出口（N-09：与轮组分离，禁以「轮数 = 组数」推算）。</summary>
+    public IReadOnlyList<ConversationMessage> SessionLevelMessages()
+        => _messages.Where(m => m.Round == 0).ToList();
+
     /// <summary>最近一个活跃轮次（最近一条非系统消息的 Round；空会话返回 null）。</summary>
-    public int? CurrentRound => _messages.LastOrDefault(m => m.Role != ConversationRole.System)?.Round;
+    public int? CurrentRound => ComputeCurrentRound();
+
+    private int? ComputeCurrentRound() => _messages.LastOrDefault(m => m.Role != ConversationRole.System)?.Round;
+
+    private int? ComputeLastUserRound() => _messages.LastOrDefault(m => m.Role == ConversationRole.User)?.Round;
 
     /// <summary>上下文是否需要压缩（非系统消息条数 &gt; 阈值；吸收旧 ShouldCompressContext 语义）。</summary>
     public bool NeedsCompaction(int threshold = DefaultCompactionThreshold)
@@ -113,13 +134,22 @@ public sealed class ConversationLog
     /// 信息不丢失的近似：摘要 + 最近窗口（配合持久化全量归档，见 InformationMonotonicity）。
     /// </summary>
     public IReadOnlyList<ConversationMessage> Compress(int keep = DefaultCompressKeep)
+        => Compress(keep, DefaultCompressSummary);
+
+    /// <summary>
+    /// 压缩窗口（N-04：摘要文案由调用方传入声明面文案；C# 仅保留单一缺省常量）。
+    /// </summary>
+    /// <param name="keep">保留的最近非系统消息条数。</param>
+    /// <param name="summary">摘要文案（空白 ⇒ 缺省文案）。</param>
+    public IReadOnlyList<ConversationMessage> Compress(int keep, string summary)
     {
+        var text = string.IsNullOrWhiteSpace(summary) ? DefaultCompressSummary : summary;
         var result = new List<ConversationMessage>
         {
             new ConversationFrame(
                     ConversationRole.System,
                     string.Empty,
-                    "[上下文摘要] 已压缩前文上下文，保留关键信息。",
+                    text,
                     0,
                     ConversationFacts.Empty)
                 .ToMessage(),
@@ -127,6 +157,9 @@ public sealed class ConversationLog
         result.AddRange(RecentNonSystem(keep));
         return result;
     }
+
+    /// <summary>缺省摘要文案（单点；调用方可经 <see cref="Compress(int, string)"/> 覆盖）。</summary>
+    public const string DefaultCompressSummary = "[上下文摘要] 已压缩前文上下文，保留关键信息。";
 
     /// <summary>最近窗口 <paramref name="count"/> 条非系统消息（供 LLM 上下文投影；全量仍在 <see cref="Messages"/> 可查询）。</summary>
     public IReadOnlyList<ConversationMessage> Window(int count) => RecentNonSystem(count).ToList();

@@ -28,33 +28,8 @@ public static class SurfaceCssProjector
     /// 声明 token → 载体 CSS 变量别名（**值不在此**，只给名字与单位）。
     /// <para>用途：框架 CSS 仍以 <c>var(--bg)</c> 取名，但值只来自 <c>ui.ushar</c>；删掉旧 <c>:root</c> 后仍可解析。</para>
     /// </summary>
-    private static readonly (string Token, string Variable, string Unit)[] AliasVariables =
-    {
-        ("text_primary", "--fg", string.Empty),
-        ("text_agent", "--agent-fg", string.Empty),
-        ("text_user", "--user-fg", string.Empty),
-        ("text_muted", "--muted", string.Empty),
-        ("surface_plain", "--bg", string.Empty),
-        ("surface_agent", "--agent-bg", string.Empty),
-        ("surface_user", "--user-bg", string.Empty),
-        ("surface_muted", "--muted-bg", string.Empty),
-        ("border_default", "--border", string.Empty),
-        ("accent_primary", "--accent", string.Empty),
-        ("radius_md", "--radius", "px"),
-        ("pad_md", "--pad", "px"),
-        ("gap_sm", "--gap", "px"),
-        ("font_ui", "--font", string.Empty),
-        ("size_body", "--size", "px"),
-        ("ok", "--ok", string.Empty),
-        ("info", "--info", string.Empty),
-        ("danger", "--danger", string.Empty),
-        ("warn", "--warn", string.Empty),
-        ("status_idle", "--status-idle", string.Empty),
-        ("status_done", "--status-done", string.Empty),
-        ("status_cancelled", "--status-cancelled", string.Empty),
-        ("error_bg", "--error-bg", string.Empty),
-        ("error_fg", "--error-fg", string.Empty),
-    };
+    private static IEnumerable<(string Token, string Variable, string Unit)> AliasesOf(ResolvedUi resolved)
+        => resolved.Aliases.Select(alias => (alias.Token, alias.Variable, alias.Unit));
 
     /// <summary>按已解析皮肤投影 CSS（token 变量 + 单元类规则）。</summary>
     /// <param name="resolved">已解析渲染上下文。</param>
@@ -70,7 +45,7 @@ public static class SurfaceCssProjector
         }
 
         // 载体变量别名（值单源 = 声明；CSS/组件只读 var(--bg) 等，不再自带值）。
-        foreach (var alias in AliasVariables)
+        foreach (var alias in AliasesOf(resolved))
         {
             if (!resolved.Tokens.TryGetValue(alias.Token, out var value) || value.Length == 0) continue;
             builder.Append(alias.Variable).Append(':').Append(CssValue.AppendUnit(value, alias.Unit)).Append(';');

@@ -70,7 +70,7 @@ public static class ConversationFrameMerge
             {
                 var round = left.Round.CompareTo(right.Round);
                 if (round != 0) return round;
-                var role = RolePriority(left.Role).CompareTo(RolePriority(right.Role));
+                var role = ConversationOrdering.RolePriority(left.Role).CompareTo(ConversationOrdering.RolePriority(right.Role));
                 return role != 0 ? role : left.Seq.CompareTo(right.Seq);
             });
 
@@ -79,5 +79,6 @@ public static class ConversationFrameMerge
         => Order(Distinct(frames));
 
     /// <summary>轮内角色优先级（单源委派 <see cref="ConversationOrdering.RolePriority"/>；禁平行复制）。</summary>
+    [System.Obsolete("N-05：纯转发，请直接调用 ConversationOrdering.RolePriority。")]
     public static int RolePriority(ConversationRole role) => ConversationOrdering.RolePriority(role);
 }

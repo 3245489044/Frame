@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-08T09:52:31.8938401Z",
+  "builtAt": "2026-11-08T12:09:40.3221668Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -285,14 +285,14 @@
       "kind": "KeyFamily",
       "pattern": "#R",
       "note": "事实 id 前缀",
-      "total": 154,
+      "total": 155,
       "truncated": false,
       "byRole": {
         "Gate": 8,
         "Test": 45,
         "Declaration": 0,
         "Code": 29,
-        "Doc": 68,
+        "Doc": 69,
         "Other": 4
       },
       "hits": [
@@ -446,16 +446,16 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/Conversation/Ids/FactIdMigration.cs",
-          "line": 71,
+          "line": 78,
           "role": "Code",
-          "text": "// ② 框架轮次键 {taskKey}@{seq} → #R{seq}。"
+          "text": "// ② 框架轮次键 {taskKey}@{seq} → #R{seq}（仅存量输入）。"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/Conversation/Ids/FactIdMigration.cs",
-          "line": 77,
+          "line": 87,
           "role": "Code",
-          "text": "// ③ 观测轮次键 {runId}R{n} → #R{n}（存量观测事件的读侧归一）。"
+          "text": "// ③ 观测轮次键 {runId}R{n} → #R{n}（仅存量输入；新形态 sessionR10 不再被误判为轮键）。"
         },
         {
           "repo": "Frame",
@@ -522,14 +522,14 @@
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Share/Frameworks/Conversation/Rendering/Surface/SurfaceResolver.cs",
+          "file": "CsharpPrj/Share/Frameworks/Conversation/Rendering/Surface/Resolution/SurfaceResolver.cs",
           "line": 499,
           "role": "Code",
           "text": "// 全透明层（#RRGGBB00）在解析期剔除，不进入渲染栈：它本来就不可见，"
         },
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Share/Frameworks/Conversation/Rendering/Surface/SurfaceResolver.cs",
+          "file": "CsharpPrj/Share/Frameworks/Conversation/Rendering/Surface/Resolution/SurfaceResolver.cs",
           "line": 516,
           "role": "Code",
           "text": "/// <summary>层不可见 = 主色 alpha 为 00（只识别 <c>#RRGGBBAA</c> 的完全透明，其余原样保留）。</summary>"
@@ -680,6 +680,13 @@
           "line": 56,
           "role": "Doc",
           "text": "3. 现成的像素等价契约只有一条：**全透明层（`#RRGGBB00`）在解析期剔除**（`SurfaceResolver.IsInvisible`）。用 `strength = 0` 关环走不到这条契约，证明强度更弱。"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.8/2026-11-08-Conversation-重复冗余错误-后续未实施清单.md",
+          "line": 93,
+          "role": "Doc",
+          "text": "- 【事实】`^(.+)R([0-9]+)$` 优先于裸会话键 ⇒ 新形态 `sessionR10` 会被归一为 `session#R10`（伪造轮号）。"
         },
         {
           "repo": "Main",
@@ -1139,7 +1146,7 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Operation.Tests/FrontEndDriven.Tests/SkinRenderCostTests.cs",
-          "line": 426,
+          "line": 427,
           "role": "Test",
           "text": "Assert.AreEqual(9, raw!.Length, \"必须是 CSS 8 位 #RRGGBBAA：\" + raw);"
         },
@@ -1272,7 +1279,7 @@
         {
           "repo": "Main",
           "file": "Environment/CentralTest/CSharpTest/Share.Tsets/Conversation.Tests/FactIdTests.cs",
-          "line": 160,
+          "line": 165,
           "role": "Test",
           "text": "var fresh = FactIdMigration.Normalize(\"default#R6\");"
         },
@@ -5753,8 +5760,8 @@
         "Gate": 2,
         "Test": 0,
         "Declaration": 11,
-        "Code": 156,
-        "Doc": 228,
+        "Code": 163,
+        "Doc": 221,
         "Other": 3
       },
       "hits": [
@@ -6537,6 +6544,48 @@
         },
         {
           "repo": "Frame",
+          "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
+          "line": 259,
+          "role": "Code",
+          "text": "var result = session.Paint(e.Graphics, bounds);"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
+          "line": 263,
+          "role": "Code",
+          "text": "if (session.Material is { } material)"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
+          "line": 272,
+          "role": "Code",
+          "text": "material = session.Material?.MaterialId,"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
+          "line": 281,
+          "role": "Code",
+          "text": "? session.PinInputs(inputs)"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
+          "line": 288,
+          "role": "Code",
+          "text": "? session.BuildRenderInputs(SurfaceAmbient.ViewportOf(control), light)"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
+          "line": 294,
+          "role": "Code",
+          "text": "? new SkinFrameReport(session.Frame, session.LastReport)"
+        },
+        {
+          "repo": "Frame",
           "file": "CsharpPrj/Operation/HierarchyMethod/History/Commands/ContainerCommandService.cs",
           "line": 213,
           "role": "Code",
@@ -7101,6 +7150,13 @@
           "line": 37,
           "role": "Code",
           "text": "\"session.\", \"session:\", \"history:\", \"task:\", \"node:\","
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Share/Frameworks/SurfacePaint/Hosting/SurfacePaintSession.cs",
+          "line": 404,
+          "role": "Code",
+          "text": "_session._pinned = _previous;"
         },
         {
           "repo": "Frame",
@@ -8508,55 +8564,6 @@
           "line": 35,
           "role": "Doc",
           "text": "| `session-view` | `session.{container}.r{round}` | `session.{container}.r{round}.{kind}.{ordinal}` | ❌ | W4 转为内容面写目标（当前写侧仅经 `message` 域） |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 49,
-          "role": "Doc",
-          "text": "| `session-message` | `session.{container}.r{round}.msg.{seq}` | `session.{container}.r{round}.{kind}.{ordinal}` | ✅ | 该位置 **W4 退役**（D2）⇒ 本批键变更只为兼容期 |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 62,
-          "role": "Doc",
-          "text": "| `segment-context` | `session.{container}.r{round}.seg{seq}` | `session.{container}.r{round}.{kind}.{ordinal}` | ✅ | W4 退役（D2） |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 70,
-          "role": "Doc",
-          "text": "**可区分性复核**：`seg.{container}.r{round}.{kind}.{ordinal}` 与 `session.{container}.r{round}.{kind}.{ordinal}` 形状不同（首段字面量 `seg.` vs `session.`）⇒ `spec.template-indistinguishable` 不触发（`NodeSpecValidator.Vali"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
-          "line": 16,
-          "role": "Doc",
-          "text": "| **D3** | 合并后身份模板 | `{container}.r{round}.{kind}.{ordinal}`（对齐 `process.json` 现行形态） | 各位置族前缀：`session.` / `cline.` / `proc.` / `seg.` + `legacyTemplates` 兼容读 |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
-          "line": 44,
-          "role": "Doc",
-          "text": "- **已落地**：`ProcessKeys.UnifiedIdentityKey`（四域身份单源）· `SessionMessageKeys` 文法升级（新形态 `session.{c}.r{r}.{kind}.{ordinal}` + 2 条 legacy 模板；legacy **沿用同一占位名 `ordinal`** ⇒ 新旧键共用同一 `orderKeys=[round,ordinal]`"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
-          "line": 53,
-          "role": "Doc",
-          "text": "- **旧行观察期口径**：**读侧前缀包容**（示范 = `AgentUiLibraryHistoryOps.NextMessageSeqAsync`：前缀收窄到 `session.{s}.r{r}.`，取**末段**数值 ⇒ 新旧形态同治）；`SessionMessageKeys` 的 legacy 模板供键反解容错"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-W3-产出物化流与会话单轮归流-施工单.md",
-          "line": 167,
-          "role": "Doc",
-          "text": "| **S1** | **D2 的\"退役 `session-message`\"必须从 W2-A 推迟到 W4** | `RoundMessageSettlement.SettleAsync` 仍经 `HistoryMaterializeService.ForMessages(framework)` 物化 `session.{container}.r{round}.msg.{seq}`（`proje"
         }
       ]
     },
@@ -8578,8 +8585,8 @@
       "hits": [
         {
           "repo": "Frame",
-          "file": "CsharpPrj/Share/Frameworks/Conversation/Rendering/Surface/ResolvedUi.cs",
-          "line": 92,
+          "file": "CsharpPrj/Share/Frameworks/Conversation/Rendering/Surface/Model/ResolvedUi.cs",
+          "line": 98,
           "role": "Code",
           "text": "/// <param name=\"classId\">呈现类 id（tool-call/answer…）。</param>"
         },
@@ -12033,13 +12040,13 @@
   ],
   "summary": {
     "factCount": 9,
-    "hitCount": 1692.0,
+    "hitCount": 1693.0,
     "byRole": {
       "Gate": 27,
       "Test": 197,
       "Declaration": 102,
-      "Code": 342,
-      "Doc": 923,
+      "Code": 349,
+      "Doc": 917,
       "Other": 101
     },
     "truncatedFacts": [
@@ -12050,7 +12057,7 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 467
+        "lines": 474
       },
       {
         "repo": "Projects",
@@ -12058,7 +12065,7 @@
       },
       {
         "repo": "Main",
-        "lines": 1436
+        "lines": 1437
       }
     ]
   }

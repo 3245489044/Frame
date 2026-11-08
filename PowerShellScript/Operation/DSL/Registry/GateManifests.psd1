@@ -680,6 +680,36 @@
         Note   = '会话帧载体单源：消息/渲染项构造点仅 Frame 工厂；生产路径禁 Fields/Facts: null（事实字段袋显式 Empty）'
     }
 
+    ConversationSingleSource = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '会话域单源（N-12）：C1 CacheBand 定义只允许 ContextGeometry + ContextBinding 兼容镜像 / C2 去重键构造只允许 ConversationFrameMerge / C3 文本布尔解析点 = 1（FrameFieldBag）；负对照必红'
+    }
+
+    ConversationFrameIdentity = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true; NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '会话帧身份（N-12）：生产路径禁 facts/Fields["kind"] == Stage 与 Kind = Stage；负对照必红'
+    }
+
+    JsonSingleSource = @{
+        Domain = 'Agent'
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Args   = @{ NegativeControl = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = 'JSON 出口单源（N-12）：JsonDocument.Parse / new JsonSerializerOptions / JsonSerializer 直呼 = 0（豁免 ConversationJson.cs / Modules.Node）；默认 shadow 报告，-All 扩面；负对照必红'
+    }
+
     FactProducerCoverage = @{
         Domain = 'Agent'
         Family = 'Presentation'

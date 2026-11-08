@@ -432,11 +432,49 @@ public sealed record PresentationDeclaration(
     }
 
     private static PresentationSurface ParseSurface(string? word)
+        => word is null ? PresentationSurface.Process : PresentationSurfaces.FromClassId(word);
+}
+
+/// <summary>
+/// 呈现面词 ↔ 枚举的**成对原语**（N-10：声明面只认字符串，枚举只在结构判定处使用）。
+/// </summary>
+public static class PresentationSurfaces
+{
+    /// <summary>过程面词。</summary>
+    public const string ProcessId = "process";
+
+    /// <summary>气泡面词。</summary>
+    public const string BubbleId = "bubble";
+
+    /// <summary>操作面词。</summary>
+    public const string OperationId = "operation";
+
+    /// <summary>通知面词。</summary>
+    public const string NoticeId = "notice";
+
+    /// <summary>词 → 结构面（未声明/未知 ⇒ <see cref="PresentationSurface.Unknown"/>；无法识别的旧词回落过程面）。</summary>
+    /// <param name="word">声明词（可空）。</param>
+    public static PresentationSurface FromClassId(string? word)
         => word?.Trim().ToLowerInvariant() switch
         {
-            "bubble" => PresentationSurface.Bubble,
-            "operation" => PresentationSurface.Operation,
-            "notice" => PresentationSurface.Notice,
+            BubbleId => PresentationSurface.Bubble,
+            OperationId => PresentationSurface.Operation,
+            NoticeId => PresentationSurface.Notice,
+            ProcessId => PresentationSurface.Process,
+            null or "" => PresentationSurface.Unknown,
+            "unknown" => PresentationSurface.Unknown,
             _ => PresentationSurface.Process,
+        };
+
+    /// <summary>结构面 → 词（未知 ⇒ <see cref="PresentationDeclaration.UnknownId"/>）。</summary>
+    /// <param name="surface">结构面。</param>
+    public static string ToClassId(PresentationSurface surface)
+        => surface switch
+        {
+            PresentationSurface.Bubble => BubbleId,
+            PresentationSurface.Operation => OperationId,
+            PresentationSurface.Notice => NoticeId,
+            PresentationSurface.Process => ProcessId,
+            _ => PresentationDeclaration.UnknownId,
         };
 }

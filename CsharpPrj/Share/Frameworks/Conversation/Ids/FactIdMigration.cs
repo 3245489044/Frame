@@ -58,7 +58,14 @@ public static class FactIdMigration
     /// 归一存量键（新形态直接返回、不标 legacy）。
     /// </summary>
     /// <param name="legacyKey">存量键串（可为 null / 空白 = 未归因事实）。</param>
-    public static FactKeyNormalization Normalize(string? legacyKey)
+    public static FactKeyNormalization Normalize(string? legacyKey) => Normalize(legacyKey, legacyInput: false);
+
+    /// <summary>
+    /// 归一存量键（新形态直接返回、不标 legacy；**存量优先规则仅在显式 legacy 输入时生效**）。
+    /// </summary>
+    /// <param name="legacyKey">键串（可为 null / 空白 = 未归因事实）。</param>
+    /// <param name="legacyInput">是否来自存量读侧（true ⇒ 才按 <c>@n</c> / <c>R n</c> 旧形态解释）。</param>
+    public static FactKeyNormalization Normalize(string? legacyKey, bool legacyInput)
     {
         if (string.IsNullOrWhiteSpace(legacyKey))
             return FactKeyNormalization.Unattributed("空键：无归属信息（未归因事实）");
@@ -68,20 +75,24 @@ public static class FactIdMigration
         // ① 已是新形态（轮 / 步 / 调用键）：直接采用，不标 legacy。
         if (FactIdGrammar.TryParse(key, out var parsed)) return FactKeyNormalization.Of(parsed);
 
-        // ② 框架轮次键 {taskKey}@{seq} → #R{seq}。
-        var atRound = AtRoundRegex.Match(key);
-        if (atRound.Success && FactIdGrammar.IsId(atRound.Groups[1].Value)
-            && TryPositive(atRound.Groups[2].Value, out var atRoundNo))
-            return FactKeyNormalization.Of(FactIds.Round(atRound.Groups[1].Value, atRoundNo), legacy: true);
+        // ② 框架轮次键 {taskKey}@{seq} → #R{seq}（仅存量输入）。
+        if (legacyInput)
+        {
+            var atRound = AtRoundRegex.Match(key);
+            if (atRound.Success && FactIdGrammar.IsId(atRound.Groups[1].Value)
+                && TryPositive(atRound.Groups[2].Value, out var atRoundNo))
+                return FactKeyNormalization.Of(FactIds.Round(atRound.Groups[1].Value, atRoundNo), legacy: true);
+        }
 
-        // ③ 观测轮次键 {runId}R{n} → #R{n}（存量观测事件的读侧归一）。
-        //    判定序口径：**存量优先** —— 形如 `<prefix>R<digits>` 的串优先解读为存量观测轮次键，
-        //    不作裸会话键（两者字符集重叠，取存量语义可避免把历史事件误判为 run 级事实）。
-        var observed = ObservedRoundRegex.Match(key);
-        if (observed.Success && FactIdGrammar.IsId(observed.Groups[1].Value)
-            && TryPositive(observed.Groups[2].Value, out var observedRoundNo))
-            return FactKeyNormalization.Of(
-                FactIds.Round(observed.Groups[1].Value, observedRoundNo), legacy: true);
+        // ③ 观测轮次键 {runId}R{n} → #R{n}（仅存量输入；新形态 sessionR10 不再被误判为轮键）。
+        if (legacyInput)
+        {
+            var observed = ObservedRoundRegex.Match(key);
+            if (observed.Success && FactIdGrammar.IsId(observed.Groups[1].Value)
+                && TryPositive(observed.Groups[2].Value, out var observedRoundNo))
+                return FactKeyNormalization.Of(
+                    FactIds.Round(observed.Groups[1].Value, observedRoundNo), legacy: true);
+        }
 
         // ④ 轮次租约键 {taskKey}#{gen}#{seq}：无轮号信息 ⇒ 不猜（标未归因而非伪造轮号）。
         if (LeaseRegex.IsMatch(key))

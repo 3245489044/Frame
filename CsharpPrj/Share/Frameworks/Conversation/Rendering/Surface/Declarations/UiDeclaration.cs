@@ -24,6 +24,7 @@ public sealed partial class UiDeclaration
         new Dictionary<string, UiTokenSpec>(StringComparer.Ordinal),
         new Dictionary<string, UiSkinSpec>(StringComparer.Ordinal),
         new Dictionary<string, UiPartSpec>(StringComparer.Ordinal),
+        Array.Empty<UiAliasSpec>(),
         Array.Empty<string>(),
         "unavailable",
         declared: false,
@@ -33,6 +34,7 @@ public sealed partial class UiDeclaration
     private readonly IReadOnlyDictionary<string, UiTokenSpec> _tokens;
     private readonly IReadOnlyDictionary<string, UiSkinSpec> _skins;
     private readonly IReadOnlyDictionary<string, UiPartSpec> _parts;
+    private readonly IReadOnlyList<UiAliasSpec> _aliases;
     private readonly IReadOnlyList<string> _carriers;
 
     private UiDeclaration(
@@ -40,6 +42,7 @@ public sealed partial class UiDeclaration
         IReadOnlyDictionary<string, UiTokenSpec> tokens,
         IReadOnlyDictionary<string, UiSkinSpec> skins,
         IReadOnlyDictionary<string, UiPartSpec> parts,
+        IReadOnlyList<UiAliasSpec> aliases,
         IReadOnlyList<string> carriers,
         string fingerprint,
         bool declared,
@@ -49,6 +52,7 @@ public sealed partial class UiDeclaration
         _tokens = tokens;
         _skins = skins;
         _parts = parts;
+        _aliases = aliases;
         _carriers = carriers;
         Fingerprint = fingerprint;
         IsDeclared = declared;
@@ -66,6 +70,9 @@ public sealed partial class UiDeclaration
 
     /// <summary>声明载体 id 集（单源 = [Table] UiCarrier；缺声明 ⇒ 空）。</summary>
     public IReadOnlyCollection<string> CarrierIds => _carriers;
+
+    /// <summary>token → 载体变量别名（单源 = [Table] UiAlias；缺声明 ⇒ 空 + 诊断）。</summary>
+    public IReadOnlyList<UiAliasSpec> Aliases => _aliases;
 
     /// <summary>已声明渲染单元名集。</summary>
     public IReadOnlyCollection<string> PartNames => (IReadOnlyCollection<string>)_parts.Keys;
@@ -90,7 +97,7 @@ public sealed partial class UiDeclaration
     {
         var diagnostics = new List<string>(Diagnostics);
         var (resolvedSkin, density, tokens) = ResolveTokens(skin, overrides, diagnostics);
-        return new ResolvedUi(this, resolvedSkin, density, tokens, diagnostics);
+        return new ResolvedUi(this, resolvedSkin, density, tokens, _aliases, diagnostics);
     }
 
     /// <summary>解析皮肤继承链并解析 token 值（叶优先；未知 token ⇒ 诊断）。</summary>

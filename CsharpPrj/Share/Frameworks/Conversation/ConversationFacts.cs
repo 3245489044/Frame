@@ -113,14 +113,8 @@ public sealed class ConversationFacts
     /// <param name="key">字段名。</param>
     public static bool? FlagOf(IReadOnlyDictionary<string, string>? values, string key)
     {
+        // 三态解析单源 = Modules.Node.Frame.FrameFieldBag.ParseFlag（N-02：禁第二份 "1"/"0" 解析）。
         var text = TextOf(values, key);
-        if (text is null) return null;
-        if (bool.TryParse(text, out var parsed)) return parsed;
-        return text.Trim() switch
-        {
-            "1" => true,
-            "0" => false,
-            _ => null,
-        };
+        return text is null ? null : Modules.Node.Frame.FrameFieldBag.ParseFlag(text);
     }
 }

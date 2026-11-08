@@ -45,3 +45,11 @@ public sealed record UiPartSpec(
     IReadOnlyDictionary<string, string> Slots,
     IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> States,
     IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Carriers);
+
+/// <summary>
+/// token → 载体变量别名（N-03：别名数据单源 = 声明面 <c>[Table] UiAlias</c>，C# 不再硬编码）。
+/// </summary>
+/// <param name="Token">token 名。</param>
+/// <param name="Variable">载体变量名（如 <c>--bg</c>）。</param>
+/// <param name="Unit">单位（可空；token 保持单位less）。</param>
+public sealed record UiAliasSpec(string Token, string Variable, string Unit);

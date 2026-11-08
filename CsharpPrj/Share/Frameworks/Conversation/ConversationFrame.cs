@@ -54,9 +54,11 @@ public sealed record ConversationFrame(
     string? Payload = null)
 {
     /// <summary>生效终答事实（**只认显式值**：过程帧传 null 即未知，禁从字段袋补出 false/true）。</summary>
+    [System.Obsolete("N-05：返回自身字段的纯转发，请直接读 Terminal。")]
     public bool? EffectiveTerminal => Terminal;
 
     /// <summary>生效归档事实（只认显式值；缺失 = 未知）。</summary>
+    [System.Obsolete("N-05：返回自身字段的纯转发，请直接读 Archived。")]
     public bool? EffectiveArchived => Archived;
 
     /// <summary>生效呈现词（显式值优先，缺省读字段袋）。</summary>
@@ -88,6 +90,7 @@ public sealed record ConversationFrame(
     }
 
     /// <summary>投影为渲染项（UI 面；过渡期使用，目标由 ViewRow 直接承载帧）。</summary>
+    [System.Obsolete("N-05：过渡载体，目标由 ViewRow(Frame) 直接承载，请勿新增调用。")]
     public ConversationRenderItem ToRenderItem()
         => new(
             Role,

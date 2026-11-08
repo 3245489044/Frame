@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Modules.CapabilityResolution;
+using ValidationFramework.Declaration;
 
 namespace Share.Conversation.View;
 
@@ -42,30 +43,54 @@ public static class ViewCompiler
     public static ViewCompiled? Compile(ViewSources sources, out IReadOnlyList<string> errors)
     {
         ArgumentNullException.ThrowIfNull(sources);
-        var list = new List<string>();
 
-        var frames = ParseFrames(sources.FrameKindsJson, list);
-        var presentations = ParsePresentationClasses(sources.PresentationJson, list);
-        var terminalPresentation = ParseTerminalPresentation(sources.PresentationJson);
-        var sourcesList = ParseReadSources(sources.ReadPathsJson, list);
-        var planBindings = ParsePlanBindings(sources.ReadPathsJson, list);
-        var answer = ParseAnswerRule(sources.AnswerFactsJson, terminalPresentation, list);
-        var foldWords = ParseFoldWords(sources.FoldJson, list);
-        var views = ParseViews(sources.UiRegionsJson, sources.GatherViewsJson, foldWords, list);
+        // N-08：Parse → ValidateCross（fail-closed）→ 指纹 由骨架单点承载；本类只提供解析器与指纹公式。
+        return DeclarationCompiler<ViewSources, ViewCompiled>.Compile(
+            sources,
+            new ViewCompiledParser(),
+            validateCross: null,
+            static table => Fingerprint(table.Frames, table.Reads, table.Views),
+            static (table, fingerprint) => table with
+            {
+                Frames = table.Frames with { Fingerprint = fingerprint },
+                Reads = table.Reads with { Fingerprint = fingerprint },
+                Views = table.Views with { Fingerprint = fingerprint },
+                Fingerprint = fingerprint,
+            },
+            out errors);
+    }
 
-        ValidateCross(frames, presentations, sourcesList, views, list);
+    /// <summary>7 份声明 → 3 张表（跨表校验 + 读计划构建在此完成，错误原样保留）。</summary>
+    private sealed class ViewCompiledParser : IDeclarationParser<ViewSources, ViewCompiled>
+    {
+        public ViewCompiled Parse(ViewSources sources, ICollection<string> errors)
+        {
+            var list = errors as List<string> ?? new List<string>();
+            try
+            {
+                var frames = ParseFrames(sources.FrameKindsJson, list);
+                var presentations = ParsePresentationClasses(sources.PresentationJson, list);
+                var terminalPresentation = ParseTerminalPresentation(sources.PresentationJson);
+                var sourcesList = ParseReadSources(sources.ReadPathsJson, list);
+                var planBindings = ParsePlanBindings(sources.ReadPathsJson, list);
+                var answer = ParseAnswerRule(sources.AnswerFactsJson, terminalPresentation, list);
+                var foldWords = ParseFoldWords(sources.FoldJson, list);
+                var views = ParseViews(sources.UiRegionsJson, sources.GatherViewsJson, foldWords, list);
 
-        var reads = BuildReadPlans(views, sourcesList, answer, planBindings, list);
+                ValidateCross(frames, presentations, sourcesList, views, list);
 
-        errors = list;
-        if (list.Count > 0) return null;
+                var reads = BuildReadPlans(views, sourcesList, answer, planBindings, list);
 
-        var fingerprint = Fingerprint(frames, reads, views);
-        return new ViewCompiled(
-            frames with { Fingerprint = fingerprint },
-            reads with { Fingerprint = fingerprint },
-            views with { Fingerprint = fingerprint },
-            fingerprint);
+                return new ViewCompiled(frames, reads, views, string.Empty);
+            }
+            finally
+            {
+                if (!ReferenceEquals(list, errors))
+                {
+                    foreach (var error in list) errors.Add(error);
+                }
+            }
+        }
     }
 
     // ---------- frame-kinds.json ----------

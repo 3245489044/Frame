@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（116 件）
+## Agent（123 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -34,6 +34,9 @@
 | `ContextGeometryConvergence` | fast | 0 | Runtime | SingleSource | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ContextGeometryConvergence.ps1` |
 | `ContextGeometryPrefixPurity` | fast | 0 | Runtime | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Runtime\Check-ContextGeometryPrefixPurity.ps1` |
 | `ContractSingleSource` | fast | 0 | Runtime | Closure | `Environment\CentralTest\Tools\Gate\Agent\Contract\Check-ContractSingleSource.ps1` |
+| `ConversationFrameCarrier` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-ConversationFrameCarrier.ps1` |
+| `ConversationFrameIdentity` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-ConversationFrameIdentity.ps1` |
+| `ConversationSingleSource` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-ConversationSingleSource.ps1` |
 | `CostGateReuse` | fast | 0 | Runtime | Closure | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-CostGateReuse.ps1` |
 | `DbRenderPurity` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-DbRenderPurity.ps1` |
 | `DbToolbarDictAlloc` | fast | 0 | Presentation | Ratchet | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-DbToolbarDictAlloc.ps1` |
@@ -46,6 +49,7 @@
 | `EffectiveModeSingleSource` | fast | 0 | Runtime | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-EffectiveModeSingleSource.ps1` |
 | `EntrySingleSource` | full | 0 | Runtime | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-EntrySingleSource.ps1` |
 | `ExecutionLaneGate` | fast | 0 | Contract | Closure | `Environment\CentralTest\Tools\Gate\Agent\Contract\Check-ExecutionLaneGate.ps1` |
+| `FactProducerCoverage` | fast | 0 | Presentation | Drift | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-FactProducerCoverage.ps1` |
 | `FallbackInventoryRate` | fast | 0 | Meta | Ratchet | `Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-FallbackInventoryRate.ps1` |
 | `FoldState` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-FoldState.ps1` |
 | `FrameIdentity` | fast | 0 | Declaration | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-FrameIdentity.ps1` |
@@ -64,6 +68,7 @@
 | `IntentMappingNoLiteral` | fast | 0 | Contract | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Contract\Check-IntentMappingNoLiteral.ps1` |
 | `IntentParity` | fast | 0 | Contract | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Contract\Check-IntentParity.ps1` |
 | `IntentSupportsProjected` | fast | 0 | Contract | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Contract\Check-IntentSupportsProjected.ps1` |
+| `JsonSingleSource` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-JsonSingleSource.ps1` |
 | `KeyspaceMirror` | fast | 0 | Contract | Drift | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-KeyspaceMirror.ps1` |
 | `LaneCatalog` | fast | 0 | Declaration | Closure | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-LaneCatalog.ps1` |
 | `LlmRoutingSurface` | full | 0 | Runtime | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-LlmRoutingSurface.ps1` |
@@ -91,6 +96,7 @@
 | `ShareMessagingBoundary` | fast | 0 | Boundary | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-ShareMessagingBoundary.ps1` |
 | `SignalDeclaration` | fast | 0 | Declaration | Closure | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-SignalDeclaration.ps1` |
 | `SignalTraceSchema` | fast | 0 | Observability | Closure | `Environment\CentralTest\Tools\Gate\Agent\Observability\Check-SignalTraceSchema.ps1` |
+| `SubprocessEncoding` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-SubprocessEncoding.ps1` |
 | `SurfaceAssets` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-SurfaceAssets.ps1` |
 | `SurfaceCoverage` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-SurfaceCoverage.ps1` |
 | `SurfaceMappingCoverage` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-SurfaceMappingCoverage.ps1` |
@@ -104,6 +110,7 @@
 | `TransferKey` | fast | 0 | Contract | Closure | `Environment\CentralTest\Tools\Gate\Agent\Contract\Check-TransferKey.ps1` |
 | `UiAnchorWrites` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiAnchorWrites.ps1` |
 | `UiCarrierParity` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiCarrierParity.ps1` |
+| `UiEscapeSingleSource` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiEscapeSingleSource.ps1` |
 | `UiLocDeclaration` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiLocDeclaration.ps1` |
 | `UiMaterialPropertyWriter` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiMaterialPropertyWriter.ps1` |
 | `UiNoViewBranch` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiNoViewBranch.ps1` |
@@ -136,7 +143,7 @@
 | `BuildTargetMap` | full | 0 | — | — | `Projects\BuildFramework\Gates\Check-BuildTargetMap.ps1` |
 | `DistributionIncrement` | full | 0 | — | — | `Projects\BuildFramework\Gates\Check-DistributionIncrement.ps1` |
 
-## Constraint（13 件）
+## Constraint（17 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -153,6 +160,10 @@
 | `CF-W-12-SemanticReadClassified` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-12-SemanticReadClassified.ps1` |
 | `CF-W-13-SnapshotOnly` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-13-SnapshotOnly.ps1` |
 | `CF-W-14-FieldUsageIndex` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-14-FieldUsageIndex.ps1` |
+| `CF-W-16-SingleRenderExit` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-16-SingleRenderExit.ps1` |
+| `CF-W-17-NoStaticLedger` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-17-NoStaticLedger.ps1` |
+| `CF-W-18-ProduceConsumed` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-18-ProduceConsumed.ps1` |
+| `CF-W-19-NoLocalPlaceholder` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-19-NoLocalPlaceholder.ps1` |
 
 ## Data（29 件）
 

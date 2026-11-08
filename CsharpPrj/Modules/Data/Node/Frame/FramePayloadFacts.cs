@@ -67,18 +67,8 @@ public static class FramePayloadFacts
     /// <param name="value">解析结果。</param>
     public static bool TryReadBool(JsonNode? node, out bool value)
     {
-        value = false;
-        if (node is not JsonValue jsonValue)
-        {
-            return false;
-        }
-
-        if (jsonValue.TryGetValue<bool>(out var flag))
-        {
-            value = flag;
-            return true;
-        }
-
-        return jsonValue.TryGetValue<string>(out var text) && bool.TryParse(text, out value);
+        var parsed = FrameFieldBag.TryReadBool(node);
+        value = parsed ?? false;
+        return parsed.HasValue;
     }
 }

@@ -20,6 +20,7 @@ public readonly record struct UiVisual(string Slot, string Bind, string Prop, st
 public sealed class ResolvedUi
 {
     private readonly UiDeclaration _declaration;
+    private readonly IReadOnlyList<UiAliasSpec> _aliases;
     private readonly Dictionary<string, ResolvedPart> _parts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UiTheme> _themes = new(StringComparer.Ordinal);
 
@@ -28,9 +29,11 @@ public sealed class ResolvedUi
         string skin,
         string density,
         IReadOnlyDictionary<string, string> tokens,
+        IReadOnlyList<UiAliasSpec> aliases,
         IReadOnlyList<string> diagnostics)
     {
         _declaration = declaration;
+        _aliases = aliases;
         Skin = skin;
         Density = density;
         Tokens = tokens;
@@ -45,6 +48,9 @@ public sealed class ResolvedUi
 
     /// <summary>已解析 token 值（皮肤链 + 覆盖后）。</summary>
     public IReadOnlyDictionary<string, string> Tokens { get; }
+
+    /// <summary>token → 载体变量别名（N-03：单源 = 声明面；空 = 声明缺该项）。</summary>
+    public IReadOnlyList<UiAliasSpec> Aliases => _aliases;
 
     /// <summary>解析期可见诊断。</summary>
     public IReadOnlyList<string> Diagnostics { get; }

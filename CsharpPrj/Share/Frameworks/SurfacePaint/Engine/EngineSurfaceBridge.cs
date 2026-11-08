@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO.MemoryMappedFiles;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using MathematicalAlgorithms.Surface;
@@ -16,7 +17,7 @@ public sealed record EngineSurfaceRequest(
     string LightToken, string Quality,
     SurfaceFrameLightData Light,
     IReadOnlyList<SurfaceDrawItem> Items,
-    UiBackend.SurfaceBackdropFrame? Backdrop = null);
+    UiBackend.SurfaceTextureFrame? Backdrop = null);
 
 /// <summary>整帧光照参数（与引擎契约同序）。</summary>
 public readonly record struct SurfaceFrameLightData(
@@ -65,7 +66,8 @@ public static class EngineSurfaceBridge
         try
         {
             using var itemsMapping = WriteItems(items, out var itemsShm);
-            var json = BuildRequest(request, token, itemsShm, items.Count);
+            using var textureMapping = WriteTextureIfAny(request, out var textureShm, out var textureWidth, out var textureHeight);
+            var json = BuildRequest(request, token, itemsShm, items.Count, textureShm, textureWidth, textureHeight);
             string? response;
             try
             {
@@ -123,15 +125,19 @@ public static class EngineSurfaceBridge
         }
     }
 
-    /// <summary>帧 token（同视口/同绘制项/同光 ⇒ 同帧）。</summary>
+    /// <summary>帧 token（同视口/同绘制项/同光/同背景 ⇒ 同帧）。</summary>
     public static string FrameTokenOf(EngineSurfaceRequest request, IReadOnlyList<SurfaceDrawItem> items)
     {
-        var builder = new StringBuilder(64 + items.Count * 16);
+        var builder = new StringBuilder(96 + items.Count * 16);
         builder.Append(request.Width).Append('x').Append(request.Height)
             .Append('@').Append(request.Dpi)
             .Append('|').Append(request.LightToken)
             .Append('|').Append(request.Quality)
-            .Append('|').Append(request.Backdrop?.Version ?? 0L);
+            .Append('|').Append(request.Backdrop?.Kind ?? UiBackend.SurfaceTextureKind.None)
+            .Append('@').Append(request.Backdrop?.Version ?? 0L)
+            .Append('@').Append(request.Backdrop?.Transport ?? string.Empty)
+            .Append('@').Append((request.Backdrop?.Coverage.Width ?? 0f).ToString("F1", CultureInfo.InvariantCulture))
+            .Append('x').Append((request.Backdrop?.Coverage.Height ?? 0f).ToString("F1", CultureInfo.InvariantCulture));
         foreach (var item in items)
         {
             builder.Append('|').Append(item.X.ToString("F1", CultureInfo.InvariantCulture))
@@ -139,38 +145,58 @@ public static class EngineSurfaceBridge
                 .Append(',').Append(item.Width.ToString("F1", CultureInfo.InvariantCulture))
                 .Append(',').Append(item.Height.ToString("F1", CultureInfo.InvariantCulture))
                 .Append(',').Append(item.Argb).Append(',').Append(item.Kind)
-                .Append(',').Append(item.Opacity.ToString("F2", CultureInfo.InvariantCulture));
+                .Append(',').Append(item.Opacity.ToString("F2", CultureInfo.InvariantCulture))
+                .Append(',').Append(item.TextureId);
         }
 
         return SurfaceFrameContract.Fingerprint(builder.ToString());
     }
 
     private static string BuildRequest(
-        EngineSurfaceRequest request, string token, string itemsShm, int itemCount)
+        EngineSurfaceRequest request, string token, string itemsShm, int itemCount,
+        string textureShm, int textureWidth, int textureHeight)
     {
         var light = request.Light;
-        var backdrop = request.Backdrop is { Available: true } frame
-            ? string.Create(CultureInfo.InvariantCulture,
-                $"\"backdrop\":{{\"shm\":\"{Escape(frame.Handle as string)}\",\"width\":{(int)Math.Max(1f, frame.Coverage.Width)},\"height\":{(int)Math.Max(1f, frame.Coverage.Height)},\"dpi\":{frame.Dpi},\"version\":{frame.Version},\"originX\":{frame.OriginX:F2},\"originY\":{frame.OriginY:F2}}},")
-            : "\"backdrop\":{\"available\":false,\"reason\":\"backdrop-unavailable\"},";
-        var head = string.Empty + (string)(
-            $"{{\"v\":2,\"width\":{request.Width},\"height\":{request.Height},\"dpi\":{request.Dpi},"
-            + $"\"frameToken\":\"{token}\",\"lightToken\":\"{Escape(request.LightToken)}\",\""
-            + $"\"quality\":\"{Escape(request.Quality)}\",\"itemsShm\":\"{Escape(itemsShm)}\",\""
-            + $"\"itemCount\":{itemCount},"
-        );
+        var builder = new StringBuilder(512);
+        builder.Append("{\"v\":2");
+        builder.Append(",\"width\":").Append(request.Width);
+        builder.Append(",\"height\":").Append(request.Height);
+        builder.Append(",\"dpi\":").Append(request.Dpi);
+        builder.Append(",\"frameToken\":\"").Append(Escape(token)).Append('"');
+        builder.Append(",\"lightToken\":\"").Append(Escape(request.LightToken)).Append('"');
+        builder.Append(",\"quality\":\"").Append(Escape(request.Quality)).Append('"');
+        builder.Append(",\"itemsShm\":\"").Append(Escape(itemsShm)).Append('"');
+        builder.Append(",\"itemCount\":").Append(itemCount);
 
-            var backdropPart = backdrop;
-            var tail = string.Empty + (string)(
+        if (request.Backdrop is { Available: true } backdrop)
+        {
+            builder.Append(",\"backdrop\":{\"transport\":\"shm\",\"shm\":\"").Append(Escape(textureShm)).Append('"');
+            builder.Append(",\"width\":").Append(textureWidth > 0 ? textureWidth : (int)Math.Max(1f, backdrop.Coverage.Width));
+            builder.Append(",\"height\":").Append(textureHeight > 0 ? textureHeight : (int)Math.Max(1f, backdrop.Coverage.Height));
+            builder.Append(",\"dpi\":").Append(backdrop.Dpi);
+            builder.Append(",\"version\":").Append(backdrop.Version);
+            builder.Append(",\"originX\":").Append(backdrop.OriginX.ToString("F2", CultureInfo.InvariantCulture));
+            builder.Append(",\"originY\":").Append(backdrop.OriginY.ToString("F2", CultureInfo.InvariantCulture));
+            builder.Append('}');
+        }
+        else
+        {
+            builder.Append(",\"backdrop\":{\"available\":false,\"reason\":\"backdrop-unavailable\"}");
+        }
 
-            string.Empty
-
-            + $"\"light\":{{\"dirX\":{light.DirectionX:F4},\"dirY\":{light.DirectionY:F4},\"dirZ\":{light.DirectionZ:F4},\""
-            + $"\"intensity\":{light.Intensity:F4},\"ambient\":{light.Ambient:F4},\"warmth\":{light.Warmth:F4},\""
-            + $"\"tint\":{light.TintArgb},\"spotX\":{light.SpotLocalX:F2},\"spotY\":{light.SpotLocalY:F2},\""
-            + $"\"spotRadius\":{light.SpotRadiusDips:F2},\"shade\":{light.Shade:F3}}}}}}}");
-        return head + backdropPart + tail;
-
+        builder.Append(",\"light\":{\"dirX\":").Append(light.DirectionX.ToString("F4", CultureInfo.InvariantCulture));
+        builder.Append(",\"dirY\":").Append(light.DirectionY.ToString("F4", CultureInfo.InvariantCulture));
+        builder.Append(",\"dirZ\":").Append(light.DirectionZ.ToString("F4", CultureInfo.InvariantCulture));
+        builder.Append(",\"intensity\":").Append(light.Intensity.ToString("F4", CultureInfo.InvariantCulture));
+        builder.Append(",\"ambient\":").Append(light.Ambient.ToString("F4", CultureInfo.InvariantCulture));
+        builder.Append(",\"warmth\":").Append(light.Warmth.ToString("F4", CultureInfo.InvariantCulture));
+        builder.Append(",\"tint\":").Append(light.TintArgb);
+        builder.Append(",\"spotX\":").Append(light.SpotLocalX.ToString("F2", CultureInfo.InvariantCulture));
+        builder.Append(",\"spotY\":").Append(light.SpotLocalY.ToString("F2", CultureInfo.InvariantCulture));
+        builder.Append(",\"spotRadius\":").Append(light.SpotRadiusDips.ToString("F2", CultureInfo.InvariantCulture));
+        builder.Append(",\"shade\":").Append(light.Shade.ToString("F3", CultureInfo.InvariantCulture));
+        builder.Append("}}");
+        return builder.ToString();
     }
 
     private static MemoryMappedFile WriteItems(IReadOnlyList<SurfaceDrawItem> items, out string name)
@@ -199,6 +225,69 @@ public static class EngineSurfaceBridge
         }
 
         // 命名段必须活到端口调用返回；using 在 TryRender 内释放。
+        return mapping;
+    }
+
+    /// <summary>
+    /// 把背景位图写入共享内存（RGBA 直通）；无位图/已有 shm 名 ⇒ 不新建。
+    /// <para>命名段须活到端口调用返回（由 <see cref="TryRender"/> 的 using 负责释放）。</para>
+    /// </summary>
+    private static MemoryMappedFile? WriteTextureIfAny(
+        EngineSurfaceRequest request, out string name, out int width, out int height)
+    {
+        name = string.Empty;
+        width = 0;
+        height = 0;
+        if (request.Backdrop is not { Available: true } backdrop) return null;
+        if (backdrop.Content is string existing)
+        {
+            name = existing;
+            return null;
+        }
+
+        if (backdrop.Content is not System.Drawing.Bitmap bitmap) return null;
+        width = bitmap.Width;
+        height = bitmap.Height;
+        if (width <= 0 || height <= 0
+            || width > SurfaceFrameContract.MaxDimension || height > SurfaceFrameContract.MaxDimension)
+        {
+            return null;
+        }
+
+        var rgba = new byte[checked(width * height * UiBackend.SurfacePixelFormat.BytesPerPixel)];
+        var data = bitmap.LockBits(
+            new System.Drawing.Rectangle(0, 0, width, height),
+            System.Drawing.Imaging.ImageLockMode.ReadOnly,
+            System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        try
+        {
+            var row = new byte[width * 4];
+            for (var y = 0; y < height; y++)
+            {
+                Marshal.Copy(data.Scan0 + y * data.Stride, row, 0, row.Length);
+                var target = y * row.Length;
+                for (var x = 0; x < row.Length; x += 4)
+                {
+                    rgba[target + x] = row[x + 2];
+                    rgba[target + x + 1] = row[x + 1];
+                    rgba[target + x + 2] = row[x];
+                    rgba[target + x + 3] = row[x + 3];
+                }
+            }
+        }
+        finally
+        {
+            bitmap.UnlockBits(data);
+        }
+
+        name = SurfaceFrameContract.TextureShmPrefix + Environment.ProcessId + "_"
+               + System.Threading.Interlocked.Increment(ref _sequence);
+        var mapping = MemoryMappedFile.CreateNew(name, rgba.Length);
+        using (var view = mapping.CreateViewAccessor(0, rgba.Length, MemoryMappedFileAccess.Write))
+        {
+            view.WriteArray(0, rgba, 0, rgba.Length);
+        }
+
         return mapping;
     }
 

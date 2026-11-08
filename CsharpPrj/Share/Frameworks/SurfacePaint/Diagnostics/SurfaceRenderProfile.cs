@@ -124,10 +124,10 @@ public static class SurfaceRenderProfile
     }
 
     /// <summary>计时起点（关闭 ⇒ 0，调用方跳过计时分支）。</summary>
-    internal static long Begin() => _enabled ? Stopwatch.GetTimestamp() : 0;
+    public static long Begin() => _enabled ? Stopwatch.GetTimestamp() : 0;
 
     /// <summary>记录一次绘制（命中/失效）。</summary>
-    internal static void RecordPaint(long begin, bool hit)
+    public static void RecordPaint(long begin, bool hit)
     {
         if (begin == 0) return;
         var ticks = Stopwatch.GetTimestamp() - begin;
@@ -145,14 +145,14 @@ public static class SurfaceRenderProfile
     }
 
     /// <summary>记录一次绘制失败（异常隔离路径）。</summary>
-    internal static void RecordFailure()
+    public static void RecordFailure()
     {
         if (!_enabled) return;
         lock (Gate) _failures++;
     }
 
     /// <summary>记录一次位图重建（Render，含快照与全部静态层）。</summary>
-    internal static void RecordRender(long begin)
+    public static void RecordRender(long begin)
     {
         if (begin == 0) return;
         var ticks = Stopwatch.GetTimestamp() - begin;
@@ -164,7 +164,7 @@ public static class SurfaceRenderProfile
     }
 
     /// <summary>记录一次父级快照。</summary>
-    internal static void RecordSnapshot(long begin)
+    public static void RecordSnapshot(long begin)
     {
         if (begin == 0) return;
         var ticks = Stopwatch.GetTimestamp() - begin;
@@ -176,7 +176,7 @@ public static class SurfaceRenderProfile
     }
 
     /// <summary>记录一次快照模糊（降采样 + 升采样）。</summary>
-    internal static void RecordBlur(long begin)
+    public static void RecordBlur(long begin)
     {
         if (begin == 0) return;
         var ticks = Stopwatch.GetTimestamp() - begin;
@@ -188,7 +188,7 @@ public static class SurfaceRenderProfile
     }
 
     /// <summary>记录一个图元的绘制耗时。</summary>
-    internal static void RecordLayer(string primitive, long begin)
+    public static void RecordLayer(string primitive, long begin)
     {
         if (begin == 0) return;
         var ticks = Stopwatch.GetTimestamp() - begin;

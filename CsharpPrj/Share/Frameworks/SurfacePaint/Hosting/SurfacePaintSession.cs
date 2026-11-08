@@ -9,6 +9,8 @@ using Share.SurfacePaint.Ambient;
 using Share.SurfacePaint.Diagnostics;
 using Share.SurfacePaint.Engine;
 using Share.SurfacePaint.Materials;
+using UiBackend;
+using UiBackend;
 
 namespace Share.SurfacePaint.Hosting;
 
@@ -171,14 +173,32 @@ public sealed class SurfacePaintSession : IDisposable
             });
         }
 
-        var facts = SurfaceHostFacts.Current;
-        var glass = SurfaceHostFacts.Glass();
-        var ownership = SurfaceStageOwnership.Resolve(glass.Tier, facts.Composition.Mode);
-        var engineFrame = _engine is not null && SurfaceEngineFramePump.Enabled
+        // 背景快照（按控件/按帧）：仅当引擎可能接管时采集，避免载体路径重复抓图。
+        var now = Environment.TickCount64;
+        var hostFacts = SurfaceHostFacts.Current;
+        var wantsEngine = _engine is not null && SurfaceEngineFramePump.Enabled
+            && hostFacts.Composition.Mode == SurfaceCompositionMode.EngineComposition
+            && hostFacts.DeclaredTier is >= GlassTier.T0;
+        SurfaceRenderInputs? ownedInputs = null;
+        var inputs = pinned;
+        if (inputs is null && wantsEngine
+            && (_cache is null || now - _lastBackdropTick >= BackdropRefreshMs))
+        {
+            ownedInputs = BuildRenderInputs(viewport, baseLight, forceBackdrop: true);
+            inputs = ownedInputs;
+            _backdropVersion = inputs.BackdropVersion;
+            _lastBackdropTick = now;
+        }
+
+        // 唯一读取面：光 / 背景 / 玻璃计划 / 所有权 / 降级。
+        var facts = SurfaceRenderFactsReader.Read(TextureFrameOf(viewport, inputs));
+        var ownership = facts.Ownership;
+        var engineFrame = facts.EngineOwnsFace
             ? SurfaceEngineFramePump.TryFrame(
-                viewport, material, baseLight, SurfaceEngineFramePump.Quality, _engine, _log)
+                viewport, material, inputs?.Light ?? baseLight, SurfaceEngineFramePump.Quality, _engine!,
+                facts.Backdrop, facts.Glass.Spec, _log)
             : null;
-        var engineOwnsFace = ownership.OwnedBy(SurfacePaintStage.Base, SurfaceStageOwner.EngineFrame);
+        var engineOwnsFace = facts.EngineOwnsFace;
         if (engineOwnsFace && engineFrame is null)
         {
             // Gather 事实与帧泵事实不一致 ⇒ 按泵事实降级，并显式记账。
@@ -192,21 +212,25 @@ public sealed class SurfacePaintSession : IDisposable
             engineFrame = null;
         }
 
+        if (!facts.Backdrop.Available)
+        {
+            _log.Write("surface.gather.fallback", new { host = _hostId, reason = "backdrop-unavailable" });
+        }
+
         var paintBegin = SurfaceRenderProfile.Begin();
         var baseReport = _baseReport;
         try
         {
-            var now = Environment.TickCount64;
             var backdropDue = pinned is null && HasBackdrop(material)
                 && (_cache is null || now - _lastBackdropTick >= BackdropRefreshMs);
-            var backdropVersion = pinned?.BackdropVersion ?? _backdropVersion;
+            var backdropVersion = inputs?.BackdropVersion ?? _backdropVersion;
             var key = CacheKey(bounds, baseLight, backdropVersion);
             var hit = _cache is not null && !backdropDue
                       && string.Equals(_cacheKey, key, StringComparison.Ordinal);
 
             if (!engineOwnsFace)
             {
-                if (!hit) baseReport = RebuildBase(viewport, bounds, pinned, baseLight);
+                if (!hit) baseReport = RebuildBase(viewport, bounds, inputs, baseLight);
                 if (baseReport is null) baseReport = SurfacePaintReport.Empty;
             }
 
@@ -267,6 +291,10 @@ public sealed class SurfacePaintSession : IDisposable
             });
             return new SurfaceFrameResult(_frame, _lastReport, false);
         }
+        finally
+        {
+            ownedInputs?.Dispose();
+        }
     }
 
     /// <summary>重建静态底图：backdrop（快照+模糊）+ fill + edge；specular 不进入底图。</summary>
@@ -320,11 +348,33 @@ public sealed class SurfacePaintSession : IDisposable
         return skipped;
     }
 
-    /// <summary>构建一帧输入（运行时光 + 背后快照）；调用方拥有结果。</summary>
-    public SurfaceRenderInputs BuildRenderInputs(SurfaceViewport viewport, SurfaceLightState? light = null)
+    /// <summary>快照 → 统一背景纹理帧（跨节点唯一形态；null ⇒ 无源）。</summary>
+    private SurfaceTextureFrame? TextureFrameOf(SurfaceViewport viewport, SurfaceRenderInputs? inputs)
     {
-        var resolvedLight = NeedsLight(_material) ? light ?? _light?.Resolve(viewport) : null;
-        if (!HasBackdrop(_material)) return SurfaceRenderInputs.Create(resolvedLight, null, 0);
+        if (inputs?.Backdrop is not { } bitmap) return null;
+        var coverage = new SurfaceLightCoverage(
+            (float)viewport.OriginXDip, (float)viewport.OriginYDip, viewport.Width, viewport.Height);
+        return new SurfaceTextureFrame(
+            SurfaceTextureKind.ParentSnapshot,
+            coverage,
+            viewport.Dpi,
+            (float)viewport.OriginXDip,
+            (float)viewport.OriginYDip,
+            inputs.BackdropVersion,
+            bitmap,
+            "bitmap",
+            string.Empty,
+            _hostId);
+    }
+
+    /// <summary>构建一帧输入（运行时光 + 背后快照）；调用方拥有结果。</summary>
+    public SurfaceRenderInputs BuildRenderInputs(
+        SurfaceViewport viewport, SurfaceLightState? light = null, bool forceBackdrop = false)
+    {
+        var resolvedLight = NeedsLight(_material) || forceBackdrop
+            ? light ?? _light?.Resolve(viewport)
+            : null;
+        if (!HasBackdrop(_material) && !forceBackdrop) return SurfaceRenderInputs.Create(resolvedLight, null, 0);
 
         var capture = _backdrop?.Capture(viewport, allowCached: false);
         var version = capture?.Version ?? 0;

@@ -106,7 +106,7 @@ public static class SurfaceAmbientScene
             var bounds = viewport.Bounds;
             var engine = SurfaceEngineFramePump.TryFrameRaw(
                 viewport, BuildSceneItems(bounds, viewport.HostScale, light),
-                "page:" + _params.Token, light, SurfaceEngineFramePump.Quality, enginePort, log);
+                "page:" + _params.Token, light, SurfaceEngineFramePump.Quality, enginePort, null, log);
             if (engine is not null)
             {
                 graphics.DrawImageUnscaled(engine, 0, 0);

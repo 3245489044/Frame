@@ -95,17 +95,18 @@ internal static class SurfaceFramePump
 
     internal static System.Drawing.Bitmap? TryFrame(
         Control control, ResolvedMaterial? material, SurfaceLightState? light, string quality,
-        UiBackend.SurfaceBackdropFrame? backdrop = null)
+        UiBackend.SurfaceTextureFrame? backdrop = null, UiBackend.SurfaceGlassSpec? glass = null)
         => SurfaceEngineFramePump.TryFrame(
             SurfaceAmbient.ViewportOf(control), material, light, quality,
-            WinFormsSurfacePorts.Engine ?? WinFormsSurfaceEnginePort.Instance, WinFormsSurfacePorts.Log);
+            WinFormsSurfacePorts.Engine ?? WinFormsSurfaceEnginePort.Instance, backdrop, glass,
+            WinFormsSurfacePorts.Log);
 
     internal static System.Drawing.Bitmap? TryFrameRaw(
         Control control, System.Collections.Generic.IReadOnlyList<SurfaceDrawItem> items,
         string contentToken, SurfaceLightState? light, string quality)
         => SurfaceEngineFramePump.TryFrameRaw(
             SurfaceAmbient.ViewportOf(control), items, contentToken, light, quality,
-            WinFormsSurfacePorts.Engine ?? WinFormsSurfaceEnginePort.Instance, WinFormsSurfacePorts.Log);
+            WinFormsSurfacePorts.Engine ?? WinFormsSurfaceEnginePort.Instance, null, WinFormsSurfacePorts.Log);
 }
 
 /// <summary>

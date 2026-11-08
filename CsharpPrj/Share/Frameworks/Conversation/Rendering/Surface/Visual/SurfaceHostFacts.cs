@@ -12,7 +12,7 @@ namespace Share.Conversation.Rendering.Surface;
 /// <param name="DeclaredTier">材质声明上限（null = 未声明）。</param>
 public sealed record SurfaceHostFactsSnapshot(
     SurfaceCompositionCapability Composition,
-    SurfaceBackdropFrame Backdrop,
+    SurfaceTextureFrame Backdrop,
     SurfaceFrameBudget Budget,
     GlassTier? DeclaredTier);
 
@@ -24,7 +24,7 @@ public static class SurfaceHostFacts
 {
     private static readonly object Gate = new();
     private static SurfaceCompositionCapability _composition = SurfaceCompositionCapability.Unavailable;
-    private static SurfaceBackdropFrame _backdrop = SurfaceBackdropFrame.Unavailable;
+    private static SurfaceTextureFrame _backdrop = SurfaceTextureFrame.Unavailable;
     private static SurfaceFrameBudget _budget = SurfaceFrameBudget.Default;
     private static GlassTier? _declaredTier;
 
@@ -50,13 +50,17 @@ public static class SurfaceHostFacts
     }
 
     /// <summary>登记背景源（可为空 ⇒ 显式不可用）。</summary>
-    public static void DeclareBackdrop(SurfaceBackdropFrame? backdrop)
+    public static void DeclareBackdrop(SurfaceTextureFrame? backdrop)
     {
         lock (Gate)
         {
-            _backdrop = backdrop ?? SurfaceBackdropFrame.Unavailable;
+            _backdrop = backdrop ?? SurfaceTextureFrame.Unavailable;
         }
     }
+
+    /// <summary>登记背景源（旧类型过渡重载）。</summary>
+    public static void DeclareBackdrop(SurfaceBackdropFrame? backdrop)
+        => DeclareBackdrop(backdrop is null ? null : backdrop.ToTextureFrame());
 
     /// <summary>登记帧预算。</summary>
     public static void DeclareBudget(SurfaceFrameBudget? budget)
@@ -80,7 +84,8 @@ public static class SurfaceHostFacts
     public static SurfaceGlassSpec Glass()
     {
         var facts = Current;
-        return SurfaceGlassSpec.Clamp(facts.Composition, facts.Backdrop, facts.DeclaredTier, facts.Budget);
+        return SurfaceGlassSpec.Clamp(
+            facts.Composition, facts.Backdrop.FromTextureFrame(), facts.DeclaredTier, facts.Budget);
     }
 
     /// <summary>清空事实（测试/重装配；E-21）。</summary>
@@ -89,7 +94,7 @@ public static class SurfaceHostFacts
         lock (Gate)
         {
             _composition = SurfaceCompositionCapability.Unavailable;
-            _backdrop = SurfaceBackdropFrame.Unavailable;
+            _backdrop = SurfaceTextureFrame.Unavailable;
             _budget = SurfaceFrameBudget.Default;
             _declaredTier = null;
         }

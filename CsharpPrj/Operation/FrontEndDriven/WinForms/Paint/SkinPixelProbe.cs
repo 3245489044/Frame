@@ -8,6 +8,7 @@ using System.Linq;
 using System.Windows.Forms;
 using Modules.Common.Drawing;
 using Share.Conversation.Rendering.Surface;
+using Share.SurfacePaint.Hosting;
 
 namespace FrontEndDriven.WinForms.Paint;
 
@@ -298,7 +299,7 @@ public static class SkinPixelProbe
 
     /// <summary>期望位图：预填未换肤基线后**复刻实际的两段绘制**（静态层 → 动态 sheen），并吃冻结的同一份 light/backdrop。</summary>
     private static Bitmap ExpectedBitmap(
-        ResolvedMaterial material, Color baseline, int width, int height, SkinRenderInputs inputs)
+        ResolvedMaterial material, Color baseline, int width, int height, SurfaceRenderInputs inputs)
     {
         var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
         using var graphics = Graphics.FromImage(bitmap);
@@ -327,7 +328,7 @@ public static class SkinPixelProbe
         public ResolvedMaterial? Material;
         public string MaterialId = string.Empty;
         public Bitmap? Bitmap;
-        public SkinRenderInputs? Inputs;
+        public SurfaceRenderInputs? Inputs;
         public bool Painted;
         public string Failure = string.Empty;
         public Color Baseline;

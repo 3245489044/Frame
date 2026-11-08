@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
+using Share.SurfacePaint;
 using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -119,7 +120,7 @@ public static class SkinDiagnostics
     /// <para>静态底图重建不再单独计数（此前一帧会 +2，命中帧的 PaintedLayers 被动态层覆盖成 1）。</para>
     /// </summary>
     /// <param name="report">本帧静态 + 动态合并报告。</param>
-    public static void RecordFrame(SkinPaintReport report)
+    public static void RecordFrame(SurfacePaintReport report)
     {
         ArgumentNullException.ThrowIfNull(report);
         Interlocked.Increment(ref _paintCount);
@@ -137,7 +138,7 @@ public static class SkinDiagnostics
     /// <summary>按材质记录本帧落笔面（首次/明细变化时才落日志，禁逐帧刷屏）。</summary>
     /// <param name="materialId">材质 id。</param>
     /// <param name="report">本帧静态 + 动态合并报告。</param>
-    public static void RecordPaintCount(string materialId, SkinPaintReport report)
+    public static void RecordPaintCount(string materialId, SurfacePaintReport report)
     {
         ArgumentNullException.ThrowIfNull(report);
         if (string.IsNullOrWhiteSpace(materialId)) return;

@@ -3,14 +3,14 @@
   <PropertyGroup Label="ModuleRule">
     <ModuleRule_Title>表面绘制框架（SurfacePaint）</ModuleRule_Title>
     <ModuleRule_Layer>2</ModuleRule_Layer>
-    <ModuleRule_Description>载体无关的表面绘制内核：几何/边框/缓存键/颜色桥/逐层落笔引擎（只吃 Graphics/Bitmap 与已解析材质，零控件类型）。</ModuleRule_Description>
-    <ModuleRule_Keywords>表面;绘制;几何;边框;缓存键;落笔</ModuleRule_Keywords>
+    <ModuleRule_Description>载体无关的表面运行时：光栅原语（Raster）/几何/边框/缓存键/颜色桥/逐层落笔引擎/页面场与卡片装饰（Ambient）/宿主会话（Hosting）/引擎帧泵（Engine）/材质目录（Materials）/诊断（Diagnostics）。只吃 Graphics/Bitmap 与已解析材质，零控件类型。</ModuleRule_Description>
+    <ModuleRule_Keywords>表面;绘制;光栅;几何;边框;缓存键;装饰;页面场;会话;落笔</ModuleRule_Keywords>
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
-    <ModuleRule_Rule Include="只依赖 Share.Conversation/Plate.Surface/Share.SurfaceRaster 与 BCL；禁依赖 Operation/Presentation/Modules" />
-    <ModuleRule_Rule Include="只吃 Graphics/Bitmap/Image/Rectangle(F)/已解析材质；禁 Control/Form/Timer/消息循环" />
-    <ModuleRule_Rule Include="入参显式：不读前端静态单例或安装期全局状态" />
+    <ModuleRule_Rule Include="只依赖 Share.Conversation/Plate.Surface/Plate.Mathematics/Share.SurfaceRaster(已并入 Raster/) 与 BCL；禁依赖 Operation/Presentation" />
+    <ModuleRule_Rule Include="只吃 Graphics/Bitmap/Image/Rectangle(F)/已解析材质/令牌；禁 Control/Form/Timer/消息循环" />
+    <ModuleRule_Rule Include="宿主能力（视口/背后快照/运行时光/引擎/日志）一律经 Hosting 端口注入；禁读前端静态单例" />
     <ModuleRule_Rule Include="像素算法逐位稳定：同参数输出必须与迁移前实现完全一致" />
   </ItemGroup>
 

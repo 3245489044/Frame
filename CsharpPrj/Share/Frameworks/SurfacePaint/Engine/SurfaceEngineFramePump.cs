@@ -34,19 +34,21 @@ public static class SurfaceEngineFramePump
     /// <summary>以材质取一帧（静态/动态全含）。</summary>
     public static Bitmap? TryFrame(
         SurfaceViewport viewport, ResolvedMaterial? material, SurfaceLightState? light, string quality,
-        ISurfaceEnginePort port, ISurfaceEventLog? log = null)
+        ISurfaceEnginePort port, SurfaceTextureFrame? backdrop = null, SurfaceGlassSpec? glass = null,
+        ISurfaceEventLog? log = null)
     {
         if (material is null || !viewport.IsValid) return null;
         var scale = viewport.Scale;
         return TryFrameRaw(
-            viewport, BuildItems(material, viewport.Bounds, scale, light), "material:" + material.MaterialId,
-            light, quality, port, log);
+            viewport, BuildItems(material, viewport.Bounds, scale, light, backdrop, glass),
+            "material:" + material.MaterialId, light, quality, port, backdrop, log);
     }
 
     /// <summary>以显式绘制项取一帧（页面场/chrome 等非材质路径；同一 token 命中缓存）。</summary>
     public static Bitmap? TryFrameRaw(
         SurfaceViewport viewport, IReadOnlyList<SurfaceDrawItem> items, string contentToken,
-        SurfaceLightState? light, string quality, ISurfaceEnginePort port, ISurfaceEventLog? log = null)
+        SurfaceLightState? light, string quality, ISurfaceEnginePort port,
+        SurfaceTextureFrame? backdrop = null, ISurfaceEventLog? log = null)
     {
         if (!viewport.IsValid) return null;
         if (port is null)
@@ -60,7 +62,7 @@ public static class SurfaceEngineFramePump
         var request = new EngineSurfaceRequest(
             viewport.Width, viewport.Height, dpi,
             (light?.CacheToken ?? "no-light") + "|" + contentToken,
-            quality, ToLight(light), items);
+            quality, ToLight(light), items, backdrop);
 
         var token = EngineSurfaceBridge.FrameTokenOf(request, items);
         lock (Gate)
@@ -112,13 +114,31 @@ public static class SurfaceEngineFramePump
     }
 
     private static IReadOnlyList<SurfaceDrawItem> BuildItems(
-        ResolvedMaterial material, Rectangle bounds, float scale, SurfaceLightState? light)
+        ResolvedMaterial material, Rectangle bounds, float scale, SurfaceLightState? light,
+        SurfaceTextureFrame? backdrop = null, SurfaceGlassSpec? glass = null)
     {
         var specs = ResolvedLayerSpecProjection.ParseCached(material.Layers);
         var ordered = SurfacePaintPlan.Order(specs.Specs, includeStatic: true, includeDynamic: true);
-        var items = new List<SurfaceDrawItem>(ordered.Count);
+        var items = new List<SurfaceDrawItem>(ordered.Count + 1);
+        var hasBackdropItem = false;
+
+        // 真玻璃基底：只有真实背景源 + 可达玻璃层时才生成（无源不生成，禁以 Fill 冒充）。
+        if (backdrop is { Available: true } && glass is { Tier: >= GlassTier.T0 })
+        {
+            var radius = Math.Max(0f, specs.MaterialRadius) * scale;
+            items.Add(new SurfaceDrawItem(
+                bounds.X, bounds.Y, bounds.Width, bounds.Height,
+                radius, unchecked((uint)glass.TintArgb), 1f, 0f,
+                SurfaceDrawKind.Backdrop, SurfaceDrawFlags.Decor,
+                glass.BlurSigma, glass.RefractStrength, glass.Dispersion, glass.FresnelStrength,
+                textureId: 1));
+            hasBackdropItem = true;
+        }
+
         foreach (var spec in ordered)
         {
+            // 材质自身的 backdrop 层由上面唯一一条基底项替代（避免双画/双采样）。
+            if (hasBackdropItem && spec.Kind == LayerPrimitive.Backdrop) continue;
             var kind = spec.Kind switch
             {
                 LayerPrimitive.Fill => SurfaceDrawKind.Fill,

@@ -231,6 +231,41 @@ public static class SurfaceColor
         return alpha is >= 0 and <= 255;
     }
 
+    /// <summary>
+    /// HSL → 不透明 ARGB（**唯一实现**；与 GDI+ <c>Color.GetHue</c>/<c>GetSaturation</c>/<c>GetBrightness</c> 同口径）。
+    /// <para>色相按 360° 周期归一；饱和度/明度按调用方传入（不夹取），通道乘法后夹到 0..255 再截断。</para>
+    /// </summary>
+    /// <param name="hueDegrees">色相（度，可越界/为负）。</param>
+    /// <param name="saturation">饱和度（0..1）。</param>
+    /// <param name="lightness">明度（0..1）。</param>
+    /// <returns>打包 ARGB（<c>0xAARRGGBB</c>，alpha 恒 255）。</returns>
+    public static int FromHsl(float hueDegrees, float saturation, float lightness)
+    {
+        var h = WrapDegrees(hueDegrees) / 360f;
+        var q = lightness < 0.5f
+            ? lightness * (1f + saturation)
+            : lightness + saturation - lightness * saturation;
+        var p = 2f * lightness - q;
+        var r = (int)Math.Clamp(HslChannel(p, q, h + 1f / 3f) * 255f, 0f, 255f);
+        var g = (int)Math.Clamp(HslChannel(p, q, h) * 255f, 0f, 255f);
+        var b = (int)Math.Clamp(HslChannel(p, q, h - 1f / 3f) * 255f, 0f, 255f);
+        return unchecked((0xFF << 24) | (r << 16) | (g << 8) | b);
+    }
+
+    /// <summary>HS L 通道：t 超出一圈时回卷到 [0,1)。</summary>
+    private static float HslChannel(float p, float q, float t)
+    {
+        if (t < 0f) t += 1f;
+        if (t > 1f) t -= 1f;
+        if (t < 1f / 6f) return p + (q - p) * 6f * t;
+        if (t < 0.5f) return q;
+        if (t < 2f / 3f) return p + (q - p) * (2f / 3f - t) * 6f;
+        return p;
+    }
+
+    /// <summary>角度归一（度，0..360）：负角/越界角都回卷到一个周期内。</summary>
+    public static float WrapDegrees(float degrees) => (degrees % 360f + 360f) % 360f;
+
     /// <summary>打包 ARGB → CSS hex（固定 <c>#RRGGBBAA</c>，alpha 最后）。</summary>
     public static string ToCssHex(int argb)
     {

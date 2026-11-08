@@ -140,7 +140,7 @@ internal static class SurfaceAmbient
     {
         if (!Enabled) return null;
         var form = control.FindForm() ?? control;
-        var dpi = form.DeviceDpi <= 0 ? 96f : form.DeviceDpi;
+        var dpi = BorderUnits.NormalizeDpi(form.DeviceDpi);
         var size = form.ClientSize;
         if (size.Width <= 0 || size.Height <= 0) return null;
 
@@ -384,9 +384,9 @@ internal static class SurfaceAmbient
         if (scene is null || bounds.Width <= 0 || bounds.Height <= 0) return null;
 
         var offset = ScreenOffset(control);
-        var dpi = control.DeviceDpi <= 0 ? 96f : control.DeviceDpi;
+        var dpi = BorderUnits.NormalizeDpi(control.DeviceDpi);
         var form = control.FindForm() ?? control;
-        var formDpi = form.DeviceDpi <= 0 ? 96f : form.DeviceDpi;
+        var formDpi = BorderUnits.NormalizeDpi(form.DeviceDpi);
         var light = ResolveState(form, formDpi);
         var decoration = material.Decoration;
         var key = string.Create(CultureInfo.InvariantCulture,
@@ -708,7 +708,7 @@ internal static class SurfaceAmbient
                     var chromaA = originA + slopeA[0] * dr + slopeA[1] * dg + slopeA[2] * db - backdropA;
                     var chromaB = originB + slopeB[0] * dr + slopeB[1] * dg + slopeB[2] * db - backdropB;
                     var chromaError = Math.Abs(Math.Sqrt(chromaA * chromaA + chromaB * chromaB) - DecorChroma);
-                    var hueError = Math.Abs(Wrap180(Math.Atan2(chromaB, chromaA) * 180.0 / Math.PI - hueDegrees));
+                    var hueError = Math.Abs(SurfaceMath.WrapDegrees180(Math.Atan2(chromaB, chromaA) * 180.0 / Math.PI - hueDegrees));
                     var cost = Math.Abs(candidate - lstar) + hueError * HueWeight + chromaError * ChromaWeight;
                     if (cost >= bestCost) continue;
                     bestCost = cost;
@@ -752,15 +752,6 @@ internal static class SurfaceAmbient
         var fz = Forward(z / 1.08883);
         a = 500.0 * (fx - fy);
         bOut = 200.0 * (fy - fz);
-    }
-
-    /// <summary>角度差（-180..180）。</summary>
-    private static double Wrap180(double degrees)
-    {
-        var value = degrees % 360.0;
-        if (value > 180.0) value -= 360.0;
-        if (value < -180.0) value += 360.0;
-        return value;
     }
 
     /// <summary>sRGB 8bit 通道 → 线性亮度分量（D65 相对亮度公式的输入）。</summary>

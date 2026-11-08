@@ -429,7 +429,7 @@ public static class SurfaceLightPort
     internal static float AzimuthDegrees(float x, float y)
     {
         var degrees = MathF.Atan2(-y, x) * (180f / MathF.PI);
-        return (degrees % 360f + 360f) % 360f;
+        return SurfaceColor.WrapDegrees(degrees);
     }
 
     private static float Bilinear(float v00, float v10, float v01, float v11, float tx, float ty)
@@ -487,12 +487,12 @@ public static class IridescenceRamp
     {
         var span = Math.Abs(spanDegrees) <= 1e-6f ? 140f : spanDegrees;
         var hue = 190f + phase * 360f + Math.Clamp(t, 0f, 1f) * span;
-        return (hue % 360f + 360f) % 360f;
+        return SurfaceColor.WrapDegrees(hue);
     }
 
     /// <summary>相位 + t → 不透明 ARGB（供 GDI+ <c>ColorBlend</c> 直接使用）。</summary>
     public static int ArgbAt(float phase, float t, float spanDegrees)
-        => HslToArgb(HueAt(phase, t, spanDegrees), 0.85f, 0.78f);
+        => SurfaceColor.FromHsl(HueAt(phase, t, spanDegrees), 0.85f, 0.78f);
 
     /// <summary>沿 t∈[0,1] 等分取样（默认 5 个停靠点），保证色相沿轮廓连续。</summary>
     public static int[] Stops(float phase, float spanDegrees, int count = 5)
@@ -505,29 +505,6 @@ public static class IridescenceRamp
         }
 
         return stops;
-    }
-
-    private static int HslToArgb(float hueDegrees, float saturation, float lightness)
-    {
-        var h = ((hueDegrees % 360f) + 360f) % 360f / 360f;
-        var q = lightness < 0.5f
-            ? lightness * (1f + saturation)
-            : lightness + saturation - lightness * saturation;
-        var p = 2f * lightness - q;
-        var r = Channel(p, q, h + 1f / 3f);
-        var g = Channel(p, q, h);
-        var b = Channel(p, q, h - 1f / 3f);
-        return unchecked((0xFF << 24) | (r << 16) | (g << 8) | b);
-    }
-
-    private static int Channel(float p, float q, float t)
-    {
-        if (t < 0f) t += 1f;
-        if (t > 1f) t -= 1f;
-        if (t < 1f / 6f) return (int)Math.Clamp((p + (q - p) * 6f * t) * 255f, 0f, 255f);
-        if (t < 0.5f) return (int)Math.Clamp(q * 255f, 0f, 255f);
-        if (t < 2f / 3f) return (int)Math.Clamp((p + (q - p) * (2f / 3f - t) * 6f) * 255f, 0f, 255f);
-        return (int)Math.Clamp(p * 255f, 0f, 255f);
     }
 }
 

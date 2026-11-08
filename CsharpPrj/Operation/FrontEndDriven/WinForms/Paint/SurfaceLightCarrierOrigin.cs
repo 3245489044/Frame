@@ -16,7 +16,7 @@ public static class SurfaceLightCarrierOrigin
     /// <summary>取控件的物理屏幕客户区（DIP）。</summary>
     public static SurfaceCarrierFrame Of(Control control)
     {
-        var dpi = control.DeviceDpi > 0 ? control.DeviceDpi : 96;
+        var dpi = BorderUnits.NormalizeDpi(control.DeviceDpi);
         var scale = 96f / dpi;
         var origin = control.PointToScreen(Point.Empty);
         var client = control.ClientSize;

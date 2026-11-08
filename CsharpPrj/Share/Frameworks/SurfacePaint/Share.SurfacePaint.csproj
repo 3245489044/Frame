@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>表面绘制框架（SurfacePaint）</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>载体无关的表面绘制内核：几何/边框/缓存键/颜色桥/逐层落笔引擎（只吃 Graphics/Bitmap 与已解析材质，零控件类型）。</ModuleRule_Description>
+    <ModuleRule_Keywords>表面;绘制;几何;边框;缓存键;落笔</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="只依赖 Share.Conversation/Plate.Surface/Share.SurfaceRaster 与 BCL；禁依赖 Operation/Presentation/Modules" />
+    <ModuleRule_Rule Include="只吃 Graphics/Bitmap/Image/Rectangle(F)/已解析材质；禁 Control/Form/Timer/消息循环" />
+    <ModuleRule_Rule Include="入参显式：不读前端静态单例或安装期全局状态" />
+    <ModuleRule_Rule Include="像素算法逐位稳定：同参数输出必须与迁移前实现完全一致" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.SurfacePaint</RootNamespace>
+    <AssemblyName>Share.SurfacePaint</AssemblyName>
+    <Description>表面绘制内核（载体无关，System.Drawing）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Plate_Surface)" />
+    <ProjectReference Include="$(Proj_Share_Conversation)" />
+    <ProjectReference Include="$(Proj_Share_SurfaceRaster)" />
+  </ItemGroup>
+
+</Project>

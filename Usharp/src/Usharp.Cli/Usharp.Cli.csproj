@@ -28,4 +28,9 @@
     <!-- 控制台命令宿主（子命令路由 / 用法 / 退出码 / 异常边界）唯一实现 -->
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 烘焙轨运行期探针（薄输出：上游 dll 不落本目录，按权威目录就地解析） -->
+    <Compile Include="..\Shared\UsharpBootstrap.cs" Link="Bootstrap\UsharpBootstrap.cs" />
+  </ItemGroup>
+
 </Project>

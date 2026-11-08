@@ -65,8 +65,10 @@
           Condition="Exists('$(CsharpProjectRoot)\generated\Directory.Build.props.versions.generated.props')" />
 
   <PropertyGroup Label="CsharpBakeRefs">
-    <!-- 阶段 1：Private=true —— 输出保持自包含（Cli/Bundle 无需 ALC 探针），本次只消除编译期重复编译。 -->
-    <CsharpBakeRefsPrivate>true</CsharpBakeRefsPrivate>
+    <!-- 完全对齐 Agent/FileDriven：编译期类型可见，但上游 dll 不复制进输出（薄输出）；
+         运行期由 Usharp.Cli/Usharp.Bundle 的 [ModuleInitializer] 探针（Bootstrap\UsharpBootstrap.cs）
+         从 Frame 权威目录就地解析。残余副本由 ThinOutput.targets 兜底剪枝（不得改回 true）。 -->
+    <CsharpBakeRefsPrivate>false</CsharpBakeRefsPrivate>
     <!-- 全闭包模式：Usharp 消费 CsharpPrj 近全族类型面，具名清单不足；共享边界件排除以避免同标识双路径。 -->
     <CsharpBakeRefsGlob>true</CsharpBakeRefsGlob>
     <CsharpBakeRefsGlobExclude>$(CsharpBuildOutputDir)Route.dll;$(CsharpBuildOutputDir)PluginHost.dll</CsharpBakeRefsGlobExclude>

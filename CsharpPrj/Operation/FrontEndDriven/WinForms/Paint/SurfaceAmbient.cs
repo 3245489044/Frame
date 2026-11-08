@@ -7,7 +7,6 @@ using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using Share.Conversation.Rendering.Surface;
@@ -231,28 +230,8 @@ internal static class SurfaceAmbient
         var centerX = width * (light?.SpotX ?? 0.5f);
         var centerY = height * (light?.SpotY ?? 0.5f);
         var radius = Math.Max(8f, _params.RadialRadius * scale);
-        // 椭圆的包围盒与页面不相交 ⇒ 整颗光斑在页面外，不画（锚点在宿主外时的真实行为）。
-        if (centerX + radius < 0f || centerY + radius < 0f
-            || centerX - radius > width || centerY - radius > height) return;
-
-        using var path = new GraphicsPath();
-        path.AddEllipse(centerX - radius, centerY - radius, radius * 2f, radius * 2f);
-        var points = path.PointCount;
-        if (points <= 0) return;
-
-        var surround = new Color[points];
-        var clear = Color.FromArgb(0, Color.White);
-        for (var i = 0; i < points; i++) surround[i] = clear;
-
-        using var brush = new PathGradientBrush(path)
-        {
-            CenterColor = Color.FromArgb(alpha, Color.White),
-            SurroundColors = surround,
-            CenterPoint = new PointF(centerX, centerY),
-            // 焦点区 = 中心纯色区；越小核心越亮、向外衰减越长。
-            FocusScales = new PointF(0.12f, 0.12f),
-        };
-        graphics.FillRectangle(brush, 0, 0, width, height);
+        // 光栅原语在 Share.SurfaceRaster（载体无关）；本层只负责从光态算出中心/半径/强度。
+        SurfaceRaster.RadialGlow(graphics, width, height, centerX, centerY, radius, alpha);
     }
 
     /// <summary>
@@ -281,102 +260,7 @@ internal static class SurfaceAmbient
         var amplitude = height * _params.RibbonAmplitude;
         var wavelength = width * 1.05f;
         var bandWidth = _params.RibbonWidth * scale;
-        PaintBand(scene, width, height, centerX, centerY, amplitude, wavelength, bandWidth, shapePhase, hue0, span);
-    }
-
-    /// <summary>
-    /// 逐像素沿带中心线把 (a,b) 推进一个族内色相（**ΔY 恒为 0 ⇒ L* 不动**）。
-    /// <para>逐列算中心线与法线，带内每像素直接读/写位图：底色是刚刚画出来的真实 8bit 像素，
-    /// 因此 ΔL* 只剩「ΔY=0 的线性化误差 + 整数取整」两项，实测 ≤0.09 L*（结构层差 0.2 L* 以内）。</para>
-    /// <para>冷启动一次性成本：带宽 34px × 页宽 ≈ 4 万像素，每像素 3 次 cbrt + 27 格取整搜索。</para>
-    /// </summary>
-    private static void PaintBand(
-        Bitmap scene, int width, int height,
-        float centerX, float centerY, float amplitude, float wavelength, float bandWidth,
-        float shapePhase, float hue0, float span)
-    {
-        var half = bandWidth * 0.5f;
-        if (half <= 0f) return;
-        var data = scene.LockBits(
-            new Rectangle(0, 0, width, height),
-            System.Drawing.Imaging.ImageLockMode.ReadWrite,
-            System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
-        try
-        {
-            var stride = data.Stride;
-            var buffer = data.Scan0;
-            var radians = (float)(2 * Math.PI / wavelength);
-            for (var x = 0; x < width; x++)
-            {
-                var phase = radians * (x - centerX) + shapePhase * 2f * (float)Math.PI;
-                var centerline = centerY + (x - centerX) * 0.34f + amplitude * MathF.Sin(phase);
-                var slope = 0.34f + amplitude * radians * MathF.Cos(phase);
-                // 法线 = (−slope, 1)/length；带宽 half 是**垂直距离**，故列内纵向半高 = half/length。
-                var halfHeight = half / MathF.Sqrt(1f + slope * slope);
-                var top = Math.Max(0, (int)Math.Floor(centerline - halfHeight));
-                var bottom = Math.Min(height - 1, (int)Math.Ceiling(centerline + halfHeight));
-                var hue = hue0 + Math.Clamp(x / Math.Max(1f, width), 0f, 1f) * span;
-                for (var y = top; y <= bottom; y++)
-                {
-                    var offset = y * stride + x * 4;
-                    var value = Marshal.ReadInt32(buffer, offset);
-                    var blue = value & 0xFF;
-                    var green = (value >> 8) & 0xFF;
-                    var red = (value >> 16) & 0xFF;
-                    var (shiftR, shiftG, shiftB) = ShiftChroma(red, green, blue, hue);
-                    Marshal.WriteInt32(buffer, offset, (0xFF << 24) | (shiftR << 16) | (shiftG << 8) | shiftB);
-                }
-            }
-        }
-        finally
-        {
-            scene.UnlockBits(data);
-        }
-    }
-
-    /// <summary>
-    /// 把一个 8bit 像素的 (a,b) 沿 <paramref name="hueDegrees"/> 推进 <see cref="DecorChroma"/>，**L* 不变**。
-    /// <para>原理：L* = 116·fy − 16，所以「L* 不动」等价于 Δfy = 0；此时
-    /// Δa = 500·Δfx、Δb = −200·Δfz，用 fx/fz 的立方关系反解 ΔX/ΔZ，再过一次线性矩阵得到 ΔRGB。
-    /// 取整后再在 ±1 邻域里挑亮度增量最小的格点（残差 ≤0.02 L*）。</para>
-    /// <para>这样色相与彩度都是**按构造**成立的（不再依赖搜索去“猜”），实测 edgeChroma 从 7.85 收到 ≈3。</para>
-    /// </summary>
-    private static (int R, int G, int B) ShiftChroma(int red, int green, int blue, float hueDegrees)
-    {
-        var radians = hueDegrees * Math.PI / 180.0;
-        var linearR = LinearChannel(red);
-        var linearG = LinearChannel(green);
-        var linearB = LinearChannel(blue);
-        var fx = Math.Cbrt(linearR / 0.95047);
-        var fz = Math.Cbrt(linearB / 1.08883);
-        var deltaX = 3.0 * 0.95047 * fx * fx * (DecorChroma * Math.Cos(radians) / 500.0);
-        var deltaZ = 3.0 * 1.08883 * fz * fz * (-DecorChroma * Math.Sin(radians) / 200.0);
-        // ΔRGB 是**线性光**增量，必须回编码成 8bit 才算台阶；直接拿线性当字节用会小 300 倍
-        // （实测整条带只动了 1 个字节 ⇒ 丝带在实机“看不见”）。这里回编码后取整，残差只剩量化。
-        var targetR = Math.Max(0.0, linearR + 3.2406 * deltaX - 0.4986 * deltaZ);
-        var targetG = Math.Max(0.0, linearG - 0.9689 * deltaX + 0.0415 * deltaZ);
-        var targetB = Math.Max(0.0, linearB + 0.0557 * deltaX + 1.0570 * deltaZ);
-        var deltaR = (int)Math.Round(Encode(targetR) * 255.0) - red;
-        var deltaG = (int)Math.Round(Encode(targetG) * 255.0) - green;
-        var deltaB = (int)Math.Round(Encode(targetB) * 255.0) - blue;
-
-        var best = (R: red + deltaR, G: green + deltaG, B: blue + deltaB);
-        var bestLuminance = Math.Abs(0.2126 * deltaR + 0.7152 * deltaG + 0.0722 * deltaB);
-        for (var dr = -1; dr <= 1; dr++)
-        {
-            for (var dg = -1; dg <= 1; dg++)
-            {
-                for (var db = -1; db <= 1; db++)
-                {
-                    var luminance = Math.Abs(0.2126 * (deltaR + dr) + 0.7152 * (deltaG + dg) + 0.0722 * (deltaB + db));
-                    if (luminance >= bestLuminance) continue;
-                    bestLuminance = luminance;
-                    best = (R: red + deltaR + dr, G: green + deltaG + dg, B: blue + deltaB + db);
-                }
-            }
-        }
-
-        return (Math.Clamp(best.R, 0, 255), Math.Clamp(best.G, 0, 255), Math.Clamp(best.B, 0, 255));
+        SurfaceRaster.Ribbon(scene, width, height, centerX, centerY, amplitude, wavelength, bandWidth, shapePhase, hue0, span);
     }
 
     private static ChromeSnapshot? EnsureChrome(Control control, Rectangle bounds, ResolvedMaterial material)
@@ -616,9 +500,6 @@ internal static class SurfaceAmbient
     /// </summary>
     private const float FamilySpan = 40f;
 
-    /// <summary>装饰色彩度上限（C*）：丝带/细边只承载色相，不承载彩度，避免“贴纸感”。</summary>
-    private const float DecorChroma = 3f;
-
     /// <summary>装饰描边最小宽度（px）：窄于此的笔触不做色相扫描（「1px 线禁止着色」）。</summary>
     private const float MinEdgeStroke = 2f;
 
@@ -631,7 +512,7 @@ internal static class SurfaceAmbient
     private const int EdgeAlpha = 255;
 
     /// <summary>
-    /// 装饰色：L* 锁定在<b>该点底色</b>的明度上，只叠加 <see cref="DecorChroma"/> 的色相。
+    /// 装饰色：L* 锁定在<b>该点底色</b>的明度上，只叠加 3 C* 的族内色相。
     /// <para>这是“丝带不承载明度”唯一能落地的做法：先用同一份渐变（+径向光）算出该点底色，
     /// 再在 LCh 空间只改 hue，因此叠加前后 ΔL*≈0；8bit 量化误差约 0.1 L*。</para>
     /// </summary>
@@ -642,9 +523,9 @@ internal static class SurfaceAmbient
         // 绝对写法等于把蓝抽掉再补一点黄 —— 实测既抬 ΔL*(0.38) 又把合成色相钉在蓝族外，
         // 统计时就会误判成「装饰溢出族外」。装饰正确的定义是**增量**：Δ(a,b) 的色相 = 族色相。
         var radians = hueDegrees * Math.PI / 180.0;
-        var targetA = backdropA + DecorChroma * Math.Cos(radians);
-        var targetB = backdropB + DecorChroma * Math.Sin(radians);
-        LabToRgb(lstar, targetA, targetB, out var baseR, out var baseG, out var baseB);
+        var targetA = backdropA + ColorScience.DecorChroma * Math.Cos(radians);
+        var targetB = backdropB + ColorScience.DecorChroma * Math.Sin(radians);
+        ColorScience.LabToRgb(lstar, targetA, targetB, out var baseR, out var baseG, out var baseB);
 
         // 色相与彩度**按构造成立**（Lab→RGB 是解析的），只剩 8bit 取整的 L* 残差：
         // 在 ±1 邻域里挑 |ΔL*| 最小的格点即可。彩度/色相仍带轻惩罚，防止为 0.01 L* 跑到 3.8 C*。
@@ -656,21 +537,21 @@ internal static class SurfaceAmbient
         {
             linear[c] = new double[3];
             var baseValue = c == 0 ? baseR : c == 1 ? baseG : baseB;
-            for (var k = -1; k <= 1; k++) linear[c][k + 1] = LinearChannel(baseValue + k);
+            for (var k = -1; k <= 1; k++) linear[c][k + 1] = ColorScience.LinearChannel(baseValue + k);
         }
 
         var rl = linear[0][1];
         var gl = linear[1][1];
         var bl2 = linear[2][1];
-        LabAB(rl, gl, bl2, out var originA, out var originB);
+        ColorScience.LabAB(rl, gl, bl2, out var originA, out var originB);
         var slopeA = new double[3];
         var slopeB = new double[3];
         for (var c = 0; c < 3; c++)
         {
             var plus = c == 0 ? linear[0][2] : c == 1 ? linear[1][2] : linear[2][2];
             var minus = c == 0 ? linear[0][0] : c == 1 ? linear[1][0] : linear[2][0];
-            LabAB(c == 0 ? plus : rl, c == 1 ? plus : gl, c == 2 ? plus : bl2, out var a1, out var b1);
-            LabAB(c == 0 ? minus : rl, c == 1 ? minus : gl, c == 2 ? minus : bl2, out var a0, out var b0);
+            ColorScience.LabAB(c == 0 ? plus : rl, c == 1 ? plus : gl, c == 2 ? plus : bl2, out var a1, out var b1);
+            ColorScience.LabAB(c == 0 ? minus : rl, c == 1 ? minus : gl, c == 2 ? minus : bl2, out var a0, out var b0);
             slopeA[c] = (a1 - a0) / 2.0;
             slopeB[c] = (b1 - b0) / 2.0;
         }
@@ -691,7 +572,7 @@ internal static class SurfaceAmbient
                     var candidate = luminance <= 0.008856 ? 903.3 * luminance : 116.0 * Math.Cbrt(luminance) - 16.0;
                     var chromaA = originA + slopeA[0] * dr + slopeA[1] * dg + slopeA[2] * db - backdropA;
                     var chromaB = originB + slopeB[0] * dr + slopeB[1] * dg + slopeB[2] * db - backdropB;
-                    var chromaError = Math.Abs(Math.Sqrt(chromaA * chromaA + chromaB * chromaB) - DecorChroma);
+                    var chromaError = Math.Abs(Math.Sqrt(chromaA * chromaA + chromaB * chromaB) - ColorScience.DecorChroma);
                     var hueError = Math.Abs(SurfaceMath.WrapDegrees180(Math.Atan2(chromaB, chromaA) * 180.0 / Math.PI - hueDegrees));
                     var cost = Math.Abs(candidate - lstar) + hueError * HueWeight + chromaError * ChromaWeight;
                     if (cost >= bestCost) continue;
@@ -704,52 +585,6 @@ internal static class SurfaceAmbient
         }
 
         return Color.FromArgb(alpha, bestR, bestG, bestB);
-    }
-
-    /// <summary>Lab → 8bit sRGB（D65）。与 <see cref="DecorColor"/> 的 Δ(a,b) 增量口径配套。</summary>
-    private static void LabToRgb(double lstar, double a, double b, out int red, out int green, out int blue)
-    {
-        var fy = (lstar + 16.0) / 116.0;
-        var fx = fy + a / 500.0;
-        var fz = fy - b / 200.0;
-        double Inverse(double t) => t * t * t > 0.008856 ? t * t * t : (t - 16.0 / 116.0) / 7.787;
-        var x = 0.95047 * Inverse(fx);
-        var y = Inverse(fy);
-        var z = 1.08883 * Inverse(fz);
-        var r = 3.2406 * x - 1.5372 * y - 0.4986 * z;
-        var g = -0.9689 * x + 1.8758 * y + 0.0415 * z;
-        var bl = 0.0557 * x - 0.2040 * y + 1.0570 * z;
-        red = (int)Math.Clamp(Math.Round(Encode(r) * 255.0), 0, 255);
-        green = (int)Math.Clamp(Math.Round(Encode(g) * 255.0), 0, 255);
-        blue = (int)Math.Clamp(Math.Round(Encode(bl) * 255.0), 0, 255);
-    }
-
-    /// <summary>线性 RGB → Lab 的 (a,b) 分量（只算色相需要的两项，不算 L*）。</summary>
-    private static void LabAB(double r, double g, double b, out double a, out double bOut)
-    {
-        var x = 0.4124 * r + 0.3576 * g + 0.1805 * b;
-        var y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        var z = 0.0193 * r + 0.1192 * g + 0.9505 * b;
-        double Forward(double t) => t > 0.008856 ? Math.Cbrt(t) : 7.787 * t + 16.0 / 116.0;
-        var fx = Forward(x / 0.95047);
-        var fy = Forward(y);
-        var fz = Forward(z / 1.08883);
-        a = 500.0 * (fx - fy);
-        bOut = 200.0 * (fy - fz);
-    }
-
-    /// <summary>sRGB 8bit 通道 → 线性亮度分量（D65 相对亮度公式的输入）。</summary>
-    private static double LinearChannel(int channel)
-    {
-        var value = Math.Clamp(channel, 0, 255) / 255.0;
-        return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
-    }
-
-    /// <summary>线性分量 → sRGB 0..1。</summary>
-    private static double Encode(double value)
-    {
-        value = value <= 0.0031308 ? 12.92 * value : 1.055 * Math.Pow(value, 1.0 / 2.4) - 0.055;
-        return value;
     }
 
     /// <summary>
@@ -784,8 +619,8 @@ internal static class SurfaceAmbient
         var r = (int)Math.Round(red);
         var g = (int)Math.Round(green);
         var bl = (int)Math.Round(blue);
-        LabAB(LinearChannel(r), LinearChannel(g), LinearChannel(bl), out a, out b);
-        lstar = Lstar(r, g, bl);
+        ColorScience.LabAB(ColorScience.LinearChannel(r), ColorScience.LinearChannel(g), ColorScience.LinearChannel(bl), out a, out b);
+        lstar = ColorScience.Lstar(r, g, bl);
     }
 
     /// <summary>径向光在该点的合成白量（0..1），与 <see cref="PaintRadialGlow"/> 同一形态（焦点 0.12 + 线性衰减）。</summary>
@@ -802,19 +637,6 @@ internal static class SurfaceAmbient
         var focus = radius * 0.12f;
         var falloff = distance <= focus ? 1.0 : 1.0 - (distance - focus) / (radius - focus);
         return (float)(_params.RadialAlpha * shade * falloff);
-    }
-
-    /// <summary>sRGB → L*（D65）。</summary>
-    private static double Lstar(int red, int green, int blue)
-    {
-        double Linear(int channel)
-        {
-            var value = channel / 255.0;
-            return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
-        }
-
-        var luminance = 0.2126 * Linear(red) + 0.7152 * Linear(green) + 0.0722 * Linear(blue);
-        return luminance <= 0.008856 ? 903.3 * luminance : 116.0 * Math.Cbrt(luminance) - 16.0;
     }
 
     /// <summary>

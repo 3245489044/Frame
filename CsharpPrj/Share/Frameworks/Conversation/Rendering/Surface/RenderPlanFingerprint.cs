@@ -62,11 +62,5 @@ public static class RenderPlanFingerprint
     }
 
     private static string Canonical(object? value)
-        => value switch
-        {
-            null => string.Empty,
-            string text => text.Replace("\n", "\\n", StringComparison.Ordinal),
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => JsonSerializer.Serialize(value),
-        };
+        => SurfaceKeyCanonical.CanonicalValue(value);
 }

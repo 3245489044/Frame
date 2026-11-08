@@ -4,6 +4,8 @@ using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+using UiBackend;
 
 namespace Share.SurfaceRaster;
 
@@ -128,5 +130,104 @@ public static class SurfaceRaster
         path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90f, 90f);
         path.CloseFigure();
         return path;
+    }
+
+    /// <summary>
+    /// 逐像素沿带中心线把 (a,b) 推进一个族内色相（**ΔY 恒为 0 ⇒ L* 不动**）。
+    /// <para>逐列算中心线与法线，带内每像素直接读/写位图：底色是刚刚画出来的真实 8bit 像素，
+    /// 因此 ΔL* 只剩「ΔY=0 的线性化误差 + 整数取整」两项。输入全部显式，不读前端静态状态。</para>
+    /// </summary>
+    /// <param name="scene">目标位图（原地读写；无存活 Graphics）。</param>
+    /// <param name="width">位图宽。</param>
+    /// <param name="height">位图高。</param>
+    /// <param name="centerX">带中心线参考点 X。</param>
+    /// <param name="centerY">带中心线参考点 Y。</param>
+    /// <param name="amplitude">波形振幅（像素）。</param>
+    /// <param name="wavelength">波长（像素）。</param>
+    /// <param name="bandWidth">带宽（垂直距离，像素）。</param>
+    /// <param name="shapePhase">几何相位（0..1）。</param>
+    /// <param name="hue0">色相起点（度）。</param>
+    /// <param name="span">沿页宽的色相跨度（度）。</param>
+    public static void Ribbon(
+        Bitmap scene, int width, int height,
+        float centerX, float centerY, float amplitude, float wavelength, float bandWidth,
+        float shapePhase, float hue0, float span)
+    {
+        var half = bandWidth * 0.5f;
+        if (half <= 0f) return;
+        var data = scene.LockBits(
+            new Rectangle(0, 0, width, height),
+            ImageLockMode.ReadWrite,
+            PixelFormat.Format32bppPArgb);
+        try
+        {
+            var stride = data.Stride;
+            var buffer = data.Scan0;
+            var radians = (float)(2 * Math.PI / wavelength);
+            for (var x = 0; x < width; x++)
+            {
+                var phase = radians * (x - centerX) + shapePhase * 2f * (float)Math.PI;
+                var centerline = centerY + (x - centerX) * 0.34f + amplitude * MathF.Sin(phase);
+                var slope = 0.34f + amplitude * radians * MathF.Cos(phase);
+                // 法线 = (−slope, 1)/length；带宽 half 是**垂直距离**，故列内纵向半高 = half/length。
+                var halfHeight = half / MathF.Sqrt(1f + slope * slope);
+                var top = Math.Max(0, (int)Math.Floor(centerline - halfHeight));
+                var bottom = Math.Min(height - 1, (int)Math.Ceiling(centerline + halfHeight));
+                var hue = hue0 + Math.Clamp(x / Math.Max(1f, width), 0f, 1f) * span;
+                for (var y = top; y <= bottom; y++)
+                {
+                    var offset = y * stride + x * 4;
+                    var value = Marshal.ReadInt32(buffer, offset);
+                    var blue = value & 0xFF;
+                    var green = (value >> 8) & 0xFF;
+                    var red = (value >> 16) & 0xFF;
+                    var (shiftR, shiftG, shiftB) = ColorScience.ShiftChroma(red, green, blue, hue);
+                    Marshal.WriteInt32(buffer, offset, (0xFF << 24) | (shiftR << 16) | (shiftG << 8) | shiftB);
+                }
+            }
+        }
+        finally
+        {
+            scene.UnlockBits(data);
+        }
+    }
+
+    /// <summary>
+    /// 局部径向光（中心亮、向外衰减）：中心/半径/强度**全部由调用方给出**，本函数不读光场状态。
+    /// <para>焦点区 = 中心纯色区；盖不满页面时按包围盒早退，不造页面外的假亮斑。</para>
+    /// </summary>
+    /// <param name="graphics">目标画布。</param>
+    /// <param name="width">页面宽（像素）。</param>
+    /// <param name="height">页面高（像素）。</param>
+    /// <param name="centerX">光斑中心 X（像素，可落在页面外）。</param>
+    /// <param name="centerY">光斑中心 Y（像素，可落在页面外）。</param>
+    /// <param name="radius">半径（像素，≥8）。</param>
+    /// <param name="alpha">峰值 alpha（0..255）。</param>
+    public static void RadialGlow(
+        Graphics graphics, int width, int height,
+        float centerX, float centerY, float radius, int alpha)
+    {
+        // 椭圆的包围盒与页面不相交 ⇒ 整颗光斑在页面外，不画（锚点在宿主外时的真实行为）。
+        if (centerX + radius < 0f || centerY + radius < 0f
+            || centerX - radius > width || centerY - radius > height) return;
+
+        using var path = new GraphicsPath();
+        path.AddEllipse(centerX - radius, centerY - radius, radius * 2f, radius * 2f);
+        var points = path.PointCount;
+        if (points <= 0) return;
+
+        var surround = new Color[points];
+        var clear = Color.FromArgb(0, Color.White);
+        for (var i = 0; i < points; i++) surround[i] = clear;
+
+        using var brush = new PathGradientBrush(path)
+        {
+            CenterColor = Color.FromArgb(alpha, Color.White),
+            SurroundColors = surround,
+            CenterPoint = new PointF(centerX, centerY),
+            // 焦点区 = 中心纯色区；越小核心越亮、向外衰减越长。
+            FocusScales = new PointF(0.12f, 0.12f),
+        };
+        graphics.FillRectangle(brush, 0, 0, width, height);
     }
 }

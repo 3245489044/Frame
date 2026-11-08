@@ -151,6 +151,7 @@
     <Mod_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\</Mod_Share_Conversation>
     <Mod_Share_SurfaceModel>$(CsharpPrjDir)Share\Frameworks\SurfaceModel\</Mod_Share_SurfaceModel>
     <Mod_Share_SurfaceRaster>$(CsharpPrjDir)Share\Frameworks\SurfaceRaster\</Mod_Share_SurfaceRaster>
+    <Mod_Share_SurfacePaint>$(CsharpPrjDir)Share\Frameworks\SurfacePaint\</Mod_Share_SurfacePaint>
     <Mod_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\</Mod_Share_Messaging>
     <Mod_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\</Mod_Share_ContextGeometry>
     <Mod_Share_PortContext>$(CsharpPrjDir)Share\Frameworks\PortContext\</Mod_Share_PortContext>
@@ -303,6 +304,7 @@
     <Proj_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\Share.Conversation.csproj</Proj_Share_Conversation>
     <Proj_Share_SurfaceModel>$(CsharpPrjDir)Share\Frameworks\SurfaceModel\SurfaceModel.csproj</Proj_Share_SurfaceModel>
     <Proj_Share_SurfaceRaster>$(CsharpPrjDir)Share\Frameworks\SurfaceRaster\Share.SurfaceRaster.csproj</Proj_Share_SurfaceRaster>
+    <Proj_Share_SurfacePaint>$(CsharpPrjDir)Share\Frameworks\SurfacePaint\Share.SurfacePaint.csproj</Proj_Share_SurfacePaint>
     <Proj_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\Share.Messaging.csproj</Proj_Share_Messaging>
     <Proj_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\Share.ContextGeometry.csproj</Proj_Share_ContextGeometry>
     <Proj_Share_PortContext>$(CsharpPrjDir)Share\Frameworks\PortContext\Share.PortContext.csproj</Proj_Share_PortContext>

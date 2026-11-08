@@ -10,7 +10,13 @@ namespace Modules.Node.Ports;
 /// <param name="Node">产出该端口的节点键。</param>
 /// <param name="Port">端口名。</param>
 /// <param name="Value">端口值（非 null；空端口按既有规则不合入）。</param>
-public sealed record CollectedNodePort(string Key, string Node, string Port, object? Value);
+/// <param name="Facts">事实字段袋（写侧帧事实随端口透传；可空 = 无事实）。</param>
+public sealed record CollectedNodePort(
+    string Key,
+    string Node,
+    string Port,
+    object? Value,
+    IReadOnlyDictionary<string, string>? Facts = null);
 
 /// <summary>
 /// 收集式输入端口 token 约定（键空间的「整包」扩展，唯一非具名端口）：声明本端口的步骤把

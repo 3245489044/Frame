@@ -23,10 +23,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 通用 k=v 词袋解析（保留坏段/重复键）：Modules\Data\Parsing 下零依赖子工程。 -->
-  </ItemGroup>
-
-  <ItemGroup>
     <Using Include="Modules.Parsing.Keys" />
   </ItemGroup>
 

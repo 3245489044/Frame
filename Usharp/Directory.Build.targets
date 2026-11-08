@@ -16,4 +16,14 @@
   <Import Project="$(BuildFrameworkGraph)\CsharpBakeDeploy.targets"
           Condition="Exists('$(BuildFrameworkGraph)\CsharpBakeDeploy.targets')" />
 
+  <!-- ★ 薄输出（2026-11-08）：上游 CsharpPrj dll 不落 Usharp 输出目录（单一真源）；
+       编译期类型/NuGet 流转照旧，运行期由 Cli/Bundle 的默认 ALC 探针从权威目录解析。
+       NuGet/native 不在剪枝判据内，天然保留。 -->
+  <PropertyGroup Label="ThinOutput">
+    <ThinOutputEnabled>true</ThinOutputEnabled>
+    <ThinOutputWhitelistSubstr></ThinOutputWhitelistSubstr>
+  </PropertyGroup>
+  <Import Project="$(BuildFrameworkGraph)\ThinOutput.targets"
+          Condition="Exists('$(BuildFrameworkGraph)\ThinOutput.targets')" />
+
 </Project>

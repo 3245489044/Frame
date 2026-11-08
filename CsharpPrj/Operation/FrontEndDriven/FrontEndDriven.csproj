@@ -33,6 +33,8 @@
     <ProjectReference Include="$(Proj_UniversalMiddleware)" />
     <!-- 表面光栅原语（噪声/径向掩膜/模糊/圆角）：载体无关，本载体只做装配 -->
     <ProjectReference Include="$(Proj_Share_SurfaceRaster)" />
+    <!-- 表面绘制内核（几何/边框/缓存键/逐层落笔）：载体无关，本载体只做生命周期与映射 -->
+    <ProjectReference Include="$(Proj_Share_SurfacePaint)" />
     <!-- 诊断框架（FrameworkErrors、FrameworkErrorEventArgs） -->
     <ProjectReference Include="$(Proj_Diagnostics)" />
 

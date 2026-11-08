@@ -37,6 +37,7 @@ public interface INodeShaper<TShape>
 /// <param name="SourceKey">行真键（可空 = 回退 <c>Key</c>）。</param>
 /// <param name="Ports">端口（取声明 <c>ports=</c> 字段值拆分；可空 = 不呈现端口）。</param>
 /// <param name="WriteDomain">写域（写/删/详读路由；可空 = 回退 <paramref name="DomainKey"/>）。</param>
+/// <param name="Facts">事实字段袋（帧字段随塑形透传；可空 = 无事实）。</param>
 public sealed record DeclaredNodeShape(
     string Kind,
     string? Badge,
@@ -47,4 +48,5 @@ public sealed record DeclaredNodeShape(
     string? DomainKey = null,
     string? SourceKey = null,
     IReadOnlyList<string>? Ports = null,
-    string? WriteDomain = null);
+    string? WriteDomain = null,
+    IReadOnlyDictionary<string, string>? Facts = null);

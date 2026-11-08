@@ -9,6 +9,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows.Forms;
+using MathematicalAlgorithms.Lighting;
+using MathematicalAlgorithms.Surface;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfaceRaster;
 using UiBackend;
@@ -38,6 +40,7 @@ internal static class SurfaceAmbient
     private static Size _defaultFrameViewport;
     private static float _defaultFrameDpi;
     private static long _stateFrameToken = long.MinValue;
+    private static bool _fallbackLogged;
     private static SurfaceLightState? _state;
     private static Size _stateClient;
     private static Point _stateOrigin;
@@ -92,6 +95,23 @@ internal static class SurfaceAmbient
     /// </summary>
     internal static void PaintHostSurface(Control control, Graphics graphics)
     {
+        // 正常路径：页面场也由 Engine 产生（同一虚拟矩阵光）；失败才走下面 CPU 降级。
+        if (SurfaceFramePump.Enabled)
+        {
+            var form = control.FindForm() ?? control;
+            var dpi = BorderUnits.NormalizeDpi(form.DeviceDpi);
+            var light = ResolveState(form, dpi);
+            var bounds = new Rectangle(0, 0, control.ClientSize.Width, control.ClientSize.Height);
+            var engine = SurfaceFramePump.TryFrameRaw(
+                control, BuildSceneItems(bounds, dpi / 96f, light),
+                "page:" + _params.Token, light, SurfaceFramePump.Quality);
+            if (engine is not null)
+            {
+                graphics.DrawImageUnscaled(engine, 0, 0);
+                return;
+            }
+        }
+
         var scene = EnsureScene(control);
         if (scene is null) return;
 
@@ -129,6 +149,19 @@ internal static class SurfaceAmbient
     /// </summary>
     internal static void PaintPanelChrome(Control control, Graphics graphics, Rectangle bounds, ResolvedMaterial material)
     {
+        // chrome 也由 Engine 产生（同一虚拟矩阵光）；失败才走 CPU 降级位图。
+        if (SurfaceFramePump.Enabled)
+        {
+            var form = control.FindForm() ?? control;
+            var light = ResolveState(form, BorderUnits.NormalizeDpi(form.DeviceDpi));
+            var engine = SurfaceFramePump.TryFrame(control, material, light, SurfaceFramePump.Quality);
+            if (engine is not null)
+            {
+                graphics.DrawImageUnscaled(engine, bounds.X, bounds.Y);
+                return;
+            }
+        }
+
         var chrome = EnsureChrome(control, bounds, material);
         if (chrome is null) return;
         var begin = SkinRenderProfile.Begin();
@@ -182,6 +215,64 @@ internal static class SurfaceAmbient
     {
         _scene?.Image.Dispose();
         _scene = null;
+    }
+
+    /// <summary>页面场绘制项（虚拟矩阵光 → Engine 帧；与 CPU 降级同一组参数）。</summary>
+    private static IReadOnlyList<SurfaceDrawItem> BuildSceneItems(
+        Rectangle bounds, float scale, SurfaceLightState? light)
+    {
+        var items = new List<SurfaceDrawItem>(6);
+        if (_params.GradientFrom is { } from && _params.GradientTo is { } to)
+        {
+            items.Add(new SurfaceDrawItem(
+                bounds.X, bounds.Y, bounds.Width, bounds.Height,
+                _params.CornerRadius * scale, unchecked((uint)from.ToArgb()), 1f, 0,
+                SurfaceDrawKind.Gradient, SurfaceDrawFlags.Decor, 45f));
+        }
+
+        var sample = ToSample(light);
+        if (_params.GlowAlpha > 0f && _params.ShadowTint is { } shadow)
+        {
+            items.Add(new SurfaceDrawItem(
+                bounds.X, bounds.Y, bounds.Width, bounds.Height,
+                _params.CornerRadius * scale, unchecked((uint)shadow.ToArgb()),
+                Math.Clamp(_params.GlowAlpha, 0f, 1f), 1,
+                SurfaceDrawKind.Shadow, SurfaceDrawFlags.Decor, 0f, 0f, _params.GlowRadius * scale));
+        }
+
+        if (_params.RadialAlpha > 0f)
+        {
+            items.Add(new SurfaceDrawItem(
+                bounds.X, bounds.Y, bounds.Width, bounds.Height,
+                0f, 0xFFFFFFFFu, Math.Clamp(_params.RadialAlpha * sample.Shade, 0f, 1f), 2,
+                SurfaceDrawKind.Spot, SurfaceDrawFlags.Decor));
+        }
+
+        if (_params.RibbonAlpha > 0f)
+        {
+            items.Add(new SurfaceDrawItem(
+                bounds.X, bounds.Y + bounds.Height * 0.46f, bounds.Width, Math.Max(1f, _params.RibbonWidth * scale),
+                0f, 0x3377AABB, Math.Clamp(_params.RibbonAlpha, 0f, 1f), 3,
+                SurfaceDrawKind.Gradient, SurfaceDrawFlags.Decor, 0f));
+        }
+
+        if (_params.EdgeWidth > 0f && _params.GradientTo is { } edge)
+        {
+            items.Add(new SurfaceDrawItem(
+                bounds.X, bounds.Y, bounds.Width, bounds.Height,
+                _params.CornerRadius * scale, unchecked((uint)edge.ToArgb()), 1f, 4,
+                SurfaceDrawKind.Edge, SurfaceDrawFlags.Decor, 0f, _params.EdgeWidth * scale));
+        }
+
+        if (_params.TextureAlpha > 0f)
+        {
+            items.Add(new SurfaceDrawItem(
+                bounds.X, bounds.Y, bounds.Width, bounds.Height,
+                0f, 0xFFFFFFFFu, Math.Clamp(_params.TextureAlpha, 0f, 1f), 5,
+                SurfaceDrawKind.Noise, SurfaceDrawFlags.Decor));
+        }
+
+        return items;
     }
 
     private static void PaintScene(Graphics graphics, int width, int height, float scale, SurfaceLightState? light)
@@ -498,7 +589,7 @@ internal static class SurfaceAmbient
     /// 各自相位叠在一起，实机量到 115° 连续弧且溢出到绿/橙，故把实际使用宽度收到 40°：
     /// 一个族 = 一段连续色相弧，族外 bin 占比按定义为 0。</para>
     /// </summary>
-    private const float FamilySpan = 40f;
+    private const float FamilySpan = SurfaceAmbientMath.FamilySpan;
 
     /// <summary>装饰描边最小宽度（px）：窄于此的笔触不做色相扫描（「1px 线禁止着色」）。</summary>
     private const float MinEdgeStroke = 2f;
@@ -509,7 +600,7 @@ internal static class SurfaceAmbient
     /// 对混色极敏感，实测单边跨度被抬到 63–69°（即用户看到的「132°」那一类越界）。
     /// 因为笔触的 L* 已锁在该点底色上，不透明也不会留下亮度接缝。</para>
     /// </summary>
-    private const int EdgeAlpha = 255;
+    private const int EdgeAlpha = (int)SurfaceAmbientMath.EdgeAlpha;
 
     /// <summary>
     /// 装饰色：L* 锁定在<b>该点底色</b>的明度上，只叠加 3 C* 的族内色相。
@@ -518,73 +609,9 @@ internal static class SurfaceAmbient
     /// </summary>
     private static Color DecorColor(double lstar, double backdropA, double backdropB, float hueDegrees, int alpha)
     {
-        // **叠加式装饰**：在底色自身的 Lab 上叠加 ≤3 C* 的族内色相，L* 钉死。
-        // 不能直接写成「绝对 Lab(L*, 3C*, 族色相)」：页面渐变本身是 C*≈9、H≈258 的蓝，
-        // 绝对写法等于把蓝抽掉再补一点黄 —— 实测既抬 ΔL*(0.38) 又把合成色相钉在蓝族外，
-        // 统计时就会误判成「装饰溢出族外」。装饰正确的定义是**增量**：Δ(a,b) 的色相 = 族色相。
-        var radians = hueDegrees * Math.PI / 180.0;
-        var targetA = backdropA + ColorScience.DecorChroma * Math.Cos(radians);
-        var targetB = backdropB + ColorScience.DecorChroma * Math.Sin(radians);
-        ColorScience.LabToRgb(lstar, targetA, targetB, out var baseR, out var baseG, out var baseB);
-
-        // 色相与彩度**按构造成立**（Lab→RGB 是解析的），只剩 8bit 取整的 L* 残差：
-        // 在 ±1 邻域里挑 |ΔL*| 最小的格点即可。彩度/色相仍带轻惩罚，防止为 0.01 L* 跑到 3.8 C*。
-        baseR = Math.Clamp(baseR, 1, 254);
-        baseG = Math.Clamp(baseG, 1, 254);
-        baseB = Math.Clamp(baseB, 1, 254);
-        var linear = new double[3][];
-        for (var c = 0; c < 3; c++)
-        {
-            linear[c] = new double[3];
-            var baseValue = c == 0 ? baseR : c == 1 ? baseG : baseB;
-            for (var k = -1; k <= 1; k++) linear[c][k + 1] = ColorScience.LinearChannel(baseValue + k);
-        }
-
-        var rl = linear[0][1];
-        var gl = linear[1][1];
-        var bl2 = linear[2][1];
-        ColorScience.LabAB(rl, gl, bl2, out var originA, out var originB);
-        var slopeA = new double[3];
-        var slopeB = new double[3];
-        for (var c = 0; c < 3; c++)
-        {
-            var plus = c == 0 ? linear[0][2] : c == 1 ? linear[1][2] : linear[2][2];
-            var minus = c == 0 ? linear[0][0] : c == 1 ? linear[1][0] : linear[2][0];
-            ColorScience.LabAB(c == 0 ? plus : rl, c == 1 ? plus : gl, c == 2 ? plus : bl2, out var a1, out var b1);
-            ColorScience.LabAB(c == 0 ? minus : rl, c == 1 ? minus : gl, c == 2 ? minus : bl2, out var a0, out var b0);
-            slopeA[c] = (a1 - a0) / 2.0;
-            slopeB[c] = (b1 - b0) / 2.0;
-        }
-
-        const double HueWeight = 0.002;   // 每度色相误差折算 0.002 L*
-        const double ChromaWeight = 0.05; // 每 1 C* 彩度偏差折算 0.05 L*
-        var bestR = baseR;
-        var bestG = baseG;
-        var bestB = baseB;
-        var bestCost = double.MaxValue;
-        for (var dr = -1; dr <= 1; dr++)
-        {
-            for (var dg = -1; dg <= 1; dg++)
-            {
-                for (var db = -1; db <= 1; db++)
-                {
-                    var luminance = 0.2126 * linear[0][dr + 1] + 0.7152 * linear[1][dg + 1] + 0.0722 * linear[2][db + 1];
-                    var candidate = luminance <= 0.008856 ? 903.3 * luminance : 116.0 * Math.Cbrt(luminance) - 16.0;
-                    var chromaA = originA + slopeA[0] * dr + slopeA[1] * dg + slopeA[2] * db - backdropA;
-                    var chromaB = originB + slopeB[0] * dr + slopeB[1] * dg + slopeB[2] * db - backdropB;
-                    var chromaError = Math.Abs(Math.Sqrt(chromaA * chromaA + chromaB * chromaB) - ColorScience.DecorChroma);
-                    var hueError = Math.Abs(SurfaceMath.WrapDegrees180(Math.Atan2(chromaB, chromaA) * 180.0 / Math.PI - hueDegrees));
-                    var cost = Math.Abs(candidate - lstar) + hueError * HueWeight + chromaError * ChromaWeight;
-                    if (cost >= bestCost) continue;
-                    bestCost = cost;
-                    bestR = baseR + dr;
-                    bestG = baseG + dg;
-                    bestB = baseB + db;
-                }
-            }
-        }
-
-        return Color.FromArgb(alpha, bestR, bestG, bestB);
+        // 唯一实现 = Plate.Mathematics（与引擎着色同一份公式；此处只做 ARGB → Color）。
+        var argb = SurfaceAmbientMath.DecorColor(lstar, backdropA, backdropB, hueDegrees, alpha);
+        return Color.FromArgb((argb >> 24) & 0xFF, (argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF);
     }
 
     /// <summary>
@@ -603,40 +630,28 @@ internal static class SurfaceAmbient
             b = 0.0;
             return;
         }
-        // GDI+ 45° 线性渐变：t = (x + y) / (w + h) 恰好从 (0,0) 的 from 走到 (w,h) 的 to。
-        var t = Math.Clamp((x + y) / Math.Max(1f, width + height), 0f, 1f);
-        double red = from.R + (to.R - from.R) * t;
-        double green = from.G + (to.G - from.G) * t;
-        double blue = from.B + (to.B - from.B) * t;
-        var radial = RadialCoverage(x, y, width, height, scale, light);
-        if (radial > 0f)
-        {
-            red += (255.0 - red) * radial;
-            green += (255.0 - green) * radial;
-            blue += (255.0 - blue) * radial;
-        }
 
-        var r = (int)Math.Round(red);
-        var g = (int)Math.Round(green);
-        var bl = (int)Math.Round(blue);
-        ColorScience.LabAB(ColorScience.LinearChannel(r), ColorScience.LinearChannel(g), ColorScience.LinearChannel(bl), out a, out b);
-        lstar = ColorScience.Lstar(r, g, bl);
+        // 唯一实现 = Plate.Mathematics（虚拟矩阵光样本驱动；与引擎着色同一份公式）。
+        var lab = SurfaceAmbientMath.BackdropLab(
+            from.ToArgb(), to.ToArgb(), x, y, width, height, scale,
+            _params.RadialAlpha, _params.RadialRadius, ToSample(light));
+        lstar = lab.L;
+        a = lab.A;
+        b = lab.B;
     }
 
-    /// <summary>径向光在该点的合成白量（0..1），与 <see cref="PaintRadialGlow"/> 同一形态（焦点 0.12 + 线性衰减）。</summary>
+    /// <summary>径向光在该点的合成白量（0..1），与 <see cref="PaintRadialGlow"/> 同一形态。</summary>
     private static float RadialCoverage(float x, float y, int width, int height, float scale, SurfaceLightState? light)
+        => SurfaceAmbientMath.RadialCoverage(
+            _params.RadialAlpha, _params.RadialRadius, x, y, width, height, scale, ToSample(light));
+
+    /// <summary>引擎光态 → 页面装饰数学样本（唯一投影点；无帧用声明样本并已记账）。</summary>
+    private static AmbientLightSample ToSample(SurfaceLightState? light)
     {
-        if (_params.RadialAlpha <= 0f || _params.RadialRadius <= 0f) return 0f;
-        var shade = Math.Clamp(light?.Shade ?? 1f, 0f, 1f);
-        if (shade <= 0.02f) return 0f;
-        var radius = Math.Max(8f, _params.RadialRadius * scale);
-        var dx = x - width * (light?.SpotX ?? 0.5f);
-        var dy = y - height * (light?.SpotY ?? 0.5f);
-        var distance = Math.Sqrt(dx * dx + dy * dy);
-        if (distance >= radius) return 0f;
-        var focus = radius * 0.12f;
-        var falloff = distance <= focus ? 1.0 : 1.0 - (distance - focus) / (radius - focus);
-        return (float)(_params.RadialAlpha * shade * falloff);
+        if (light is not { HasValue: true } value) return AmbientLightSample.Declared;
+        return new AmbientLightSample(
+            value.Angle, value.SpotX, value.SpotY, value.Shade,
+            value.ShadowX, value.ShadowY, value.IridescencePhase, value.TintArgb);
     }
 
     /// <summary>
@@ -647,33 +662,23 @@ internal static class SurfaceAmbient
     /// 且粉色丝带在浅底上最显眼（浅底上 C*3 的粉比青可见度高），用户看到的就是“粉色贴纸”。
     /// 现在丝带、细边只取这一个原点，族外 bin 按定义为 0。</para>
     /// </summary>
-    private static float FamilyHueBase() => IridescenceRamp.HueAt(0f, 0f, 0f);
+    private static float FamilyHueBase() => SurfaceAmbientMath.FamilyHueBase;
 
     /// <summary>
     /// 丝带**几何**相位（只影响波形，不影响色相）：随光帧相位缓慢变化，避免形状僵死。
     /// <para>色相与几何解耦——旧实现把同一个 `IridescencePhase` 既当几何相位又当色相（差 360 倍），
     /// 正是“声明一个窗口、实机三个窗口”的来源。</para>
     /// </summary>
-    private static float ShapePhase(SurfaceLightState? light) => light?.IridescencePhase ?? 0.5f;
+    private static float ShapePhase(SurfaceLightState? light) => SurfaceAmbientMath.ShapePhase(ToSample(light));
 
     /// <summary>整层色相预算（度）：所有彩色分量共用这一个窗口，禁止多条带各自漂移。</summary>
-    private static float HueBudget() => _params.HueBudget > 0f ? _params.HueBudget : 150f;
+    private static float HueBudget() => SurfaceAmbientMath.HueBudget(_params.HueBudget);
 
     /// <summary>
-    /// 量化光源签名：方向 10° / 阴影 0.1 / 相位 0.1 / **光斑位置 0.05 页面宽高**。
-    /// <para>光斑位置必须入键：锚点在屏幕上固定，窗口一移动 SpotX/SpotY 就变；不入键会留下上一位置的径向光。</para>
-    /// <para>0.05 量化 = 1920 宽页面约 96px 一跳，避免拖动窗口时每一像素都重建 14ms 的页面场。</para>
+    /// 量化光源签名：唯一实现 = Plate.Mathematics（方向 10° / 阴影 0.1 / 相位 0.1 / 光斑位置 0.05）。
     /// </summary>
     private static string LightToken(SurfaceLightState? state)
-    {
-        // Nullable<struct> 不能直接点成员：先解包成窄视图（与 SkinPaintEngine 的取值方式一致）。
-        if (state is not { } light) return "no-light";
-        var angle = (int)Math.Round(light.Angle / 10f) * 10;
-        var spotX = (int)Math.Round(light.SpotX / 0.05f);
-        var spotY = (int)Math.Round(light.SpotY / 0.05f);
-        return string.Create(CultureInfo.InvariantCulture,
-            $"A{angle}:X{light.ShadowX:F1}:Y{light.ShadowY:F1}:P{light.IridescencePhase:F1}:S{spotX}:T{spotY}");
-    }
+        => state is { } light ? SurfaceAmbientMath.LightToken(ToSample(light)) : "no-light";
 
     /// <summary>诊断：最近一次页面场解算实际使用的光态（验收用，不参与绘制）。</summary>
     internal static SurfaceLightState? LastState => _state;
@@ -688,6 +693,12 @@ internal static class SurfaceAmbient
         var frame = SurfaceLightRegistry.Current;
         if (frame is null)
         {
+            if (!_fallbackLogged)
+            {
+                _fallbackLogged = true;
+                SkinDiagnostics.RecordLightDegraded("frame-fallback", "engine-frame-unavailable");
+            }
+
             if (_defaultFrame is null
                 || _defaultFrameDpi != dpi
                 || _defaultFrameViewport.Width != (int)Math.Round(coverage.Width)

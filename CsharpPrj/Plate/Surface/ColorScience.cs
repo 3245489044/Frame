@@ -8,6 +8,7 @@ namespace UiBackend;
 /// 颜色科学（**载体无关、BCL-only**）：sRGB ↔ 线性、Lab/L*、装饰色相增量。
 /// <para>宿主前端不得再各写一份：丝带色相、装饰色、背景 L* 三处消费同一实现。</para>
 /// </summary>
+[Obsolete("已迁移到 MathematicalAlgorithms.Color.ColorScience；本类型仅作二进制兼容保留，P6 删除")]
 public static class ColorScience
 {
     /// <summary>装饰色彩度上限（C*）：丝带/细边只承载色相，不承载彩度。</summary>

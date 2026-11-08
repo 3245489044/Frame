@@ -62,11 +62,12 @@ public sealed class CompositeGatherModule : IGatherModule
         }
 
         // 阶段一：全量校验（无写入）。
-        var identities = new HashSet<string>(StringComparer.Ordinal);
+        var identities = new Dictionary<string, GatherDecl>(StringComparer.Ordinal);
         var locations = new HashSet<string>(StringComparer.Ordinal);
-
+        var accepted = new List<List<GatherDecl>>(children.Count);
         foreach (var child in children)
         {
+            var kept = new List<GatherDecl>(child.Declarations.Count);
             foreach (var declaration in child.Declarations)
             {
                 if (declaration.Kind == GatherDeclKind.Class)
@@ -76,11 +77,20 @@ public sealed class CompositeGatherModule : IGatherModule
                 }
 
                 var identity = declaration.Kind + ":" + declaration.Name;
-                if (!identities.Add(identity))
+                if (identities.TryGetValue(identity, out var existing))
                 {
-                    throw new GatherClosureViolationException(
-                        $"[C1] 组合声明冲突：{identity}（同域双声明 / 同名同 Kind）");
+                    // 同一视图被多个子模块 FromView ⇒ 声明逐项相同：去重而非报错。
+                    if (!Equals(existing, declaration))
+                    {
+                        throw new GatherClosureViolationException(
+                            $"[C1] 组合声明冲突：{identity}（同名同 Kind 但内容不同）");
+                    }
+
+                    continue;
                 }
+
+                identities[identity] = declaration;
+                kept.Add(declaration);
             }
 
             foreach (var provider in child.Providers)
@@ -91,17 +101,19 @@ public sealed class CompositeGatherModule : IGatherModule
                         $"[C2] location '{provider.Key}' 有多个 producer（违反 SingleImplementation）");
                 }
             }
+
+            accepted.Add(kept);
         }
 
         // 阶段二：回放到组合 builder（顺序 = 子模块声明序）。
-        foreach (var child in children)
+        for (var i = 0; i < children.Count; i++)
         {
-            foreach (var declaration in child.Declarations)
+            foreach (var declaration in accepted[i])
             {
                 Replay(builder, declaration);
             }
 
-            foreach (var provider in child.Providers)
+            foreach (var provider in children[i].Providers)
             {
                 builder.Provide(provider.Key, provider.Value);
             }

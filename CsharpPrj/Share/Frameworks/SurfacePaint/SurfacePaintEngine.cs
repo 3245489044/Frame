@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using MathematicalAlgorithms.Lighting;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfaceRaster;
 using UiBackend;
@@ -580,7 +581,7 @@ public static class SurfacePaintEngine
                 ? IridescenceRamp.CenteredArgbAt(state.IridescencePhase, t, span, baseHue)
                 : IridescenceRamp.LegacyArgbAt(state.IridescencePhase, t, span);
             colors[i] = Color.FromArgb(
-                Math.Clamp((int)Math.Round(peak * alphaProfile[i]), 0, 255),
+                SurfaceShadingMath.SpectralStop(peak, alphaProfile[i]),
                 Color.FromArgb(argb));
         }
 
@@ -588,28 +589,10 @@ public static class SurfacePaintEngine
     }
 
     /// <summary>RGB → HSV 色相（0..360；两载体环基色的同一取值口径）。</summary>
-    private static float HueOf(Color color)
-    {
-        var max = Math.Max(color.R, Math.Max(color.G, color.B));
-        var min = Math.Min(color.R, Math.Min(color.G, color.B));
-        var delta = max - min;
-        if (delta <= 0) return 0f;
-
-        float hue;
-        if (max == color.R) hue = 60f * (((color.G - color.B) / (float)delta) % 6f);
-        else if (max == color.G) hue = 60f * (((color.B - color.R) / (float)delta) + 2f);
-        else hue = 60f * (((color.R - color.G) / (float)delta) + 4f);
-        return hue < 0f ? hue + 360f : hue;
-    }
+    private static float HueOf(Color color) => SurfaceShadingMath.HueOf(color.ToArgb());
 
     /// <summary>RGB → HSV 饱和度（0..1；用于区分彩色令牌与深档近白令牌）。</summary>
-    private static float SaturationOf(Color color)
-    {
-        var max = Math.Max(color.R, Math.Max(color.G, color.B));
-        if (max <= 0) return 0f;
-        var min = Math.Min(color.R, Math.Min(color.G, color.B));
-        return (max - min) / (float)max;
-    }
+    private static float SaturationOf(Color color) => SurfaceShadingMath.SaturationOf(color.ToArgb());
 
     /// <summary>把色相环停靠点装进 <see cref="ColorBlend"/>，一次填充整条边。</summary>
     private static void FillSpectral(Graphics graphics, Rectangle rect, LinearGradientMode mode, Color[] colors)
@@ -688,18 +671,6 @@ public static class SurfacePaintEngine
         }
     }
 
-    /// <summary>按时点暖度把高光/背景染向暖白（只调颜色，不改材质参数）。</summary>
-    private static Color Warm(Color color, float warmth)
-    {
-        if (warmth <= 0) return color;
-        var t = Math.Clamp(warmth, 0f, 1f) * 0.35f;
-        return Color.FromArgb(
-            color.A,
-            (int)(color.R + (255 - color.R) * t),
-            (int)(color.G + (224 - color.G) * t),
-            (int)(color.B + (170 - color.B) * t));
-    }
-
     /// <summary>
     /// 高光峰值（**全局光态驱动**）：矩阵镜面权重决定强弱，材质声明的 <c>strength</c> 只作上限。
     /// 无光场（<see cref="SurfaceLightState.HasValue"/>=false）⇒ 0，保持声明值的静态路径。
@@ -707,13 +678,12 @@ public static class SurfacePaintEngine
     private static int SheenPeak(float declaredStrength, float baseAlpha, SurfaceLightState state)
     {
         if (!state.HasValue) return 0;
-        // 公式唯一实现：SurfaceLightState.SheenAlpha（CSS 峰值走同一方法，禁两载体各写一份）。
-        return SurfaceLightState.SheenAlpha(baseAlpha, declaredStrength, state.Specular, state.Shade);
+        // 公式唯一实现：MathematicalAlgorithms.Lighting.SurfaceShadingMath（CSS 峰值同源）。
+        return SurfaceShadingMath.SheenPeak(baseAlpha, declaredStrength, state.Specular, state.Shade);
     }
 
     /// <summary>单边高光 alpha（权重已由端口按最亮边归一到 1）。</summary>
-    private static int EdgeAlpha(int peak, float weight)
-        => Math.Clamp((int)Math.Round(peak * Math.Clamp(weight, 0f, 1f)), 0, 200);
+    private static int EdgeAlpha(int peak, float weight) => SurfaceShadingMath.EdgeAlpha(peak, weight);
 
     /// <summary>
     /// 高光色：暖度 + 环境色；两者都只做轻微偏置（材质声明仍是色彩权威）。
@@ -723,17 +693,8 @@ public static class SurfacePaintEngine
     /// </para>
     /// </summary>
     private static Color LitColor(Color color, SurfaceLightState state)
-    {
-        var lit = Warm(color, state.Warmth);
-        if (!state.HasValue) return lit;
-        var tint = Color.FromArgb(state.TintArgb);
-        const float mix = 0.15f;
-        return Color.FromArgb(
-            lit.A,
-            (int)Math.Round(lit.R * (1 - mix) + tint.R * mix),
-            (int)Math.Round(lit.G * (1 - mix) + tint.G * mix),
-            (int)Math.Round(lit.B * (1 - mix) + tint.B * mix));
-    }
+        => Color.FromArgb(SurfaceShadingMath.LitColor(
+            color.ToArgb(), state.Warmth, state.TintArgb, state.HasValue));
 
     /// <summary>资源装载（进程内缓存；装载失败 ⇒ null 且**不缓存**，文件/资源后补可重试）。</summary>
     private static Image? LoadAsset(string asset)

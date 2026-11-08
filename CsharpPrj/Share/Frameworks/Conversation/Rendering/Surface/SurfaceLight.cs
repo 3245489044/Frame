@@ -2,6 +2,7 @@
 
 using System;
 using System.Globalization;
+using MathematicalAlgorithms.Lighting;
 using UiBackend;
 
 namespace Share.Conversation.Rendering.Surface;
@@ -107,12 +108,7 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// <param name="specular">矩阵镜面权重（0..1）。</param>
     /// <param name="shade">照度权重（0..1）。</param>
     public static int SheenAlpha(float baseAlpha, float strength, float specular, float shade)
-    {
-        var gain = 0.25f + 0.75f * Math.Clamp(specular, 0f, 1f);
-        var cap = Math.Clamp(strength, 0f, 1f);
-        var lit = Math.Clamp(shade, 0f, 1f);
-        return Math.Clamp((int)Math.Round(baseAlpha * gain * cap * lit), 0, 200);
-    }
+        => SurfaceShadingMath.SheenPeak(baseAlpha, strength, specular, shade);
 
     /// <summary>采样结果 → 载体窄视图（**唯一投影点**）。</summary>
     public static SurfaceLightState From(SurfaceLightSample sample)

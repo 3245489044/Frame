@@ -259,6 +259,23 @@ public static class SkinDecorator
         var bounds = new Rectangle(Point.Empty, control.ClientSize);
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
+        // 正常路径：整帧像素由引擎产生，宿主只贴位图（0 GDI 图元）。
+        if (SurfaceFramePump.Enabled)
+        {
+            var engineLight = state.Pinned is { } frozenEngine
+                ? frozenEngine.Light
+                : NeedsLight(material) ? ResolveLight(control) : (SurfaceLightState?)null;
+            var engineFrame = SurfaceFramePump.TryFrame(
+                control, material, engineLight, SurfaceFramePump.Quality);
+            if (engineFrame is not null)
+            {
+                e.Graphics.DrawImageUnscaled(engineFrame, bounds);
+                state.Frame++;
+                state.LastReport = new SkinPaintReport(1, 1, 0, 0, 0, new[] { "engine-frame" });
+                return;
+            }
+        }
+
         var paintBegin = SkinRenderProfile.Begin();
         var baseReport = state.BaseReport;
         try
@@ -442,6 +459,7 @@ public static class SkinDecorator
     internal readonly record struct SkinFrameReport(long Frame, SkinPaintReport Report);
 
     private static int _backdropSerial;
+    private static bool _lightFallbackLogged;
 
     private sealed class PinScope : IDisposable
     {
@@ -478,7 +496,14 @@ public static class SkinDecorator
 
         SurfaceLightPump.EnsureStarted(control);
         // 无帧（启动前 1 秒 / 引擎未加载 / 连续采样失败）⇒ 声明式默认太阳，而不是整屏无光。
-        var frame = SurfaceLightRegistry.Current ?? SurfaceLight.DefaultFrame(SurfaceLightPump.ScreenCoverage(control));
+        var current = SurfaceLightRegistry.Current;
+        if (current is null && !_lightFallbackLogged)
+        {
+            _lightFallbackLogged = true;
+            SkinDiagnostics.RecordLightDegraded("frame-fallback", "engine-frame-unavailable");
+        }
+
+        var frame = current ?? SurfaceLight.DefaultFrame(SurfaceLightPump.ScreenCoverage(control));
         var probe = ProbeOf(control);
         var sample = SurfaceLightPort.Sample(frame, probe);
         if (sample.HasValue && !sample.SpotInsideBounds)

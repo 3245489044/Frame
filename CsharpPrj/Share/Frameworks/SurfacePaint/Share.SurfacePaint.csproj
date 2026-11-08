@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(Proj_Plate_Surface)" />
+    <ProjectReference Include="$(Proj_Mathematics)" />
     <ProjectReference Include="$(Proj_Share_Conversation)" />
     <ProjectReference Include="$(Proj_Share_SurfaceRaster)" />
   </ItemGroup>

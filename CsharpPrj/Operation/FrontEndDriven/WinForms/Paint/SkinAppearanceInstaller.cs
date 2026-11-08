@@ -75,6 +75,14 @@ public static class SkinAppearanceInstaller
         // 页面装饰层：唯一取值来源 = 当前档令牌（浅档主/深档备），代码端零颜色分支。
         var ambient = SurfaceAmbientParams.FromTokens(SurfaceResolver.TokensForProfile(program, profile));
         SurfaceAmbient.Configure(ambient);
+        // 引擎帧开关/质量档（配置态，非代码分支；缺失 ⇒ 默认 on/balanced）。
+        SurfaceFramePump.Enabled = !program.Settings.TryGetValue("surface_engine", out var engineSwitch)
+            || !string.Equals(engineSwitch, "off", StringComparison.OrdinalIgnoreCase);
+        if (program.Settings.TryGetValue("surface_engine_quality", out var quality)
+            && !string.IsNullOrWhiteSpace(quality))
+        {
+            SurfaceFramePump.Quality = quality;
+        }
         // 记账：开了装饰却把结构主容器映射到未声明能力的材质 ⇒ 落日志（禁静默变成「没有装饰」）。
         var decorUndeclared = ambient.HasScene
             ? string.Join(",", StructuralSlots.Where(required =>

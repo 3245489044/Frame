@@ -181,7 +181,8 @@ public static class SurfaceRaster
                     var blue = value & 0xFF;
                     var green = (value >> 8) & 0xFF;
                     var red = (value >> 16) & 0xFF;
-                    var (shiftR, shiftG, shiftB) = ColorScience.ShiftChroma(red, green, blue, hue);
+                    var (shiftR, shiftG, shiftB) =
+                        MathematicalAlgorithms.Color.ColorScience.ShiftChroma(red, green, blue, hue);
                     Marshal.WriteInt32(buffer, offset, (0xFF << 24) | (shiftR << 16) | (shiftG << 8) | shiftB);
                 }
             }

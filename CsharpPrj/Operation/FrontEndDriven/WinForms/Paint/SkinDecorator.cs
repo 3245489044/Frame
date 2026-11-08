@@ -69,10 +69,7 @@ public static class SkinDecorator
             {
                 // B 类：族级 control_face（glass_fill）优先；不再因 FallbackUsed 换 GlobalProperty(row_surface)。
                 propertyMaterial = SkinMaterialCatalog.FamilyProperty(family.MaterialSlot)
-                                   ?? SelectMaterial(
-                                       SkinMaterialCatalog.ForProperty(descriptor.Id)
-                                       ?? SkinMaterialCatalog.ForProperty(descriptor.Name))
-                                   ?? SkinMaterialCatalog.GlobalProperty;
+                                   ?? SelectPropertyMaterial(descriptor);
                 tint = SurfaceStyleBridge.TintFor(descriptor, family.StyleRole);
                 if (propertyMaterial is { FallbackStep: > SurfaceFallbackStep.L2SolidFace })
                 {
@@ -88,10 +85,7 @@ public static class SkinDecorator
             else
             {
                 // 未登记族保持旧路径（零回归）：属性通道用已按通道能力降级的材质，降级才换全局实心材质。
-                propertyMaterial = SelectMaterial(
-                                       SkinMaterialCatalog.ForProperty(descriptor.Id)
-                                       ?? SkinMaterialCatalog.ForProperty(descriptor.Name))
-                                   ?? SkinMaterialCatalog.GlobalProperty;
+                propertyMaterial = SelectPropertyMaterial(descriptor);
                 if (propertyMaterial is { FallbackUsed.Length: > 0 } && SkinMaterialCatalog.GlobalProperty is { } propertyFallback)
                 {
                     propertyMaterial = propertyFallback;
@@ -115,6 +109,7 @@ public static class SkinDecorator
             return;
         }
 
+        // 空性收窄：PropertyFace 族已在属性分支返回，其余族缺材质已在上方首个判据 Detach（此处不可达）。
         if (material is null)
         {
             Detach(control);
@@ -273,7 +268,7 @@ public static class SkinDecorator
             var pinned = state.Pinned;
             var baseLight = pinned is { } frozen
                 ? frozen.Light
-                : NeedsLight(material) ? ResolveBaseLight(control) : (SurfaceLightState?)null;
+                : NeedsLight(material) ? ResolveLight(control) : (SurfaceLightState?)null;
             var now = Environment.TickCount64;
             var backdropDue = pinned is null && HasBackdrop(material)
                 && (state.Cache is null || now - state.LastBackdropTick >= BackdropRefreshMs);
@@ -388,9 +383,6 @@ public static class SkinDecorator
         SkinRenderProfile.RecordRender(renderBegin);
         return skipped;
     }
-
-    /// <summary>底图用的「静态光」：同一份全局采样，缓存键已量化到肉眼可辨粒度（见 <see cref="SurfaceLightState.CacheToken"/>）。</summary>
-    private static SurfaceLightState? ResolveBaseLight(Control control) => ResolveLight(control);
 
     /// <summary>背后快照的刷新周期：背后内容变化是低频事件，2s 足够，避免每帧全父级 DrawToBitmap。</summary>
     private const int BackdropRefreshMs = 2000;
@@ -571,9 +563,7 @@ public static class SkinDecorator
         var page = SkinMaterialCatalog.PageBackground;
         var parentBackColor = parent.BackColor;
         // 父级背景仍是系统默认（未上色）⇒ 背后就是页面，快照必须以页面色起底，否则面板被浅灰洗白。
-        var unstyled = page.HasValue
-                      && (parentBackColor.IsEmpty
-                          || parentBackColor.ToArgb() == SystemColors.Control.ToArgb());
+        var unstyled = page.HasValue && SurfaceHostCompositor.IsUnstyled(parentBackColor);
         try
         {
             parentBitmap = new Bitmap(parentSize.Width, parentSize.Height);
@@ -586,8 +576,8 @@ public static class SkinDecorator
             // 父级自身已是玻璃（含 backdrop 层）时，再拍进来就是「玻璃叠玻璃」：同一 fill 二次合成，
             // 面色被抬到 #29475F、背后渐变被抹平（panel/page 由 1.66 抬到 1.95）。此时只保留页面色起底，
             // 玻璃合成只做一层；父级非玻璃（实心/内容面）才需要拍自身表面。
-            var parentIsGlass = MaterialOf(parent) is { } parentMaterial
-                                && parentMaterial.Layers.Any(layer => layer.Primitive == "backdrop");
+            var parentMaterial = MaterialOf(parent);
+            var parentIsGlass = parentMaterial is not null && HasBackdrop(parentMaterial);
             if (unstyled) parent.BackColor = page!.Value;
             try
             {
@@ -692,6 +682,13 @@ public static class SkinDecorator
     /// <summary>槽优先选择（唯一实现：<see cref="SurfaceSlotSelection"/>）。</summary>
     private static ResolvedMaterial? SelectMaterial(IReadOnlyDictionary<string, ResolvedMaterial>? materials)
         => SurfaceSlotSelection.SelectBackground(materials);
+
+    /// <summary>属性通道材质：声明 Id/Name 槽 → 全局属性材质（属性面与旧路径共用同一梯度）。</summary>
+    private static ResolvedMaterial? SelectPropertyMaterial(ControlDescriptor descriptor)
+        => SelectMaterial(
+               SkinMaterialCatalog.ForProperty(descriptor.Id)
+               ?? SkinMaterialCatalog.ForProperty(descriptor.Name))
+           ?? SkinMaterialCatalog.GlobalProperty;
 
     /// <summary>缓存键（唯一实现：<see cref="SkinCacheKey"/>；含资产代，防换根后旧底图假命中）。</summary>
     private static string CacheKey(

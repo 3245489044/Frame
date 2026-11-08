@@ -62,13 +62,7 @@ internal static class SurfaceLightPump
                 || !registry.TryGetDelegate("Engine_SampleSurfaceLight", out var function)
                 || function is not Func<int, int, int, int, string, string> sample)
             {
-                _idleTicks++;
-                if (_idleTicks >= RetryTicks)
-                {
-                    _idleTicks = 0;
-                    SurfaceLightRegistry.Publish(null);
-                }
-
+                DegradeIfIdle();
                 return;
             }
 
@@ -94,17 +88,21 @@ internal static class SurfaceLightPump
             // 原因码 port-exception：端口调用本身抛出（跨 ALC 类型/序列化等）。
             SkinDiagnostics.RecordLightDegraded("port-exception", ex.GetType().Name + ":" + ex.Message);
             // 通道异常只能降级为「无帧」，不得让绘制线程承担光计算。
-            _idleTicks++;
-            if (_idleTicks >= RetryTicks)
-            {
-                _idleTicks = 0;
-                SurfaceLightRegistry.Publish(null);
-            }
+            DegradeIfIdle();
         }
         finally
         {
             _pullInProgress = false;
         }
+    }
+
+    /// <summary>无帧（端口缺失/调用抛错）退化：连续 <see cref="RetryTicks"/> 次后发布 null（载体保持声明值）。</summary>
+    private static void DegradeIfIdle()
+    {
+        _idleTicks++;
+        if (_idleTicks < RetryTicks) return;
+        _idleTicks = 0;
+        SurfaceLightRegistry.Publish(null);
     }
 
     /// <summary>诊断用：截断引擎快照，避免一次性日志被整帧 cells 撑爆。</summary>

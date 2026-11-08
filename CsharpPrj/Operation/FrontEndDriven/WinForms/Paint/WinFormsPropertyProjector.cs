@@ -97,7 +97,7 @@ public static class WinFormsPropertyProjector
     /// <param name="material">已解析材质。</param>
     public static Color? DeclaredStroke(ResolvedMaterial material)
     {
-        foreach (var layerSpec in ResolvedLayerSpecProjection.Parse(material.Layers).Specs)
+        foreach (var layerSpec in ResolvedLayerSpecProjection.ParseCached(material.Layers).Specs)
         {
             if (layerSpec.Kind != LayerPrimitive.Stroke || !layerSpec.HasColor) continue;
             return Color.FromArgb(layerSpec.ColorArgb);

@@ -17,27 +17,11 @@ public static class SurfaceStyleBridge
     /// <summary>accent 叠加强度（旧样式色只做提示，不覆盖玻璃面；非新色值）。</summary>
     private const int AccentTintAlpha = 0x26;
 
-    /// <summary>样式色在表面体系中的角色（族声明优先）。</summary>
-    /// <param name="desc">控件描述符。</param>
+    /// <summary>样式色在表面体系中的角色（族声明是唯一真源；未登记 ⇒ 保留业务色）。</summary>
+    /// <param name="desc">控件描述符（族未传入时按 <see cref="ControlDescriptor.Type"/> 回查登记表）。</param>
     /// <param name="family">已登记族（可空）。</param>
     public static SurfaceStyleRole RoleFor(ControlDescriptor desc, SurfaceControlFamilySpec? family)
-    {
-        if (family is not null)
-        {
-            return family.FallbackPolicy == SurfaceFallbackPolicy.NonGlass
-                ? SurfaceStyleRole.DirectColor
-                : family.StyleRole;
-        }
-
-        return desc.Type.ToLowerInvariant() switch
-        {
-            "button" or "checkbox" => SurfaceStyleRole.AccentTint,
-            "textbox" or "listbox" or "listview" or "combobox" or "treeview" => SurfaceStyleRole.NeutralHint,
-            "panel" or "flowlayoutpanel" or "tablelayoutpanel" or "groupbox" or "usercontrol"
-                or "splitcontainer" or "splitterpanel" => SurfaceStyleRole.Ignore,
-            _ => SurfaceStyleRole.DirectColor,
-        };
-    }
+        => (family ?? SurfaceControlFamilyRegistry.For(desc.Type))?.StyleRole ?? SurfaceStyleRole.DirectColor;
 
     /// <summary>AccentTint 的 tint ARGB（其余角色 ⇒ null）。</summary>
     /// <param name="desc">控件描述符。</param>

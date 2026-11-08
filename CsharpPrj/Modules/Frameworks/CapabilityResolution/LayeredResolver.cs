@@ -152,7 +152,7 @@ public static class LayeredResolver
         if (SurfaceFallbackStepPolicy.HasSolidFace(direct.Layers))
         {
             var step = propertyChannel
-                ? SurfaceFallbackStep.SolidFaceOrUnsupported(hasSolidFace: true)
+                ? SurfaceFallbackStepPolicy.SolidFaceOrUnsupported(hasSolidFace: true)
                 : SurfaceFallbackStepPolicy.Draw(degraded: true, fallbackUsed: null);
             return direct with { FallbackStep = step };
         }

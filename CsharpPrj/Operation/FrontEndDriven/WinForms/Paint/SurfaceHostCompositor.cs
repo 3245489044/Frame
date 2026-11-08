@@ -30,7 +30,16 @@ public sealed record SurfaceFace(
 /// </summary>
 public static class SurfaceHostCompositor
 {
+    // 注意：Value 虽只写不读，但已被 PublicApiAdditive 基线收录（public 声明删除即红），故保留。
     private static readonly ConditionalWeakTable<Control, RevisionBox> Revisions = new();
+
+    /// <summary>
+    /// 「未上色」背景判据：空背景或系统默认 <see cref="SystemColors.Control"/>。
+    /// <para>属性通道（<see cref="OpaqueBehind"/>）与绘制通道快照（<c>SkinDecorator</c>）共用同一判据。</para>
+    /// </summary>
+    /// <param name="background">父级背景色。</param>
+    internal static bool IsUnstyled(Color background)
+        => background.IsEmpty || background.ToArgb() == SystemColors.Control.ToArgb();
 
     /// <summary>材质 → 不透明合成面（无 fill/gradient ⇒ false）。</summary>
     /// <param name="control">目标控件（提供父链底色）。</param>
@@ -39,7 +48,7 @@ public static class SurfaceHostCompositor
     public static bool TrySolidFace(Control control, ResolvedMaterial material, out SurfaceFace face)
     {
         face = default!;
-        foreach (var layerSpec in ResolvedLayerSpecProjection.Parse(material.Layers).Specs)
+        foreach (var layerSpec in ResolvedLayerSpecProjection.ParseCached(material.Layers).Specs)
         {
             if (layerSpec.Kind is not (LayerPrimitive.Fill or LayerPrimitive.Gradient) || !layerSpec.HasColor) continue;
 
@@ -67,8 +76,7 @@ public static class SurfaceHostCompositor
         for (var parent = control.Parent; parent is not null; parent = parent.Parent)
         {
             var background = parent.BackColor;
-            if (background.IsEmpty) continue;
-            if (background.ToArgb() == SystemColors.Control.ToArgb()) continue;
+            if (IsUnstyled(background)) continue;
             if (background.A == 255) return background.ToArgb();
         }
 

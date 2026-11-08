@@ -60,11 +60,12 @@ internal static class SkinGeometry
         var y = rect.Y;
         var w = rect.Width;
         var h = rect.Height;
-        var limit = (float)(Math.Min(w, h) / 2.0);
-        var topLeft = Limit(radii.TopLeft, limit);
-        var topRight = Limit(radii.TopRight, limit);
-        var bottomRight = Limit(radii.BottomRight, limit);
-        var bottomLeft = Limit(radii.BottomLeft, limit);
+        // 夹取唯一实现：BorderGeometry.Clamp（BCL-only）；本类不再自带一份 Limit。
+        var clamped = BorderGeometry.Clamp(radii, w, h);
+        var topLeft = clamped.TopLeft;
+        var topRight = clamped.TopRight;
+        var bottomRight = clamped.BottomRight;
+        var bottomLeft = clamped.BottomLeft;
 
         path.StartFigure();
         path.AddLine(x + topLeft, y, x + w - topRight, y);
@@ -88,7 +89,4 @@ internal static class SkinGeometry
         path.CloseFigure();
         return path;
     }
-
-    private static float Limit(float value, float limit)
-        => value <= 0 ? 0 : value >= limit ? limit : value;
 }

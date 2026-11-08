@@ -22,12 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
     <!-- 通用 JSON 集合构造 + 诊断结果基座（Share 单源；显式直引，不依赖传递可见性）。 -->
-    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
-    <ProjectReference Include="$(Proj_HierarchyMethod)" />
     <!-- 处理计划载体（HierarchyProcessPlan / ProcessBudget）：本层只装配计划数据，遍历/护栏/聚合语义仍归内核。 -->
-    <ProjectReference Include="$(Proj_DeclarativeDataflow)" />
     <!-- 连接载体（Chain&lt;string,NodeConfig&gt; / RoundSpecChainMapper 的建链入口）：显式直引，不依赖传递可见性（设计方案 R8）。 -->
-    <ProjectReference Include="$(Proj_WorkFlowMethod)" />
   </ItemGroup>
 
 </Project>

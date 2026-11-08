@@ -53,7 +53,8 @@
 
   <!-- 仅顺序边：二进制引用无 MSBuild 顺序边，把框架工程排在编译之前（不消费其源码类型、不复制产物）。
        路径经 $(Proj_*) 取（单一真源 = CsharpPrj\modules.json，见 DataCenter\Directory.Build.props 的生成式 Import）。 -->
-  <ItemGroup Label="CsharpPrjBuildOrderOnly">
+  <ItemGroup Label="CsharpPrjBuildOrderOnly"
+            Condition="'$(DataCenterBakeClosure)' == 'true' Or '$(SolutionName)' != 'DataCenter'">
     <ProjectReference Include="$(Proj_DeclarativeLedger)" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="$(Proj_StructuralWalk)" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="$(Proj_JsonMethod)" ReferenceOutputAssembly="false" Private="false" />

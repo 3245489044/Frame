@@ -31,7 +31,8 @@
     <!-- 共享框架 -->
     <ProjectReference Include="$(Proj_PlaceholderFramework)" />
     <ProjectReference Include="$(Proj_UniversalMiddleware)" />
-
+    <!-- 表面光栅原语（噪声/径向掩膜/模糊/圆角）：载体无关，本载体只做装配 -->
+    <ProjectReference Include="$(Proj_Share_SurfaceRaster)" />
     <!-- 诊断框架（FrameworkErrors、FrameworkErrorEventArgs） -->
     <ProjectReference Include="$(Proj_Diagnostics)" />
 

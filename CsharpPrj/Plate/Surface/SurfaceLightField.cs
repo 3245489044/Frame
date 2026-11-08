@@ -490,9 +490,28 @@ public static class IridescenceRamp
         return SurfaceColor.WrapDegrees(hue);
     }
 
+    /// <summary>
+    /// 环专用：色相窗口关于令牌基色对称（t-0.5）——与 HTML conic 的「基色 ± span/2」同一公式。
+    /// <para>SurfaceAmbient 的丝带/细边仍走 <see cref="HueAt"/>（整层族窗口，禁止被环公式改写）。</para>
+    /// </summary>
+    public static float CenteredHueAt(float phase, float t, float spanDegrees, float baseHue)
+    {
+        var span = Math.Abs(spanDegrees) <= 1e-6f ? 140f : spanDegrees;
+        var hue = baseHue + phase * 360f + (Math.Clamp(t, 0f, 1f) - 0.5f) * span;
+        return SurfaceColor.WrapDegrees(hue);
+    }
+
     /// <summary>相位 + t → 不透明 ARGB（供 GDI+ <c>ColorBlend</c> 直接使用）。</summary>
     public static int ArgbAt(float phase, float t, float spanDegrees)
         => SurfaceColor.FromHsl(HueAt(phase, t, spanDegrees), 0.85f, 0.78f);
+
+    /// <summary>环专用：令牌基色 + 对称窗口 → 不透明 ARGB。</summary>
+    public static int CenteredArgbAt(float phase, float t, float spanDegrees, float baseHue)
+        => SurfaceColor.FromHsl(CenteredHueAt(phase, t, spanDegrees, baseHue), 0.85f, 0.78f);
+
+    /// <summary>深档零差异基线：近白令牌色仍走旧公式（190 + phase*360 + t*span）。</summary>
+    public static int LegacyArgbAt(float phase, float t, float spanDegrees)
+        => ArgbAt(phase, t, spanDegrees);
 
     /// <summary>沿 t∈[0,1] 等分取样（默认 5 个停靠点），保证色相沿轮廓连续。</summary>
     public static int[] Stops(float phase, float spanDegrees, int count = 5)

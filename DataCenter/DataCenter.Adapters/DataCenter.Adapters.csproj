@@ -37,7 +37,8 @@
   </ItemGroup>
 
   <!-- ★ 仅顺序边（见 DataCenter.Core.csproj 同款说明）：本工程在 MainProj.sln 烘焙闭包内。 -->
-  <ItemGroup Label="CsharpPrjBuildOrderOnly">
+  <ItemGroup Label="CsharpPrjBuildOrderOnly"
+            Condition="'$(DataCenterBakeClosure)' == 'true' Or '$(SolutionName)' != 'DataCenter'">
     <ProjectReference Include="$(Proj_InternalStorage)" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="$(Proj_Block)" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="$(Proj_FrameworkAbstractions)" ReferenceOutputAssembly="false" Private="false" />

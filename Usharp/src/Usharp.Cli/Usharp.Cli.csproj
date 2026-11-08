@@ -26,7 +26,6 @@
     <!-- compute 子命令：计算清单/程序的唯一编译入口。 -->
     <ProjectReference Include="..\Usharp.Compute\Usharp.Compute.csproj" />
     <!-- 控制台命令宿主（子命令路由 / 用法 / 退出码 / 异常边界）唯一实现 -->
-    <ProjectReference Include="$(Proj_HostAssembly)" />
   </ItemGroup>
 
 </Project>

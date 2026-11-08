@@ -21,9 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Adapters.Declarations\Usharp.Adapters.Declarations.csproj" />
     <!-- 控制台命令宿主（子命令路由 / 用法 / 退出码 / 异常边界）唯一实现 -->
-    <ProjectReference Include="$(Proj_HostAssembly)" />
     <!-- JSON 取值单一实现（PayloadAccessor.Str/Strings） -->
-    <ProjectReference Include="$(Proj_Share_JsonPayload)" />
   </ItemGroup>
 
 </Project>

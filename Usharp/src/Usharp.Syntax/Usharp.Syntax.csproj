@@ -23,9 +23,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(Proj_DslMethod)" />
     <!-- 通用 k=v 词袋解析（保留坏段/重复键）：Modules\Data\Parsing 下零依赖子工程。 -->
-    <ProjectReference Include="$(Proj_Parsing_Keys)" />
   </ItemGroup>
 
   <ItemGroup>

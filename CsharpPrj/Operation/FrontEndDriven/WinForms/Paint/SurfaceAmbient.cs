@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using Share.Conversation.Rendering.Surface;
+using Share.SurfaceRaster;
 using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -447,8 +448,8 @@ internal static class SurfaceAmbient
             // 1) 留白环：同一条页面场的切片（位置/渐变/丝带/光点都与宿主背景一致）。
             if ((decoration & SurfaceDecoration.Chrome) != 0 && gutter > 0)
             {
-                using var outerPath = RoundedRect(bounds, radius + gutter);
-                using var innerPath = RoundedRect(inner, radius);
+                using var outerPath = SurfaceRaster.RoundedRect(bounds, radius + gutter);
+                using var innerPath = SurfaceRaster.RoundedRect(inner, radius);
                 using var ring = new Region(outerPath);
                 ring.Exclude(innerPath);
                 graphics.SetClip(ring, CombineMode.Replace);
@@ -473,14 +474,14 @@ internal static class SurfaceAmbient
             //    它在小控件上 > 控件短边、直接填满整块；在大卡片上与细带叠成两个独立色相窗口。
             if ((decoration & SurfaceDecoration.EdgeBand) != 0)
             {
-                using var outerPath = RoundedRect(bounds, radius + gutter);
+                using var outerPath = SurfaceRaster.RoundedRect(bounds, radius + gutter);
                 graphics.SetClip(outerPath, CombineMode.Replace);
                 PaintEdgeBand(graphics, inner, radius, scale, light, offset, scene.Width, scene.Height);
             }
 
             if ((decoration & SurfaceDecoration.Texture) != 0)
             {
-                using var innerPath = RoundedRect(inner, radius);
+                using var innerPath = SurfaceRaster.RoundedRect(inner, radius);
                 graphics.SetClip(innerPath, CombineMode.Replace);
                 PaintTexture(graphics, innerPath, scale);
                 graphics.ResetClip();
@@ -507,7 +508,7 @@ internal static class SurfaceAmbient
                 Math.Max(1f, inner.Width - inset * 2f),
                 Math.Max(1f, inner.Height - inset * 2f));
             var alpha = Math.Clamp((int)Math.Round(_params.GlowAlpha * 255f * (1f - i / (float)steps)), 0, 255);
-            using var path = RoundedRect(rect, Math.Max(0f, radius - inset));
+            using var path = SurfaceRaster.RoundedRect(rect, Math.Max(0f, radius - inset));
             using var pen = new Pen(Color.FromArgb(alpha, tint), Math.Max(1f, 5f * scale));
             graphics.DrawPath(pen, path);
         }
@@ -599,29 +600,12 @@ internal static class SurfaceAmbient
         if (_noise is null || Math.Abs(_noiseAlpha - alpha) > 0.5f)
         {
             _noise?.Dispose();
-            _noise = BuildNoiseTile(alpha);
+            _noise = SurfaceRaster.NoiseTile(alpha);
             _noiseAlpha = alpha;
         }
 
         using var brush = new TextureBrush(_noise, WrapMode.Tile);
         graphics.FillPath(brush, innerPath);
-    }
-
-    private static Bitmap BuildNoiseTile(int alpha)
-    {
-        const int size = 96;
-        var tile = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-        var random = new Random(unchecked((int)0x4E4F4953));
-        for (var y = 0; y < size; y++)
-        {
-            for (var x = 0; x < size; x++)
-            {
-                var value = 128 + random.Next(-64, 65);
-                tile.SetPixel(x, y, Color.FromArgb(alpha, value, value, value));
-            }
-        }
-
-        return tile;
     }
 
     /// <summary>
@@ -951,23 +935,6 @@ internal static class SurfaceAmbient
         return new Point(target.X - origin.X, target.Y - origin.Y);
     }
 
-    private static GraphicsPath RoundedRect(RectangleF rect, float radius)
-    {
-        var path = new GraphicsPath();
-        var diameter = Math.Min(radius * 2f, Math.Min(rect.Width, rect.Height));
-        if (diameter <= 0.5f)
-        {
-            path.AddRectangle(rect);
-            return path;
-        }
-
-        path.AddArc(rect.X, rect.Y, diameter, diameter, 180f, 90f);
-        path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270f, 90f);
-        path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0f, 90f);
-        path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90f, 90f);
-        path.CloseFigure();
-        return path;
-    }
 
     private sealed class SceneSnapshot
     {

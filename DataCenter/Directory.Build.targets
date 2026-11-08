@@ -25,6 +25,26 @@
        （CsharpPrj\Operation\StateHoldDriven 源码引用本区），故**不置** RequireCsharpPrjBaked ——
        在 MainProj 构建过程中触发嵌套 `dotnet build MainProj.sln` 会与外层并发写同一权威目录（重入竞态）。
        干净机器上的顺序已由各 csproj 的「仅顺序边」（ReferenceOutputAssembly=false 的 ProjectReference）保证：
-       二进制引用无 MSBuild 顺序边，这些边不消费源码类型、不复制产物，只把上游工程排在编译之前。 -->
+       二进制引用无 MSBuild 顺序边，这些边不消费源码类型、不复制产物，只把上游工程排在编译之前。
+
+       ★ 2026-11-08 顺序边按构建语境收敛：CsharpPrj 反向引用 DataCenter 时经 AdditionalProperties 传入
+         DataCenterBakeClosure=true；仅在该语境（或直接 build csproj）保留顺序边。
+         `dotnet build DataCenter.slnx` 时顺序边整体跳过 —— 不再把 76 个 CsharpPrj 工程拖进本区构建图；
+         前置条件由下方 AssertCsharpBakeForDataCenter 显式判据兜底（缺件即明确报错，而非级联 CS 错）。 -->
+
+  <Target Name="AssertCsharpBakeForDataCenter" BeforeTargets="ResolveAssemblyReferences"
+          Condition="'$(MSBuildProjectName)' != 'DataCenter.Abstractions'
+                     And '$(DataCenterBakeClosure)' != 'true' And '$(DesignTimeBuild)' != 'true'
+                     And (!Exists('$(CsharpBuildOutputDir)CSG.Unified.dll')
+                          Or !Exists('$(CsharpBuildOutputDir)Share.StateManagement.dll')
+                          Or !Exists('$(CsharpBuildOutputDir)Modules.TConfig.dll')
+                          Or !Exists('$(CsharpBuildOutputDir)BasicMethod.Block.dll')
+                          Or !Exists('$(CsharpBuildOutputDir)BasicMethod.Declarative.Ledger.dll')
+                          Or !Exists('$(CsharpBuildOutputDir)BasicMethod.Declarative.StructuralWalk.dll')
+                          Or !Exists('$(CsharpBuildOutputDir)Plate.JsonMethod.dll')
+                          Or !Exists('$(CsharpBuildOutputDir)Share.TaskStatusPool.dll'))">
+    <Error Code="DC001"
+           Text="DataCenter 独立构建需要 CsharpPrj 权威烘焙产物（$(CsharpBuildOutputDir)）。请先 dotnet build Frame\CsharpPrj\MainProj.sln，或经 Projects\BuildFramework\Entry\Build-Product.ps1 -Profile dev 串行建完。" />
+  </Target>
 
 </Project>

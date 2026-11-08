@@ -2,7 +2,10 @@
 
   <!-- Usharp 语言框架（Frame\Usharp）编译约定：本文件只作用于本子树（MSBuild 自项目目录上溯取最近者），
        不导入 CsharpPrj 的 Directory.Build.props（其 modules.json 路径属性与 LayerBoundary 只服务于 CsharpPrj 内部）。
-       引用 CsharpPrj 项目一律走相对路径 ProjectReference（$(UsharpCsharpPrjRoot)）。 -->
+       ★ 2026-11-08 烘焙轨：对 CsharpPrj 一律二进制引用（<Reference HintPath="$(CsharpBuildOutputDir)...">），
+       清单单一真源 = Projects\BuildFramework\Graph\props\CsharpBakeRefs.props；
+       本子树禁止 ProjectReference CsharpPrj 源码（会把近百个平台工程拖进 Usharp 构建图、重复编译）。
+       构建前置：先 dotnet build Frame\CsharpPrj\MainProj.sln（缺件由共享 EnsureCsharpBaked 兜底补烘）。 -->
   <PropertyGroup Label="CompileBasics">
     <!-- 预置默认 Configuration（仅空时设 Debug）：本文件用 $(Configuration) 求值 OutputPath，
          而 SDK 的 Debug 默认注入晚于本 props 求值 —— 不预置会让「直接 build csproj」落 BuildOutput\、
@@ -23,6 +26,10 @@
   <PropertyGroup Label="UsharpPaths">
     <UsharpFrameRoot>$(MSBuildThisFileDirectory)</UsharpFrameRoot>
     <UsharpCsharpPrjRoot>$(MSBuildThisFileDirectory)..\CsharpPrj\</UsharpCsharpPrjRoot>
+    <!-- 烘焙轨路径契约（与 CallCenter/DataCenter 同形）：权威产物目录无 TFM 层。 -->
+    <CsharpProjectRoot>$(MSBuildThisFileDirectory)..\CsharpPrj</CsharpProjectRoot>
+    <CsharpBuildOutputDir>$(MSBuildThisFileDirectory)..\CsharpPrj\BuildOutput\$(Configuration)\</CsharpBuildOutputDir>
+    <BuildFrameworkRoot Condition="'$(BuildFrameworkRoot)' == ''">$(MSBuildThisFileDirectory)..\..\Projects\BuildFramework</BuildFrameworkRoot>
     <!-- 引用目标缺失（MSB9008）不得降级为 warning：否则真因被级联 CS0246 淹没。 -->
     <MSBuildWarningsAsErrors>$(MSBuildWarningsAsErrors);MSB9008</MSBuildWarningsAsErrors>
     <UsharpBuildOutputDir>$(MSBuildThisFileDirectory)BuildOutput\$(Configuration)\</UsharpBuildOutputDir>
@@ -44,9 +51,64 @@
   </PropertyGroup>
 
   <!-- ★ 模块路径单一真源（生成式，跨子树共享契约）：Frame\generated\ModulePaths.generated.props。
-       Usharp 对 CsharpPrj 工程的引用一律写 $(Proj_<项目名>)，禁止手写 $(UsharpCsharpPrjRoot)Modules\...
-       （模块目录搬迁后手写路径会静默失效 → MSB9008 被级联 CS0246 淹没）。 -->
+       仍保留导入（生成式路径供其他 Frame 区/工具复用）；Usharp 自身对 CsharpPrj 的类型面一律走下方烘焙清单，
+       不再写 $(Proj_<项目名>) ProjectReference（模块搬迁导致的 MSB9008 问题由清单集中解决）。 -->
   <Import Project="..\generated\ModulePaths.generated.props"
           Condition="Exists('$(MSBuildThisFileDirectory)..\generated\ModulePaths.generated.props')" />
+
+  <!-- ★ 烘焙轨（2026-11-08）：CsharpPrj 版本号 + 权威二进制引用清单。
+       与 Agent/FileDriven/CallCenter/DataCenter 同约定：编译期只吃 <Reference HintPath>，不编 CsharpPrj 源码。
+       NuGet 不沿二进制引用传递 ⇒ 下方 CsharpPrjTransitivePackages 显式补回原 ProjectReference 闭包的包面。 -->
+  <Import Project="$(BuildFrameworkRoot)\Graph\BuildFrameworkPaths.props"
+          Condition="'$(BuildFrameworkPathsImported)' != 'true' And Exists('$(BuildFrameworkRoot)\Graph\BuildFrameworkPaths.props')" />
+  <Import Project="$(CsharpProjectRoot)\generated\Directory.Build.props.versions.generated.props"
+          Condition="Exists('$(CsharpProjectRoot)\generated\Directory.Build.props.versions.generated.props')" />
+
+  <PropertyGroup Label="CsharpBakeRefs">
+    <!-- 阶段 1：Private=true —— 输出保持自包含（Cli/Bundle 无需 ALC 探针），本次只消除编译期重复编译。 -->
+    <CsharpBakeRefsPrivate>true</CsharpBakeRefsPrivate>
+    <!-- 全闭包模式：Usharp 消费 CsharpPrj 近全族类型面，具名清单不足；共享边界件排除以避免同标识双路径。 -->
+    <CsharpBakeRefsGlob>true</CsharpBakeRefsGlob>
+    <CsharpBakeRefsGlobExclude>$(CsharpBuildOutputDir)Route.dll;$(CsharpBuildOutputDir)PluginHost.dll</CsharpBakeRefsGlobExclude>
+    <!-- 冷启动兜底 + 新鲜度断言（Usharp 不在 MainProj.sln 闭包内，补烘无重入风险）。 -->
+    <RequireCsharpPrjBaked>true</RequireCsharpPrjBaked>
+    <RequireCsharpBakeFresh>true</RequireCsharpBakeFresh>
+  </PropertyGroup>
+  <Import Project="$(BuildFrameworkGraphProps)\CsharpBakeRefs.props"
+          Condition="Exists('$(BuildFrameworkGraphProps)\CsharpBakeRefs.props')" />
+
+  <!-- ★ NuGet 传递补包：原 ProjectReference 闭包中的第三方包，改二进制引用后须显式声明
+       （覆盖迁移前的传递闭包，行为保持一致；版本全部取 CsharpPrj versions 生成件）。 -->
+  <ItemGroup Label="CsharpPrjTransitivePackages">
+    <PackageReference Include="DeepCloner" Version="$(DeepClonerVersion)" />
+    <PackageReference Include="DynamicExpresso.Core" Version="$(DynamicExpressoCoreVersion)" />
+    <PackageReference Include="FluentValidation" Version="$(FluentValidationVersion)" />
+    <PackageReference Include="HtmlAgilityPack" Version="$(HtmlAgilityPackVersion)" />
+    <PackageReference Include="JsonPath.Net" Version="$(JsonPathNetVersion)" />
+    <PackageReference Include="JsonSchema.Net" Version="$(JsonSchemaNetVersion)" />
+    <PackageReference Include="LiteDB" Version="$(LiteDBVersion)" />
+    <PackageReference Include="Markdig" Version="0.37.0" />
+    <PackageReference Include="MathNet.Numerics" Version="$(MathNetNumericsVersion)" />
+    <PackageReference Include="MediatR" Version="$(MediatRVersion)" />
+    <PackageReference Include="Microsoft.Agents.Core" Version="$(MicrosoftAgentsCoreVersion)" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisCSharpVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsCachingMemoryVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="$(MicrosoftExtensionsConfigurationVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="$(MicrosoftExtensionsConfigurationFileExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="$(MicrosoftExtensionsConfigurationJsonVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="$(MicrosoftExtensionsDependencyInjectionVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsDependencyInjectionAbstractionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsLoggingVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsLoggingConsoleVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="$(MicrosoftExtensionsConfigurationVersion)" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2478.35" />
+    <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersion)" />
+    <PackageReference Include="Polly" Version="$(PollyVersion)" />
+    <PackageReference Include="Polly.Core" Version="$(PollyCoreVersion)" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="$(SystemDataSQLiteVersion)" />
+    <PackageReference Include="System.Linq.Dynamic.Core" Version="$(SystemLinqDynamicCoreVersion)" />
+    <PackageReference Include="System.Reactive" Version="$(SystemReactiveVersion)" />
+  </ItemGroup>
 
 </Project>

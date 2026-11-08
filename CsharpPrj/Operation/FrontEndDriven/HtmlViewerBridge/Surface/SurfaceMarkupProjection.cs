@@ -45,4 +45,23 @@ public static class SurfaceMarkupProjection
 
         return map;
     }
+
+    /// <summary>
+    /// 语义槽 → 当前档位实际材质的 CSS 类名（元素级材质下沉的唯一取值入口）。
+    /// <para>元素只声明语义槽（<c>panel_surface</c> / <c>row_surface</c>），材质 id 由当前档位解析；
+    /// 找不到 ⇒ 空串（调用方保持原类名，不静默套错材质）。</para>
+    /// </summary>
+    public static string ClassForSlot(ResolvedSurface? surface, string slot)
+    {
+        if (surface is null || string.IsNullOrWhiteSpace(slot)) return string.Empty;
+        foreach (var container in surface.Containers)
+        {
+            if (container.Materials.TryGetValue(slot, out var material))
+            {
+                return CssSurfaceProjector.ClassName(material.FallbackUsed ?? material.MaterialId);
+            }
+        }
+
+        return string.Empty;
+    }
 }

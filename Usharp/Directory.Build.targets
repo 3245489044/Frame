@@ -1,0 +1,19 @@
+<Project>
+
+  <!-- ============================================================
+       Usharp 烘焙轨 targets（2026-11-08）
+       - 编译期：CsharpPrj 只吃权威烘焙二进制引用（见 Directory.Build.props 的 CsharpBakeRefs 段）
+       - 冷启动：权威目录未就绪时由共享 EnsureCsharpBaked 补烘一次（MainProj.sln）
+       - 新鲜度：源已改而 dll 未重编时 fail-fast（RequireCsharpBakeFresh=true）
+       Usharp 不在 MainProj.sln 闭包内 ⇒ 补烘与断言均无重入风险。
+       ============================================================ -->
+  <PropertyGroup>
+    <BuildFrameworkRoot Condition="'$(BuildFrameworkRoot)' == ''">$(MSBuildThisFileDirectory)..\..\Projects\BuildFramework</BuildFrameworkRoot>
+  </PropertyGroup>
+  <Import Project="$(BuildFrameworkRoot)\Graph\BuildFrameworkPaths.props"
+          Condition="'$(BuildFrameworkPathsImported)' != 'true' And Exists('$(BuildFrameworkRoot)\Graph\BuildFrameworkPaths.props')" />
+
+  <Import Project="$(BuildFrameworkGraph)\CsharpBakeDeploy.targets"
+          Condition="Exists('$(BuildFrameworkGraph)\CsharpBakeDeploy.targets')" />
+
+</Project>

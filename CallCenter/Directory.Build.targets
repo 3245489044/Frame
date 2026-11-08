@@ -27,6 +27,9 @@
        CallCenter 不在 MainProj.sln 闭包内（CsharpPrj 无对本区的源码引用），故补烘无重入风险。 -->
   <PropertyGroup Label="Bake">
     <RequireCsharpPrjBaked>true</RequireCsharpPrjBaked>
+    <!-- 新鲜度前置断言：改 Frame 公开签名而未重编 ⇒ fail-fast「Frame 产物陈旧」。
+         CallCenter 不在 MainProj 闭包内，不会因本区自身构建误报。 -->
+    <RequireCsharpBakeFresh>true</RequireCsharpBakeFresh>
   </PropertyGroup>
 
   <Import Project="$(BuildFrameworkGraph)\CsharpBakeDeploy.targets"

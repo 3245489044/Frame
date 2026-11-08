@@ -33,7 +33,8 @@
   </ItemGroup>
 
   <!-- ★ 仅顺序边（见 DataCenter.Core.csproj 同款说明）：二进制引用无 MSBuild 顺序边，本工程在 MainProj.sln 闭包内。 -->
-  <ItemGroup Label="CsharpPrjBuildOrderOnly">
+  <ItemGroup Label="CsharpPrjBuildOrderOnly"
+            Condition="'$(DataCenterBakeClosure)' == 'true' Or '$(SolutionName)' != 'DataCenter'">
     <ProjectReference Include="$(Proj_CSG_Unified)" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="$(Proj_DeclarativeLedger)" ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>

@@ -2,6 +2,8 @@
 
 > **层级**：语言框架（表层语言 + 编译器） | **状态**：32 前缀（13 核心 + 19 领域：`[Space]`/`[Matrix]`/`[Flow]`/`[Ref]`/`[Obs]`/`[Branch]`/`[Switch]`/`[Call]`/`[Region]`/`[When]`/`[Guard]`/`[Domain]`/`[Gather]` + `[Table]`/`[Record]`/`[Config]`/`[Rule]`/`[Const]`/`[LLMDecl]`/`[KeySpace]`/`[Command]`/`[ReadModel]`/`[Relation]`/`[Invariant]`/`[Derive]`/`[Mount]`/`[Segment]`/`[Entity]`/`[KeyLexicon]`/`[AnswerShape]`/`[WindowShape]`/`[KeyPolicy]`/`[KeyBridge]`）+ 闸A + 引用即边 + UR 接入 + 观测接入
 > **日期**：2026-09-22 | **基座**：`Frame\CsharpPrj`（不新造运行时）
+> **构建前置**：Usharp 对 CsharpPrj 只吃权威烘焙二进制（`Frame\CsharpPrj\BuildOutput\$(Configuration)`）。
+> 首次构建或改过 CsharpPrj 后，先 `dotnet build Frame\CsharpPrj\MainProj.sln`，再 `dotnet build Frame\Usharp\Usharp.sln`。
 > **本文件 = 语言规范唯一权威**：语法/规则/诊断码在此定义，实现里不得重复语义（防抽象再生）。
 
 ---

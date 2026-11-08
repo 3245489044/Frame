@@ -52,7 +52,9 @@ public static class CssSurfaceProjector
     /// <summary>按已解析表面投影材质类（可带一份全局光态，写成 <c>:root</c> 的 <c>--sl-*</c> 变量）。</summary>
     /// <param name="surface">解析产物。</param>
     /// <param name="light">全局光场采样；null ⇒ 只用材质声明值（不伪装动态）。</param>
-    public static SurfaceStyleSheet Project(ResolvedSurface surface, SurfaceLightSample? light = null)
+    /// <param name="tokens">外观令牌（可选；用于 pageField 的页面渐变/径向光/丝带）。</param>
+    public static SurfaceStyleSheet Project(
+        ResolvedSurface surface, SurfaceLightSample? light = null, IReadOnlyDictionary<string, string>? tokens = null)
     {
         ArgumentNullException.ThrowIfNull(surface);
         var builder = new CssDocumentBuilder();
@@ -67,6 +69,12 @@ public static class CssSurfaceProjector
             builder.Rule(":root", LightVariables(sample));
             // 材质级峰值/半径也走同一份窄视图（不再各自拼 alpha/radius）。
             lightState = SurfaceLightState.From(sample);
+        }
+
+        // 页场：令牌开关打开时，HTML 宿主自身承载与 WinForms 同一套渐变/径向光/丝带。
+        if (tokens is not null && PageFieldEnabled(tokens))
+        {
+            builder.Rule("body", PageFieldDeclarations(tokens));
         }
 
         foreach (var container in surface.Containers)
@@ -227,6 +235,11 @@ public static class CssSurfaceProjector
                 var spectralPeak = SurfaceLightState.SheenAlpha(
                     150f, sheen.Strength, light?.Specular ?? 1f, light?.Shade ?? 1f);
                 declarations.Add(Pair("--sl-spectral-a", FormatRatio(spectralPeak / 255f)));
+                // 与 WinForms 同一公式：令牌色相 + 世界相位 + (t-0.5)*span；HTML 用 conic 的角度区间表达 t。
+                declarations.Add(Pair("--sl-spectral-hue",
+                    Deg(HueOf(sheen.Argb)) + "deg"));
+                declarations.Add(Pair("--sl-spectral-span",
+                    Math.Round(sheen.SpectralSpan).ToString(CultureInfo.InvariantCulture) + "deg"));
                 continue;
             }
 
@@ -268,6 +281,13 @@ public static class CssSurfaceProjector
             }
 
             AddBorder(declarations, primary);
+        }
+
+        // chrome：留白环/外发光在 HTML 侧用「令牌内衬边 + gutter 变量」表达；页面场由 body 承载。
+        if ((material.Decoration & SurfaceDecoration.Chrome) != 0)
+        {
+            declarations.Add(Pair("--sl-chrome-gutter", "var(--ui-ambient-gutter, 20px)"));
+            shadows.Add("inset 0 0 0 1px var(--ui-panel-rim, #dceaf8)");
         }
 
         if (backgroundColor.Length > 0) declarations.Add(Pair("background-color", backgroundColor));
@@ -371,6 +391,87 @@ public static class CssSurfaceProjector
             Pair("--sl-tint", CssColor(sheenTint)),
             Pair("--sl-irid-angle", iridAngle.ToString(CultureInfo.InvariantCulture) + "deg"),
         };
+    }
+
+    /// <summary>页场开关：令牌显式打开且渐变两端都有值。</summary>
+    private static bool PageFieldEnabled(IReadOnlyDictionary<string, string> tokens)
+        => tokens.TryGetValue("ambient_enabled", out var enabled)
+           && (string.Equals(enabled, "1", StringComparison.Ordinal)
+               || string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
+           && tokens.ContainsKey("page_gradient_from")
+           && tokens.ContainsKey("page_gradient_to");
+
+    /// <summary>页场 CSS（页面渐变 + 世界固定径向光 + 单条丝带）；值全部来自令牌。</summary>
+    private static List<KeyValuePair<string, string>> PageFieldDeclarations(
+        IReadOnlyDictionary<string, string> tokens)
+    {
+        var from = tokens["page_gradient_from"];
+        var to = tokens["page_gradient_to"];
+        var images = new List<string>
+        {
+            $"linear-gradient(45deg, {from}, {to})",
+        };
+        var attachments = new List<string> { "scroll" };
+
+        var radialAlpha = Number(tokens, "ambient_radial_alpha", 0.42f);
+        var radialRadius = Number(tokens, "ambient_radial_radius", 200f);
+        images.Add(
+            $"radial-gradient(circle {FormatPx(radialRadius)} at var(--sl-anchor-x,30vw) var(--sl-anchor-y,18vh), " +
+            $"rgba(255,255,255,{FormatRatio(radialAlpha)}) 0%, transparent 100%)");
+        attachments.Add("fixed");
+
+        if (tokens.TryGetValue("glass_edge_light", out var ribbonColor)
+            && tokens.TryGetValue("ambient_ribbon_alpha", out _))
+        {
+            var ribbonAlpha = Number(tokens, "ambient_ribbon_alpha", 0.30f);
+            images.Add(
+                $"linear-gradient(135deg, transparent 35%, {Rgba(ribbonColor, ribbonAlpha)} 50%, transparent 65%)");
+            attachments.Add("scroll");
+        }
+
+        return new List<KeyValuePair<string, string>>
+        {
+            Pair("background-image", string.Join(", ", images)),
+            Pair("background-attachment", string.Join(", ", attachments)),
+            Pair("background-repeat", "no-repeat"),
+            Pair("background-size", "auto"),
+        };
+    }
+
+    private static float Number(IReadOnlyDictionary<string, string> tokens, string key, float fallback)
+        => tokens.TryGetValue(key, out var text)
+           && float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : fallback;
+
+    /// <summary>#RRGGBB / #RRGGBBAA → rgba(...)；非法值原样返回（可见化，不静默吞）。</summary>
+    private static string Rgba(string hex, float alpha)
+    {
+        if (hex.Length is 7 or 9 && hex[0] == '#'
+            && int.TryParse(hex.AsSpan(1, 6), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
+        {
+            return $"rgba({(rgb >> 16) & 0xFF},{(rgb >> 8) & 0xFF},{rgb & 0xFF},{FormatRatio(alpha)})";
+        }
+
+        return hex;
+    }
+
+    /// <summary>ARGB → HSV 色相（0..360；与 WinForms 环基色同一口径）。</summary>
+    private static float HueOf(int argb)
+    {
+        var r = (argb >> 16) & 0xFF;
+        var g = (argb >> 8) & 0xFF;
+        var b = argb & 0xFF;
+        var max = Math.Max(r, Math.Max(g, b));
+        var min = Math.Min(r, Math.Min(g, b));
+        var delta = max - min;
+        if (delta <= 0) return 0f;
+
+        float hue;
+        if (max == r) hue = 60f * (((g - b) / (float)delta) % 6f);
+        else if (max == g) hue = 60f * (((b - r) / (float)delta) + 2f);
+        else hue = 60f * (((r - g) / (float)delta) + 4f);
+        return hue < 0f ? hue + 360f : hue;
     }
 
     /// <summary>打包 ARGB → CSS 颜色（不透明输出 <c>#RRGGBB</c>，半透明输出 <c>#RRGGBBAA</c>）。</summary>

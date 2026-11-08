@@ -7,6 +7,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using Share.Conversation.Rendering.Surface;
+using Share.SurfaceRaster;
 using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -318,7 +319,7 @@ public static class SkinPaintEngine
                     {
                         if (path is not null) graphics.SetClip(path);
                         var blurBegin = SkinRenderProfile.Begin();
-                        using var blurred = Blur(backdrop, (int)Math.Round(Math.Max(0, spec.Blur)));
+                        using var blurred = SurfaceRaster.Blur(backdrop, (int)Math.Round(Math.Max(0, spec.Blur)));
                         SkinRenderProfile.RecordBlur(blurBegin);
                         graphics.DrawImage(blurred, bounds);
                     }
@@ -516,6 +517,10 @@ public static class SkinPaintEngine
         if (peak <= 0) return;
 
         var lit = LitColor(color, state);
+        // 环的基色 = 材质令牌色（glass_edge_light）的 HSV 色相；两载体共用同一令牌来源。
+        // 近白令牌（深档 #e6edf3）保持旧公式，深档逐像素零差异。
+        var tokenDriven = SaturationOf(color) >= 0.2f;
+        var baseHue = HueOf(color);
         // spectral：颜色来源换成色相环（ColorBlend 多停靠点），仍为每条边 1 次 FillRectangle。
         var spectral = spec.Mode == "spectral" && spec.SpectralSpan > 0f;
         var thickness = Math.Clamp((int)Math.Round(spec.Width), 1, 6);
@@ -535,7 +540,7 @@ public static class SkinPaintEngine
                 if (spectral)
                 {
                     FillSpectral(graphics, rect, LinearGradientMode.Horizontal,
-                        SpectralColors(state, spec.SpectralSpan, 0f, 0.25f, top,
+                        SpectralColors(state, spec.SpectralSpan, baseHue, tokenDriven, 0f, 0.25f, top,
                             new[] { 0f, 0.75f, 1f, 0.75f, 0f }));
                 }
                 else
@@ -559,7 +564,7 @@ public static class SkinPaintEngine
                 if (spectral)
                 {
                     FillSpectral(graphics, rect, LinearGradientMode.Vertical,
-                        SpectralColors(state, spec.SpectralSpan, 1f, 0.75f, left,
+                        SpectralColors(state, spec.SpectralSpan, baseHue, tokenDriven, 1f, 0.75f, left,
                             new[] { 1f, 0.7f, 0.3f, 0f, 0f }));
                 }
                 else
@@ -578,7 +583,7 @@ public static class SkinPaintEngine
                 if (spectral)
                 {
                     FillSpectral(graphics, rect, LinearGradientMode.Vertical,
-                        SpectralColors(state, spec.SpectralSpan, 0.25f, 0.5f, right,
+                        SpectralColors(state, spec.SpectralSpan, baseHue, tokenDriven, 0.25f, 0.5f, right,
                             new[] { 1f, 0.7f, 0.3f, 0f, 0f }));
                 }
                 else
@@ -597,7 +602,7 @@ public static class SkinPaintEngine
                 if (spectral)
                 {
                     FillSpectral(graphics, rect, LinearGradientMode.Horizontal,
-                        SpectralColors(state, spec.SpectralSpan, 0.75f, 0.5f, bottom,
+                        SpectralColors(state, spec.SpectralSpan, baseHue, tokenDriven, 0.75f, 0.5f, bottom,
                             new[] { 0f, 0.75f, 1f, 0.75f, 0f }));
                 }
                 else
@@ -622,20 +627,46 @@ public static class SkinPaintEngine
 
     /// <summary>沿周长参数 t0→t1 取色相环颜色，并按 alpha 剖面调制（不含额外绘制）。</summary>
     private static Color[] SpectralColors(
-        SurfaceLightState state, float span, float t0, float t1, int peak, float[] alphaProfile)
+        SurfaceLightState state, float span, float baseHue, bool tokenDriven, float t0, float t1, int peak, float[] alphaProfile)
     {
         var colors = new Color[alphaProfile.Length];
         var last = alphaProfile.Length - 1;
         for (var i = 0; i <= last; i++)
         {
             var t = t0 + (t1 - t0) * (i / (float)last);
-            var argb = IridescenceRamp.ArgbAt(state.IridescencePhase, t, span);
+            var argb = tokenDriven
+                ? IridescenceRamp.CenteredArgbAt(state.IridescencePhase, t, span, baseHue)
+                : IridescenceRamp.LegacyArgbAt(state.IridescencePhase, t, span);
             colors[i] = Color.FromArgb(
                 Math.Clamp((int)Math.Round(peak * alphaProfile[i]), 0, 255),
                 Color.FromArgb(argb));
         }
 
         return colors;
+    }
+
+    /// <summary>RGB → HSV 色相（0..360；两载体环基色的同一取值口径）。</summary>
+    private static float HueOf(Color color)
+    {
+        var max = Math.Max(color.R, Math.Max(color.G, color.B));
+        var min = Math.Min(color.R, Math.Min(color.G, color.B));
+        var delta = max - min;
+        if (delta <= 0) return 0f;
+
+        float hue;
+        if (max == color.R) hue = 60f * (((color.G - color.B) / (float)delta) % 6f);
+        else if (max == color.G) hue = 60f * (((color.B - color.R) / (float)delta) + 2f);
+        else hue = 60f * (((color.R - color.G) / (float)delta) + 4f);
+        return hue < 0f ? hue + 360f : hue;
+    }
+
+    /// <summary>RGB → HSV 饱和度（0..1；用于区分彩色令牌与深档近白令牌）。</summary>
+    private static float SaturationOf(Color color)
+    {
+        var max = Math.Max(color.R, Math.Max(color.G, color.B));
+        if (max <= 0) return 0f;
+        var min = Math.Min(color.R, Math.Min(color.G, color.B));
+        return (max - min) / (float)max;
     }
 
     /// <summary>把色相环停靠点装进 <see cref="ColorBlend"/>，一次填充整条边。</summary>
@@ -694,7 +725,7 @@ public static class SkinPaintEngine
             if (clip is not null) graphics.SetClip(clip, CombineMode.Intersect);
 
             // 预渲染的 128px 径向 alpha 掩膜 + ColorMatrix 着色：一次缩放贴图，避免每帧 PathGradientBrush。
-            var mask = SpotMask();
+            var mask = SurfaceRaster.SpotMask();
             using var attributes = new ImageAttributes();
             attributes.SetColorMatrix(new ColorMatrix(new[]
             {
@@ -712,36 +743,6 @@ public static class SkinPaintEngine
         {
             clip?.Dispose();
             graphics.Restore(saved);
-        }
-    }
-
-    private static readonly object SpotMaskSync = new();
-    private static Bitmap? _spotMask;
-
-    /// <summary>白色径向 alpha 掩膜（中心 255 → 边缘 0，二次衰减），进程内复用。</summary>
-    private static Bitmap SpotMask()
-    {
-        if (_spotMask is not null) return _spotMask;
-        lock (SpotMaskSync)
-        {
-            if (_spotMask is not null) return _spotMask;
-            const int side = 128;
-            var bitmap = new Bitmap(side, side, PixelFormat.Format32bppArgb);
-            var center = (side - 1) / 2.0;
-            for (var y = 0; y < side; y++)
-            {
-                for (var x = 0; x < side; x++)
-                {
-                    var dx = (x - center) / center;
-                    var dy = (y - center) / center;
-                    var distance = Math.Sqrt(dx * dx + dy * dy);
-                    var alpha = distance >= 1.0 ? 0 : (int)Math.Round(255 * (1 - distance) * (1 - distance));
-                    bitmap.SetPixel(x, y, Color.FromArgb(alpha, Color.White));
-                }
-            }
-
-            _spotMask = bitmap;
-            return bitmap;
         }
     }
 
@@ -790,49 +791,6 @@ public static class SkinPaintEngine
             (int)Math.Round(lit.R * (1 - mix) + tint.R * mix),
             (int)Math.Round(lit.G * (1 - mix) + tint.G * mix),
             (int)Math.Round(lit.B * (1 - mix) + tint.B * mix));
-    }
-
-    /// <summary>
-    /// 降采样再升采样近似模糊（GDI+ 无原生高斯；radius 越大采样越粗）。
-    /// 只处理快照位图，不改变任何材质参数契约。
-    /// </summary>
-    private static Bitmap Blur(Image source, int radius)
-    {
-        if (radius <= 0)
-        {
-            var copy = new Bitmap(source.Width, source.Height);
-            using var copyGraphics = Graphics.FromImage(copy);
-            copyGraphics.DrawImage(source, new Rectangle(0, 0, source.Width, source.Height));
-            return copy;
-        }
-
-        var factor = Math.Max(2, radius / 4); // 18 ⇒ 4（约 4×4 降采样）
-        var smallWidth = Math.Max(1, source.Width / factor);
-        var smallHeight = Math.Max(1, source.Height / factor);
-        var small = new Bitmap(smallWidth, smallHeight);
-        try
-        {
-            using (var graphics = Graphics.FromImage(small))
-            {
-                graphics.InterpolationMode = InterpolationMode.HighQualityBilinear;
-                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                graphics.DrawImage(source, new Rectangle(0, 0, smallWidth, smallHeight));
-            }
-
-            var blurred = new Bitmap(source.Width, source.Height);
-            using (var graphics = Graphics.FromImage(blurred))
-            {
-                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                graphics.DrawImage(small, new Rectangle(0, 0, source.Width, source.Height));
-            }
-
-            return blurred;
-        }
-        finally
-        {
-            small.Dispose();
-        }
     }
 
     /// <summary>资源装载（进程内缓存；装载失败 ⇒ null 且**不缓存**，文件/资源后补可重试）。</summary>

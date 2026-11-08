@@ -44,10 +44,15 @@ public static class SpectralStyleModule
                 // 环宽 = 材质声明 width（border 提供**恒定宽度**外框，不随元素长宽比变形）。
                 // 旧 `radial-gradient(closest-side …)` 椭圆环在四角会增厚（实测 6px → 23px、铺满 25.94%）。
                 .Append("border:var(--sl-spectral-w) solid transparent;")
-                // 色相环：固定起点 + 多色标，保证沿轮廓连续且跨度 ≥90°。
-                // at 用视口 px 锚点 + fixed 定位区 ⇒ 色相由「面板相对光斑的位置」决定（不是元素自身百分比）。
+                // 色相环：令牌色相 ± span/2 + 世界相位（与 WinForms IridescenceRamp 同一公式）。
+                // 旧实现是固定六色 + hue-rotate，无法与令牌/配置对齐；现在色标由 --sl-spectral-hue/span 生成。
                 .Append("background:conic-gradient(from 135deg at var(--sl-anchor-x,30vw) var(--sl-anchor-y,18vh),")
-                .Append("#7fe9ff 0deg,#8f8cff 72deg,#ff8ae0 144deg,#ffd59a 216deg,#6f7bff 288deg,#7fe9ff 360deg);")
+                .Append("hsl(calc(var(--sl-spectral-hue,190deg) + var(--sl-irid-angle,0deg) - var(--sl-spectral-span,180deg) * 0.5),85%,78%) 0deg,")
+                .Append("hsl(calc(var(--sl-spectral-hue,190deg) + var(--sl-irid-angle,0deg) - var(--sl-spectral-span,180deg) * 0.3),85%,78%) 72deg,")
+                .Append("hsl(calc(var(--sl-spectral-hue,190deg) + var(--sl-irid-angle,0deg) - var(--sl-spectral-span,180deg) * 0.1),85%,78%) 144deg,")
+                .Append("hsl(calc(var(--sl-spectral-hue,190deg) + var(--sl-irid-angle,0deg) + var(--sl-spectral-span,180deg) * 0.1),85%,78%) 216deg,")
+                .Append("hsl(calc(var(--sl-spectral-hue,190deg) + var(--sl-irid-angle,0deg) + var(--sl-spectral-span,180deg) * 0.3),85%,78%) 288deg,")
+                .Append("hsl(calc(var(--sl-spectral-hue,190deg) + var(--sl-irid-angle,0deg) + var(--sl-spectral-span,180deg) * 0.5),85%,78%) 360deg);")
                 .Append("background-attachment:fixed;background-clip:border-box;")
                 // 只留 border 区：padding-box 挖掉 border-box ⇒ 得到声明带宽的窄环（union 相减，非径向近似）。
                 .Append("mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0) border-box;")

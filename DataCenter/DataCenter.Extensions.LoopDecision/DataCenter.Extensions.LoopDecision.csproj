@@ -33,7 +33,8 @@
   </ItemGroup>
 
   <!-- ★ 仅顺序边（见 DataCenter.Core.csproj 同款说明）：保证干净机器上本工程先编出上游再编译。 -->
-  <ItemGroup Label="CsharpPrjBuildOrderOnly">
+  <ItemGroup Label="CsharpPrjBuildOrderOnly"
+            Condition="'$(DataCenterBakeClosure)' == 'true' Or '$(SolutionName)' != 'DataCenter'">
     <ProjectReference Include="$(Proj_TaskStatusPool)" ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
 

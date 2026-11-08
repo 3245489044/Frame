@@ -324,6 +324,7 @@ public static class SkinDecorator
             state.Frame++;
             state.LastReport = frameReport;
             SkinDiagnostics.RecordFrame(frameReport);
+            SkinDiagnostics.RecordPaintCount(material.MaterialId, frameReport);
             if (frameReport.Details.Count > 0)
             {
                 FrontEndDrivenLog.Log("SkinDecorator_skipped", new { material = material.MaterialId, skipped = string.Join(";", frameReport.Details) });

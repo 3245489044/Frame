@@ -48,8 +48,10 @@
     <ProjectReference Include="$(Proj_PowerShellHost)" />
     <!-- F2-a ⑤ derive-schema：词表 → 结构门（schema enum / 键集）算法唯一实现在标准层，
          本工具只做 CLI 接线（禁第二份算法）。契约面 + 标准层均为 Frame 内工程（Frame 内源引用合法）。 -->
-    <ProjectReference Include="$(CsharpPrjDir)..\DataCenter\DataCenter.Protocol\DataCenter.Protocol.csproj" />
-    <ProjectReference Include="$(CsharpPrjDir)..\DataCenter\DataCenter.Standards\DataCenter.Standards.csproj" />
+    <ProjectReference Include="$(CsharpPrjDir)..\DataCenter\DataCenter.Protocol\DataCenter.Protocol.csproj"
+                      AdditionalProperties="DataCenterBakeClosure=true" />
+    <ProjectReference Include="$(CsharpPrjDir)..\DataCenter\DataCenter.Standards\DataCenter.Standards.csproj"
+                      AdditionalProperties="DataCenterBakeClosure=true" />
   </ItemGroup>
 
 </Project>

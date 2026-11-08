@@ -22,11 +22,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Usharp.Semantics\Usharp.Semantics.csproj" />
-    <ProjectReference Include="$(Proj_UniversalWorkflowFramework)" />
     <!-- [Node]/[Edge]/[Constraint] → ReferenceSchema 的既有实现（零依赖，复用不重建） -->
-    <ProjectReference Include="$(Proj_DslMethod)" />
     <!-- ur= 严格枚举名解析复用 Share.Foundations.FrameworkAbstractions.Declarative.StrictParse（含纯数字拦截）。 -->
-    <ProjectReference Include="$(Proj_FrameworkAbstractions)" />
   </ItemGroup>
 
 </Project>

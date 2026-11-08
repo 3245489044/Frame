@@ -134,6 +134,37 @@ public static class SkinDiagnostics
         }
     }
 
+    /// <summary>按材质记录本帧落笔面（首次/明细变化时才落日志，禁逐帧刷屏）。</summary>
+    /// <param name="materialId">材质 id。</param>
+    /// <param name="report">本帧静态 + 动态合并报告。</param>
+    public static void RecordPaintCount(string materialId, SkinPaintReport report)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        if (string.IsNullOrWhiteSpace(materialId)) return;
+
+        var summary = report.PaintedLayers.ToString()
+            + "|" + report.Ok + "|" + report.Degraded + "|" + report.Failed
+            + "|" + string.Join(",", report.Details);
+        if (_lastPaintSummary.TryGetValue(materialId, out var previous)
+            && string.Equals(previous, summary, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _lastPaintSummary[materialId] = summary;
+        FrontEndDrivenLog.Log("SkinDecorator_paint_count", new
+        {
+            material = materialId,
+            paintedLayers = report.PaintedLayers,
+            ok = report.Ok,
+            degraded = report.Degraded,
+            failed = report.Failed,
+            skipped = report.Details.Count > 0 ? string.Join(";", report.Details) : string.Empty,
+        });
+    }
+
+    private static readonly Dictionary<string, string> _lastPaintSummary = new(StringComparer.Ordinal);
+
     /// <summary>
     /// 旧版分段绘制记录（**兼容保留**，勿在新代码调用；用 <see cref="RecordFrame"/> 以免一帧计两次）。
     /// </summary>

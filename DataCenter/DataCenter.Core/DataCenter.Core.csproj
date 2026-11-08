@@ -41,7 +41,8 @@
   <!-- ★ 仅顺序边（ReferenceOutputAssembly=false）：二进制引用无 MSBuild 顺序边，而本工程处于 MainProj.sln 烘焙闭包内
        （CsharpPrj\Operation\StateHoldDriven 源码引用本工程）——这些边不消费上游源码类型、不复制其产物，
        只把上游工程排在编译之前，保证干净机器上 `dotnet build MainProj.sln` 与 `DataCenter.slnx` 不出现上游 dll 竞态缺失。 -->
-  <ItemGroup Label="CsharpPrjBuildOrderOnly">
+  <ItemGroup Label="CsharpPrjBuildOrderOnly"
+            Condition="'$(DataCenterBakeClosure)' == 'true' Or '$(SolutionName)' != 'DataCenter'">
     <ProjectReference Include="$(Proj_CSG_Unified)" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="$(Proj_StateManagement)" ReferenceOutputAssembly="false" Private="false" />
     <ProjectReference Include="$(Proj_TConfig)" ReferenceOutputAssembly="false" Private="false" />

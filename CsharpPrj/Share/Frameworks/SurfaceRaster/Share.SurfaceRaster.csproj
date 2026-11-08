@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>表面光栅原语（SurfaceRaster）</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>载体无关的光栅原语（噪声瓦片/径向掩膜/模糊近似/圆角路径）：只吃 System.Drawing 位图与显式参数，不持有前端状态、不含控件类型，供 WinForms/其他载体复用。</ModuleRule_Description>
+    <ModuleRule_Keywords>光栅;噪声;模糊;掩膜;圆角;表面</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="只依赖 Plate.Surface 与 BCL；禁依赖 Modules/Operation/Presentation/Conversation" />
+    <ModuleRule_Rule Include="只吃 Bitmap/Image/Graphics/GraphicsPath/Rectangle(F)；禁 Control/Form/消息循环/SynchronizationContext" />
+    <ModuleRule_Rule Include="入参显式：不读前端静态单例或安装期全局状态" />
+    <ModuleRule_Rule Include="像素算法逐位稳定：同参数输出必须与迁移前 Bitmap 完全一致" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Share.SurfaceRaster</RootNamespace>
+    <AssemblyName>Share.SurfaceRaster</AssemblyName>
+    <Description>表面光栅原语（载体无关，System.Drawing）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Plate_Surface)" />
+  </ItemGroup>
+
+</Project>

@@ -58,7 +58,8 @@
     <!-- 键文法声明单源上移至层 2（Modules.Node\Identity\NodeStoreKeyGrammars）：config/checkpoint/keymapping/
          relations/session-message 五族键模板事实归 L2，本层只留别名门面与领域语义（方案 §3.1 表 A / D1-②）。 -->
     <ProjectReference Include="$(Proj_Node)" />
-    <ProjectReference Include="..\..\..\DataCenter\DataCenter.Protocol\DataCenter.Protocol.csproj" />
+    <ProjectReference Include="..\..\..\DataCenter\DataCenter.Protocol\DataCenter.Protocol.csproj"
+                      AdditionalProperties="DataCenterBakeClosure=true" />
   </ItemGroup>
 
   <ItemGroup>

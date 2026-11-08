@@ -41,6 +41,9 @@ public static class SurfaceStyleBridge
     public static bool SuppressStyleBackColor(ControlDescriptor desc, Control control)
     {
         var family = WinFormsControlFamilyMap.Resolve(control, desc.Type);
+        // C3：玻璃族的声明色一律不写控件 BackColor（材质通道是唯一写者；
+        // styles.json / 旧样式不得覆盖玻璃面，否则出现第二个写者）。
+        if (family?.FallbackPolicy == SurfaceFallbackPolicy.RequireGlassFace) return true;
         var role = RoleFor(desc, family);
         if (role == SurfaceStyleRole.DirectColor) return false;
         return family?.OwnsBackColor ?? SkinDecorator.IsPropertyChannelOwned(control);

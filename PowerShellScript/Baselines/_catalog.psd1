@@ -173,5 +173,6 @@
         @{ File = 'Ui\SurfaceNoPerControlTimer.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'SurfaceNoPerControlTimer'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceNoPerControlTimer.ps1' }
         @{ File = 'Ui\SurfaceLogTemplates.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'SurfaceLogTemplates'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceLogTemplates.ps1' }
         @{ File = 'Ui\SurfaceFrameBudget.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'SurfaceFrameBudget'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceFrameBudget.ps1' }
+        @{ File = 'Ui\UiAcceptance.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'UiAcceptance'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Ui\Check-UiAcceptance.ps1' }
     )
 }

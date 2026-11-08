@@ -32,7 +32,9 @@ public sealed record GatherDecl(
     string? Scope = null,
     string? Crit = null,
     string? Recompute = null,
-    IReadOnlyList<string>? Deps = null);
+    IReadOnlyList<string>? Deps = null,
+    GatherCostClass Cost = GatherCostClass.Low,
+    bool Reusable = false);
 
 /// <summary>
 /// 声明 Schema（**集中约束**）：函数签名 / 类接口 / 变量形态 / 命名 / 必填项 只在这一处定义。

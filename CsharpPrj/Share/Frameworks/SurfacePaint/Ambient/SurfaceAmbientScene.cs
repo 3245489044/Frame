@@ -690,7 +690,7 @@ public static class SurfaceAmbientScene
         => state is { } light ? SurfaceAmbientMath.LightToken(ToSample(light)) : "no-light";
 
     /// <summary>诊断：最近一次页面场解算实际使用的光态（验收用，不参与绘制）。</summary>
-    internal static SurfaceLightState? LastState => _state;
+    public static SurfaceLightState? LastState => _state;
 
     /// <summary>
     /// 同一份光源：整个页面（宿主背景 + 所有卡片 chrome）只按**窗体**探针解算一次，
@@ -809,23 +809,23 @@ public sealed class SurfaceAmbientTokens
     internal Color? SparkleTint { get; private init; }
     internal Color? ShadowTint { get; private init; }
     public float Gutter { get; private init; }
-    internal float CornerRadius { get; private init; }
+    public float CornerRadius { get; private init; }
     public float RibbonWidth { get; private init; }
     internal float RibbonAlpha { get; private init; }
     internal float RibbonSpan { get; private init; }
-    internal float HueBudget { get; private init; }
+    public float HueBudget { get; private init; }
     internal float RibbonAmplitude { get; private init; }
     internal float ChannelOffset { get; private init; }
     internal float SparkleDensity { get; private init; }
     internal float GlowRadius { get; private init; }
     internal float GlowAlpha { get; private init; }
-    internal float RadialAlpha { get; private init; }
-    internal float RadialRadius { get; private init; }
-    internal float EdgeWidth { get; private init; }
-    internal float EdgeHueSpan { get; private init; }
-    internal float WideEdgeWidth { get; private init; }
+    public float RadialAlpha { get; private init; }
+    public float RadialRadius { get; private init; }
+    public float EdgeWidth { get; private init; }
+    public float EdgeHueSpan { get; private init; }
+    public float WideEdgeWidth { get; private init; }
     internal float TextureAlpha { get; private init; }
-    internal string Token { get; private init; } = "decor-off";
+    public string Token { get; private init; } = "decor-off";
 
     /// <summary>档位显式开关（<c>ambient_enabled</c>）：0 = 该档关闭装饰层，即使配色齐全也不画。</summary>
     internal bool Enabled { get; private init; } = true;

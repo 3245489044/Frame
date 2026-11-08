@@ -113,6 +113,21 @@ public static class SurfaceEngineFramePump
         // 无光不进 D3D 的判定由调用方（场景/会话）负责；本泵保留零光帧能力（ToLight 的既有语义）。
         var dpi = viewport.Dpi > 0 ? viewport.Dpi : 96;
         SurfaceViewportRegistry.Publish(viewport.Width, viewport.Height, dpi, quality);
+
+        // L-5：帧光签名必须与进程内唯一光帧一致；不一致 ⇒ 显式记账（以 registry 为准，不静默）。
+        var registryFrame = SurfaceLightRegistry.Current;
+        if (light is SurfaceLightState lightState && lightState.HasValue && registryFrame is not null
+            && lightState.LightSignature != registryFrame.Signature)
+        {
+            LastReason = "light-frame-mismatch";
+            log?.Write("surface.light.mismatch", new
+            {
+                request = lightState.LightSignature,
+                registry = registryFrame.Signature,
+                content = contentToken,
+            });
+        }
+
         var request = new EngineSurfaceRequest(
             viewport.Width, viewport.Height, dpi,
             (light?.CacheToken ?? "no-light") + "|" + contentToken,
@@ -137,7 +152,14 @@ public static class SurfaceEngineFramePump
             return null;
         }
 
-        var bitmap = ToBitmap(frame);
+        var bitmap = ToBitmap(frame, out var conversionReason);
+        if (bitmap is null)
+        {
+            // E-11：像素不完整不得画半帧；失败可见化后回退载体绘制。
+            RecordFailure(conversionReason);
+            log?.Write("surface.frame.degraded", new { reason = conversionReason, content = contentToken });
+            return null;
+        }
         lock (Gate)
         {
             // 同一 token 可能已被并发帧写入：以首个命中为准，后者释放自己的副本（缓存所有权唯一）。
@@ -281,8 +303,17 @@ public static class SurfaceEngineFramePump
         return items;
     }
 
-    private static Bitmap ToBitmap(EngineSurfaceFrame frame)
+    private static Bitmap? ToBitmap(EngineSurfaceFrame frame, out string reason)
     {
+        reason = string.Empty;
+        var expected = frame.Width * frame.Height * SurfacePixelFormat.BytesPerPixel;
+        if (frame.Width <= 0 || frame.Height <= 0 || frame.Rgba.Length < expected)
+        {
+            // E-11：长度不足即失败（禁静默画半帧）。
+            reason = "pixels-truncated";
+            return null;
+        }
+
         // 引擎帧 = 直通 RGBA；GDI+ 位图 = 预乘 BGRA。转换只在 SurfacePixelFormat 一处发生。
         var bitmap = new Bitmap(frame.Width, frame.Height, PixelFormat.Format32bppPArgb);
         var data = bitmap.LockBits(
@@ -294,7 +325,12 @@ public static class SurfaceEngineFramePump
             for (var y = 0; y < frame.Height; y++)
             {
                 var offset = y * frame.Width * SurfacePixelFormat.BytesPerPixel;
-                if (offset + row.Length > source.Length) break;
+                if (offset + row.Length > source.Length)
+                {
+                    reason = "pixels-truncated";
+                    bitmap.Dispose();
+                    return null;
+                }
                 SurfacePixelFormat.RgbaToPremultipliedBgra(
                     new ReadOnlySpan<byte>(source, offset, row.Length), row);
                 Marshal.Copy(row, 0, data.Scan0 + y * data.Stride, row.Length);

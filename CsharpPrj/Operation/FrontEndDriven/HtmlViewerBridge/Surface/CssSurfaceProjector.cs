@@ -75,6 +75,9 @@ public static class CssSurfaceProjector
         if (tokens is not null && PageFieldEnabled(tokens))
         {
             builder.Rule("body", PageFieldDeclarations(tokens));
+            // 元素级材质下沉（B5）：卡片在自身矩形内承接同一份页场（同一令牌源，禁第二套配色）。
+            builder.Rule("[data-surface=\"panel_card\"]", PageFieldDeclarations(tokens));
+            builder.Rule("." + ClassName("panel_card"), PageFieldDeclarations(tokens));
         }
 
         foreach (var container in surface.Containers)

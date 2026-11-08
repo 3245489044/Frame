@@ -1,5 +1,7 @@
 #nullable enable
 
+using System.Collections.Generic;
+
 namespace FrontEndDriven.Abstractions
 {
     /// <summary>
@@ -30,6 +32,18 @@ namespace FrontEndDriven.Abstractions
 
         /// <summary>清除用户分隔比例（<paramref name="scope"/> 为 null ⇒ 全部作用域），指纹一并清除；下次加载回退配置设计值。</summary>
         void ResetSplitterRatios(string? scope = null);
+
+        /// <summary>
+        /// 读取某面板作用域下持久化的控件状态（键 → 值）；未缓存返回 false。
+        /// <para>与 splitter/form 同一存储件、同一落盘策略（数据根 \UI\ui-layout-state.json）。</para>
+        /// </summary>
+        bool TryGetPanelValues(string scope, out IReadOnlyDictionary<string, string> values);
+
+        /// <summary>记录单个面板控件值（null/空 ⇒ 删除该键）。</summary>
+        void SetPanelValue(string scope, string key, string? value);
+
+        /// <summary>清除面板状态（<paramref name="scope"/> 为 null ⇒ 全部）；不影响分隔比例与窗体边界。</summary>
+        void ResetPanelValues(string? scope = null);
 
         /// <summary>读取上次关闭时的窗体边界；未缓存返回 false。</summary>
         bool TryGetFormBounds(out UiFormBounds bounds);

@@ -18,6 +18,9 @@ internal static class SurfaceAmbient
     /// <summary>装饰层是否可用。</summary>
     internal static bool Enabled => SurfaceAmbientScene.Enabled;
 
+    /// <summary>最近一次解算的光态（只读观测；null = 尚未解算）。</summary>
+    internal static SurfaceLightState? LastState => SurfaceAmbientScene.LastState;
+
     /// <summary>安装期写入口。</summary>
     internal static void Configure(SurfaceAmbientTokens tokens) => SurfaceAmbientScene.Configure(tokens);
 

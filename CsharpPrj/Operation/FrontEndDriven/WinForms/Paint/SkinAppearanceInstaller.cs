@@ -18,6 +18,10 @@ namespace FrontEndDriven.WinForms.Paint;
 /// </summary>
 public static class SkinAppearanceInstaller
 {
+    /// <summary>最近一次安装的声明与载体（画质设置「重新装配」用；null ⇒ 尚未安装）。</summary>
+    private static SurfaceProgramDeclaration? _lastProgram;
+    private static string _lastCarrier = "winforms";
+
     /// <summary>区域主容器槽 → 必须具备的最低装饰能力（叶子槽不在此列）。</summary>
     private static readonly (string Slot, SurfaceDecoration Required)[] StructuralSlots =
     {
@@ -45,6 +49,12 @@ public static class SkinAppearanceInstaller
         }
 
         var profile = string.IsNullOrWhiteSpace(profileId) ? program.ActiveProfile : profileId;
+        // 画质设置（用户态，数据根同 UI 布局）：覆盖档位/引擎/玻璃/光场；缺项回退声明。
+        var quality = SurfaceQualitySettings.Load();
+        if (!string.IsNullOrWhiteSpace(quality.Profile))
+            profile = quality.Profile!;
+        _lastProgram = program;
+        _lastCarrier = carrierId;
         var byKey = new Dictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>(StringComparer.Ordinal);
         var byKeyProperty = new Dictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>(StringComparer.Ordinal);
 
@@ -74,7 +84,8 @@ public static class SkinAppearanceInstaller
 
         SkinMaterialCatalog.SetPageBackground(pageBackground);
         // 页面装饰层：唯一取值来源 = 当前档令牌（浅档主/深档备），代码端零颜色分支。
-        var ambient = SurfaceAmbientTokens.FromTokens(SurfaceResolver.TokensForProfile(program, profile));
+        var ambient = SurfaceAmbientTokens.FromTokens(SurfaceQualitySettings.MergeTokens(
+            SurfaceResolver.TokensForProfile(program, profile), quality));
         SurfaceAmbient.Configure(ambient);
         // G-1 宿主合成真值登记（唯一装配入口）：能力/预算/声明上限；背景由载体快照在绘制期补登。
         // Q2 默认 T0、Q6 默认 balanced（G-6 落点：只改这里的取值，不改 Clamp）。
@@ -86,18 +97,26 @@ public static class SkinAppearanceInstaller
             SupportsDesktopBackdrop: false,
             "winforms-owner-draw"));
         SurfaceHostFacts.DeclareBudget(SurfaceFrameBudget.Default);
-        SurfaceHostFacts.DeclareTier(GlassTier.T0);
+        SurfaceHostFacts.DeclareTier(quality.Tier ?? GlassTier.T0);
         // 2026-11-08：端口装配（引擎/日志）——框架侧只读端口，不依赖 Registry/TConfig。
         WinFormsSurfacePorts.Engine = WinFormsSurfaceEnginePort.Instance;
         WinFormsSurfacePorts.Log = WinFormsSurfaceLog.Instance;
         SurfaceAmbientLog.Log = WinFormsSurfacePorts.Log;
-        // 引擎帧开关/质量档（配置态，非代码分支；缺失 ⇒ 默认 on/balanced）。
-        SurfaceFramePump.Enabled = !program.Settings.TryGetValue("surface_engine", out var engineSwitch)
+        // 引擎帧开关/质量档（配置态，非代码分支；缺失 ⇒ 默认 on/balanced）；用户设置优先。
+        var engineEnabled = !program.Settings.TryGetValue("surface_engine", out var engineSwitch)
             || !string.Equals(engineSwitch, "off", StringComparison.OrdinalIgnoreCase);
-        if (program.Settings.TryGetValue("surface_engine_quality", out var quality)
-            && !string.IsNullOrWhiteSpace(quality))
+        if (quality.EngineEnabled is { } engineOverride)
+            engineEnabled = engineOverride;
+        SurfaceFramePump.Enabled = engineEnabled;
+
+        var engineQuality = program.Settings.TryGetValue("surface_engine_quality", out var declaredQuality)
+            ? declaredQuality
+            : null;
+        if (!string.IsNullOrWhiteSpace(quality.EngineQuality))
+            engineQuality = quality.EngineQuality;
+        if (!string.IsNullOrWhiteSpace(engineQuality))
         {
-            SurfaceFramePump.Quality = quality;
+            SurfaceFramePump.Quality = engineQuality!;
         }
         // 记账：开了装饰却把结构主容器映射到未声明能力的材质 ⇒ 落日志（禁静默变成「没有装饰」）。
         var decorUndeclared = ambient.HasScene
@@ -123,6 +142,9 @@ public static class SkinAppearanceInstaller
         var hostSurface = SurfaceResolver.ResolveProfileSlot(program, context, profile, carrierId, "host_surface");
         var familyDraw = new Dictionary<string, ResolvedMaterial>(StringComparer.Ordinal);
         if (hostSurface is not null) familyDraw["host_surface"] = hostSurface;
+        // C1：自绘外壳族（Button/CheckBox）的 draw 通道材质 = control_face（与属性面同槽，不同通道）。
+        var controlFaceDraw = SurfaceResolver.ResolveProfileSlot(program, context, profile, carrierId, "control_face");
+        if (controlFaceDraw is not null) familyDraw["control_face"] = controlFaceDraw;
 
         SkinMaterialCatalog.Set(byKey);
         SkinMaterialCatalog.SetProperty(byKeyProperty);
@@ -161,6 +183,10 @@ public static class SkinAppearanceInstaller
         });
         return SkinDecorator.Enabled;
     }
+
+    /// <summary>按当前持久化画质设置重新装配（幂等）；从未安装过 ⇒ false。</summary>
+    public static bool Reapply()
+        => _lastProgram is { } program && Install(program, null, _lastCarrier);
 
     /// <summary>
     /// 页面底色 = 默认档 <c>panel_surface</c> 槽的首个不透明 fill 层值。

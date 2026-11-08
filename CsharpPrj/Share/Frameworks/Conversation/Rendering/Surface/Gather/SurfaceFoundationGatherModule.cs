@@ -22,7 +22,8 @@ public sealed record SurfaceFoundationSources(
     Func<SurfaceFrameBudget> Budget,
     Func<SurfaceLightFrame?> Light,
     Func<SurfaceGlassSpec>? Glass = null,
-    string LightUnavailableReason = "engine-frame-unavailable")
+    string LightUnavailableReason = "engine-frame-unavailable",
+    Func<SurfaceLightRead>? LightRead = null)
 {
     /// <summary>缺省源：能力/背景显式不可用，光=None（引擎未接）。</summary>
     public static readonly SurfaceFoundationSources Unavailable = new(
@@ -78,11 +79,25 @@ public sealed class SurfaceFoundationGatherModule : IGatherModule
            ?? SurfaceGlassSpec.Clamp(
                _sources.Composition(), _sources.Backdrop(), declared: null, _sources.Budget());
 
-    private object Light()
-        => _sources.Light() is { } frame
-            ? frame
+    private object? Light()
+    {
+        if (_sources.LightRead is { } readSource)
+        {
+            var read = readSource();
+            if (read.Frame is { } frame) return frame;
+
+            // E-22：取不到（失败）≠ 显式不可用；失败返回 null 让聚拢记逐域失败。
+            if (read.Reason.StartsWith("light-source-failed", StringComparison.Ordinal)) return null;
+
+            return new SurfaceLightUnavailable(
+                string.IsNullOrWhiteSpace(read.Reason) ? "engine-frame-unavailable" : read.Reason);
+        }
+
+        return _sources.Light() is { } legacy
+            ? legacy
             : new SurfaceLightUnavailable(
                 string.IsNullOrWhiteSpace(_sources.LightUnavailableReason)
                     ? "engine-frame-unavailable"
                     : _sources.LightUnavailableReason);
+    }
 }

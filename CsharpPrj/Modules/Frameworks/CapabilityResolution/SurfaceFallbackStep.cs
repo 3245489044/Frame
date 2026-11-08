@@ -76,4 +76,23 @@ public static class SurfaceFallbackStepPolicy
     /// <param name="layers">生效层栈（用于实心面判据）。</param>
     public static SurfaceFallbackStep PropertyPanel(string? fallbackUsed, IReadOnlyList<ResolvedLayer> layers)
         => fallbackUsed is null ? PropertySolidFace(layers) : SurfaceFallbackStep.L3ParentCompositeFace;
+
+    /// <summary>
+    /// 族声明的最低档是否满足（数值越小越接近完整玻璃；<paramref name="step"/> 大于 <paramref name="minimum"/> 即越级降级）。
+    /// </summary>
+    /// <param name="step">实际落到的档位。</param>
+    /// <param name="minimum">族声明允许的最低档（<see cref="SurfaceControlFamilySpec.MinimumStep"/>）。</param>
+    public static bool MeetsMinimum(SurfaceFallbackStep step, SurfaceFallbackStep minimum)
+        => step <= minimum;
+
+    /// <summary>
+    /// C2 回落梯度闸门：玻璃族越过最低档 ⇒ 拉回最低档并交由调用方可见化（<paramref name="required"/> = RequireGlassFace）。
+    /// <para>只做档位裁决，不改材质选择（材质仍单源由解析器给出）。</para>
+    /// </summary>
+    /// <param name="step">实际落到的档位。</param>
+    /// <param name="minimum">族最低档。</param>
+    /// <param name="required">是否要求玻璃面（= <c>SurfaceFallbackPolicy.RequireGlassFace</c>）。</param>
+    public static SurfaceFallbackStep EnforceMinimum(
+        SurfaceFallbackStep step, SurfaceFallbackStep minimum, bool required)
+        => required && !MeetsMinimum(step, minimum) ? minimum : step;
 }

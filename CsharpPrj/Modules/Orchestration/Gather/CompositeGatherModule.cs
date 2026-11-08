@@ -128,7 +128,9 @@ public sealed class CompositeGatherModule : IGatherModule
                 builder.Need(
                     declaration.Name,
                     declaration.Scope ?? string.Empty,
-                    declaration.Location ?? string.Empty);
+                    declaration.Location ?? string.Empty,
+                    declaration.Cost,
+                    declaration.Reusable);
                 break;
 
             case GatherDeclKind.Stage:

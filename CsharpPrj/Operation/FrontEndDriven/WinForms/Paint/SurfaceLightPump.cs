@@ -24,6 +24,7 @@ internal static class SurfaceLightPump
     private static int _idleTicks;
     private static bool _pullInProgress;
     private static int _pixelScaleDpi = 96;
+    private static Control? _anchor;
 
     /// <summary>首次需要光时惰性启动（必须在含消息循环的 UI 线程调用）。</summary>
     public static void EnsureStarted(Control anchor)
@@ -32,6 +33,7 @@ internal static class SurfaceLightPump
         {
             if (_timer is not null) return;
             _pixelScaleDpi = anchor.DeviceDpi > 0 ? anchor.DeviceDpi : 96;
+            _anchor = anchor;
 
             _timer = new System.Windows.Forms.Timer { Interval = IntervalMs };
             _timer.Tick += (_, _) => Pull();
@@ -68,7 +70,12 @@ internal static class SurfaceLightPump
 
             _idleTicks = 0;
             var screen = SystemInformation.VirtualScreen;
-            var scale = 96f / _pixelScaleDpi;
+            // E-25：跨屏移动后 DPI 可能变化；每次拉取取当前值，不再只用启动时快照。
+            var dpi = _anchor is { IsDisposed: false } anchor && anchor.DeviceDpi > 0
+                ? anchor.DeviceDpi
+                : _pixelScaleDpi;
+            _pixelScaleDpi = dpi;
+            var scale = 96f / dpi;
             var x = (int)Math.Round(screen.X * scale);
             var y = (int)Math.Round(screen.Y * scale);
             var width = Math.Max(1, (int)Math.Round(screen.Width * scale));

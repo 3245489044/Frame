@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using FrontEndDriven.WinForms.Applier;
+using FrontEndDriven.WinForms.Paint;
 using Share.Conversation.Rendering.Surface;
 
 namespace FrontEndDriven.WinForms.Projector;
@@ -194,7 +195,8 @@ public sealed class WinFormsSurfaceBackend : IBackendProjector<WinFormSnapshot>
                     descriptor.BackColor = visual.Value;
                     break;
                 case "FontFamily":
-                    descriptor.FontFamily = visual.Value;
+                    // 声明是 CSS 候选列表：归一化后才写描述符（WinForms 不认列表，直接赋值会静默换字）。
+                    descriptor.FontFamily = SurfaceFontResolver.ResolveFamily(visual.Value);
                     break;
                 case "FontSize":
                     if (TryParseSize(visual.Value, out var size)) descriptor.FontSize = size;

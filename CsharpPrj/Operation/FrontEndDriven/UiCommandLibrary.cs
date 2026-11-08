@@ -9,6 +9,7 @@ using FrameworkAbstractions.ComponentRegistry;
 using FrameworkAbstractions.WinFormsAbstractions;
 using FrontEndDriven.Diagnostics;
 using FrontEndDriven.Shared.Catalog;
+using FrontEndDriven.WinForms.Paint;
 using Modules.Registry;
 using Share.EventBindingOrchestrator.Execution;
 using TConfig;
@@ -106,6 +107,120 @@ public static class UiCommandLibrary
         registry.Register("Ui_ResetLayoutState",
             (Func<string>)(ResetLayoutState),
             "布局用户态重置：清空分隔比例缓存（下次加载恢复配置设计比例）");
+
+        // 面板用户态（与布局缓存同存储件、同落盘策略）：调试面板的输入/选择持久化。
+        registry.Register("Ui_PanelStateGet",
+            (Func<string, string, Task<string>>)((scope, key) => Task.FromResult(PanelStateGet(scope, key))),
+            new IParamConfig[]
+            {
+                new ParameterDescriptor { Name = "scope", Type = typeof(string) },
+                new ParameterDescriptor { Name = "key", Type = typeof(string) },
+            },
+            "面板状态：读取某 scope 下的单键值（未缓存 ⇒ 空串，调用方按声明默认值回退）");
+
+        registry.Register("Ui_PanelStateSave",
+            (Func<string, string, string, Task<string>>)((scope, key, value) => Task.FromResult(PanelStateSave(scope, key, value))),
+            new IParamConfig[]
+            {
+                new ParameterDescriptor { Name = "scope", Type = typeof(string) },
+                new ParameterDescriptor { Name = "key", Type = typeof(string) },
+                new ParameterDescriptor { Name = "value", Type = typeof(string) },
+            },
+            "面板状态：写单键值（空值 ⇒ 删除该键；立即落盘，便于外部观察/复算）");
+
+        registry.Register("Ui_PanelStateRestore",
+            (Func<string, Task<string>>)(scope => Task.FromResult(PanelStateRestore(scope))),
+            new IParamConfig[]
+            {
+                new ParameterDescriptor { Name = "scope", Type = typeof(string) },
+            },
+            "面板状态：以 JSON 形式导出某 scope 的全部持久化值（调试/取证用）");
+
+        registry.Register("Ui_PanelStateReset",
+            (Func<string, Task<string>>)(scope => Task.FromResult(PanelStateReset(scope))),
+            new IParamConfig[]
+            {
+                new ParameterDescriptor { Name = "scope", Type = typeof(string) },
+            },
+            "面板状态：清除某 scope（空 ⇒ 全部面板）；不影响分隔比例与窗体边界");
+
+        // 画质设置（游戏式设置面板）：值落在 data（同 UI 布局），应用 = 重新装配即时生效。
+        registry.Register("Ui_GraphicsApply",
+            (Func<string>)(GraphicsApply),
+            "画质设置：按已保存设置重新装配外观（档位/引擎/质量/玻璃上限/光场）");
+        registry.Register("Ui_GraphicsReset",
+            (Func<string>)(GraphicsReset),
+            "画质设置：清除已保存设置并恢复声明缺省（重新装配）");
+    }
+
+    /// <summary>应用画质设置（重装配；未安装过 ⇒ 明确未应用，不假装生效）。</summary>
+    private static string GraphicsApply()
+        => SkinAppearanceInstaller.Reapply()
+            ? "画质设置已应用（重新装配完成）"
+            : "画质设置未应用：外观尚未安装（先加载表面声明）";
+
+    /// <summary>恢复画质设置的声明缺省（只清画质面板，不动分隔比例/窗体边界）。</summary>
+    private static string GraphicsReset()
+    {
+        var store = AppServiceProvider.Resolve<FrontEndDriven.Abstractions.IUiLayoutStateStore>();
+        store?.ResetPanelValues(SurfaceQualitySettings.Scope);
+        store?.Flush();
+        return SkinAppearanceInstaller.Reapply()
+            ? "画质设置已恢复缺省并重新装配"
+            : "画质设置已清除；外观尚未安装";
+    }
+
+    /// <summary>读取面板单键值（未装配/未缓存 ⇒ 空串，禁静默编造）。</summary>
+    private static string PanelStateGet(string scope, string key)
+    {
+        var store = AppServiceProvider.Resolve<FrontEndDriven.Abstractions.IUiLayoutStateStore>();
+        if (store is null)
+            return string.Empty;
+
+        return store.TryGetPanelValues(scope, out var values) && values.TryGetValue(key, out var value)
+            ? value
+            : string.Empty;
+    }
+
+    /// <summary>写面板单键值（立即落盘：调试值需可被外部复算/取证）。</summary>
+    private static string PanelStateSave(string scope, string key, string value)
+    {
+        var store = AppServiceProvider.Resolve<FrontEndDriven.Abstractions.IUiLayoutStateStore>();
+        if (store is null)
+            return "面板状态：布局缓存端口未装配";
+
+        store.SetPanelValue(scope, key, value);
+        store.Flush();
+        return string.IsNullOrWhiteSpace(value)
+            ? $"面板状态已清除：{scope}/{key}"
+            : $"面板状态已保存：{scope}/{key}";
+    }
+
+    /// <summary>导出面板全部持久化值（JSON；无缓存 ⇒ 空对象）。</summary>
+    private static string PanelStateRestore(string scope)
+    {
+        var store = AppServiceProvider.Resolve<FrontEndDriven.Abstractions.IUiLayoutStateStore>();
+        if (store is null)
+            return "面板状态：布局缓存端口未装配";
+
+        var payload = store.TryGetPanelValues(scope, out var values)
+            ? values
+            : new Dictionary<string, string>();
+        return JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    /// <summary>清除面板状态（空 ⇒ 全部；分隔比例/窗体边界不受影响）。</summary>
+    private static string PanelStateReset(string scope)
+    {
+        var store = AppServiceProvider.Resolve<FrontEndDriven.Abstractions.IUiLayoutStateStore>();
+        if (store is null)
+            return "面板状态：布局缓存端口未装配";
+
+        store.ResetPanelValues(string.IsNullOrWhiteSpace(scope) ? null : scope);
+        store.Flush();
+        return string.IsNullOrWhiteSpace(scope)
+            ? "面板状态已全部清除"
+            : $"面板状态已清除：{scope}";
     }
 
     /// <summary>

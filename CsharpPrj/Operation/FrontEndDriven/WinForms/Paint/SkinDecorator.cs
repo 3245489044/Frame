@@ -54,6 +54,14 @@ public static class SkinDecorator
         // 否则 SplitContainer 自身与两个 SplitterPanel 会把整窗铺成同一块玻璃面（panelToPage → 1.0）。
         var family = WinFormsControlFamilyMap.Resolve(control, descriptor.Type);
         var familyDraw = SkinMaterialCatalog.FamilyDraw(family?.MaterialSlot);
+        // C1：自绘外壳族必须有族声明 draw 材质；缺 ⇒ 显式降级到属性面（禁拿全局卡面冒充按钮外壳）。
+        var customShell = family is { Strategy: SurfaceStrategy.CustomPaint };
+        if (customShell && familyDraw is null)
+        {
+            LogCustomShellUnavailable(control, family);
+            customShell = false;
+        }
+
         var material = familyDraw
             ?? (descriptor.SkinRefs is { Count: > 0 }
                 ? SelectMaterial(descriptor.SkinRefs)
@@ -61,23 +69,30 @@ public static class SkinDecorator
                   ?? SkinMaterialCatalog.Global);
         // 属性通道族不依赖绘制通道材质：缺绘制材质时仍要走属性面，否则会被 WinFormApplier 的样式桥
         // 剥掉旧底色后无任何写入，退化成系统色（property_button 白岛）。
-        if (material is null && family is not { Strategy: SurfaceStrategy.PropertyFace })
+        if (material is null && family is not { Strategy: SurfaceStrategy.PropertyFace or SurfaceStrategy.CustomPaint })
         {
             Detach(control);
             return;
         }
 
         // 白名单外控件不能 owner-draw，但保持系统浅色会破坏整体玻璃观感 ⇒ 只做「属性级换肤」。
-        if (!SupportsOwnerDraw(control))
+        if (!SupportsOwnerDraw(control) && !customShell)
         {
             int? tint = null;
             ResolvedMaterial? propertyMaterial;
-            if (family is { Strategy: SurfaceStrategy.PropertyFace })
+            if (family is { Strategy: SurfaceStrategy.PropertyFace or SurfaceStrategy.CustomPaint })
             {
                 // B 类：族级 control_face（glass_fill）优先；不再因 FallbackUsed 换 GlobalProperty(row_surface)。
                 propertyMaterial = SkinMaterialCatalog.FamilyProperty(family.MaterialSlot)
                                    ?? SelectPropertyMaterial(descriptor);
                 tint = SurfaceStyleBridge.TintFor(descriptor, family.StyleRole);
+                // C2：RequireGlassFace 族不得越过声明最低档（越级即记账，不静默变实心 muted 面）。
+                if (propertyMaterial is { } glassFace
+                    && !SurfaceFallbackStepPolicy.MeetsMinimum(glassFace.FallbackStep, family.MinimumStep))
+                {
+                    LogFallbackBelowMinimum(control, family, glassFace);
+                }
+
                 if (propertyMaterial is { FallbackStep: > SurfaceFallbackStep.L2SolidFace })
                 {
                     FrontEndDrivenLog.Log("SkinDecorator_face_degraded", new
@@ -166,6 +181,8 @@ public static class SkinDecorator
             host.PrepareSurface();
         }
 
+        // C1：自绘外壳族先去平台 3D 边（只影响外观，不接管内容绘制）。
+        if (customShell) PrepareCustomShell(control);
         state.Session.Attach(material, state.EdgeMode);
 
         if (state.Handler is null)
@@ -443,6 +460,58 @@ public static class SkinDecorator
     /// <summary>槽优先选择（唯一实现：<see cref="SurfaceSlotSelection"/>）。</summary>
     private static ResolvedMaterial? SelectMaterial(IReadOnlyDictionary<string, ResolvedMaterial>? materials)
         => SurfaceSlotSelection.SelectBackground(materials);
+
+    /// <summary>诊断去重标记（每控件一条，防日志噪声）。</summary>
+    private static readonly ConditionalWeakTable<Control, object> DiagnosticLogged = new();
+
+    private static readonly object DiagnosticMarker = new();
+
+    /// <summary>C1：自绘外壳族的原生控件准备（去平台 3D 边；内容仍由控件自身绘制）。</summary>
+    private static void PrepareCustomShell(Control control)
+    {
+        switch (control)
+        {
+            case Button button:
+                button.FlatStyle = FlatStyle.Flat;
+                button.UseVisualStyleBackColor = false;
+                button.FlatAppearance.BorderSize = 0;
+                break;
+            case CheckBox checkBox:
+                checkBox.FlatStyle = FlatStyle.Flat;
+                checkBox.UseVisualStyleBackColor = false;
+                break;
+        }
+    }
+
+    /// <summary>C1 降级可见化：族声明了自绘外壳却没有 draw 材质 ⇒ 回落属性面（禁静默）。</summary>
+    private static void LogCustomShellUnavailable(Control control, SurfaceControlFamilySpec? family)
+    {
+        if (DiagnosticLogged.TryGetValue(control, out _)) return;
+        DiagnosticLogged.Add(control, DiagnosticMarker);
+        FrontEndDrivenLog.Log("SkinDecorator_custom_paint_unavailable", new
+        {
+            type = control.GetType().Name,
+            family = family?.TypeKey,
+            slot = family?.MaterialSlot,
+            reason = "family-draw-material-missing",
+        });
+    }
+
+    /// <summary>C2 降级可见化：RequireGlassFace 族越过最低档（如退到 muted 实心面）。</summary>
+    private static void LogFallbackBelowMinimum(Control control, SurfaceControlFamilySpec family, ResolvedMaterial material)
+    {
+        if (DiagnosticLogged.TryGetValue(control, out _)) return;
+        DiagnosticLogged.Add(control, DiagnosticMarker);
+        FrontEndDrivenLog.Log("SkinDecorator_fallback_below_minimum", new
+        {
+            type = control.GetType().Name,
+            family = family.TypeKey,
+            material = material.MaterialId,
+            step = material.FallbackStep.ToString(),
+            minimum = family.MinimumStep.ToString(),
+            policy = family.FallbackPolicy.ToString(),
+        });
+    }
 
     /// <summary>属性通道材质：声明 Id/Name 槽 → 全局属性材质（属性面与旧路径共用同一梯度）。</summary>
     private static ResolvedMaterial? SelectPropertyMaterial(ControlDescriptor descriptor)

@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-08T12:09:40.3221668Z",
+  "builtAt": "2026-11-08T16:25:56.8077752Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -313,14 +313,14 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/Surface/CssSurfaceProjector.cs",
-          "line": 447,
+          "line": 453,
           "role": "Code",
           "text": "/// <summary>#RRGGBB / #RRGGBBAA → rgba(...)；非法值原样返回（可见化，不静默吞）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/Surface/CssSurfaceProjector.cs",
-          "line": 477,
+          "line": 483,
           "role": "Code",
           "text": "/// <summary>打包 ARGB → CSS 颜色（不透明输出 <c>#RRGGBB</c>，半透明输出 <c>#RRGGBBAA</c>）。</summary>"
         },
@@ -5760,8 +5760,8 @@
         "Gate": 2,
         "Test": 0,
         "Declaration": 11,
-        "Code": 163,
-        "Doc": 221,
+        "Code": 164,
+        "Doc": 220,
         "Other": 3
       },
       "hits": [
@@ -6545,42 +6545,49 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 259,
+          "line": 350,
           "role": "Code",
-          "text": "var result = session.Paint(e.Graphics, bounds);"
+          "text": "var result = session.Paint(e.Graphics, bounds, snapshot);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 263,
+          "line": 356,
           "role": "Code",
           "text": "if (session.Material is { } material)"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 272,
+          "line": 365,
           "role": "Code",
           "text": "material = session.Material?.MaterialId,"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 281,
+          "line": 378,
+          "role": "Code",
+          "text": "material = session.Material?.MaterialId,"
+        },
+        {
+          "repo": "Frame",
+          "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
+          "line": 410,
           "role": "Code",
           "text": "? session.PinInputs(inputs)"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 288,
+          "line": 417,
           "role": "Code",
           "text": "? session.BuildRenderInputs(SurfaceAmbient.ViewportOf(control), light)"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 294,
+          "line": 423,
           "role": "Code",
           "text": "? new SkinFrameReport(session.Frame, session.LastReport)"
         },
@@ -7154,7 +7161,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/SurfacePaint/Hosting/SurfacePaintSession.cs",
-          "line": 404,
+          "line": 430,
           "role": "Code",
           "text": "_session._pinned = _previous;"
         },
@@ -8557,13 +8564,6 @@
           "line": 34,
           "role": "Doc",
           "text": "| `archive-raw` | `cline.session.{container}.round.{round}` | `cline.session.{container}.round.{round}.{kind}.{ordinal}` | ✅（本域**唯一**写目标） | **F1 必改**：不带 `{kind}.{ordinal}` ⇒ 多身份塌成同一位置键 |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 35,
-          "role": "Doc",
-          "text": "| `session-view` | `session.{container}.r{round}` | `session.{container}.r{round}.{kind}.{ordinal}` | ❌ | W4 转为内容面写目标（当前写侧仅经 `message` 域） |"
         }
       ]
     },
@@ -11719,14 +11719,14 @@
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/WorkflowFunction/GeneratedDeclaredContracts.g.cs",
-          "line": 459,
+          "line": 463,
           "role": "Code",
           "text": "[\"Loc\"] = [\"agent_round\"],"
         },
         {
           "repo": "Projects",
           "file": "Plug/Agent/src/Agent.Contract/WorkflowFunction/GeneratedDeclaredContracts.g.cs",
-          "line": 460,
+          "line": 464,
           "role": "Code",
           "text": "[\"LocPlacement\"] = [\"agent_round\", \"archive_node\", \"archive_raw\", \"archive_raw_legacy\", \"legacy_history\", \"observability_node\", \"process_node\", \"raw_node\", \"resource_node\", \"segment_context\", \"segment"
         }
@@ -12045,8 +12045,8 @@
       "Gate": 27,
       "Test": 197,
       "Declaration": 102,
-      "Code": 349,
-      "Doc": 917,
+      "Code": 350,
+      "Doc": 916,
       "Other": 101
     },
     "truncatedFacts": [
@@ -12057,7 +12057,7 @@
     "repoLines": [
       {
         "repo": "Frame",
-        "lines": 474
+        "lines": 475
       },
       {
         "repo": "Projects",

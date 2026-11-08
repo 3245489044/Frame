@@ -66,7 +66,9 @@ namespace FrontEndDriven.WinForms.Adapter
             if (italic) style |= FontStyle.Italic;
             if (underline) style |= FontStyle.Underline;
 
-            ctrl.Font = new Font(fontFamily, size, style);
+            // 字体族归一化单源：候选列表/未知 family 在此收口（降级可见，禁静默回落系统默认）。
+            var family = SurfaceFontResolver.ResolveFamily(fontFamily);
+            ctrl.Font = new Font(family, size, style);
         }
 
         public void SetForeColor(object control, string htmlColor)

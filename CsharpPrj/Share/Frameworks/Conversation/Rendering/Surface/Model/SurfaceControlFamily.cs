@@ -137,8 +137,9 @@ public static class SurfaceControlFamilyRegistry
 
         foreach (var key in new[] { "button", "checkbox" })
         {
+            // C1：自绘外壳族（只画背景/边框，内容仍由原生控件绘制；不接管编辑区/弹出列表）。
             ByType[key] = new SurfaceControlFamilySpec(
-                key, SurfaceStrategy.PropertyFace, "control_face", true,
+                key, SurfaceStrategy.CustomPaint, "control_face", true,
                 SurfaceBackdropMode.None, SurfaceEdgeMode.Material, SurfaceProbeMode.PerControl,
                 SurfaceChromePolicy.Native, SurfaceFallbackPolicy.RequireGlassFace,
                 SurfaceStyleRole.AccentTint, SurfaceContentKind.Glyph, SurfaceFallbackStep.L2SolidFace);

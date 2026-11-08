@@ -68,7 +68,8 @@ public sealed class GatherModuleBuilder
         bool reusable = false)
     {
         _declarations.Add(new GatherDecl(
-            GatherDeclKind.Need, domain, Location: location, Scope: scope));
+            GatherDeclKind.Need, domain, Location: location, Scope: scope,
+            Cost: cost, Reusable: reusable));
         return this;
     }
 

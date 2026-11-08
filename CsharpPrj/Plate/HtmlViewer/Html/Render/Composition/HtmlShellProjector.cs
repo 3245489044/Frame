@@ -138,7 +138,11 @@ public static class HtmlShellProjector
         foreach (var section in bubbles ?? Array.Empty<(string Key, UiNode Root)>())
             bubbleHtml.Append(UiFragmentWriter.Serialize(section.Root));
 
-        var bubbleFragment = UiMarkup.Trusted(bubbleHtml.ToString());
+        // 元素级材质下沉：气泡/卡片的统一承载点。无内容不产出空卡（禁空壳）。
+        var bubbleFragment = bubbleHtml.Length == 0
+            ? UiMarkup.Empty
+            : UiMarkup.Trusted(
+                "<div class=\"material-panel_card\" data-surface=\"panel_card\">" + bubbleHtml + "</div>");
         var mainInner = new StringBuilder();
         foreach (var container in containers)
         {

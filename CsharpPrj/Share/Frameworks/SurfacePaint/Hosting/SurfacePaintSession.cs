@@ -173,7 +173,12 @@ public sealed class SurfacePaintSession : IDisposable
                 ? frozen.Light
                 : NeedsLight(material) ? _light?.Resolve(viewport) : (SurfaceLightState?)null;
 
-        var scope = _edgeMode == SurfaceEdgeMode.FrameHost ? SurfaceDecorScope.PageHost : SurfaceDecorScope.Face;
+        // 结构宿主 = 页场宿主；普通卡若声明 pageField，则在自身矩形内消费页场切片（B3 Material）。
+        var scope = _edgeMode == SurfaceEdgeMode.FrameHost
+            ? SurfaceDecorScope.PageHost
+            : (material.Decoration & SurfaceDecoration.PageField) != 0
+                ? SurfaceDecorScope.Material
+                : SurfaceDecorScope.Face;
         var plan = SurfaceDecorPlan.Resolve(material, scope, SurfaceAmbientScene.Enabled);
         if (plan.Missing.Length > 0 && !string.Equals(_decorMissing, plan.Missing, StringComparison.Ordinal))
         {

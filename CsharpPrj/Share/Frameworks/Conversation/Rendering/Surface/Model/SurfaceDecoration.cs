@@ -59,6 +59,12 @@ public enum SurfaceDecorScope
 
     /// <summary>页场宿主：背景由页面场承载（分割容器 / 结构壳）。</summary>
     PageHost,
+
+    /// <summary>
+    /// 卡片自身：在**本矩形内**消费父页场切片（B3）。
+    /// <para>与 <see cref="PageHost"/> 的区别只在几何归属：阶段集相同，采样矩形取控件自身。</para>
+    /// </summary>
+    Material,
 }
 
 /// <summary>
@@ -122,7 +128,7 @@ public sealed record SurfaceDecorPlan(
         {
             var keep = stage switch
             {
-                SurfacePaintStage.PageField => scope == SurfaceDecorScope.PageHost
+                SurfacePaintStage.PageField => (scope == SurfaceDecorScope.PageHost || scope == SurfaceDecorScope.Material)
                                                && pageFieldAvailable
                                                && (declared & SurfaceDecoration.PageField) != 0,
                 SurfacePaintStage.Base => true,

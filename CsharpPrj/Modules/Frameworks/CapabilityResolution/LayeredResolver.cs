@@ -143,17 +143,17 @@ public static class LayeredResolver
         {
             // 属性通道永远是“预合成实心面”，即使无降级也只能到 L2（不是真玻璃）。
             var step = propertyChannel
-                ? (HasFill(direct.Layers) ? SurfaceFallbackStep.L2SolidFace : SurfaceFallbackStep.L5Unsupported)
-                : SurfaceFallbackStep.L0Full;
+                ? SurfaceFallbackStepPolicy.PropertySolidFace(direct.Layers)
+                : SurfaceFallbackStepPolicy.Draw(degraded: false, fallbackUsed: null);
             return direct with { FallbackStep = step };
         }
 
         // 保留 direct fill：属性通道的 fill 会在宿主合成期叠到父级不透明底，仍是玻璃族实心面（L2）。
-        if (HasFill(direct.Layers))
+        if (SurfaceFallbackStepPolicy.HasSolidFace(direct.Layers))
         {
             var step = propertyChannel
-                ? SurfaceFallbackStep.L2SolidFace
-                : SurfaceFallbackStep.L1Emulated;
+                ? SurfaceFallbackStep.SolidFaceOrUnsupported(hasSolidFace: true)
+                : SurfaceFallbackStepPolicy.Draw(degraded: true, fallbackUsed: null);
             return direct with { FallbackStep = step };
         }
 
@@ -166,9 +166,7 @@ public static class LayeredResolver
             var fallbackResolution = ResolveOnce(
                 layers, fallbackRefs, capabilities, carrier, tokenResolver, channel, domainClassifier);
             issues.AddRange(fallbackResolution.Issues);
-            var step = HasFill(fallbackResolution.Layers)
-                ? SurfaceFallbackStep.L2SolidFace
-                : SurfaceFallbackStep.L5Unsupported;
+            var step = SurfaceFallbackStepPolicy.PropertySolidFace(fallbackResolution.Layers);
             return new LayerResolution(
                 fallbackResolution.Layers,
                 issues,
@@ -179,13 +177,8 @@ public static class LayeredResolver
             };
         }
 
-        return direct with { FallbackStep = SurfaceFallbackStep.L5Unsupported };
+        return direct with { FallbackStep = SurfaceFallbackStepPolicy.SolidFaceOrUnsupported(hasSolidFace: false) };
     }
-
-    private static bool HasFill(IReadOnlyList<ResolvedLayer> layers)
-        => layers.Any(layer =>
-            string.Equals(layer.Primitive, "fill", StringComparison.Ordinal)
-            || string.Equals(layer.Primitive, "gradient", StringComparison.Ordinal));
 
     private static LayerResolution ResolveOnce(
         IReadOnlyDictionary<string, LayerSpec> layers,

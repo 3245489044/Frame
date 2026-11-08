@@ -103,20 +103,8 @@ public sealed class SurfaceRenderPipeline
             new PassThroughStep(),
             carrier);
 
-        foreach (var diagnostic in result.Diagnostics)
-        {
-            failures.Add(diagnostic.Detail is { Length: > 0 } detail
-                ? $"{diagnostic.Code}:{detail}"
-                : diagnostic.Code);
-        }
-
-        foreach (var unsupported in result.Unsupported)
-        {
-            failures.Add($"unsupported:{unsupported.Slot}:{unsupported.Reason}");
-        }
-
         var artifact = result.Artifact;
-        if (artifact is null) failures.Add($"{ArtifactNullCode}:{carrier.CarrierId}");
+        AppendProjectionFailures(failures, result, artifact, carrier.CarrierId);
         return new SurfacePipelineResult(plan, carrier.CarrierId, artifact, failures);
     }
 
@@ -258,6 +246,21 @@ public sealed class SurfaceRenderPipeline
             new PassThroughStep(),
             new CarrierAdapter(factory(declarations), carrierId ?? string.Empty));
 
+        var artifact = result.Artifact;
+        AppendProjectionFailures(failures, result, artifact, carrierId ?? string.Empty);
+        return new SurfacePipelineResult(plan, carrierId ?? string.Empty, artifact, failures);
+    }
+
+    /// <summary>
+    /// 投影结果 → 可见失败清单（**唯一归集点**）：诊断 / 不支持项 / 空产物。
+    /// 两条渲染入口（计划直投影、载体 id 查表）都必须走本方法，禁止各写一份。
+    /// </summary>
+    private static void AppendProjectionFailures(
+        List<string> failures,
+        ProjectionResult<object> result,
+        object? artifact,
+        string carrierId)
+    {
         foreach (var diagnostic in result.Diagnostics)
         {
             failures.Add(diagnostic.Detail is { Length: > 0 } detail
@@ -270,9 +273,7 @@ public sealed class SurfaceRenderPipeline
             failures.Add($"unsupported:{unsupported.Slot}:{unsupported.Reason}");
         }
 
-        var artifact = result.Artifact;
         if (artifact is null) failures.Add($"{ArtifactNullCode}:{carrierId}");
-        return new SurfacePipelineResult(plan, carrierId ?? string.Empty, artifact, failures);
     }
 
     /// <summary>入口步骤：合成已在上游完成（Plan 即产物）。</summary>

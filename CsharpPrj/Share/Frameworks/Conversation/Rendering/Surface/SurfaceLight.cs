@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Globalization;
 using UiBackend;
 
 namespace Share.Conversation.Rendering.Surface;
@@ -79,9 +80,11 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// <summary>无光场可用：载体不得据此重画光，只能保持声明值。</summary>
     public static readonly SurfaceLightState Unavailable = new(135f, 0f, 0f) { HasValue = false, Specular = 0f };
 
-    /// <summary>位图缓存键片段（含插值后的光参数；不含秒级噪声）。</summary>
+    /// <summary>位图缓存键片段（含插值后的光参数；不含秒级噪声；格式与采样令牌同口径，不受区域设置影响）。</summary>
     public string CacheToken => HasValue
-        ? $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:{Specular:F2}:S{LightSignature}"
+        ? string.Create(
+            CultureInfo.InvariantCulture,
+            $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:{Specular:F2}:S{LightSignature}")
         : "light-unavailable";
 
     /// <summary>
@@ -89,7 +92,9 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// 不含光斑中心与照度权重 ⇒ 面板平移不再使底图失效；光斑/条带/虹彩全走动态层。
     /// </summary>
     public string StaticCacheToken => HasValue
-        ? $"{Angle:F1}:{Specular:F2}:{ShadowX:F2}:{ShadowY:F2}:S{LightSignature}"
+        ? string.Create(
+            CultureInfo.InvariantCulture,
+            $"{Angle:F1}:{Specular:F2}:{ShadowX:F2}:{ShadowY:F2}:S{LightSignature}")
         : "light-unavailable";
 
     /// <summary>

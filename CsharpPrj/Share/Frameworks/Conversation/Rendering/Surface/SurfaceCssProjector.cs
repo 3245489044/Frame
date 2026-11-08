@@ -123,10 +123,7 @@ public static class SurfaceCssProjector
         SurfaceProgramDeclaration? program,
         string? profileId = null)
     {
-        var id = string.IsNullOrWhiteSpace(profileId) ? program?.ActiveProfile : profileId;
-        var skin = program?.EffectiveProfile(id ?? string.Empty)?.Values.TryGetValue("ui_skin", out var value) == true
-            ? value
-            : null;
+        var skin = program is null ? string.Empty : SurfaceResolver.SkinForProfile(program, profileId);
         return Project(declaration, string.IsNullOrWhiteSpace(skin) ? null : skin);
     }
 

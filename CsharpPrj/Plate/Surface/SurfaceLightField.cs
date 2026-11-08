@@ -423,8 +423,12 @@ public static class SurfaceLightPort
 
     /// <summary>方向 → 角度（度；0°=右、90°=上，与现有 <c>SpotCenter</c> 口径一致）。</summary>
     public static float AngleOf(SurfaceLightDirection direction)
+        => AzimuthDegrees(direction.X, direction.Y);
+
+    /// <summary>平面偏移 → 方位角（度，0..360；0°=右、90°=上）。唯一方位角公式。</summary>
+    internal static float AzimuthDegrees(float x, float y)
     {
-        var degrees = MathF.Atan2(-direction.Y, direction.X) * (180f / MathF.PI);
+        var degrees = MathF.Atan2(-y, x) * (180f / MathF.PI);
         return (degrees % 360f + 360f) % 360f;
     }
 
@@ -475,8 +479,7 @@ public static class IridescenceRamp
     public static float Bearing01(float offsetX, float offsetY)
     {
         if (MathF.Abs(offsetX) <= 1e-6f && MathF.Abs(offsetY) <= 1e-6f) return 0.5f;
-        var degrees = MathF.Atan2(-offsetY, offsetX) * (180f / MathF.PI);
-        return (degrees % 360f + 360f) % 360f / 360f;
+        return SurfaceLightPort.AzimuthDegrees(offsetX, offsetY) / 360f;
     }
 
     /// <summary>相位 + 沿轮廓/折面的参数 t（0..1）→ 色相（度）。</summary>

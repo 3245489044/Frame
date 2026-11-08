@@ -230,11 +230,8 @@ public static class SurfaceResolver
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
         if (program.Tokens.Count == 0) return map;
 
-        var name = string.IsNullOrWhiteSpace(profileId) ? program.ActiveProfile : profileId!;
-        var profile = program.EffectiveProfile(name);
-        var tier = profile is not null && profile.Values.TryGetValue("ui_skin", out var skin) && skin.Length > 0
-            ? skin
-            : null;
+        var skin = SkinForProfile(program, profileId);
+        var tier = skin.Length > 0 ? skin : null;
 
         foreach (var pair in program.Tokens)
         {
@@ -252,6 +249,21 @@ public static class SurfaceResolver
         }
 
         return map;
+    }
+
+    /// <summary>
+    /// 取某外观档的皮肤档位（<c>Profile.values.ui_skin</c>）：档未声明/无值 ⇒ 空字符串。
+    /// <para>**唯一取值入口**：令牌两档解析与 CSS 投影都从这里取，禁止各读一次 <c>ui_skin</c>。</para>
+    /// </summary>
+    /// <param name="program">表面程序。</param>
+    /// <param name="profileId">外观档（空 ⇒ 声明 active_profile）。</param>
+    public static string SkinForProfile(SurfaceProgramDeclaration program, string? profileId)
+    {
+        ArgumentNullException.ThrowIfNull(program);
+        var name = string.IsNullOrWhiteSpace(profileId) ? program.ActiveProfile : profileId!;
+        return program.EffectiveProfile(name)?.Values.TryGetValue("ui_skin", out var skin) == true
+            ? skin
+            : string.Empty;
     }
 
     /// <summary>构建解析上下文（纯函数；同一 program 的多次解析可只建一次，避免重复构建能力矩阵/层规格）。</summary>
@@ -418,13 +430,16 @@ public static class SurfaceResolver
         // 只有「控件面」槽允许在属性通道保留 fill 走到 L2；页面/宿主槽（panel_surface 等）必须保持原回落
         // （flat → 页面声明底色），否则整窗会被同一块 glass_fill 预合成色铺平（panelToPage 掉到 1.0）。
         var controlFaceSlot = string.Equals(slot, ControlFaceSlot, StringComparison.Ordinal);
+        // 令牌换值（两条通道共用同一映射：未命中 ⇒ 原样）。
+        Func<string, string> resolveToken = value =>
+            tokens.TryGetValue(value, out var resolved) ? resolved : value;
         var resolution = propertyChannel && controlFaceSlot
             ? LayeredResolver.ResolveGraded(
                 layerSpecs,
                 material.Layers,
                 capabilities,
                 carrierId,
-                tokenResolver: value => tokens.TryGetValue(value, out var resolved) ? resolved : value,
+                tokenResolver: resolveToken,
                 fallback: material.Fallback,
                 fallbackRefs: fallbackRefs,
                 channel: channel,
@@ -434,7 +449,7 @@ public static class SurfaceResolver
                 material.Layers,
                 capabilities,
                 carrierId,
-                tokenResolver: value => tokens.TryGetValue(value, out var resolved) ? resolved : value,
+                tokenResolver: resolveToken,
                 fallback: material.Fallback,
                 fallbackRefs: fallbackRefs,
                 channel: channel,
@@ -453,7 +468,7 @@ public static class SurfaceResolver
             issues.Add(new SurfaceIssue(issue.Code, issue.Detail));
         }
 
-        foreach (var layerName in ReferencedLayers(material, program))
+        foreach (var layerName in ReferencedLayers(material, fallbackRefs))
         {
             if (assetIssuesByLayer.TryGetValue(layerName, out var assetIssue))
             {
@@ -476,12 +491,8 @@ public static class SurfaceResolver
         var step = propertyChannel
             ? controlFaceSlot
                 ? resolution.FallbackStep
-                : resolution.FallbackUsed is null
-                    ? (HasFill(resolution.Layers) ? SurfaceFallbackStep.L2SolidFace : SurfaceFallbackStep.L5Unsupported)
-                    : SurfaceFallbackStep.L3ParentCompositeFace
-            : resolution.FallbackUsed is null
-                ? (resolution.Degraded ? SurfaceFallbackStep.L1Emulated : SurfaceFallbackStep.L0Full)
-                : SurfaceFallbackStep.L2SolidFace;
+                : SurfaceFallbackStepPolicy.PropertyPanel(resolution.FallbackUsed, resolution.Layers)
+            : SurfaceFallbackStepPolicy.Draw(resolution.Degraded, resolution.FallbackUsed);
 
         return new ResolvedMaterial(slot, materialId, resolution.FallbackUsed, layers, issues)
             with { FallbackStep = step };
@@ -494,19 +505,12 @@ public static class SurfaceResolver
            && value[0] == '#'
            && string.Equals(value.Substring(7, 2), "00", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>层栈是否含可承载的实心面（fill/gradient）。</summary>
-    private static bool HasFill(System.Collections.Generic.IReadOnlyList<Modules.CapabilityResolution.ResolvedLayer> layers)
-        => layers.Any(layer =>
-            string.Equals(layer.Primitive, "fill", StringComparison.Ordinal)
-            || string.Equals(layer.Primitive, "gradient", StringComparison.Ordinal));
-
-    private static IEnumerable<string> ReferencedLayers(SurfaceMaterialSpec material, SurfaceProgramDeclaration program)
+    private static IEnumerable<string> ReferencedLayers(
+        SurfaceMaterialSpec material,
+        IReadOnlyDictionary<string, string>? fallbackRefs)
     {
         foreach (var layerRef in material.Layers.Values) yield return layerRef;
-        if (!string.IsNullOrWhiteSpace(material.Fallback)
-            && program.Materials.TryGetValue(material.Fallback, out var fallback))
-        {
-            foreach (var layerRef in fallback.Layers.Values) yield return layerRef;
-        }
+        if (fallbackRefs is null) yield break;
+        foreach (var layerRef in fallbackRefs.Values) yield return layerRef;
     }
 }

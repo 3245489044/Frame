@@ -23,9 +23,9 @@ internal sealed class SegmentFieldGateRule : IGateRule<UsharpGateModel>
         {
             if (string.IsNullOrWhiteSpace(segment.Field))
             {
-                sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.SegmentFieldMissing,
+                UsharpGateDiagnostics.Report(sink, UsharpCodes.SegmentFieldMissing,
                     $"[Segment] {segment.Key}: 缺 field=（该段不进 DTO 字段面）",
-                    segment.SourceFile, segment.LineNumber));
+                    segment.SourceFile, segment.LineNumber);
                 continue;
             }
 

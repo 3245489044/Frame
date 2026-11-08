@@ -103,14 +103,22 @@ public static class SurfaceAmbientScene
         if (SurfaceEngineFramePump.Enabled && enginePort is not null)
         {
             var light = ResolveState(viewport, hostId);
-            var bounds = viewport.Bounds;
-            var engine = SurfaceEngineFramePump.TryFrameRaw(
-                viewport, BuildSceneItems(bounds, viewport.HostScale, light),
-                "page:" + _params.Token, light, SurfaceEngineFramePump.Quality, enginePort, null, log);
-            if (engine is not null)
+            if (light is not { HasValue: true })
             {
-                graphics.DrawImageUnscaled(engine, 0, 0);
-                return;
+                // 光样缺失 ⇒ 不进 D3D（P0-5：降级判断与执行路径互锁），直接走 CPU 降级。
+                log?.Write("surface.frame.degraded", new { reason = "light-missing", host = hostId });
+            }
+            else
+            {
+                var bounds = viewport.Bounds;
+                var engine = SurfaceEngineFramePump.TryFrameRaw(
+                    viewport, BuildSceneItems(bounds, viewport.HostScale, light),
+                    "page:" + _params.Token, light, SurfaceEngineFramePump.Quality, enginePort, null, log);
+                if (engine is not null)
+                {
+                    graphics.DrawImageUnscaled(engine, 0, 0);
+                    return;
+                }
             }
         }
 

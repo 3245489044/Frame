@@ -145,8 +145,16 @@ public sealed class SurfacePaintSession : IDisposable
     /// <inheritdoc />
     public void Dispose() => Release();
 
-    /// <summary>在宿主画布上绘制一帧（引擎帧所有权按 Glass 事实裁决）。</summary>
+    /// <summary>在宿主画布上绘制一帧（兼容入口：无窗口快照 ⇒ 走旧载体路径）。</summary>
     public SurfaceFrameResult Paint(Graphics graphics, Rectangle bounds)
+        => Paint(graphics, bounds, snapshot: null);
+
+    /// <summary>
+    /// 在宿主画布上绘制一帧（**快照消费入口**）。
+    /// <para>快照非空 ⇒ 不再请求引擎/采集背景/解析光；只消费窗口级帧事实与卡片帧。</para>
+    /// <para>快照为空 ⇒ 保持旧路径（兼容未接入 Refresh 的宿主/测试）。</para>
+    /// </summary>
+    public SurfaceFrameResult Paint(Graphics graphics, Rectangle bounds, SurfaceFrameSnapshot? snapshot)
     {
         var material = _material;
         if (material is null || bounds.Width <= 0 || bounds.Height <= 0)
@@ -156,9 +164,14 @@ public sealed class SurfacePaintSession : IDisposable
         if (!viewport.IsValid) return new SurfaceFrameResult(_frame, SurfacePaintReport.Empty, false);
 
         var pinned = _pinned;
-        var baseLight = pinned is { } frozen
-            ? frozen.Light
-            : NeedsLight(material) ? _light?.Resolve(viewport) : (SurfaceLightState?)null;
+        var card = snapshot is not null && snapshot.Cards.TryGetValue(_hostId, out var foundCard)
+            ? foundCard
+            : null;
+        var baseLight = snapshot is not null
+            ? snapshot.Light
+            : pinned is { } frozen
+                ? frozen.Light
+                : NeedsLight(material) ? _light?.Resolve(viewport) : (SurfaceLightState?)null;
 
         var scope = _edgeMode == SurfaceEdgeMode.FrameHost ? SurfaceDecorScope.PageHost : SurfaceDecorScope.Face;
         var plan = SurfaceDecorPlan.Resolve(material, scope, SurfaceAmbientScene.Enabled);
@@ -173,15 +186,15 @@ public sealed class SurfacePaintSession : IDisposable
             });
         }
 
-        // 背景快照（按控件/按帧）：仅当引擎可能接管时采集，避免载体路径重复抓图。
+        // 背景快照（按控件/按帧）：仅在“无窗口快照且引擎可能接管”时采集；快照模式由窗口生产者统一采集。
         var now = Environment.TickCount64;
         var hostFacts = SurfaceHostFacts.Current;
-        var wantsEngine = _engine is not null && SurfaceEngineFramePump.Enabled
+        var wantsEngine = snapshot is null && _engine is not null && SurfaceEngineFramePump.Enabled
             && hostFacts.Composition.Mode == SurfaceCompositionMode.EngineComposition
             && hostFacts.DeclaredTier is >= GlassTier.T0;
         SurfaceRenderInputs? ownedInputs = null;
         var inputs = pinned;
-        if (inputs is null && wantsEngine
+        if (inputs is null && snapshot is null && wantsEngine
             && (_cache is null || now - _lastBackdropTick >= BackdropRefreshMs))
         {
             ownedInputs = BuildRenderInputs(viewport, baseLight, forceBackdrop: true);
@@ -191,28 +204,36 @@ public sealed class SurfacePaintSession : IDisposable
         }
 
         // 唯一读取面：光 / 背景 / 玻璃计划 / 所有权 / 降级。
-        var facts = SurfaceRenderFactsReader.Read(TextureFrameOf(viewport, inputs));
+        var facts = snapshot?.Facts ?? SurfaceRenderFactsReader.Read(TextureFrameOf(viewport, inputs));
         var ownership = facts.Ownership;
-        var engineFrame = facts.EngineOwnsFace
-            ? SurfaceEngineFramePump.TryFrame(
-                viewport, material, inputs?.Light ?? baseLight, SurfaceEngineFramePump.Quality, _engine!,
-                facts.Backdrop, facts.Glass.Spec, _log)
-            : null;
-        var engineOwnsFace = facts.EngineOwnsFace;
-        if (engineOwnsFace && engineFrame is null)
+        var engineLight = inputs?.Light ?? baseLight;
+        var engineFrame = card?.Frame;
+        if (engineFrame is null && snapshot is null)
+        {
+            engineFrame = facts.EngineOwnsFace && engineLight is { HasValue: true }
+                ? SurfaceEngineFramePump.TryFrame(
+                    viewport, material, engineLight, SurfaceEngineFramePump.Quality, _engine!,
+                    facts.Backdrop, facts.Glass.Spec, _log)
+                : null;
+        }
+
+        var engineOwnsFace = snapshot is not null
+            ? card?.EngineOwnsFace == true
+            : facts.EngineOwnsFace;
+        if (snapshot is null && engineOwnsFace && engineFrame is null)
         {
             // Gather 事实与帧泵事实不一致 ⇒ 按泵事实降级，并显式记账。
             ownership = SurfaceStageOwnership.Carrier;
             engineOwnsFace = false;
             _log.Write("surface.gather.fallback", new { host = _hostId, reason = "engine-frame-missing" });
         }
-        else if (!engineOwnsFace && engineFrame is not null)
+        else if (snapshot is null && !engineOwnsFace && engineFrame is not null)
         {
             // 玻璃层不可达 ⇒ 即使引擎能出帧也不接管。
             engineFrame = null;
         }
 
-        if (!facts.Backdrop.Available)
+        if (snapshot is null && !facts.Backdrop.Available)
         {
             _log.Write("surface.gather.fallback", new { host = _hostId, reason = "backdrop-unavailable" });
         }
@@ -221,7 +242,7 @@ public sealed class SurfacePaintSession : IDisposable
         var baseReport = _baseReport;
         try
         {
-            var backdropDue = pinned is null && HasBackdrop(material)
+            var backdropDue = snapshot is null && pinned is null && HasBackdrop(material)
                 && (_cache is null || now - _lastBackdropTick >= BackdropRefreshMs);
             var backdropVersion = inputs?.BackdropVersion ?? _backdropVersion;
             var key = CacheKey(bounds, baseLight, backdropVersion);
@@ -230,14 +251,16 @@ public sealed class SurfacePaintSession : IDisposable
 
             if (!engineOwnsFace)
             {
-                if (!hit) baseReport = RebuildBase(viewport, bounds, inputs, baseLight);
+                if (!hit) baseReport = RebuildBase(viewport, bounds, inputs, baseLight, allowCarrierCapture: snapshot is null);
                 if (baseReport is null) baseReport = SurfacePaintReport.Empty;
             }
 
             // 阶段 1：页面场（只有页场宿主承载；普通面的背景是自己的基底）。
             if (plan.Paints(SurfacePaintStage.PageField))
             {
-                SurfaceAmbientScene.PaintHostSurface(viewport, _hostId, graphics, _engine, _log);
+                // 快照模式：页面场已由窗口生产者统一决策；载体不再自行请求引擎（避免每控件一帧）。
+                SurfaceAmbientScene.PaintHostSurface(
+                    viewport, _hostId, graphics, snapshot is null ? _engine : null, _log);
             }
 
             SurfacePaintReport frameReport;
@@ -252,9 +275,7 @@ public sealed class SurfacePaintSession : IDisposable
                 // 阶段 2：面基底（无静态层的材质底图是全透明，贴图即空操作）。
                 if (_cache is not null) graphics.DrawImageUnscaled(_cache, bounds);
 
-                var light = pinned is { } frozenLight
-                    ? frozenLight.Light
-                    : NeedsLight(material) ? _light?.Resolve(viewport) : (SurfaceLightState?)null;
+                var light = baseLight;
                 var dynamicReport = SurfacePaintEngine.Paint(
                     graphics, bounds, material, null, light, SurfacePaintScope.Dynamic, Telemetry);
                 frameReport = (baseReport ?? SurfacePaintReport.Empty).Merge(dynamicReport);
@@ -299,12 +320,13 @@ public sealed class SurfacePaintSession : IDisposable
 
     /// <summary>重建静态底图：backdrop（快照+模糊）+ fill + edge；specular 不进入底图。</summary>
     private SurfacePaintReport RebuildBase(
-        SurfaceViewport viewport, Rectangle bounds, SurfaceRenderInputs? pinned, SurfaceLightState? baseLight)
+        SurfaceViewport viewport, Rectangle bounds, SurfaceRenderInputs? pinned, SurfaceLightState? baseLight,
+        bool allowCarrierCapture = true)
     {
         var renderBegin = SurfaceRenderProfile.Begin();
         SurfaceRenderInputs? owned = null;
         var inputs = pinned;
-        if (inputs is null && NeedsLight(_material))
+        if (inputs is null && allowCarrierCapture && NeedsLight(_material))
         {
             owned = BuildRenderInputs(viewport, baseLight);
             inputs = owned;

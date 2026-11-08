@@ -45,6 +45,7 @@
     }
 
     # 分账上限（数值权威 = .clinerules\axioms.md §9；本表仅操作口径）
+    # verify = 验证判定 1 + 生效断言 1（invoke-buildeffective），两子账独立
     Budgets = @{
         shell    = 8
         diagnose = 4

@@ -30,11 +30,11 @@ public static class UsharpDiagnosticFactory
     public static UsharpDiagnostic Create(string code, string message, string? file, int line)
         => Create(code, message, UsharpSourceRef.At(file, line));
 
-    /// <summary>构造内核诊断（闸A sink 用；严重度 = 码表）。</summary>
+    /// <summary>构造内核诊断（闸A sink 用；严重度 = 码表，未登记 ⇒ 抛，与 <see cref="SeverityOf"/> 同口径）。</summary>
     public static ConversionDiagnostic Conversion(string code, string message, UsharpSourceRef at)
     {
         var span = new SourceSpan(at.File, at.Line, 0);
-        var severity = UsharpDiagnosticCatalog.TryGet(code, out var spec) ? spec.Severity : UsharpSeverity.Error;
+        var severity = SeverityOf(code);
         return severity switch
         {
             UsharpSeverity.Error => ConversionDiagnostic.Error(code, message, span),

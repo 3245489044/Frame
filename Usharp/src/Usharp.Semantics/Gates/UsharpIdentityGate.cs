@@ -167,9 +167,9 @@ internal sealed class KeyIdentityGateRule : IGateRule<UsharpGateModel>
 
             if (owned.Count == 0)
             {
-                sink.Report(UsharpGateDiagnostics.Info(UsharpDiagnosticCatalog.IdentityAuthorityPending,
+                UsharpGateDiagnostics.Report(sink, UsharpDiagnosticCatalog.IdentityAuthorityPending,
                     $"[Entity] {entity.Id}: 尚无 authority=true 的 family（语义层已声明；语法族待接）",
-                    entity.SourceFile, entity.LineNumber));
+                    entity.SourceFile, entity.LineNumber);
                 continue;
             }
 

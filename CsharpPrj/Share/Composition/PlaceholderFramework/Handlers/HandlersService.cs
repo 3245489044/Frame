@@ -1,6 +1,7 @@
 
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Text.Json;
 using Graphkey.Core;
 using SkeletonFlow;
@@ -99,8 +100,11 @@ namespace Common.PlaceholderFramework.Integrated.Handlers
             return true;
         }
 
-        private static bool TryResolveMessage(string msgId, string moduleName, string keyPrefix, [MaybeNullWhen(false)] out LogMessageDef msgDef)
+        private static bool TryResolveMessage(
+            string msgId, string moduleName, string keyPrefix,
+            [MaybeNullWhen(false)] out LogMessageDef msgDef, out bool missingDefinition)
         {
+            missingDefinition = false;
             if (!_loaders.TryGetValue(keyPrefix, out var loader))
             {
                 var callerInfo = GetCallerInfo();
@@ -112,27 +116,48 @@ namespace Common.PlaceholderFramework.Integrated.Handlers
             }
             if (!loader.TryGetMessage(msgId, out msgDef))
             {
-                // 负缓存：同类缺失已上报过 ⇒ 静默返回 false（返回语义不变，只是不再重复刷日志）。
+                missingDefinition = true;
+
+                // 负缓存：同类缺失只上报一次元警告（业务事件仍由调用方降级落盘，见 Log 重载）。
                 if (!_missingDefinitions.TryAdd($"{keyPrefix}|{msgId}", 0))
-                {
-                    msgDef = null;
                     return false;
-                }
 
                 var callerInfo = GetCallerInfo();
                 var jsonFile = loader.JsonFilePath ?? "(未知)";
                 PlaceholderFramework.Diagnostics.PlaceholderFrameworkDiagnosticContext.Record("placeholder.log.message_not_found", new { msgId, keyPrefix, callerInfo });
                 LogRepository.Write("WARN", "System", moduleName,
-                    $"日志消息定义未找到（同类缺失后续静默）: msgId='{msgId}', keyPrefix='{keyPrefix}', 应添加到文件 '{jsonFile}' 的 messages 节点中.{callerInfo}");
+                    $"日志消息定义未找到（业务事件降级为原始参数，同类缺失仅提示一次）: msgId='{msgId}', keyPrefix='{keyPrefix}', 应添加到文件 '{jsonFile}' 的 messages 节点中.{callerInfo}");
                 return false;
             }
             return true;
         }
 
+        /// <summary>模板缺失时的参数内联（结构事实：msgId 原样保留 + 参数键值）。</summary>
+        private static string FormatFallbackParameters(object? parameters)
+        {
+            try
+            {
+                var dict = StringUtils.ConvertParameters(parameters);
+                if (dict is null || dict.Count == 0) return "(none)";
+                return string.Join(", ", dict.Select(pair => $"{pair.Key}={pair.Value}"));
+            }
+            catch
+            {
+                return parameters?.ToString() ?? "(none)";
+            }
+        }
+
         public static bool Log(string msgId, string moduleName, string keyPrefix, object? parameters = null)
         {
-            if (!TryResolveMessage(msgId, moduleName, keyPrefix, out var msgDef))
-                return false;
+            if (!TryResolveMessage(msgId, moduleName, keyPrefix, out var msgDef, out var missingDefinition))
+            {
+                if (!missingDefinition) return false;
+
+                // 缺失即丢事件是观测断链：降级为「模板缺失 + 原始参数内联」，业务事实仍可见。
+                LogRepository.Write("INFO", "System", moduleName,
+                    CapPayload(msgId, $"[{msgId}] {FormatFallbackParameters(parameters)}（日志模板缺失：原始参数内联）"));
+                return true;
+            }
 
             var paramDict = StringUtils.ConvertParameters(parameters);
             var message = CapPayload(msgId, StringUtils.FormatTemplate(msgDef.Template, paramDict));
@@ -142,8 +167,14 @@ namespace Common.PlaceholderFramework.Integrated.Handlers
 
         public static bool Log(string msgId, string moduleName, string keyPrefix, string message)
         {
-            if (!TryResolveMessage(msgId, moduleName, keyPrefix, out var msgDef))
-                return false;
+            if (!TryResolveMessage(msgId, moduleName, keyPrefix, out var msgDef, out var missingDefinition))
+            {
+                if (!missingDefinition) return false;
+
+                LogRepository.Write("INFO", "System", moduleName,
+                    CapPayload(msgId, $"[{msgId}] {message}（日志模板缺失：原文内联）"));
+                return true;
+            }
 
             LogRepository.Write(msgDef.Level, msgDef.Category, moduleName, CapPayload(msgId, message));
             return true;

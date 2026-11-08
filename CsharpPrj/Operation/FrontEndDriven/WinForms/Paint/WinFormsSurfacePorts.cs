@@ -71,7 +71,7 @@ internal sealed class WinFormsSurfaceLog : ISurfaceEventLog
 
     /// <inheritdoc />
     public void Write(string eventId, object? data)
-        => FrontEndDriven.Diagnostics.FrontEndDrivenLog.Log("surface:" + eventId, data);
+        => FrontEndDriven.Diagnostics.FrontEndDrivenLog.Log(eventId, data);
 }
 
 /// <summary>

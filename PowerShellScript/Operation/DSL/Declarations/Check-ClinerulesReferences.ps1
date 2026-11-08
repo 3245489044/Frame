@@ -19,6 +19,10 @@
     检查2 未索引定义: 已废弃——编译模式索引=源，无独立登记表（保留字段输出空集）
     检查3 废弃指向:   [CR] 指向 dep=Y 的符号（定义处 `dep:` 标注 → 编译出 `#dep`）
     检查4 循环依赖:   def 权威间 A→B ∧ B→A（按定义点区块归属扫描引用图）
+    检查5 Prompt 对齐: prompts 声明与规则库同名定义点比对（信息性）
+    检查6 判据标注:   [Gate] 必标 crit; crit:macro 必有机械复算命令
+    检查7 脚本路径:   反引号内 .ps1/.psd1/.psm1/.bat 须可在仓库内解析
+    检查8 参数零消费: % NAME 全文仅定义无引用即死参数
     附:    反向引用报告（谁引用了 X）
 
     语法规范: [CR: dsl:Sec.4] (clinerules/dsl.md)
@@ -36,6 +40,12 @@
 .PARAMETER UpdateIndex
     整份重生成 references.md（全部规则章节由模板 + dsl.md 枚举 + 源扫描索引渲染）。
 
+.PARAMETER SelfTest
+    负对照自测：在临时 fixture 上验证 check6/7/8 必须判红（P4 回归门）。成功 exit 0，失败 exit 1。
+
+.PARAMETER SkipSelfTest
+    跳过默认负对照自测（仅调试用；门禁运行不应跳过）。
+
 .EXAMPLE
     .\Check-ClinerulesReferences.ps1
 .EXAMPLE
@@ -49,7 +59,9 @@ param(
     [string]$OutputJson,
     [string]$PromptsDir,
     [switch]$AllowLegacy = $true,
-    [switch]$UpdateIndex
+    [switch]$UpdateIndex,
+    [switch]$SelfTest,
+    [switch]$SkipSelfTest
 )
 
 # param 默认值延迟计算: [CmdletBinding()] 脚本中 param 块内 $PSScriptRoot 不可用（PS 5.1 限制）
@@ -296,6 +308,126 @@ function Get-CyclicDefDependencies {
     return @($cycles)
 }
 
+# ---------- 检查6: 判据标注（Gate 必标 crit; crit:macro 必有机械复算命令） ----------
+function Get-GateCriterionViolations {
+    param([string]$RulesRoot)
+    $out = @()
+    $file = Join-Path $RulesRoot 'formula.md'
+    if (-not (Test-Path $file)) { return @() }
+    $lines = Get-Content $file -Encoding UTF8
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        $line = $lines[$i].Trim()
+        if ($line -notmatch '^\[(Gate|SM)\]\s+([A-Za-z0-9_.-]+):') { continue }
+        $kind = $Matches[1]; $name = $Matches[2]
+        $hasCrit = $line -match 'crit:(macro|micro)'
+        if ($kind -eq 'Gate' -and -not $hasCrit) {
+            $out += [pscustomobject]@{ File=$file; Line=$i+1; Name=$name; Error='Gate 缺 crit:(macro|micro)（按 dsl §0⑧ 判 ⊥）' }
+            continue
+        }
+        if ($hasCrit -and $line -match 'crit:macro' -and $line -notmatch '复算命令|recompute') {
+            $out += [pscustomobject]@{ File=$file; Line=$i+1; Name=$name; Error='crit:macro 缺机械复算命令（按 dsl §0⑧ 判 ⊥）' }
+        }
+    }
+    return @($out)
+}
+
+# ---------- 检查7: 脚本路径存在性（反引号内 .ps1/.psd1/.psm1/.bat 须可在仓库内解析） ----------
+function Get-PathReferenceViolations {
+    param([string]$RulesRoot)
+    $out = @()
+    $repoRoot = Split-Path -Parent $RulesRoot
+    $bases = @($repoRoot, (Join-Path $repoRoot 'Frame'), (Join-Path $repoRoot 'Frame\PowerShellScript'), (Join-Path $repoRoot 'Environment\CentralTest'))
+    $pathPattern = '(?:[A-Za-z]:\\|)(?:[A-Za-z0-9_.-]+\\)+[A-Za-z0-9_.-]+\.(?:ps1|psd1|psm1|bat)'
+    foreach ($f in (Get-ChildItem $RulesRoot -Filter *.md -File)) {
+        $lines = Get-Content $f.FullName -Encoding UTF8
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            foreach ($bt in [regex]::Matches($lines[$i], '`([^`]+)`')) {
+                $token = $bt.Groups[1].Value
+                foreach ($pm in [regex]::Matches($token, $pathPattern)) {
+                    $candidate = $pm.Value -replace '/', '\'
+                    if ($candidate -match '[<>*?]' -or $candidate -match '\$') { continue }
+                    $ok = $false
+                    if ($candidate -match '^[A-Za-z]:\\') {
+                        $ok = Test-Path -LiteralPath $candidate
+                    } else {
+                        foreach ($b in $bases) {
+                            if (-not $b) { continue }
+                            if (Test-Path -LiteralPath (Join-Path $b $candidate)) { $ok = $true; break }
+                        }
+                    }
+                    if (-not $ok) {
+                        $out += [pscustomobject]@{ File=$f.FullName; Line=$i+1; Token=$candidate; Error='脚本路径不可解析（仓库内不存在）' }
+                    }
+                }
+            }
+        }
+    }
+    return @($out | Sort-Object File, Line, Token -Unique)
+}
+
+# ---------- 检查8: 参数零消费（%=定义; 全文仅出现一次即死参数） ----------
+function Get-OrphanParamViolations {
+    param([string]$RulesRoot)
+    $out = @()
+    $axioms = Join-Path $RulesRoot 'axioms.md'
+    if (-not (Test-Path $axioms)) { return @() }
+    $texts = @{}
+    foreach ($f in (Get-ChildItem $RulesRoot -Filter *.md -File)) {
+        $texts[$f.Name] = Get-Content $f.FullName -Raw -Encoding UTF8
+    }
+    $lines = Get-Content $axioms -Encoding UTF8
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -notmatch '^%\s+([A-Z0-9_]+)=') { continue }
+        $name = $Matches[1]
+        $count = 0
+        foreach ($k in $texts.Keys) {
+            $count += ([regex]::Matches($texts[$k], ('\b' + [regex]::Escape($name) + '\b'))).Count
+        }
+        if ($count -le 1) {
+            $out += [pscustomobject]@{ File=$axioms; Line=$i+1; Param=$name; Error='参数仅定义无消费方（死参数）' }
+        }
+    }
+    return @($out)
+}
+
+# ---------- P4 负对照：自测（临时 fixture 必须被三个新检查判红） ----------
+function Invoke-ValidatorSelfTest {
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ('clinerules-selftest-' + [guid]::NewGuid().ToString('N'))
+    $rules = Join-Path $tmp '.clinerules'
+    New-Item -ItemType Directory -Path $rules -Force | Out-Null
+    try {
+        New-Item -ItemType Directory -Path (Join-Path $tmp 'Frame\Invoke') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $tmp 'Frame\Invoke\Invoke-Frame.ps1') -Value '# fixture' -Encoding UTF8
+        @'
+[Gate] BadGate: x → y
+[Gate] GoodGate: x → y | crit:micro
+[SM] BadMacro: x | crit:macro
+% USED_PARAM 见上
+'@ | Set-Content -LiteralPath (Join-Path $rules 'formula.md') -Encoding UTF8
+        @'
+# fixture project
+`Frame\Nope\Missing.ps1`
+`Frame\Invoke\Invoke-Frame.ps1`
+'@ | Set-Content -LiteralPath (Join-Path $rules 'project.md') -Encoding UTF8
+        @'
+# fixture axioms
+% ORPHAN_PARAM=int:1 | x
+% USED_PARAM=int:1 | x | 消费方: «formula:SM.BadMacro»
+'@ | Set-Content -LiteralPath (Join-Path $rules 'axioms.md') -Encoding UTF8
+        $crit = @(Get-GateCriterionViolations -RulesRoot $rules)
+        $paths = @(Get-PathReferenceViolations -RulesRoot $rules)
+        $params = @(Get-OrphanParamViolations -RulesRoot $rules)
+        $ok = ($crit.Count -eq 2) -and ($paths.Count -eq 1) -and ($params.Count -eq 1) -and ($params[0].Param -eq 'ORPHAN_PARAM')
+        Write-Host ("[SelfTest] check6={0}(期望2) check7={1}(期望1) check8={2}(期望1)" -f $crit.Count, $paths.Count, $params.Count)
+        if ($ok) { Write-Host '[SelfTest] PASS' -ForegroundColor Green; return 0 }
+        Write-Host '[SelfTest] FAIL' -ForegroundColor Red
+        return 1
+    } finally {
+        Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+
 # 展示键: "LIB/STYP/NAME" → "LIB:STYP.NAME"（委托 StringTools ConvertTo-CompoundKey）
 function Format-SymbolKey([string]$Key) {
     if ($Key -match '^([^/]+)/([^/]+)/(.+)$') {
@@ -335,8 +467,13 @@ function Generate-ReferencesDocument {
     # §2 校验器约定（由脚本实际实现自省生成, 杜绝文档与实现脱节）
     $checkItems = @(
         "- **检查 1 悬空引用**：``LIB:STYP.NAME`` 在符号索引中不可解析（当前已实现）",
+        "- **检查 2 未索引定义**：编译模式保留项（恒空集，不产生失败）",
         "- **检查 3 废弃指向**：``[CR]`` 指向编译出 ``#dep`` 的符号（当前已实现）",
-        "- **检查 4 循环依赖**：``def`` 权威间 ``A→B ∧ B→A``（当前已实现）"
+        "- **检查 4 循环依赖**：``def`` 权威间 ``A→B ∧ B→A``（当前已实现）",
+        "- **检查 5 Prompt 对齐**：prompts 声明与规则库同名定义点比对（信息性）",
+        "- **检查 6 判据标注**：``[Gate]`` 缺 ``crit`` 或 ``crit:macro`` 缺机械复算命令（阻断）",
+        "- **检查 7 脚本路径**：反引号内 ``.ps1/.psd1/.psm1/.bat`` 须可在仓库内解析（阻断）",
+        "- **检查 8 参数零消费**：``% NAME`` 全文仅定义无引用（阻断）"
     )
     $checkListText = ($checkItems -join "`n")
 
@@ -389,7 +526,7 @@ function Generate-ReferencesDocument {
 
 ## §2 校验器约定
 
-校验器（`PowerShellScript/DSL/Declarations/Check-ClinerulesReferences.ps1`）两遍扫描：
+校验器（`Frame\PowerShellScript\Operation\DSL\Declarations\Check-ClinerulesReferences.ps1`）两遍扫描：
 
 1. **索引编译**：扫描参与库全部定义点 → 编译符号索引（权威源，即本文件 §1 快照）；
 2. **引用解析**：解析全部 `[CR]` 引用 → 对照索引执行：
@@ -475,6 +612,8 @@ function Test-PromptsAlignment {
 $promptMisalignments = @(Test-PromptsAlignment -PromptsDir $PromptsDir -RulesRoot $RulesRoot)
 
 # ---------- 主流程 ----------
+if ($SelfTest) { exit (Invoke-ValidatorSelfTest) }
+
 $danglingRefs = @()
 $depRefs = @()
 $legacyRefs = @()
@@ -543,8 +682,15 @@ foreach ($f in (Get-ChildItem $RulesRoot -Filter *.md -File)) {
     }
 }
 
-# 第三遍：检查4 循环依赖（def 权威间）
+# 第三遍：检查4 循环依赖 + 检查6/7/8 结构一致性
 $cycles = @(Get-CyclicDefDependencies -RulesRoot $RulesRoot)
+$selfTestExit = 0
+if (-not $SkipSelfTest) { $selfTestExit = Invoke-ValidatorSelfTest }
+$selfTestCount = if ($selfTestExit -ne 0) { 1 } else { 0 }
+$critViolations  = @(Get-GateCriterionViolations -RulesRoot $RulesRoot)
+$pathViolations  = @(Get-PathReferenceViolations -RulesRoot $RulesRoot)
+$paramViolations = @(Get-OrphanParamViolations -RulesRoot $RulesRoot)
+$structuralCount = $critViolations.Count + $pathViolations.Count + $paramViolations.Count
 
 # 供生成器使用的全局计数
 $script:LegacyCount = $legacyRefs.Count
@@ -558,15 +704,21 @@ $report = [ordered]@{
         index_symbols = $script:Index.Count
         references_total = $allRefCount
         references_strict = $strictRefCount
-        errors_total = $danglingRefs.Count + $depRefs.Count + $cycles.Count
+        errors_total = $danglingRefs.Count + $depRefs.Count + $cycles.Count + $structuralCount + $selfTestCount
+        structural_violations = $structuralCount
+        selftest_pass = ($selfTestCount -eq 0)
         legacy_pending = $legacyRefs.Count
         prompt_misalignments = $promptMisalignments.Count
     }
+    check0_selftest = [ordered]@{ pass = ($selfTestCount -eq 0); expected = 'check6=2,check7=1,check8=1'; exit = $selfTestExit }
     check1_dangling = @($danglingRefs | ForEach-Object { [ordered]@{ file=$_.File; line=$_.Line; raw=$_.Raw; error=$_.Error } })
     check2_unindexed = @()   # 编译模式：索引=源扫描, 无独立登记表, 恒空
     check3_deprecated = @($depRefs | ForEach-Object { [ordered]@{ file=$_.File; line=$_.Line; raw=$_.Raw; error=$_.Error } })
     check4_cycles = @($cycles | ForEach-Object { [ordered]@{ cycle = @(@($_ | ForEach-Object { Format-SymbolKey $_ })) } })
     check5_prompt_alignment = @($promptMisalignments | ForEach-Object { [ordered]@{ file=$_.PromptFile; name=$_.Name; reason=$_.Reason } })
+    check6_criterion = @($critViolations | ForEach-Object { [ordered]@{ file=$_.File; line=$_.Line; name=$_.Name; error=$_.Error } })
+    check7_path = @($pathViolations | ForEach-Object { [ordered]@{ file=$_.File; line=$_.Line; token=$_.Token; error=$_.Error } })
+    check8_param_orphan = @($paramViolations | ForEach-Object { [ordered]@{ file=$_.File; line=$_.Line; param=$_.Param; error=$_.Error } })
     legacy_migrations = @($legacyRefs | ForEach-Object { [ordered]@{ file=$_.File; line=$_.Line; raw=$_.Raw } })
     reverse_references = [ordered]@{}
 }
@@ -575,16 +727,28 @@ foreach ($k in $reverseRefs.Keys) {
 }
 
 # 输出统计
+function Write-CheckStatus {
+    param([string]$Label, [int]$Count, [string]$PassText = 'OK', [string]$FailText = 'FAIL', [string]$FailColor = 'Red')
+    if ($Count -gt 0) {
+        Write-Host ("{0}: {1}  ({2})" -f $Label, $Count, $FailText) -ForegroundColor $FailColor
+    } else {
+        Write-Host ("{0}: {1}  ({2})" -f $Label, $Count, $PassText) -ForegroundColor Green
+    }
+}
 Write-Host ""
 Write-Host "--- 校验结果 ---" -ForegroundColor Cyan
 Write-Host "索引符号数 : $($script:Index.Count)"
-Write-Host "悬空引用   : $($danglingRefs.Count)"   $(if ($danglingRefs.Count -gt 0) { Write-Host "  (FAIL)" -ForegroundColor Red } else { Write-Host "  (OK)" -ForegroundColor Green })
-Write-Host "废弃指向   : $($depRefs.Count)"        $(if ($depRefs.Count -gt 0) { Write-Host "  (FAIL)" -ForegroundColor Red } else { Write-Host "  (OK)" -ForegroundColor Green })
-Write-Host "循环依赖   : $($cycles.Count)"         $(if ($cycles.Count -gt 0) { Write-Host "  (FAIL)" -ForegroundColor Red } else { Write-Host "  (OK)" -ForegroundColor Green })
+Write-Host ("负对照自测: {0}" -f $(if ($selfTestCount -eq 0) { 'PASS' } else { 'FAIL' })) -ForegroundColor $(if ($selfTestCount -eq 0) { 'Green' } else { 'Red' })
+Write-CheckStatus '悬空引用  ' $danglingRefs.Count
+Write-CheckStatus '废弃指向  ' $depRefs.Count
+Write-CheckStatus '循环依赖  ' $cycles.Count
+Write-CheckStatus '判据标注  ' $critViolations.Count
+Write-CheckStatus '脚本路径  ' $pathViolations.Count
+Write-CheckStatus '参数零消费' $paramViolations.Count
 if ($PromptsDir) {
-    Write-Host "prompts对齐 : $($promptMisalignments.Count)"  $(if ($promptMisalignments.Count -gt 0) { Write-Host "  (候选/信息性)" -ForegroundColor Yellow } else { Write-Host "  (OK)" -ForegroundColor Green })
+    Write-CheckStatus 'prompts对齐' $promptMisalignments.Count 'OK' '候选/信息性' 'Yellow'
 }
-Write-Host "旧形态待迁移: $($legacyRefs.Count)"    $(if ($legacyRefs.Count -gt 0) { Write-Host "  (待迁移)" -ForegroundColor Yellow })
+Write-Host ("旧形态待迁移: {0}  ({1})" -f $legacyRefs.Count, $(if ($legacyRefs.Count -gt 0) { '待迁移' } else { 'OK' })) -ForegroundColor $(if ($legacyRefs.Count -gt 0) { 'Yellow' } else { 'Green' })
 
 if ($danglingRefs.Count -gt 0) {
     Write-Host ""
@@ -597,6 +761,21 @@ if ($cycles.Count -gt 0) {
     foreach ($c in $cycles) {
         Write-Host (($c | ForEach-Object { Format-SymbolKey $_ }) -join ' → ')
     }
+}
+if ($critViolations.Count -gt 0) {
+    Write-Host ""
+    Write-Host "--- 判据标注缺失明细 ---" -ForegroundColor Yellow
+    $critViolations | Format-Table File,Line,Name,Error -AutoSize | Out-String | Write-Host
+}
+if ($pathViolations.Count -gt 0) {
+    Write-Host ""
+    Write-Host "--- 脚本路径不可解析明细 ---" -ForegroundColor Yellow
+    $pathViolations | Format-Table File,Line,Token,Error -AutoSize | Out-String | Write-Host
+}
+if ($paramViolations.Count -gt 0) {
+    Write-Host ""
+    Write-Host "--- 参数零消费明细 ---" -ForegroundColor Yellow
+    $paramViolations | Format-Table File,Line,Param,Error -AutoSize | Out-String | Write-Host
 }
 if ($promptMisalignments.Count -gt 0) {
     Write-Host ""
@@ -616,7 +795,7 @@ $report | ConvertTo-Json -Depth 6 | Set-Content -Path $OutputJson -Encoding UTF8
 Write-Host ""
 Write-Host "报告已输出: $OutputJson" -ForegroundColor Cyan
 
-if ($danglingRefs.Count -gt 0 -or $depRefs.Count -gt 0 -or $cycles.Count -gt 0) { exit 1 } else { exit 0 }
+if ($danglingRefs.Count -gt 0 -or $depRefs.Count -gt 0 -or $cycles.Count -gt 0 -or $structuralCount -gt 0 -or $selfTestCount -gt 0) { exit 1 } else { exit 0 }
 
 
 

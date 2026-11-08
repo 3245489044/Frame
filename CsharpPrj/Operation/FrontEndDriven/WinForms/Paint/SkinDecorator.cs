@@ -171,7 +171,10 @@ public static class SkinDecorator
             SkinDiagnostics.RecordAttach(true);
         }
 
-        EnsureRefreshTimer(control, state, SurfacePaintSession.NeedsLight(material));
+        // 窗口级刷新：一次 tick 生产一帧；控件不再各建 Timer。
+        var form = control.FindForm();
+        SurfaceRefreshHost.Ensure(form);
+        SurfaceRefreshHost.MarkDirty(control, "theme");
 
         control.Invalidate();
     }
@@ -196,9 +199,6 @@ public static class SkinDecorator
         if (control is null || !States.TryGetValue(control, out var state)) return;
         if (state.Handler is not null) control.Paint -= state.Handler;
         state.Handler = null;
-        state.RefreshTimer?.Stop();
-        state.RefreshTimer?.Dispose();
-        state.RefreshTimer = null;
         state.Session?.Dispose();
         state.Session = null;
         state.MaterialKey = null;
@@ -211,6 +211,59 @@ public static class SkinDecorator
     /// <param name="control">目标控件。</param>
     public static ResolvedMaterial? MaterialOf(Control? control)
         => control is not null && States.TryGetValue(control, out var state) ? state.Session?.Material : null;
+
+    /// <summary>
+    /// 采集窗口级帧输入（**UI 线程**）：控件/材质/视口 → 不可变请求集；组合器随后可在后台执行。
+    /// <para>不再逐控件抓背景：背景由窗口级事实/后续批次统一提供。</para>
+    /// </summary>
+    internal static SurfaceFrameInput? CaptureWindow(Form form)
+    {
+        if (form is null || form.IsDisposed) return null;
+
+        var windowViewport = SurfaceAmbient.ViewportOf(form);
+        if (!windowViewport.IsValid) return null;
+
+        var cards = new List<SurfaceCardRequest>();
+        foreach (var pair in States)
+        {
+            var control = pair.Key;
+            var state = pair.Value;
+            if (control.IsDisposed || !control.IsHandleCreated || !control.Visible) continue;
+            if (!ReferenceEquals(control.FindForm(), form)) continue;
+
+            var material = state.Session?.Material;
+            if (material is null) continue;
+
+            var viewport = SurfaceAmbient.ViewportOf(control);
+            if (!viewport.IsValid) continue;
+
+            cards.Add(new SurfaceCardRequest(SurfaceAmbient.IdOf(control), viewport, material, Backdrop: null));
+        }
+
+        if (cards.Count == 0) return null;
+
+        return new SurfaceFrameInput(
+            SurfaceAmbient.IdOf(form),
+            windowViewport,
+            ResolveWindowLight(windowViewport),
+            cards,
+            Array.Empty<string>());
+    }
+
+    private static SurfaceLightState? ResolveWindowLight(SurfaceViewport viewport)
+    {
+        var frame = SurfaceLightRegistry.Current;
+        if (frame is null) return null;
+
+        var coverage = new SurfaceLightCoverage(
+            (float)viewport.HostOriginXDip,
+            (float)viewport.HostOriginYDip,
+            viewport.HostWidth,
+            viewport.HostHeight);
+        var probe = new SurfaceLightProbe(
+            coverage.X, coverage.Y, coverage.Width, coverage.Height, ZOrder: 0, Dpi: viewport.HostDpi);
+        return SurfaceLightState.From(SurfaceLightPort.Sample(frame, probe));
+    }
 
     /// <summary>是否属于 owner-draw 白名单（断言前置：白名单外永远不着色）。</summary>
     /// <param name="control">目标控件。</param>
@@ -256,7 +309,8 @@ public static class SkinDecorator
         if (session is null) return;
 
         var bounds = new Rectangle(Point.Empty, control.ClientSize);
-        var result = session.Paint(e.Graphics, bounds);
+        var snapshot = SurfaceRefreshHost.SnapshotOf(control.FindForm());
+        var result = session.Paint(e.Graphics, bounds, snapshot);
         var report = result.Report;
 
         SkinDiagnostics.RecordFrame(report);
@@ -322,23 +376,6 @@ public static class SkinDecorator
                ?? SkinMaterialCatalog.ForProperty(descriptor.Name))
            ?? SkinMaterialCatalog.GlobalProperty;
 
-    /// <summary>玻璃材质每秒重画动态 sheen；静态底图只在分钟光/背后快照（2s）变化时重建。</summary>
-    private static void EnsureRefreshTimer(Control control, SkinState state, bool enabled)
-    {
-        if (!enabled)
-        {
-            state.RefreshTimer?.Stop();
-            return;
-        }
-
-        if (state.RefreshTimer is not null) return;
-
-        var timer = new System.Windows.Forms.Timer { Interval = 1000 };
-        timer.Tick += (_, _) => control.Invalidate();
-        timer.Start();
-        state.RefreshTimer = timer;
-    }
-
     private sealed class SkinState
     {
         /// <summary>材质指纹（同材质不重挂）。</summary>
@@ -354,8 +391,6 @@ public static class SkinDecorator
 
         /// <summary>快照生成期间抑制本控件自绘（防递归）。</summary>
         internal bool SuppressPaint { get; set; }
-
-        internal System.Windows.Forms.Timer? RefreshTimer { get; set; }
     }
 }
 

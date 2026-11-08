@@ -94,25 +94,25 @@ internal sealed class ProcessPlanGateRule : IGateRule<UsharpGateModel>
             if (covering.Any(f => UsharpPlanFields.TryBudget(f, out var budget) && budget is not null)) continue;
 
             var owner = covering[0];
-            sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.SelfRecursiveBudgetMissing,
+            UsharpGateDiagnostics.Report(sink, UsharpCodes.SelfRecursiveBudgetMissing,
                 $"[Flow] {owner.FlowId}: 层 '{layer}' 含自环（递归划分 = 不定深度）但覆盖它的流均未声明 "
                 + "budget=<maxNodes>;<maxDepth>（预算风险前移；运行期由 ProcessBudget 强制收口）",
-                owner.SourceFile, owner.LineNumber));
+                owner.SourceFile, owner.LineNumber);
         }
 
         foreach (var flow in model.Flows)
         {
             if (!UsharpPlanFields.TryOrder(flow, out _))
-                sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.PlanFieldInvalid,
+                UsharpGateDiagnostics.Report(sink, UsharpCodes.PlanFieldInvalid,
                     $"[Flow] {flow.FlowId}: 未知处理方向 order='{flow.Order}'"
                     + $"（合法值：{string.Join("/", UsharpPlanFields.Orders)}），按 {UsharpLanguage.OrderBottomUp} 处理",
-                    flow.SourceFile, flow.LineNumber));
+                    flow.SourceFile, flow.LineNumber);
 
             if (!UsharpPlanFields.TryBudget(flow, out _))
-                sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.PlanFieldInvalid,
+                UsharpGateDiagnostics.Report(sink, UsharpCodes.PlanFieldInvalid,
                     $"[Flow] {flow.FlowId}: 预算 budget='{flow.BudgetRaw}' 非法"
                     + "（须为 <maxNodes>;<maxDepth> 两段正整数），按未声明处理",
-                    flow.SourceFile, flow.LineNumber));
+                    flow.SourceFile, flow.LineNumber);
         }
     }
 }

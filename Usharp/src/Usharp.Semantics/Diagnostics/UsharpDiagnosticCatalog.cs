@@ -372,9 +372,9 @@ public static class UsharpDiagnosticCatalog
         E(DecisionShapeInvalid, "Decision", UsharpSeverity.Error, "判据读法形态非法", "matrixId"),
         E(DecisionCrossUndeclared, "Decision", UsharpSeverity.Error, "cross.<名> 未声明", "ruleId, cross"),
 
-        E(CrDangling, "CrRef", UsharpSeverity.Error, "跨库引用悬空", "refId, key"),
+        E(CrDangling, "CrRef", UsharpSeverity.Warning, "跨库引用悬空（同批不可解析，显式可见化）", "refId, key"),
         E(DeprecatedReferenced, "CrRef", UsharpSeverity.Warning, "引用了废弃符号", "refId, key"),
-        E(EdgePeerUnknown, "Edge", UsharpSeverity.Error, "边对端未声明", "edge"),
+        E(EdgePeerUnknown, "Edge", UsharpSeverity.Warning, "边对端未声明（可执行体未登记；拓扑流可无 [Node]）", "edge"),
         E(CircularReference, "Graph", UsharpSeverity.Error, "引用图存在环", "node"),
         E(EdgeTypeUnmapped, "Graph", UsharpSeverity.Error, "边类型未映射", "edgeType"),
         E(EdgeTypeUnknown, "Graph", UsharpSeverity.Error, "边类型未知", "edgeType"),

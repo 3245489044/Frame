@@ -2,6 +2,16 @@
     "version": "1.3",
   "description": "FrontEndDriven 模块日志消息注册文件 - ★ 2026-08-05 级别降噪：Skip_Child/ParentNotReady→Debug，ApplyResult_summary→Debug，RootMountedVisual→Debug，EventBindingSystem_update_start→Debug；新增 RootControlFallbackByName_debug/RenderStageRunner_ActualHostChildCount_normal 按条件分支；CsgEntryPoint_CollectSnapshot_complete 标记 dep（replaced-by CsgCollectSnapshot_summary）｜★ 2026-08-07 渲染分步成功汇总降噪：布局收敛报告/宿主基准/可见性契约/收集完成/开始应用/挂载结果/事件订阅/root挂载成功 降 Debug 并归 FrontEndDriven.RenderStage|EventBinding 分类（使 LogFilterConfig 黑名单生效）；保留 RenderPipelineComposition_Execute_summary 与 RenderRequestQueue_incremental_done 两条单行汇总为 Info｜★ 2026-08-08 级别降噪：RenderPipelineComposition_Execute_summary→Debug（Execute 仅 Load/Creation 区间，collected=0 为「区间未运行」噪音，真实渲染已由 RenderRequestQueue_incremental_done 单行承载）｜★ 2026-08-12 新增 RenderValidationStage_summary/details（RenderValidationStage 验证审计日志）｜★ 2026-08-27 布局收敛状态机门控：新增 LayoutSubsystem_reflow_converged / LayoutSubsystem_convergence_blocked / _retrying / _abandoned（确定性收敛状态机治「未就绪反复空转」——Blocked 等待挂载信号不重排、Retrying 有限递增退避、Abandoned 明确放弃）",
   "messages": {
+    "ConfigDrivenControlFactory_splitter_restored": {
+      "template": "[布局] 分隔条比例已恢复 — scope={scope}, control={controlName}, ratio={ratio}",
+      "level": "Info",
+      "category": "FrontEndDriven.Layout"
+    },
+    "Layout_MinWidth_Overflow": {
+      "template": "[布局] 最小宽度溢出 — effective={effective}, nominalWidth={nominalWidth}, minWidthPx={minWidthPx}, allocatedWidth={allocatedWidth}, overflowPx={overflowPx}",
+      "level": "Warn",
+      "category": "FrontEndDriven.Layout"
+    },
     "SkinAppearance_Install": {
       "template": "[皮肤] 外观装配完成 — enabled={enabled}, profile={profile}, carrier={carrier}, catalog={catalog}, catalogProperty={catalogProperty}, global={global}, globalProperty={globalProperty}, layers={layers}, unresolvedTokens={unresolvedTokens}",
       "level": "Debug",
@@ -712,6 +722,56 @@
       "template": "boot 阶段渲染失败，已中止后续阶段 — phase={phase}, scope={scope}, config={configPath}, error={error}",
       "level": "Error",
       "category": "FrontEndDriven.Lifecycle"
+    },
+    "surface.gather.fallback": {
+      "template": "[表面] 帧事实降级 — host={host}, reason={reason}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface.frame.degraded": {
+      "template": "[表面] 引擎帧降级 — reason={reason}, content={content}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface.carrier.projection": {
+      "template": "[表面] 载体投影 — carrier={carrier}, anchor={anchor}, frame={frame}, point={point}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface.carrier.out-of-bounds": {
+      "template": "[表面] 锚点越界（只记账，不夹取） — carrier={carrier}, detail={detail}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface.light.degraded": {
+      "template": "[表面] 光样降级 — reason={reason}, detail={detail}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface.paint.failed": {
+      "template": "[表面] 绘制帧失败 — host={host}, material={material}, exception={exception}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface.paint.skipped": {
+      "template": "[表面] 绘制层跳过 — host={host}, material={material}, skipped={skipped}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface.decor.undeclared": {
+      "template": "[表面] 装饰未声明 — host={host}, material={material}, detail={detail}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface.refresh": {
+      "template": "[表面] 刷新轨迹 — name={name}, data={data}",
+      "level": "Debug",
+      "category": "FrontEndDriven.Skin"
+    },
+    "surface.refresh.failed": {
+      "template": "[表面] 窗口帧刷新失败 — slot={slot}, error={error}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
     }
   }
 }

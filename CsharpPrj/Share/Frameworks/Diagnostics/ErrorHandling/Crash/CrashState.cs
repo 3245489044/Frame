@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Common.Diagnostics
 {
@@ -16,5 +17,8 @@ namespace Common.Diagnostics
         public string? Phase { get; set; }
 
         public string? Detail { get; set; }
+
+        /// <summary>最近相位序列（有界；崩溃后回答"走到过哪里"）。</summary>
+        public List<string> RecentPhases { get; set; } = new();
     }
 }

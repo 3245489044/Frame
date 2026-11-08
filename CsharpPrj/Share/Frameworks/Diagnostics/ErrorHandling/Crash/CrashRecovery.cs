@@ -40,7 +40,7 @@ namespace Common.Diagnostics
 
             summary = state == null
                 ? "上次异常退出（无 crash-state 快照）: phase=?"
-                : $"上次异常退出: phase={state.Phase}, detail={state.Detail}, startedUtc={state.StartedUtc:O}, updatedUtc={state.UpdatedUtc:O}, pid={state.ProcessId}";
+                : $"上次异常退出: phase={state.Phase}, detail={state.Detail}, startedUtc={state.StartedUtc:O}, updatedUtc={state.UpdatedUtc:O}, pid={state.ProcessId}, recentPhases={(state.RecentPhases.Count == 0 ? "(none)" : string.Join(" -> ", state.RecentPhases))}";
 
             try
             {

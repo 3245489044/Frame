@@ -16,12 +16,8 @@ internal static class UsharpGateDiagnostics
     public static ConversionDiagnostic Error(string code, string message, string file, int line)
         => Conversion(code, message, file, line);
 
-    public static ConversionDiagnostic Warn(string code, string message, string file, int line)
-        => Conversion(code, message, file, line);
-
-    /// <summary>信息级（预期态/过程事实）：不占 WARN 通道（LG-F3：预期态不得以告警呈现）。</summary>
-    public static ConversionDiagnostic Info(string code, string message, string file, int line)
-        => Conversion(code, message, file, line);
+    // Warn/Info 已删除：严重度唯一来源 = 码表（E-9）。调用点表达「希望是什么级别」无效，
+    // 需要降级/升级时改 UsharpDiagnosticCatalog，而不是换 helper（禁死抽象）。
 
     /// <summary>严重度唯一来源 = 码表（E-9）；未登记码按 Error 兜底并在 verify 审计中暴露。</summary>
     private static ConversionDiagnostic Conversion(string code, string message, string file, int line)
@@ -168,9 +164,9 @@ internal sealed class FlowGateRule : IGateRule<UsharpGateModel>
                         $"[Flow] {f.FlowId}: 步骤键 '{step.Key}' 未在空间 '{f.OverSpaceId}' 声明（闸A；现状等价缺陷=声明被静默丢弃）",
                         f.SourceFile, f.LineNumber));
                 else if (!model.NodeNames.Contains(step.Key))
-                    sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.EdgePeerUnknown,
+                    UsharpGateDiagnostics.Report(sink, UsharpCodes.EdgePeerUnknown,
                         $"[Flow] {f.FlowId}: 步骤键 '{step.Key}' 尚无对应 [Node] 声明（可执行体未登记）——与发射层 US5002 同条件",
-                        f.SourceFile, f.LineNumber));
+                        f.SourceFile, f.LineNumber);
 
                 if (step.SubFlow is not null && !model.FlowIds.Contains(step.SubFlow))
                     sink.Report(UsharpGateDiagnostics.Error(UsharpCodes.SubFlowUnknown,
@@ -192,9 +188,9 @@ internal sealed class CrossReferenceGateRule : IGateRule<UsharpGateModel>
             foreach (var decl in doc.Declarations)
                 foreach (var r in decl.References)
                     if (!model.Index.IsDefined(r))
-                        sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.CrDangling,
+                        UsharpGateDiagnostics.Report(sink, UsharpCodes.CrDangling,
                             $"{decl.Prefix} {decl.Name}: [CR] 悬空（符号索引不可解析）{r.Raw}",
-                            decl.SourceFile, decl.LineNumber));
+                            decl.SourceFile, decl.LineNumber);
     }
 }
 
@@ -260,9 +256,9 @@ internal sealed class ObsGateRule : IGateRule<UsharpGateModel>
 
         foreach (var decl in obs.Events)
             if (!consumed.Contains(decl.Name))
-                sink.Report(UsharpGateDiagnostics.Warn(UsharpCodes.ObsEventUnconsumed,
+                UsharpGateDiagnostics.Report(sink, UsharpCodes.ObsEventUnconsumed,
                     $"[Obs] {decl.Name}: 事件声明尚无 [Flow] 步骤 emit= 消费（声明未接线，显式可见化）",
-                    decl.SourceFile, decl.LineNumber));
+                    decl.SourceFile, decl.LineNumber);
     }
 }
 
@@ -347,10 +343,10 @@ internal sealed class DomainGateRule : IGateRule<UsharpGateModel>
             {
                 // 预期态（单文件装载无整包 [KeySpace]）⇒ 专用 Info 码：跨层判据由整包编译承担，
                 // 不得占用 WARN 通道（LG-F3：预期态逐文件刷屏 = 信噪比坍塌），也不得复用 US7406（其语义为续行不可解析）。
-                sink.Report(UsharpGateDiagnostics.Info(UsharpCodes.SingleFileNoKeySpace,
+                UsharpGateDiagnostics.Report(sink, UsharpCodes.SingleFileNoKeySpace,
                     $"[Domain] {domain.DomainId}: 已声明 coordinates 但本次编译无 [KeySpace]"
                     + "（单文件装载：跨层校验由整包编译承担）",
-                    domain.SourceFile, domain.LineNumber));
+                    domain.SourceFile, domain.LineNumber);
             }
             else if (domain.Coordinates.Count > 0)
             {

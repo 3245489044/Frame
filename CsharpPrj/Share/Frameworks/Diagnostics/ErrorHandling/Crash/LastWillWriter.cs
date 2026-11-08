@@ -45,6 +45,14 @@ namespace Common.Diagnostics
                 _state.Phase = phase;
                 _state.Detail = detail;
                 _state.UpdatedUtc = DateTime.UtcNow;
+
+                var line = string.IsNullOrWhiteSpace(detail)
+                    ? $"{_state.UpdatedUtc:O} {phase}"
+                    : $"{_state.UpdatedUtc:O} {phase}: {detail}";
+                _state.RecentPhases.Add(line);
+                if (_state.RecentPhases.Count > 32)
+                    _state.RecentPhases.RemoveRange(0, _state.RecentPhases.Count - 32);
+
                 WriteState();
             }
         }

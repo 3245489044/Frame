@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using System.Threading;
 using MathematicalAlgorithms.Surface;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint.Hosting;
@@ -22,6 +23,18 @@ public static class SurfaceEngineFramePump
     private static readonly object Gate = new();
     private static readonly Dictionary<string, Bitmap> Cache = new(StringComparer.Ordinal);
 
+    /// <summary>已退役但可能仍被上一帧绘制引用的位图（延迟一代释放，避免绘制中 Dispose）。</summary>
+    private static readonly List<Bitmap> Retired = new();
+
+    private static int _renderRequests;
+    private static int _cacheHits;
+
+    /// <summary>实际向引擎端口发起的渲染次数（诊断/断言用）。</summary>
+    public static int RenderRequests => Volatile.Read(ref _renderRequests);
+
+    /// <summary>帧缓存命中次数（诊断/断言用）。</summary>
+    public static int CacheHits => Volatile.Read(ref _cacheHits);
+
     /// <summary>开关（配置态；off 仅用于对照/排障）。</summary>
     public static bool Enabled { get; set; } = true;
 
@@ -30,6 +43,31 @@ public static class SurfaceEngineFramePump
 
     /// <summary>最近一次失败原因（诊断）。</summary>
     public static string LastReason { get; private set; } = "not-requested";
+
+    private static long _retryNotBeforeMs;
+    private static int _consecutiveFailures;
+
+    /// <summary>连续失败次数（诊断）。</summary>
+    public static int ConsecutiveFailures => Volatile.Read(ref _consecutiveFailures);
+
+    /// <summary>下一次允许尝试的时刻（<see cref="Environment.TickCount64"/>；诊断）。</summary>
+    public static long RetryNotBeforeMs => Volatile.Read(ref _retryNotBeforeMs);
+
+    private static void RecordFailure(string reason)
+    {
+        LastReason = reason;
+        var failures = Interlocked.Increment(ref _consecutiveFailures);
+        var exponent = Math.Min(failures - 1, 5);
+        var delay = Math.Min(30_000, 500 * (1 << exponent));
+        Interlocked.Exchange(ref _retryNotBeforeMs, Environment.TickCount64 + delay);
+    }
+
+    private static void RecordSuccess()
+    {
+        LastReason = string.Empty;
+        Interlocked.Exchange(ref _consecutiveFailures, 0);
+        Interlocked.Exchange(ref _retryNotBeforeMs, 0);
+    }
 
     /// <summary>以材质取一帧（静态/动态全含）。</summary>
     public static Bitmap? TryFrame(
@@ -44,7 +82,10 @@ public static class SurfaceEngineFramePump
             "material:" + material.MaterialId, light, quality, port, backdrop, log);
     }
 
-    /// <summary>以显式绘制项取一帧（页面场/chrome 等非材质路径；同一 token 命中缓存）。</summary>
+    /// <summary>
+    /// 以显式绘制项取一帧（页面场/chrome 等非材质路径；同一 token 命中缓存）。
+    /// <para>所有权：缓存是返回位图的**唯一所有者**，调用方只借用（禁 Dispose，禁跨帧持有）。</para>
+    /// </summary>
     public static Bitmap? TryFrameRaw(
         SurfaceViewport viewport, IReadOnlyList<SurfaceDrawItem> items, string contentToken,
         SurfaceLightState? light, string quality, ISurfaceEnginePort port,
@@ -57,6 +98,13 @@ public static class SurfaceEngineFramePump
             return null;
         }
 
+        // 负缓存/退避：设备丢失或连续失败期间不允许每个控件每帧重试。
+        if (Environment.TickCount64 < Volatile.Read(ref _retryNotBeforeMs))
+        {
+            return null;
+        }
+
+        // 无光不进 D3D 的判定由调用方（场景/会话）负责；本泵保留零光帧能力（ToLight 的既有语义）。
         var dpi = viewport.Dpi > 0 ? viewport.Dpi : 96;
         SurfaceViewportRegistry.Publish(viewport.Width, viewport.Height, dpi, quality);
         var request = new EngineSurfaceRequest(
@@ -67,12 +115,17 @@ public static class SurfaceEngineFramePump
         var token = EngineSurfaceBridge.FrameTokenOf(request, items);
         lock (Gate)
         {
-            if (Cache.TryGetValue(token, out var cached)) return cached;
+            if (Cache.TryGetValue(token, out var cached))
+            {
+                Interlocked.Increment(ref _cacheHits);
+                return cached;
+            }
         }
 
+        Interlocked.Increment(ref _renderRequests);
         if (!port.TryRender(request, out var frame, out var reason) || frame is null || !frame.HasPixels)
         {
-            LastReason = frame is null ? reason : (string.IsNullOrEmpty(frame.Reason) ? "no-pixels" : frame.Reason);
+            RecordFailure(frame is null ? reason : (string.IsNullOrEmpty(frame.Reason) ? "no-pixels" : frame.Reason));
             log?.Write("surface.frame.degraded", new { reason = LastReason, content = contentToken });
             return null;
         }
@@ -80,25 +133,40 @@ public static class SurfaceEngineFramePump
         var bitmap = ToBitmap(frame);
         lock (Gate)
         {
+            // 同一 token 可能已被并发帧写入：以首个命中为准，后者释放自己的副本（缓存所有权唯一）。
+            if (Cache.TryGetValue(token, out var existing))
+            {
+                bitmap.Dispose();
+                Interlocked.Increment(ref _cacheHits);
+                return existing;
+            }
+
             if (Cache.Count > 24)
             {
-                foreach (var value in Cache.Values) value.Dispose();
+                // 延迟一代释放：先回收上一代（此时上一帧绘制已结束），本代转入退役区。
+                foreach (var stale in Retired) stale.Dispose();
+                Retired.Clear();
+                foreach (var value in Cache.Values) Retired.Add(value);
                 Cache.Clear();
             }
 
-            Cache[frame.FrameToken] = bitmap;
+            // 查/存键必须同源（P0-1）：缓存键 = 请求指纹 token，不再使用引擎自报 FrameToken。
+            Cache[token] = bitmap;
         }
 
-        LastReason = string.Empty;
+        RecordSuccess();
         return bitmap;
     }
 
-    /// <summary>清空帧缓存（换肤/测试）。</summary>
+
+    /// <summary>清空帧缓存（换肤/测试）。延迟一代释放：本代转入退役区，下次清空时才 Dispose。</summary>
     public static void ClearCache()
     {
         lock (Gate)
         {
-            foreach (var value in Cache.Values) value.Dispose();
+            foreach (var stale in Retired) stale.Dispose();
+            Retired.Clear();
+            foreach (var value in Cache.Values) Retired.Add(value);
             Cache.Clear();
         }
     }

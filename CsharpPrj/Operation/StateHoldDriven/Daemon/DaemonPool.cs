@@ -419,6 +419,8 @@ public sealed class DaemonPool : IDisposable
                     IdleTimeout = _idleTimeout,
                     Process = host.ProcessHandle,
                     IsolationKey = picked,
+                    // 令牌所有权（D1）：ExternalToken 必须是**本次调用的权威令牌**（轮令牌/租约令牌，经形参逐层传入），
+                    // 不得是 ambient run 令牌 —— 否则轮超时传导不到 AEF，判死只能等绝对预算（这正是原缺陷所在）。
                     ExternalToken = ct,
                 }).ConfigureAwait(false);
 
@@ -447,15 +449,19 @@ public sealed class DaemonPool : IDisposable
                 }
                 if (IsHangPhase(result.EndPhase))
                 {
-                    // 基建故障（挂起/被杀）→ 补位后直接失败：禁止无证据整轮重发（AX-ZR NoInternalRetry）。
+                    // 判死（I3）：AEF 已给出分层判活结论（绝对预算到期 / 控制面+字节双静默），比“只看 stage”可信。
+                    // 但“可信的判死”≠“可安全重试”：请求已派发后可能已产生副作用（工具写盘等），自动重发 = 重复执行。
+                    // 因此：worker 必须补位（传输层恢复，见 EvictWorkerAsync），**请求不自动重发**（AX-ZR NoInternalRetry）；
+                    // 是否重试由调用方按幂等性/重试预算决定 —— 本层只给结构化事实（EndPhase/Stage/Retryable）。
                     _state.NoteTimeout(picked);           // 累计基建故障（跨补位保留）
-                    // D-1：此处不是“执行重试”，SendRetry 会误导日志语义；保留 NoteTimeout 作为唯一信号。
                     terminalLogged = true;
+                    var lastStage = _state.GetLastStage(picked);
+                    var tail = _state.GetStderrTail(picked);
                     await EvictWorkerAsync(picked, _poolCts.Token).ConfigureAwait(false);
 
-                    throw new DaemonPoolException(cmd,
-                        $"基建故障（{result.EndPhase}）且禁止重发（无续跑证据）；"
-                        + $"已尝试选路 {attempt + 1} 次, stderrTail={_state.GetStderrTail(picked)}");
+                    throw new DaemonPoolHangException(cmd, result.EndPhase, retryable: false, lastStage,
+                        $"调用判死（{result.EndPhase}），请求已派发、可能有副作用，不可自动重发；"
+                        + $"lastStage={lastStage ?? "(无)"}, stderrTail={tail}, 已尝试选路 {attempt + 1} 次: {result.Error}");
                 }
                 // Failed：daemon 正常返回业务错误（含内层任务超时）→ 不重试，映射为业务结果
                 _state.MarkFree(picked); // 归还占用
@@ -491,7 +497,9 @@ public sealed class DaemonPool : IDisposable
 
     private TimeSpan Remaining(DateTimeOffset deadline) => deadline - _clock.UtcNow;
 
-    /// <summary>AEF 结束阶段是否属「挂起/超时」类基建故障（统一错误分类谓词，warmup 与请求共用）。</summary>
+    /// <summary>AEF 结束阶段是否属「判死」类基建故障（统一错误分类谓词，warmup 与请求共用）。
+    /// <para>判死只说明「本次调用在预算/静默判据下已不可继续」，<b>不等于</b>「可安全重试」
+    /// （见 <see cref="DaemonPoolHangException"/>）。</para></summary>
     private static bool IsHangPhase(AsyncOpPhase phase)
         => phase is AsyncOpPhase.TimedOut or AsyncOpPhase.IdleHung;
 
@@ -568,4 +576,38 @@ public sealed class DaemonPool : IDisposable
         _state.Dispose();
         _poolCts.Dispose();
     }
+}
+
+/// <summary>
+/// daemon 调用被判死（<see cref="AsyncOpPhase.TimedOut"/> / <see cref="AsyncOpPhase.IdleHung"/>）。
+/// <para>
+/// 判死依据 = AEF 的分层判活（绝对预算到期，或控制面 + 字节双静默），结论本身可信；worker 已逐出并补位。
+/// 但“可信的判死”不等于“可安全重试”：请求一旦派发就可能已产生副作用（工具写盘、外部调用），
+/// 自动重发会造成重复执行。故池内保持 AX-ZR NoInternalRetry，只在此异常上给出结构化事实，
+/// 是否重试由调用方（工作流/重试策略，按幂等性声明与重试预算）决定。
+/// </para>
+/// </summary>
+public sealed class DaemonPoolHangException : Exception
+{
+    public DaemonPoolHangException(string cmd, AsyncOpPhase endPhase, bool retryable, string? stage, string message,
+        Exception? inner = null)
+        : base(message, inner)
+    {
+        Cmd = cmd;
+        EndPhase = endPhase;
+        Retryable = retryable;
+        Stage = stage;
+    }
+
+    /// <summary>命令名（ask/plan/resume）。</summary>
+    public string Cmd { get; }
+
+    /// <summary>AEF 判死阶段（TimedOut / IdleHung）。</summary>
+    public AsyncOpPhase EndPhase { get; }
+
+    /// <summary>是否可安全重试：已派发请求恒为 <c>false</c>（可能有副作用）；无派发证据的选路失败才可为 <c>true</c>。</summary>
+    public bool Retryable { get; }
+
+    /// <summary>判死时 daemon 最后阶段（诊断证据；与错误帧 stage 不同源）。</summary>
+    public string? Stage { get; }
 }

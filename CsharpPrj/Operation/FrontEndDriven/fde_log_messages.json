@@ -27,6 +27,41 @@
       "level": "Debug",
       "category": "FrontEndDriven.Skin"
     },
+    "SurfaceAppearanceSwitch_unknown_profile": {
+      "template": "[皮肤] 外观档切换被拒绝（声明中不存在该档，保持现状） — profile={profile}, carrier={carrier}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
+    "SurfaceAppearanceSwitch_requested_profile_invalid": {
+      "template": "[皮肤] 请求档不可用，回退声明默认档 — profile={profile}, carrier={carrier}, fallback={fallback}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
+    "SurfaceAppearanceSwitch_no_profile": {
+      "template": "[皮肤] 声明无可用档，外观不装配 — carrier={carrier}, declared={declared}",
+      "level": "Error",
+      "category": "FrontEndDriven.Skin"
+    },
+    "SurfaceAppearanceSwitch_consumer_failed": {
+      "template": "[皮肤] 切档后的消费方处理失败（不回滚切档结果） — profile={profile}, consumer={consumer}, error={error}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
+    "SurfaceAppearanceSwitch_commit_failed": {
+      "template": "[皮肤] 外观档切换失败（已回滚，不落盘） — target={target}, carrier={carrier}, stage={stage}, previous={previous}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
+    "SurfaceAppearanceSwitch_rollback_failed": {
+      "template": "[皮肤] 外观档回滚失败（已退化为卸载着色） — target={target}, previous={previous}, carrier={carrier}, error={error}",
+      "level": "Warning",
+      "category": "FrontEndDriven.Skin"
+    },
+    "SurfaceQualitySettings_tier_unsupported_ignored": {
+      "template": "[皮肤] 画质档 tier=Unsupported 视为未设置，回落声明默认 — scope={scope}, value={value}",
+      "level": "Info",
+      "category": "FrontEndDriven.Skin"
+    },
     "surface.refresh": {
       "template": "[表面] 窗口帧刷新调度 — name={name}, data={data}",
       "level": "Debug",

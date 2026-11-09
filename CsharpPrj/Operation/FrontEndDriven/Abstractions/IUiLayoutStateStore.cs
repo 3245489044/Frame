@@ -51,10 +51,34 @@ namespace FrontEndDriven.Abstractions
         /// <summary>记录当前窗体边界（窗口状态用于最大化恢复）。</summary>
         void SetFormBounds(UiFormBounds bounds);
 
-        /// <summary>立即落盘（关闭/退出时调用；幂等）。</summary>
+        /// <summary>
+        /// 读取「已提交」的表面档选择（用户显式切换成功后才写入）；未提交返回 false。
+        /// <para>与 <c>panels</c> 的草稿值分离：草稿随下拉即时写，此处只承载已生效的选择。</para>
+        /// </summary>
+        bool TryGetSurfaceSelection(out SurfaceSelectionState selection);
+
+        /// <summary>提交表面档选择（仅在一次原子切换成功后调用；同值不重复写）。</summary>
+        /// <param name="profile">档名。</param>
+        /// <param name="declarationFingerprint">选择当时的表面声明指纹（诊断/日志关联，不作废依据）。</param>
+        void SetSurfaceSelection(string profile, string declarationFingerprint);
+
+        /// <summary>清除已提交的表面档选择（下次启动回退声明 <c>active_profile</c>）。</summary>
+        void ResetSurfaceSelection();
+
+        /// <summary>立即落盘（关闭/退出时调用；幂等；无脏数据不触碰文件）。</summary>
         void Flush();
     }
 
     /// <summary>窗体边界快照（像素；WindowState 取 <see cref="System.Windows.Forms.FormWindowState"/> 名）。</summary>
     public readonly record struct UiFormBounds(int Width, int Height, int Left, int Top, string? WindowState);
+
+    /// <summary>
+    /// 已提交的表面档快照。
+    /// <para><see cref="SelectionFingerprint"/> 由存储实现按 <c>SHA256("surface-v1|profile|declarationFingerprint")</c>
+    /// 前 16 位独立计算，只用于「同值不重写」与日志关联，**不作为作废用户选择的依据**。</para>
+    /// </summary>
+    public readonly record struct SurfaceSelectionState(
+        string Profile,
+        string DeclarationFingerprint,
+        string SelectionFingerprint);
 }

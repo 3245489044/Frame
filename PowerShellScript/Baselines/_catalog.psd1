@@ -4,6 +4,10 @@
     #   退役原因：本索引在合并方案 §5 第 3 批的删除清单内（判据/基线并入 Gate\Spec\*.gate.psd1），继续为它维护双射判红只会把迁移目标判成红。
     #   目录轴只落 A1（扩展名 / `_` 前缀）与 A2（子目录 <Domain>\）；A3/A4 只登记不落目录（禁目录维度爆炸）。
     #   Role=Data ⇒ 文件名须 = <Gate>.psd1；遗留不符须显式 NameDeviation + DueWhen（可见化债务，禁静默例外）。
+    #   失效条目（批次 6「门 → spec」迁移，2026-11-09）：SectionWrite / WriteBudgetNodes / BulkThreshold /
+    #     UiTelemetryFields 的基线 psd1 与门脚本均已删除，判据载体改为
+    #     Environment\CentralTest\Tools\Gate\Spec\<Gate>.gate.psd1；本表对应 4 行已移除（指向不存在文件的登记
+    #     属失效条目，按此处记录处理，非静默删除）。
     Schema    = 'baseline-catalog-v1'
     Canonical = 'Frame\PowerShellScript\Baselines\README.md'
 
@@ -72,10 +76,6 @@
         @{ File = 'Meta\FallbackInventoryRate.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'FallbackInventoryRate'; Shape = 'FactRow'; Origins = @('Debt'); DueWhen = '兜底逐项显式化（EmptyReason / fail-fast）后条目归零'; Consumer = 'Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-FallbackInventoryRate.ps1' }
         @{ File = 'Meta\UiIncremental.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'UiIncremental'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Meta\Check-UiIncremental.ps1' }
         @{ File = 'Meta\UiBudget.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'UiBudget'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Meta\Check-UiBudget.ps1' }
-        @{ File = 'Meta\SectionWrite.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'SectionWrite'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Meta\Check-SectionWrite.ps1' }
-        @{ File = 'Meta\WriteBudgetNodes.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'WriteBudgetNodes'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Meta\Check-WriteBudgetNodes.ps1' }
-        @{ File = 'Meta\BulkThreshold.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'BulkThreshold'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Meta\Check-BulkThreshold.ps1' }
-        @{ File = 'Meta\UiTelemetryFields.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'UiTelemetryFields'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Meta\Check-UiTelemetryFields.ps1' }
         @{ File = 'Meta\UiThreadAffinity.psd1'; Role = 'Data'; Domain = 'Meta'; Gate = 'UiThreadAffinity'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Meta\Check-UiThreadAffinity.ps1' }
         @{ File = 'Node\AgentFrameworkSingleSource.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'AgentFrameworkSingleSource'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Modules\Node\Check-AgentFrameworkSingleSource.ps1' }
         @{ File = 'Node\AgentOrchestrationFlow.psd1'; Role = 'Data'; Domain = 'Node'; Gate = 'AgentOrchestrationFlow'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Frame\PowerShellScript\Modules\Node\Check-AgentOrchestrationFlow.ps1' }

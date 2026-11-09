@@ -1,4 +1,14 @@
 ﻿@{
+    # ═══════════════════════════════════════════════════════════════════════════════════════
+    # 门禁登记清单 —— schema 'gate-manifest-v2'（判据单源 = Baselines\GateManifest.psm1）
+    #   核心键（文件内必填）：Domain（∈ directory-map.json 的 gateDomains 键集）/ Note（该件守什么，禁空）
+    #   默认可省键：Tier（默认 full；fast = 只跑读产物类轻量件）/ Args（默认 @{}）/ Expect（默认 0）
+    #   分类轴（成对出现，仅呈现域 Agent / Ui 适用）：Family（判据面）/ Form（判据形态）
+    #   说明（可选，无机器消费）：Carrier（判据载体）
+    #   未声明键 = 登记错误（守卫 T8 即红）；「缺键取默认」分支禁写进消费者，一律经 Import-GateManifest 归一。
+    #   目录重扫：Gate\Spec\*.gate.psd1（Schema='gate-spec-v1'）自描述登记；清单无同 Id 行时自动入册，
+    #     故「门 → spec」迁移批次无须再回本文件逐条加行；两者并存则以清单行（Note/Args/Tier）为准。
+    # ═══════════════════════════════════════════════════════════════════════════════════════
     KeyDomainStrict = @{
         Domain = 'KeySpace'
         Args   = @{ Check = $true; NegativeControl = $true }
@@ -98,7 +108,7 @@
     KeyPolicy = @{
         Domain = 'KeySpace'
         Args   = @{ Check = $true; NegativeControl = $true }
-        Tier   = 'data'
+        Tier   = 'full'
         Expect = 0
         Note   = '键写侧策略（J5/J7 声明面）：终结实体 cardinality=one-per-turn ∧ 单写者 ∧ window_single_parent 不变量在册 ∧ 形状 default 非空；负对照必红'
     }
@@ -378,6 +388,7 @@
         Form   = 'SingleSource'
         Args   = @{ Check = $true }
         Expect = 0
+        Note   = '装配入口唯一 + 根引导唯一 + 绑定先于解析（INV-1 / INV-3 / INV-4）'
     }
 
     ToolCallConvergence = @{
@@ -396,6 +407,7 @@
         Form   = 'Consistency'
         Args   = @{ Check = $true }
         Expect = 0
+        Note   = 'Agent 数据与代码分离聚合门禁（D1–D5）'
     }
 
     HistoryAssemblySurface = @{
@@ -462,6 +474,7 @@
         Form   = 'Boundary'
         Args   = @{ Check = $true }
         Expect = 0
+        Note   = '[F-66] Agent 侧不得引用确定性核心状态化承载（LoopStateStore / CoreStateView）'
     }
 
     VmKernelReferenceBoundary = @{
@@ -527,6 +540,7 @@
         Args   = @{ Check = $true; NegativeControl = $true }
         Tier   = 'fast'
         Expect = 0
+        Note   = '表面资源守卫：资源声明闭合与零绝对路径'
     }
 
     SurfaceCoverage = @{
@@ -586,42 +600,49 @@
         Tier   = 'fast'
         Expect = 0
         Note   = '窗口帧单生产者：S1 声明单源（Strategy/SurfaceHosting 内 new GatherViewSpec=0）/ S2 surface-frame-input producer=1 / S3 快照构造仅 Composer / S4 TryFrame 仅 Composer+EngineBackend+端口门面'
+        Family = 'Presentation'
     }
 
     SurfaceCardFaceSingle = @{
         Domain = 'Ui'; Form = 'SingleSource'
         Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
         Note = '卡片面单构造（B7-5）：new SurfaceCardFace( 仅 Composer + SurfaceCardFace.Inherit；负对照必红'
+        Family = 'Presentation'
     }
 
     SurfaceRoleCoverage = @{
         Domain = 'Ui'; Form = 'Consistency'
         Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
         Note = '角色化声明覆盖（B6）：每容器有 role / 嵌套容器 parent+appearance 成对 / role_{host,card,nested,leaf}_slot 各 1；负对照必红'
+        Family = 'Presentation'
     }
 
     SurfacePointerSingleSource = @{
         Domain = 'Ui'; Form = 'SingleSource'
         Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
         Note = '指针来源单源（B5）：生产实现恰 1（WinFormsPointerSource）；负对照必红'
+        Family = 'Presentation'
     }
 
     SurfaceLightSingleSample = @{
         Domain = 'Ui'; Form = 'SingleSource'
         Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
         Note = '光采样单源（B5-1）：SurfaceLightPort.Sample 调用点恰 1（SurfaceLightPointer.Apply）；负对照必红'
+        Family = 'Presentation'
     }
 
     SurfaceCacheLedger = @{
         Domain = 'Ui'; Form = 'SingleSource'
         Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
         Note = '贴图会话无缓存账（B4-2）：SurfacePaintSession 无 _cache/new Bitmap/引擎直调，且有 DrawImageUnscaled；负对照必红'
+        Family = 'Presentation'
     }
 
     SurfaceShadowSoft = @{
         Domain = 'Ui'; Form = 'Consistency'
         Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
         Note = '柔和阴影落笔（S0）：SurfaceRaster.Blur + ShadowBoxSoft/ShadowPadding + Exclude；负对照必红'
+        Family = 'Presentation'
     }
 
     ViewFingerprint = @{
@@ -988,36 +1009,42 @@
         Domain = 'Data'
         Args   = @{ Check = $true }
         Expect = 0
+        Note   = 'DataCenter 通用化不变式（G1 / G2、K9）：三级检查'
     }
 
     GraphSingleSource = @{
         Domain = 'Data'
         Args   = @{ Check = $true }
         Expect = 0
+        Note   = '图写口单源：读端口零写成员、provenance 唯一追加写点、图侧不写状态（判据载体 = Gate\Spec\GraphSingleSource.gate.psd1）'
     }
 
     EdgeAsVertex = @{
         Domain = 'Data'
         Args   = @{ Check = $true }
         Expect = 0
+        Note   = '边一等化：图投影器节点/边通道唯一装配点，边不得借 nodes 集合落地（判据载体 = Gate\Spec\EdgeAsVertex.gate.psd1）'
     }
 
     FieldLineageClosure = @{
         Domain = 'Data'
         Args   = @{ Check = $true }
         Expect = 0
+        Note   = '字段血缘端点闭合：闭合判定体在位且调用点覆盖声明边/观测边，产品 outFields 不得空承诺（判据载体 = Gate\Spec\FieldLineageClosure.gate.psd1）'
     }
 
     ProductIdempotency = @{
         Domain = 'Data'
         Args   = @{ Check = $true }
         Expect = 0
+        Note   = '幂等键必填且不含易变分量：schema 负向前瞻 + C17 判据注册 + 易变分量正则单源（判据载体 = Gate\Spec\ProductIdempotency.gate.psd1）'
     }
 
     DataContracts = @{
         Domain = 'Data'
         Args   = @{ Check = $true }
         Expect = 0
+        Note   = '统一数据传递标准一致性：RoundKeys.<Name> 使用点须已在 DataContractRegistrar.RegisterAll 登记'
     }
 
     SpecBoundary = @{
@@ -1234,6 +1261,7 @@
         Domain = 'Node'
         Expect = 0
         Note   = '节点域接入聚拢点守卫 D1–D3（R4/R5）：派生面（instances\nodes.json 的 placements[] + placement.ushar 的 LocPlacement/LocToPlacement 行）≡ 声明真源 Config\nodes\*.json 的位置并集（漂移即红；生成分支已拆到 Frame 侧产品生成器 New-NodePlacementDeclaration.ps1，迁入件只做只读对账）；散弹点棘轮（per-domain 槽键常量 / 声明路径常量 / 载体工厂方法，报告模式起步，基线 Baselines\Node\DomainWireSingleSource.psd1）；正对照（声明面 ≥ 基线位置数）+ 负对照（合成 per-domain 形态必被捕获）'
+        Args   = @{ Check = $true }
     }
     TextClipSingleSource = @{
         Domain = 'Node'
@@ -1655,7 +1683,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '写入单位 = 节（S1 基线层入面 / S2 ISurfaceWriter.SubmitAsync + 预算 + 批量脚本 / S3 UseSectionWriter + SectionPlanAdapter / S4 负对照）；基线 = Baselines\Meta\SectionWrite.psd1'
+        Note   = '写入单位 = 节（L1 写入口只接受 SectionPlan[]，无「按 region 逐目标产出写目标」的第二路径）；判据载体 = Gate\Spec\SectionWrite.gate.psd1（原基线已删，判据并入 spec）'
     }
 
     WriteBudgetNodes = @{
@@ -1663,7 +1691,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '预算主维度 = 节点数（B1 基线入面 / B2 选项+策略 / B3 写入口消费 MaxNodesPerBeat / B4 负对照）；基线 = Baselines\Meta\WriteBudgetNodes.psd1'
+        Note   = '预算主维度 = 节点数（选项 / 策略 / 写入口三处闭合）；判据载体 = Gate\Spec\WriteBudgetNodes.gate.psd1（原基线已删，判据并入 spec）'
     }
 
     BulkThreshold = @{
@@ -1671,7 +1699,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '双原语（K1 基线入面 / K2 changeRatio + BulkReplace / K3 JS bulk 原语 / K4 负对照）；基线 = Baselines\Meta\BulkThreshold.psd1'
+        Note   = '双原语（Patch / BulkReplace）：变比率计算与 BulkReplace 分支在位，阈值来自配置；判据载体 = Gate\Spec\BulkThreshold.gate.psd1（原基线误指 HtmlAssetRegistry.cs，JS 原语已迁 Assets\scripts\reconcile.js）'
     }
 
     UiTelemetryFields = @{
@@ -1679,7 +1707,7 @@
         Args   = @{ Check = $true }
         Tier   = 'fast'
         Expect = 0
-        Note   = '节/拍遥测字段（T1 基线入面 / T2 nodes/bytes/jsMs/outcome + batchNodes/lane/queueMs/droppedSections / T3 指标字段 / T4 msgId 注册 / T5 负对照）；基线 = Baselines\Meta\UiTelemetryFields.psd1'
+        Note   = '节/拍遥测字段齐备（节行 nodes/bytes/jsMs/outcome，拍行 batchNodes/lane/queueMs/droppedSections，msgId 已注册）；判据载体 = Gate\Spec\UiTelemetryFields.gate.psd1（原基线已删，判据并入 spec）'
     }
 
     UiThreadAffinity = @{
@@ -3002,5 +3030,143 @@
         Note    = 'CW-19 实现层零本地占位（原文档 CW-14 因编号被 FieldUsageIndex 占用而改号）：占位只允许 SurfaceGlyphs/UnknownTokens/声明面；负对照'
     }
 
+
+    # ── 补登记（GateTaxonomy T3 收口：脚本在盘但未入册；Domain 解析逐条核过）──
+    WaitProbeEcho = @{
+        Domain = 'Process'
+        Args   = @{ Check = $true }
+        Note   = 'wait-until 恒真判据：期望词命中探针输入回显（从散文变成机器判据）'
+    }
+    FrameFieldContract = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Declaration'
+        Form   = 'Consistency'
+        Note   = '帧字段契约：frame-kinds.fields 的 from / applicableWhen 单源'
+    }
+    FoldModeControl = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Note   = '折叠模式：none 需理由 / 视图折叠词必须已声明且已实现'
+    }
+    FoldSingleSource = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Note   = '折叠单源：折叠模式判定只在 FoldPlanner 内'
+    }
+    NativeGlassFace = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Note   = 'RequireGlassFace 族不得回落到 muted_surface/row_surface；control_face 必须 glass_fill 且无 flat 回退'
+    }
+    ObservabilityPayloadSanity = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Observability'
+        Form   = 'Consistency'
+        Note   = '观测载荷卫生：ur_nodes Doc 载荷禁乱码与类型名泄漏'
+    }
+    PresentationVocabulary = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Note   = '呈现词表：role 引用点单源，禁死词回流'
+    }
+    ProjectionKernelBoundary = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Boundary'
+        Form   = 'Boundary'
+        Note   = '投影内核边界：内核零领域依赖'
+    }
+    ProjectionResultParity = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Note   = '投影结果对拍：五态受控词齐全且宿主不伪造成功'
+    }
+    ProjectionSingleHost = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Note   = '投影宿主单点：宿主唯一，承载面只做门面'
+    }
+    ProjectionStepLiveness = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Note   = '投影步骤活性：声明序 = 执行序，禁空计划与旁路'
+    }
+    RegionTreeP6 = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Note   = '区域树 P6：host 的 textContent 不得含标签字面量，裸 RawText 根不得静默丢弃'
+    }
+    UiGlassContrast = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'Ratchet'
+        Note   = '玻璃观感对比度：四指标像素实测 + 逐块材质判定 + 棘轮基线'
+    }
+    UiVisualAcceptance = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'Consistency'
+        Note   = 'UI 视觉验收：06/07/08 的可证伪像素判据 C1–C5'
+    }
+    UnknownSingleSource = @{
+        Domain = 'Agent'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Note   = '未知单源：呈现生产层不得自造未知占位'
+    }
+    LayoutTextFit = @{
+        Domain = 'Constraint'
+        Args   = @{ Check = $true }
+        Note   = '布局「比例 + 最小像素」双约束：commandModule 各槽位文本适配（静态配置判据 + 像素实测）'
+    }
+    SurfaceFrameBudget = @{
+        Domain = 'Ui'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Note   = '窗口帧预算：每窗口恰一个刷新 slot / 一个帧生产者'
+    }
+    SurfaceLogTemplates = @{
+        Domain = 'Ui'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'SingleSource'
+        Note   = 'surface.* 日志模板守卫'
+    }
+    SurfaceNoPerControlTimer = @{
+        Domain = 'Ui'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'Boundary'
+        Note   = '无每控件 Timer：计时走帧级统一入口'
+    }
+    UiAcceptance = @{
+        Domain = 'Ui'
+        Args   = @{ Check = $true }
+        Family = 'Presentation'
+        Form   = 'Closure'
+        Note   = 'UiAcceptance：04 §1 V1–V10 视觉验收 + §2 日志断言的唯一裁决入口（表驱动、缺证即红）'
+    }
 }
 

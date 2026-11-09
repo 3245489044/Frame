@@ -86,7 +86,13 @@ if (-not (Test-Path -LiteralPath $Manifest)) {
     exit 1
 }
 
-$gates = Import-PowerShellDataFile -LiteralPath $Manifest
+# 登记装载单源 = Baselines\GateManifest.psm1（schema 归一 + Gate\Spec 目录重扫）；
+#   本件禁写「缺键取默认」分支（聚合器 / 索引 / 守卫三处口径禁分叉）。
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateManifest.psm1') -Force -DisableNameChecking
+$specRoot = if (Get-Command Get-MappedPath -ErrorAction SilentlyContinue) {
+    Join-Path (Get-MappedPath -Key 'CentralTestGate') 'Spec'
+} else { '' }
+$gates = Import-GateManifest -Path $Manifest -SpecRoot $specRoot
 
 # ---- 确定要运行的门禁 ----
 if ($Only.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($Domain)) {

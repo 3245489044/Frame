@@ -48,7 +48,8 @@
     "KeySpace": ["Environment/CentralTest/Tools/Gate/KeySpace", "Frame/PowerShellScript/Operation/DSL/KeySpace"],
     "Build": ["Environment/CentralTest/Tools/Gate/Build", "Projects/BuildFramework"],
     "TestLayout": ["Environment/CentralTest/Tools/Gate/TestLayout"],
-    "Constraint": ["Environment/CentralTest/Tools/Gate/Constraint"]
+    "Constraint": ["Environment/CentralTest/Tools/Gate/Constraint"],
+    "Ui": ["Environment/CentralTest/Tools/Gate/Ui"]
   },
   "scriptNameOverrides": {
     "PrjBridgeDecoupling": "Check-BridgeDecoupling.ps1",

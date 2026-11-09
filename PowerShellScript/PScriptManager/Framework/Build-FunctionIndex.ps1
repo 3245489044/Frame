@@ -6,14 +6,15 @@
     扫描真实 .ps1/.psm1 定义点 + # @exports 声明，产出 ps-function-index.json。
     调用侧据此做 (owner,function) 限定，同名异文件实现互不覆盖。
 .PARAMETER ScanRoots
-    相对仓库根扫描的目录列表（默认 PowerShellScript + CentralTest/PowerShellTests）
+    相对仓库根扫描的目录列表（默认 PowerShellScript + CentralTest/PowerShellTests + 门禁树）
+    门禁树为跨仓路径（Frame 的 .git 锚点 ⇒ ../Environment/...），索引内 rel 用 ../ 形式，消费侧仍按 repo 前缀拼接。
 .PARAMETER IndexOut
     输出 json（默认 = 本脚本同目录 ps-function-index.json）
 .NOTES
     产物 = JSON 编译表（禁止手改）；仓库根经 .git 哨兵自锚定。
 #>
 param(
-    [string[]]$ScanRoots = @('PowerShellScript','CentralTest/PowerShellTests'),
+    [string[]]$ScanRoots = @('PowerShellScript','CentralTest/PowerShellTests','..\Environment\CentralTest\Tools\Gate'),
     [string]$IndexOut = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -35,7 +36,13 @@ foreach ($root in $ScanRoots) {
     Get-ChildItem -LiteralPath $abs -Recurse -Include '*.ps1','*.psm1' -File -ErrorAction SilentlyContinue | ForEach-Object {
         $full = $_.FullName
         if ($full -match $skipRx) { return }
-        $rel = $full.Substring($repo.Length + 1).Replace('\','/')
+        $relFull = [System.IO.Path]::GetFullPath($full)
+        if ($relFull.StartsWith($repo + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $rel = $relFull.Substring($repo.Length + 1).Replace('\','/')
+        } else {
+            # 扫描根在仓库锚点之外（如 Environment 门禁树）⇒ rel 用 ../ 形式，消费侧 Join-Path $repo 仍可解析
+            $rel = [System.Uri]::UnescapeDataString(([Uri]($repo + '\')).MakeRelativeUri([Uri]$relFull).ToString()).Replace('\','/')
+        }
         $kind = if ($_.Extension -eq '.psm1') { 'psm1' } else { 'ps1' }
         $funcs = [System.Collections.Generic.List[string]]::new()
         $tags  = [System.Collections.Generic.List[string]]::new()

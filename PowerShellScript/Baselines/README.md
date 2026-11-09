@@ -54,7 +54,7 @@
 
 | 面 | 状态 |
 |---|---|
-| `Baselines\` 规范根（`<Domain>\<Gate>.psd1`；件数以文件系统为准，禁写死） | ✅ 45 件单件基线按域落位（10 个域目录；`OrchestrationKernel` 死数据已删、`FixedSleepBaseline` 转登记册 `_fixed-sleep.psd1`）· 分类索引 `_catalog.psd1`（U12 双射，**批次 5 起随「并入 spec」计划退役**）· 装载按名字索引解析（消费方零路径耦合） |
+| `Baselines\` 规范根（`<Domain>\<Gate>.psd1`；件数以文件系统为准，禁写死） | ✅ 单件基线按域落位（15 个域目录；`OrchestrationKernel` 死数据已删、`FixedSleepBaseline` 转登记册 `_fixed-sleep.psd1`）· 分类索引 `_catalog.psd1`（U12 双射，**批次 5 起随「并入 spec」计划退役**）· 装载按名字索引解析（消费方零路径耦合） |
 | **遗留子根** `Modules\Node\Baselines\` | ✅ **已并入规范根并删除**（禁第二基线根；U8「退役名再入即红」强制） |
 | 内联数值基线（`$*Baseline* = <n>` 形态） | ⚠️ **3 处 / 3 件**（2026-11-09 批次 5 实测；已登记 `_inline-baselines.psd1` 为 Debt，逐件外置后销账） |
 | 事实行类型（`@{ Value; Origin; DueWhen }`） | ⏳ U9 已退役（批次 5）：其判的是单件基线载体，该载体由 `Gate\Spec\*.gate.psd1` 取代；存量裸值随迁移清掉 |

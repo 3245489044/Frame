@@ -5,7 +5,7 @@
 
 <!-- PROTO_AUTO:gateIndex:BEGIN -->
 
-## Agent（123 件）
+## Agent（137 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -51,7 +51,10 @@
 | `ExecutionLaneGate` | fast | 0 | Contract | Closure | `Environment\CentralTest\Tools\Gate\Agent\Contract\Check-ExecutionLaneGate.ps1` |
 | `FactProducerCoverage` | fast | 0 | Presentation | Drift | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-FactProducerCoverage.ps1` |
 | `FallbackInventoryRate` | fast | 0 | Meta | Ratchet | `Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-FallbackInventoryRate.ps1` |
+| `FoldModeControl` | full | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-FoldModeControl.ps1` |
+| `FoldSingleSource` | full | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-FoldSingleSource.ps1` |
 | `FoldState` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-FoldState.ps1` |
+| `FrameFieldContract` | full | 0 | Declaration | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-FrameFieldContract.ps1` |
 | `FrameIdentity` | fast | 0 | Declaration | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-FrameIdentity.ps1` |
 | `FrameSchema` | fast | 0 | Declaration | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-FrameSchema.ps1` |
 | `GatherClosure` | fast | 0 | Runtime | Closure | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-GatherClosure.ps1` |
@@ -72,11 +75,18 @@
 | `KeyspaceMirror` | fast | 0 | Contract | Drift | `Frame\PowerShellScript\Operation\DSL\Agent\Contract\Check-KeyspaceMirror.ps1` |
 | `LaneCatalog` | fast | 0 | Declaration | Closure | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-LaneCatalog.ps1` |
 | `LlmRoutingSurface` | full | 0 | Runtime | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-LlmRoutingSurface.ps1` |
+| `NativeGlassFace` | full | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-NativeGlassFace.ps1` |
 | `NoClearWrite` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-NoClearWrite.ps1` |
 | `NodePromptBinding` | full | 0 | Declaration | Closure | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-NodePromptBinding.ps1` |
+| `ObservabilityPayloadSanity` | full | 0 | Observability | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-ObservabilityPayloadSanity.ps1` |
 | `OperationRowCarriesActor` | fast | 0 | Observability | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Observability\Check-OperationRowCarriesActor.ps1` |
 | `PowerShellHostSingleSource` | fast | 0 | Runtime | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-PowerShellHostSingleSource.ps1` |
 | `PresentationContract` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-PresentationContract.ps1` |
+| `PresentationVocabulary` | full | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-PresentationVocabulary.ps1` |
+| `ProjectionKernelBoundary` | full | 0 | Boundary | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-ProjectionKernelBoundary.ps1` |
+| `ProjectionResultParity` | full | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-ProjectionResultParity.ps1` |
+| `ProjectionSingleHost` | full | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-ProjectionSingleHost.ps1` |
+| `ProjectionStepLiveness` | full | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-ProjectionStepLiveness.ps1` |
 | `PromptCacheStability` | fast | 0 | Declaration | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-PromptCacheStability.ps1` |
 | `PromptSegments` | fast | 0 | Declaration | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Declaration\Check-PromptSegments.ps1` |
 | `PsSkillToolMap` | fast | 0 | Contract | Closure | `Environment\CentralTest\Tools\Gate\Agent\Contract\Check-PsSkillToolMap.ps1` |
@@ -86,6 +96,7 @@
 | `RecordDraftSingleSource` | fast | 0 | Runtime | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Runtime\Check-RecordDraftSingleSource.ps1` |
 | `RecordSingleTextForm` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-RecordSingleTextForm.ps1` |
 | `RefreshFrameworkBoundary` | full | 0 | Boundary | Boundary | `Frame\PowerShellScript\Operation\DSL\Agent\Boundary\Check-RefreshFrameworkBoundary.ps1` |
+| `RegionTreeP6` | full | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-RegionTreeP6.ps1` |
 | `RenderCoverage` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-RenderCoverage.ps1` |
 | `RenderNoDomainBranch` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-RenderNoDomainBranch.ps1` |
 | `RoundFailureEnvelope` | fast | 0 | Observability | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Observability\Check-RoundFailureEnvelope.ps1` |
@@ -111,6 +122,7 @@
 | `UiAnchorWrites` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiAnchorWrites.ps1` |
 | `UiCarrierParity` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiCarrierParity.ps1` |
 | `UiEscapeSingleSource` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiEscapeSingleSource.ps1` |
+| `UiGlassContrast` | full | 0 | Presentation | Ratchet | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiGlassContrast.ps1` |
 | `UiLocDeclaration` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiLocDeclaration.ps1` |
 | `UiMaterialPropertyWriter` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiMaterialPropertyWriter.ps1` |
 | `UiNoViewBranch` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiNoViewBranch.ps1` |
@@ -123,7 +135,9 @@
 | `UiTemplateSet` | fast | 0 | Presentation | Closure | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiTemplateSet.ps1` |
 | `UiTextSafe` | fast | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiTextSafe.ps1` |
 | `UiViewCatalog` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiViewCatalog.ps1` |
+| `UiVisualAcceptance` | full | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiVisualAcceptance.ps1` |
 | `UiWriteFidelity` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UiWriteFidelity.ps1` |
+| `UnknownSingleSource` | full | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-UnknownSingleSource.ps1` |
 | `UnknownVisible` | fast | 0 | Observability | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Observability\Check-UnknownVisible.ps1` |
 | `ViewContainerOwnership` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-ViewContainerOwnership.ps1` |
 | `ViewContract` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Agent\Presentation\Check-ViewContract.ps1` |
@@ -143,7 +157,7 @@
 | `BuildTargetMap` | full | 0 | — | — | `Projects\BuildFramework\Gates\Check-BuildTargetMap.ps1` |
 | `DistributionIncrement` | full | 0 | — | — | `Projects\BuildFramework\Gates\Check-DistributionIncrement.ps1` |
 
-## Constraint（17 件）
+## Constraint（18 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -164,6 +178,7 @@
 | `CF-W-17-NoStaticLedger` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-17-NoStaticLedger.ps1` |
 | `CF-W-18-ProduceConsumed` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-18-ProduceConsumed.ps1` |
 | `CF-W-19-NoLocalPlaceholder` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-19-NoLocalPlaceholder.ps1` |
+| `LayoutTextFit` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Constraint\Check-LayoutTextFit.ps1` |
 
 ## Data（29 件）
 
@@ -231,7 +246,7 @@
 | `KeyOwnerUnique` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\KeySpace\Check-KeyOwnerUnique.ps1` |
 | `KeyParseAmbiguity` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\KeySpace\Check-KeyParseAmbiguity.ps1` |
 | `KeyParseSingleSource` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\KeySpace\Check-KeyParseSingleSource.ps1` |
-| `KeyPolicy` | data | 0 | — | — | `Environment\CentralTest\Tools\Gate\KeySpace\Check-KeyPolicy.ps1` |
+| `KeyPolicy` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\KeySpace\Check-KeyPolicy.ps1` |
 | `KeyRoundTrip` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\KeySpace\Check-KeyRoundTrip.ps1` |
 | `KeySpaceCoverage` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\KeySpace\Check-KeySpaceCoverage.ps1` |
 | `KeySurfaceDistinguishable` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\KeySpace\Check-KeySurfaceDistinguishable.ps1` |
@@ -247,7 +262,7 @@
 | `AssemblyClosure` | fast | 0 | Closure | Closure | `Environment\CentralTest\Tools\Gate\Meta\Check-AssemblyClosure.ps1` |
 | `BuildClosure` | fast | 0 | Build | Closure | `Environment\CentralTest\Tools\Gate\Meta\Check-BuildClosure.ps1` |
 | `BuildLayout` | fast | 0 | Build | Closure | `Environment\CentralTest\Tools\Gate\Meta\Check-BuildLayout.ps1` |
-| `BulkThreshold` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-BulkThreshold.ps1` |
+| `BulkThreshold` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Spec\BulkThreshold.gate.psd1` |
 | `CardBoundary` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-CardBoundary.ps1` |
 | `ConfigPaths` | fast | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Meta\Check-ConfigPaths.ps1` |
 | `ContractRegistry` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-ContractRegistry.ps1` |
@@ -270,16 +285,16 @@
 | `PsCapabilityFileOnly` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-PsCapabilityFileOnly.ps1` |
 | `RefreshFetch` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-RefreshFetch.ps1` |
 | `ScriptNoFixedSleep` | fast | 0 | Meta | Ratchet | `Frame\PowerShellScript\Operation\DSL\Agent\Meta\Check-ScriptNoFixedSleep.ps1` |
-| `SectionWrite` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-SectionWrite.ps1` |
+| `SectionWrite` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Spec\SectionWrite.gate.psd1` |
 | `SemanticCentralization` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-SemanticCentralization.ps1` |
 | `SolutionUmbrella` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-SolutionUmbrella.ps1` |
 | `TestBuildFramework` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-TestBuildFramework.ps1` |
 | `UiBudget` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-UiBudget.ps1` |
 | `UiIncremental` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-UiIncremental.ps1` |
 | `UiSingleWrite` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-UiSingleWrite.ps1` |
-| `UiTelemetryFields` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-UiTelemetryFields.ps1` |
+| `UiTelemetryFields` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Spec\UiTelemetryFields.gate.psd1` |
 | `UiThreadAffinity` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-UiThreadAffinity.ps1` |
-| `WriteBudgetNodes` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Meta\Check-WriteBudgetNodes.ps1` |
+| `WriteBudgetNodes` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Spec\WriteBudgetNodes.gate.psd1` |
 
 ## Node（48 件）
 
@@ -341,7 +356,7 @@
 | `KeyGrammar` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Parsing\Check-KeyGrammar.ps1` |
 | `RecognizerVocabulary` | full | 0 | — | — | `Frame\PowerShellScript\Modules\Parsing\Check-RecognizerVocabulary.ps1` |
 
-## Process（30 件）
+## Process（31 件）
 
 | Gate | Tier | Expect | Family | Form | 脚本 |
 |---|---|---|---|---|---|
@@ -375,6 +390,7 @@
 | `VerifyProportionality` | full | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-VerifyProportionality.ps1` |
 | `VerifySingleShot` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\Process\Check-VerifySingleShot.ps1` |
 | `VmKernelReferenceBoundary` | full | 0 | Boundary | Boundary | `Environment\CentralTest\Tools\Gate\Agent\Boundary\Check-VmKernelReferenceBoundary.ps1` |
+| `WaitProbeEcho` | full | 0 | — | — | `Frame\PowerShellScript\Operation\DSL\Process\Check-WaitProbeEcho.ps1` |
 
 ## Spec（5 件）
 
@@ -398,6 +414,22 @@
 | `TestPathMirror` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestPathMirror.ps1` |
 | `TestSourceReachable` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestSourceReachable.ps1` |
 | `TestSpecsSource` | fast | 0 | — | — | `Environment\CentralTest\Tools\Gate\TestLayout\Check-TestSpecsSource.ps1` |
+
+## Ui（11 件）
+
+| Gate | Tier | Expect | Family | Form | 脚本 |
+|---|---|---|---|---|---|
+| `SurfaceCacheLedger` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceCacheLedger.ps1` |
+| `SurfaceCardFaceSingle` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceCardFaceSingle.ps1` |
+| `SurfaceFrameBudget` | full | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceFrameBudget.ps1` |
+| `SurfaceFrameSingleProducer` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceFrameSingleProducer.ps1` |
+| `SurfaceLightSingleSample` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceLightSingleSample.ps1` |
+| `SurfaceLogTemplates` | full | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceLogTemplates.ps1` |
+| `SurfaceNoPerControlTimer` | full | 0 | Presentation | Boundary | `Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceNoPerControlTimer.ps1` |
+| `SurfacePointerSingleSource` | fast | 0 | Presentation | SingleSource | `Environment\CentralTest\Tools\Gate\Ui\Check-SurfacePointerSingleSource.ps1` |
+| `SurfaceRoleCoverage` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceRoleCoverage.ps1` |
+| `SurfaceShadowSoft` | fast | 0 | Presentation | Consistency | `Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceShadowSoft.ps1` |
+| `UiAcceptance` | full | 0 | Presentation | Closure | `Environment\CentralTest\Tools\Gate\Ui\Check-UiAcceptance.ps1` |
 
 ## Usharp（7 件）
 

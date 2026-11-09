@@ -37,8 +37,13 @@ if (-not (Test-Path -LiteralPath $manifestPath)) {
 # 落点口径单源 = 门禁运行时（委托 PScriptManager\Framework\DirectoryMap）：
 #   Domain → 候选目录（+ 名称例外）派生；与目录布局解耦；歧义即抛。
 Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateRuntime.psm1') -Force -DisableNameChecking
+# 登记装载单源 = Baselines\GateManifest.psm1（schema 归一 + Gate\Spec 目录重扫）；本件禁写「缺键取默认」分支。
+Import-Module (Join-Path $PSScriptRoot '..\..\..\Baselines\GateManifest.psm1') -Force -DisableNameChecking
 
-$gates = Import-PowerShellDataFile -LiteralPath $manifestPath
+$specRoot = if (Get-Command Get-MappedPath -ErrorAction SilentlyContinue) {
+    Join-Path (Get-MappedPath -Key 'CentralTestGate') 'Spec'
+} else { '' }
+$gates = Import-GateManifest -Path $manifestPath -SpecRoot $specRoot
 
 $rows = foreach ($name in ($gates.Keys | Sort-Object)) {
     $spec   = $gates[$name]

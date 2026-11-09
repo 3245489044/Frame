@@ -42,7 +42,6 @@ public sealed record FactCompleteness(
 
         var hasDispatch = false;
         var hasStepResult = false;
-        FactEnvelope? finalAnswer = null;
         FactEnvelope? terminate = null;
         var iterations = 0;
         var toolCalls = 0;
@@ -67,17 +66,14 @@ public sealed record FactCompleteness(
                 case FactKindNames.ToolResult:
                     if (!FactPayload.ReadBool(fact.PayloadJson, true, FactKeys.Ok)) toolFailures++;
                     break;
-                case FactKindNames.FinalAnswer:
-                    // 终答选取按权威级（A1 > A2 > A3 > A4）；同级才 last-wins。
-                    // 禁「最后写入者胜」：后续 Streamed/Error 不得覆盖先前的权威交付。
-                    if (finalAnswer is null || AuthorityRank(fact.Authority) >= AuthorityRank(finalAnswer.Authority))
-                        finalAnswer = fact;
-                    break;
                 case FactKindNames.RoundTerminate:
                     terminate = fact;
                     break;
             }
         }
+
+        // 终答选取由单一实现给出（与 FactDocument 同口径；禁两处各写一套）。
+        var finalAnswer = FactAnswerSelection.SelectFinalAnswer(list);
 
         var stopReason = finalAnswer is not null
             ? FactPayload.ReadString(finalAnswer.PayloadJson,

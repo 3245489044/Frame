@@ -23,11 +23,8 @@ public sealed class FactDocument
             .OrderBy(f => f.Seq)
             .ToList();
         Completeness = FactCompleteness.Of(Facts);
-        // 与 FactCompleteness 同口径：按权威级选取（同级才 last-wins），禁后续低权威事实覆盖权威交付。
-        FinalAnswer = Facts
-            .Where(f => f.Kind == FactKindNames.FinalAnswer)
-            .OrderBy(f => FactCompleteness.AuthorityRank(f.Authority))
-            .LastOrDefault();
+        // 与 FactCompleteness 同一实现（权威级高者胜、同级 last-wins；Facts 已按 Seq 升序归一）。
+        FinalAnswer = FactAnswerSelection.SelectFinalAnswer(Facts);
     }
 
     /// <summary>文档归属键（= 轮键）。</summary>

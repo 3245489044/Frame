@@ -137,15 +137,29 @@ function Get-GateIndex {
     }
 
     # 被 .gitignore 排除的**源文件**仍须审计（如 Credentials/*.cs）；仅排除构建产物目录。
-    $ignoredRaw = & git -C $Worktree -c core.quotepath=false ls-files -z -o -i --exclude-standard -- @patterns 2>$null
+    # --directory：整目录被忽略时只回一条目录名（Git 不逐文件下钻；Frame 实测 159s → 2s）。
+    #   目录未被排除的才回退逐文件枚举 ⇒ 文件集与「逐文件 -o -i」等价，不改变判据结果。
+    $ignoredPathspec = @($patterns) + @(Get-GateSourceExcludeGitPathSpec)
+    $ignoredRaw = & git -C $Worktree -c core.quotepath=false ls-files -z -o -i --directory --exclude-standard -- @ignoredPathspec 2>$null
     if ($LASTEXITCODE -eq 0) {
         $ignoredText = ($ignoredRaw | Out-String)
+        $excludeRx = Get-GateSourceExcludePattern
+        $extSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($e in $script:IndexExtensions) { [void]$extSet.Add($e) }
         foreach ($r in @($ignoredText -split "`0" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
             try {
                 $abs = [IO.Path]::GetFullPath((Join-Path $Worktree $r)).Replace('/', '\')
                 # 与 Get-GateSourceExcludePattern 同源（禁第二份排除清单；含 Runtime\Payload 部署镜像）。
-                if ($abs -match (Get-GateSourceExcludePattern)) { continue }
-                if ($seen.Add($abs)) { $files.Add($abs) }
+                if ($abs -match $excludeRx) { continue }
+                if ($r.EndsWith('/') -or (Test-Path -LiteralPath $abs -PathType Container)) {
+                    foreach ($f in (Get-ChildItem -LiteralPath $abs -Recurse -File -ErrorAction SilentlyContinue)) {
+                        if (-not $extSet.Contains($f.Extension.TrimStart('.').ToLowerInvariant())) { continue }
+                        if ($f.FullName -match $excludeRx) { continue }
+                        if ($seen.Add($f.FullName)) { $files.Add($f.FullName) }
+                    }
+                } elseif ($seen.Add($abs)) {
+                    $files.Add($abs)
+                }
             } catch {
                 # 单条坏路径不阻断整体索引
             }

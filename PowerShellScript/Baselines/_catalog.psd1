@@ -170,9 +170,9 @@
         @{ File = 'Constraint\CF-W-14-FieldUsageIndex.psd1'; Role = 'Data'; Domain = 'Constraint'; Gate = 'CF-W-14-FieldUsageIndex'; Shape = 'FactRow'; Origins = @('Derived', 'Debt'); Consumer = 'Environment\CentralTest\Tools\Gate\Constraint\Check-CF-W-14-FieldUsageIndex.ps1'; DueWhen = '未解析接收者归零' }
         # ---- Ui 域（Surface 窗口帧纪律：单生产者 / 无每控件定时器 / 日志模板 / 槽预算）----
         @{ File = 'Ui\SurfaceFrameSingleProducer.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'SurfaceFrameSingleProducer'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceFrameSingleProducer.ps1' }
-        @{ File = 'Ui\SurfaceNoPerControlTimer.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'SurfaceNoPerControlTimer'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceNoPerControlTimer.ps1' }
+        @{ File = 'Ui\SurfaceNoPerControlTimer.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'SurfaceNoPerControlTimer'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Spec\SurfaceNoPerControlTimer.gate.psd1' }
         @{ File = 'Ui\SurfaceLogTemplates.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'SurfaceLogTemplates'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceLogTemplates.ps1' }
-        @{ File = 'Ui\SurfaceFrameBudget.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'SurfaceFrameBudget'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Ui\Check-SurfaceFrameBudget.ps1' }
+        @{ File = 'Ui\SurfaceFrameBudget.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'SurfaceFrameBudget'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Spec\SurfaceFrameBudget.gate.psd1' }
         @{ File = 'Ui\UiAcceptance.psd1'; Role = 'Data'; Domain = 'Ui'; Gate = 'UiAcceptance'; Shape = 'FactRow'; Origins = @('Derived'); Consumer = 'Environment\CentralTest\Tools\Gate\Ui\Check-UiAcceptance.ps1' }
     )
 }

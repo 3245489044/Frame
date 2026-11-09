@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using MathematicalAlgorithms.Surface;
+using SurfacePaint.Contracts;
 
 namespace Share.SurfacePaint.Engine;
 
@@ -50,7 +51,7 @@ public static class EngineSurfaceBridge
         reason = string.Empty;
         if (port is null)
         {
-            reason = "port-missing";
+            reason = SurfaceReasonCode.Of(SurfaceReason.PortMissing);
             return null;
         }
 
@@ -58,7 +59,7 @@ public static class EngineSurfaceBridge
         var items = request.Items ?? Array.Empty<SurfaceDrawItem>();
         if (items.Count > SurfaceFrameContract.MaxItems)
         {
-            reason = "item-overflow";
+            reason = SurfaceReasonCode.Of(SurfaceReason.ItemOverflow);
             return null;
         }
 
@@ -76,13 +77,13 @@ public static class EngineSurfaceBridge
             catch (Exception ex)
             {
                 // 端口调用本身抛出（跨 ALC 类型/序列化等）：与「响应不可解析」分开归因。
-                reason = "port-call-exception:" + ex.GetType().Name;
+                reason = SurfaceReasonCode.Of(SurfaceReason.PortCallException) + ":" + ex.GetType().Name;
                 return null;
             }
 
             if (string.IsNullOrWhiteSpace(response))
             {
-                reason = "port-empty";
+                reason = SurfaceReasonCode.Of(SurfaceReason.PortEmpty);
                 return null;
             }
 
@@ -95,7 +96,9 @@ public static class EngineSurfaceBridge
             if (!ok || !string.IsNullOrEmpty(degraded) || string.IsNullOrEmpty(pixelsShm))
             {
                 reason = string.IsNullOrEmpty(degraded)
-                    ? (string.IsNullOrEmpty(responseReason) ? "no-pixels" : responseReason)
+                    ? (string.IsNullOrEmpty(responseReason)
+                        ? SurfaceReasonCode.Of(SurfaceReason.NoPixels)
+                        : responseReason)
                     : degraded;
                 return null;
             }
@@ -103,7 +106,7 @@ public static class EngineSurfaceBridge
             var rgba = ReadPixels(pixelsShm);
             if (rgba is null || rgba.Length == 0)
             {
-                reason = "pixels-unreadable";
+                reason = SurfaceReasonCode.Of(SurfaceReason.PixelsUnreadable);
                 return null;
             }
 
@@ -120,7 +123,7 @@ public static class EngineSurfaceBridge
         }
         catch (Exception ex)
         {
-            reason = "response-parse-error:" + ex.GetType().Name;
+            reason = SurfaceReasonCode.Of(SurfaceReason.ResponseParseError) + ":" + ex.GetType().Name;
             return null;
         }
     }

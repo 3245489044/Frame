@@ -2,6 +2,7 @@
 
 using System;
 using System.Windows.Forms;
+using MathematicalAlgorithms.Surface;
 using Share.Registry;
 using Share.Conversation.Rendering.Surface;
 using TConfig;
@@ -45,13 +46,12 @@ internal static class SurfaceLightPump
     internal static SurfaceLightCoverage ScreenCoverage(Control anchor)
     {
         var screen = SystemInformation.VirtualScreen;
-        var dpi = anchor.DeviceDpi > 0 ? anchor.DeviceDpi : (_pixelScaleDpi > 0 ? _pixelScaleDpi : 96);
-        var scale = 96f / dpi;
-        return new SurfaceLightCoverage(
-            screen.X * scale,
-            screen.Y * scale,
-            Math.Max(1f, screen.Width * scale),
-            Math.Max(1f, screen.Height * scale));
+        var dpi = BorderUnits.NormalizeDpi(anchor.DeviceDpi > 0
+            ? anchor.DeviceDpi
+            : (_pixelScaleDpi > 0 ? _pixelScaleDpi : 96));
+        var loc = SurfaceLocMath.ScreenCoverageOf(
+            screen.X, screen.Y, screen.Width, screen.Height, BorderUnits.BaseDpi / dpi);
+        return new SurfaceLightCoverage(loc.X, loc.Y, loc.Width, loc.Height);
     }
 
     private static void Pull()
@@ -75,13 +75,10 @@ internal static class SurfaceLightPump
                 ? anchor.DeviceDpi
                 : _pixelScaleDpi;
             _pixelScaleDpi = dpi;
-            var scale = 96f / dpi;
-            var x = (int)Math.Round(screen.X * scale);
-            var y = (int)Math.Round(screen.Y * scale);
-            var width = Math.Max(1, (int)Math.Round(screen.Width * scale));
-            var height = Math.Max(1, (int)Math.Round(screen.Height * scale));
+            var rect = SurfaceLocMath.RoundedScreenRectOf(
+                screen.X, screen.Y, screen.Width, screen.Height, BorderUnits.BaseDpi / dpi);
 
-            var raw = sample(x, y, width, height, string.Empty);
+            var raw = sample(rect.X, rect.Y, rect.Width, rect.Height, string.Empty);
             var frame = SurfaceLightFrameCodec.Parse(raw);
             if (frame is null)
             {

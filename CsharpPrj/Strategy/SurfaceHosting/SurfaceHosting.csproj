@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>表面帧宿主（SurfaceHosting）</ModuleRule_Title>
+    <ModuleRule_Layer>3</ModuleRule_Layer>
+    <ModuleRule_Description>表面帧的宿主适配层（层 3，与 Strategy.Refresh 同层）：把通用刷新调度（IRefreshRenderer/IRefreshSink）接到窗口帧生产上——取数声明端口（ISurfaceFrameGatherSource）、Gather 取数 + 快照组合的渲染器、帧落地 Sink、视图声明显式回退。零 Control/Form/Timer；窗口生命周期由载体经端口注入。</ModuleRule_Description>
+    <ModuleRule_Keywords>表面;帧;宿主;刷新;聚拢;窗口</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="本工程是 Strategy.Refresh 之外唯一的 Surface 宿主：Refresh 源码不得再出现任何 Surface* 类型" />
+    <ModuleRule_Rule Include="只依赖 Strategy.Refresh（通用调度）+ Share.SurfacePaint（帧组合/快照）+ Modules.Gather（取数声明）" />
+    <ModuleRule_Rule Include="禁 Control/Form/Timer/消息循环；窗口能力经端口注入，禁读前端静态单例" />
+    <ModuleRule_Rule Include="唯一帧生产者：快照构造只发生在 Share.SurfacePaint.Hosting.SurfaceFrameComposer" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Strategy.SurfaceHosting</RootNamespace>
+    <AssemblyName>SurfaceHosting</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Description>表面帧宿主层（Refresh 适配 + Gather 取数；零控件类型）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(Proj_Refresh)" />
+    <ProjectReference Include="$(Proj_Share_SurfacePaint)" />
+    <ProjectReference Include="$(Proj_Gather)" />
+  </ItemGroup>
+
+</Project>

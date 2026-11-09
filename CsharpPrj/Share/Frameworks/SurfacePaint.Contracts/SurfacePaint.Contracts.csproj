@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>表面绘制契约（SurfacePaint.Contracts）</ModuleRule_Title>
+    <ModuleRule_Layer>2</ModuleRule_Layer>
+    <ModuleRule_Description>载体无关的表面契约层（零 ProjectReference）：端口就绪态（PortKind/PortReadiness/PortStatus）、原因码单源（SurfaceReason）、宿主视口 DTO（SurfaceViewport）、皮肤单源 DTO（SurfaceSkin/ISurfaceSkinSource）。只吃 BCL + System.Drawing，不含任何解析/绘制/调度实现。</ModuleRule_Description>
+    <ModuleRule_Keywords>表面;契约;端口;就绪态;原因码;视口;皮肤</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="零 ProjectReference：只允许 BCL 与 System.Drawing；禁引用 Share.SurfacePaint/Strategy.Refresh/Plate.*" />
+    <ModuleRule_Rule Include="本工程不得出现 Control/Form/Timer/Graphics 绘制调用；只管类型与常量" />
+    <ModuleRule_Rule Include="原因码/就绪态/皮肤字段是唯一真源；实现层不得再手写同义字面量" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SurfacePaint.Contracts</RootNamespace>
+    <AssemblyName>SurfacePaint.Contracts</AssemblyName>
+    <Description>表面绘制契约层（载体无关，零依赖）</Description>
+  </PropertyGroup>
+
+</Project>

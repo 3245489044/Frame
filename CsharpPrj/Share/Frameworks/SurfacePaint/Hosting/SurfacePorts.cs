@@ -3,6 +3,7 @@
 using System;
 using System.Drawing;
 using Share.Conversation.Rendering.Surface;
+using SurfacePaint.Contracts;
 
 namespace Share.SurfacePaint.Hosting;
 
@@ -69,7 +70,13 @@ public sealed class NullSurfaceEventLog : ISurfaceEventLog
 /// <summary>引擎帧端口（避免框架依赖 Share.Registry/TConfig；载体注入实现）。</summary>
 public interface ISurfaceEnginePort
 {
-    /// <summary>渲染一帧；失败 ⇒ null 并给出原因。</summary>
+    /// <summary>
+    /// 端口就绪态（结构事实）：<see cref="PortReadiness.Ready"/> 之外不得调用 <see cref="TryRender"/>；
+    /// <see cref="PortReadiness.Missing"/> 的端口不得注册为可调用实现。
+    /// </summary>
+    PortStatus Status { get; }
+
+    /// <summary>渲染一帧；仅 <see cref="PortStatus.IsReady"/> 下允许调用；失败 ⇒ null 并给出原因码。</summary>
     bool TryRender(
         Engine.EngineSurfaceRequest request,
         out Engine.EngineSurfaceFrame? frame,

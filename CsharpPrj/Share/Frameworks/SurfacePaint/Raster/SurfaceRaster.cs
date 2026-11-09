@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using MathematicalAlgorithms.Surface;
 using Share.SurfacePaint;
 using UiBackend;
 
@@ -49,15 +50,12 @@ public static class SurfaceRaster
             if (_spotMask is not null) return _spotMask;
             const int side = 128;
             var bitmap = new Bitmap(side, side, PixelFormat.Format32bppArgb);
-            var center = (side - 1) / 2.0;
             for (var y = 0; y < side; y++)
             {
                 for (var x = 0; x < side; x++)
                 {
-                    var dx = (x - center) / center;
-                    var dy = (y - center) / center;
-                    var distance = Math.Sqrt(dx * dx + dy * dy);
-                    var alpha = distance >= 1.0 ? 0 : (int)Math.Round(255 * (1 - distance) * (1 - distance));
+                    var distance = SurfaceRasterMath.SpotMaskDistance(x, y, side);
+                    var alpha = SurfaceRasterMath.SpotMaskAlpha(distance);
                     bitmap.SetPixel(x, y, Color.FromArgb(alpha, Color.White));
                 }
             }
@@ -83,9 +81,9 @@ public static class SurfaceRaster
             return copy;
         }
 
-        var factor = Math.Max(2, radius / 4); // 18 ⇒ 4（约 4×4 降采样）
-        var smallWidth = Math.Max(1, source.Width / factor);
-        var smallHeight = Math.Max(1, source.Height / factor);
+        var factor = SurfaceRasterMath.BlurDownsampleFactor(radius); // 18 ⇒ 4（约 4×4 降采样）
+        var smallWidth = SurfaceRasterMath.BlurDownsampleSize(source.Width, factor);
+        var smallHeight = SurfaceRasterMath.BlurDownsampleSize(source.Height, factor);
         var small = new Bitmap(smallWidth, smallHeight);
         try
         {
@@ -149,17 +147,17 @@ public static class SurfaceRaster
         {
             var stride = data.Stride;
             var buffer = data.Scan0;
-            var radians = (float)(2 * Math.PI / wavelength);
+            var radians = SurfaceRasterMath.RibbonRadians(wavelength);
             for (var x = 0; x < width; x++)
             {
-                var phase = radians * (x - centerX) + shapePhase * 2f * (float)Math.PI;
-                var centerline = centerY + (x - centerX) * 0.34f + amplitude * MathF.Sin(phase);
-                var slope = 0.34f + amplitude * radians * MathF.Cos(phase);
+                var phase = SurfaceRasterMath.RibbonPhase(radians, x, centerX, shapePhase);
+                var centerline = SurfaceRasterMath.RibbonCenterline(centerX, centerY, amplitude, phase, x);
+                var slope = SurfaceRasterMath.RibbonSlope(amplitude, radians, phase);
                 // 法线 = (−slope, 1)/length；带宽 half 是**垂直距离**，故列内纵向半高 = half/length。
-                var halfHeight = half / MathF.Sqrt(1f + slope * slope);
+                var halfHeight = SurfaceRasterMath.RibbonHalfHeight(bandWidth, slope);
                 var top = Math.Max(0, (int)Math.Floor(centerline - halfHeight));
                 var bottom = Math.Min(height - 1, (int)Math.Ceiling(centerline + halfHeight));
-                var hue = hue0 + Math.Clamp(x / Math.Max(1f, width), 0f, 1f) * span;
+                var hue = SurfaceRasterMath.RibbonHue(hue0, x, width, span);
                 for (var y = top; y <= bottom; y++)
                 {
                     var offset = y * stride + x * 4;

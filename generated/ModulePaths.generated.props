@@ -149,6 +149,7 @@
     <Mod_Share_Llm>$(CsharpPrjDir)Share\Frameworks\Llm\</Mod_Share_Llm>
     <Mod_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\</Mod_CircuitFramework>
     <Mod_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\</Mod_Share_Conversation>
+    <Mod_SurfacePaint_Contracts>$(CsharpPrjDir)Share\Frameworks\SurfacePaint.Contracts\</Mod_SurfacePaint_Contracts>
     <Mod_Share_SurfacePaint>$(CsharpPrjDir)Share\Frameworks\SurfacePaint\</Mod_Share_SurfacePaint>
     <Mod_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\</Mod_Share_Messaging>
     <Mod_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\</Mod_Share_ContextGeometry>
@@ -167,6 +168,7 @@
     <Mod_DecisionRules>$(CsharpPrjDir)Strategy\DecisionRules\</Mod_DecisionRules>
     <Mod_Observability>$(CsharpPrjDir)Strategy\Observability\</Mod_Observability>
     <Mod_Refresh>$(CsharpPrjDir)Strategy\Refresh\</Mod_Refresh>
+    <Mod_SurfaceHosting>$(CsharpPrjDir)Strategy\SurfaceHosting\</Mod_SurfaceHosting>
     <Mod_Strategy>$(CsharpPrjDir)Strategy\</Mod_Strategy>
   </PropertyGroup>
 
@@ -300,6 +302,7 @@
     <Proj_Share_Llm>$(CsharpPrjDir)Share\Frameworks\Llm\Share.Llm.csproj</Proj_Share_Llm>
     <Proj_CircuitFramework>$(CsharpPrjDir)Share\Frameworks\CircuitFramework\CircuitFramework.csproj</Proj_CircuitFramework>
     <Proj_Share_Conversation>$(CsharpPrjDir)Share\Frameworks\Conversation\Share.Conversation.csproj</Proj_Share_Conversation>
+    <Proj_SurfacePaint_Contracts>$(CsharpPrjDir)Share\Frameworks\SurfacePaint.Contracts\SurfacePaint.Contracts.csproj</Proj_SurfacePaint_Contracts>
     <Proj_Share_SurfacePaint>$(CsharpPrjDir)Share\Frameworks\SurfacePaint\Share.SurfacePaint.csproj</Proj_Share_SurfacePaint>
     <Proj_Share_Messaging>$(CsharpPrjDir)Share\Frameworks\Messaging\Share.Messaging.csproj</Proj_Share_Messaging>
     <Proj_Share_ContextGeometry>$(CsharpPrjDir)Share\Frameworks\ContextGeometry\Share.ContextGeometry.csproj</Proj_Share_ContextGeometry>
@@ -318,6 +321,7 @@
     <Proj_DecisionRules>$(CsharpPrjDir)Strategy\DecisionRules\DecisionRules.csproj</Proj_DecisionRules>
     <Proj_Observability>$(CsharpPrjDir)Strategy\Observability\Observability.csproj</Proj_Observability>
     <Proj_Refresh>$(CsharpPrjDir)Strategy\Refresh\Refresh.csproj</Proj_Refresh>
+    <Proj_SurfaceHosting>$(CsharpPrjDir)Strategy\SurfaceHosting\SurfaceHosting.csproj</Proj_SurfaceHosting>
     <Proj_Strategy>$(CsharpPrjDir)Strategy\Strategy.csproj</Proj_Strategy>
   </PropertyGroup>
 

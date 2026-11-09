@@ -253,14 +253,18 @@ public static class SurfaceAmbientScene
         {
             items.Add(new SurfaceDrawItem(
                 bounds.X, bounds.Y, bounds.Width, bounds.Height,
-                0f, 0xFFFFFFFFu, Math.Clamp(_params.RadialAlpha * sample.Shade, 0f, 1f), 2,
+                0f, 0xFFFFFFFFu,
+                SurfaceAmbientLayoutMath.SpotOpacity(_params.RadialAlpha, sample.Shade), 2,
                 SurfaceDrawKind.Spot, SurfaceDrawFlags.Decor));
         }
 
         if (_params.RibbonAlpha > 0f)
         {
+            var ribbon = SurfaceAmbientLayoutMath.Ribbon(
+                bounds.Width, bounds.Height, _params.RibbonSpan, HueBudget(), FamilySpan,
+                _params.RibbonAmplitude, _params.RibbonWidth, scale);
             items.Add(new SurfaceDrawItem(
-                bounds.X, bounds.Y + bounds.Height * 0.46f, bounds.Width, Math.Max(1f, _params.RibbonWidth * scale),
+                bounds.X, bounds.Y + ribbon.CenterY, bounds.Width, Math.Max(1f, ribbon.BandWidth),
                 0f, 0x3377AABB, Math.Clamp(_params.RibbonAlpha, 0f, 1f), 3,
                 SurfaceDrawKind.Gradient, SurfaceDrawFlags.Decor, 0f));
         }
@@ -321,17 +325,15 @@ public static class SurfaceAmbientScene
     {
         if (_params.GradientFrom is null || _params.RadialAlpha <= 0f || _params.RadialRadius <= 0f) return;
 
-        var shade = Math.Clamp(light?.Shade ?? 1f, 0f, 1f);
-        if (shade <= 0.02f) return;
+        // 几何/强度单源 = Plate.Mathematics（照度阈值与 alpha 取整都在那里）。
+        var glow = SurfaceAmbientLayoutMath.RadialGlow(
+            width, height, _params.RadialAlpha, _params.RadialRadius, scale,
+            light?.Shade ?? 1f, light?.SpotX ?? 0.5f, light?.SpotY ?? 0.5f);
+        if (glow.Alpha <= 0) return;
 
-        var alpha = Math.Clamp((int)Math.Round(_params.RadialAlpha * shade * 255f), 0, 255);
-        if (alpha <= 0) return;
-
-        var centerX = width * (light?.SpotX ?? 0.5f);
-        var centerY = height * (light?.SpotY ?? 0.5f);
-        var radius = Math.Max(8f, _params.RadialRadius * scale);
         // 光栅原语在 Share.SurfacePaint.Raster（载体无关）；本层只负责从光态算出中心/半径/强度。
-        SurfaceRaster.RadialGlow(graphics, width, height, centerX, centerY, radius, alpha);
+        SurfaceRaster.RadialGlow(
+            graphics, width, height, glow.CenterX, glow.CenterY, glow.Radius, glow.Alpha);
     }
 
     /// <summary>
@@ -353,14 +355,13 @@ public static class SurfaceAmbientScene
     {
         if (_params.RibbonAlpha <= 0f || _params.RibbonSpan <= 0f) return;
         var hue0 = FamilyHueBase();
-        var span = Math.Min(_params.RibbonSpan, Math.Min(HueBudget(), FamilySpan));
-        var shapePhase = ShapePhase(light);
-        var centerX = width * 0.18f;
-        var centerY = height * 0.46f;
-        var amplitude = height * _params.RibbonAmplitude;
-        var wavelength = width * 1.05f;
-        var bandWidth = _params.RibbonWidth * scale;
-        SurfaceRaster.Ribbon(scene, width, height, centerX, centerY, amplitude, wavelength, bandWidth, shapePhase, hue0, span);
+        var ribbon = SurfaceAmbientLayoutMath.Ribbon(
+            width, height, _params.RibbonSpan, HueBudget(), FamilySpan,
+            _params.RibbonAmplitude, _params.RibbonWidth, scale);
+        SurfaceRaster.Ribbon(
+            scene, width, height,
+            ribbon.CenterX, ribbon.CenterY, ribbon.Amplitude, ribbon.Wavelength, ribbon.BandWidth,
+            ShapePhase(light), hue0, ribbon.Span);
     }
 
     private static ChromeSnapshot? EnsureChrome(
@@ -410,17 +411,22 @@ public static class SurfaceAmbientScene
         if ((decoration & paintable) == 0) return null;
 
         var scale = dpi / 96f;
-        var gutter = Math.Clamp((int)Math.Round(_params.Gutter * scale), 0, Math.Min(bounds.Width, bounds.Height) / 3);
-        if (gutter <= 0 && _params.TextureAlpha <= 0f) return null;
         // 尺度归一：装饰语法（gutter 环 + 圆角 + 3.6px 细边）是**卡片尺度**的语法。
         // 旧实现把它套到任意尺寸控件上：28px 宽柔带 > 20px 行高，整行被填成粉色胶囊（实机截图）。
         // 契约：最小边 < 2×(gutter+圆角) 的控件不消费 chrome，交回普通材质绘制，不做逐控件分支。
-        if (Math.Min(bounds.Width, bounds.Height) < 2f * (gutter + _params.CornerRadius * scale)) return null;
+        // 布局算术单源 = Plate.Mathematics。
+        if (!SurfaceAmbientLayoutMath.TryChrome(
+                bounds.X, bounds.Y, bounds.Width, bounds.Height,
+                _params.Gutter, _params.CornerRadius, _params.TextureAlpha, scale, out var chrome))
+        {
+            return null;
+        }
 
-        var radius = Math.Min(_params.CornerRadius * scale, Math.Min(bounds.Width, bounds.Height) / 2f);
-        var inner = Rectangle.Inflate(bounds, -gutter, -gutter);
-        inner.Width = Math.Max(1, inner.Width);
-        inner.Height = Math.Max(1, inner.Height);
+        var gutter = chrome.Gutter;
+        var radius = chrome.Radius;
+        var inner = new Rectangle(
+            (int)chrome.InnerX, (int)chrome.InnerY,
+            (int)chrome.InnerWidth, (int)chrome.InnerHeight);
 
         // PArgb：SourceOver 贴图的 GDI+ 快路径（同像素数下比 Argb 快约 2×）。
         var bitmap = new Bitmap(bounds.Width, bounds.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
@@ -480,20 +486,18 @@ public static class SurfaceAmbientScene
         if (_params.ShadowTint is null || _params.GlowAlpha <= 0f) return;
         var tint = _params.ShadowTint.Value;
         var spread = _params.GlowRadius * scale;
-        var shadowX = (light?.ShadowX ?? 0.35f) * spread * 0.35f;
-        var shadowY = (light?.ShadowY ?? 0.35f) * spread * 0.35f;
+        var shadowX = light?.ShadowX ?? SurfaceAmbientLayoutMath.DefaultShadowDirection;
+        var shadowY = light?.ShadowY ?? SurfaceAmbientLayoutMath.DefaultShadowDirection;
         var steps = 6;
         for (var i = 0; i < steps; i++)
         {
-            var inset = spread * (i / (float)steps);
+            var step = SurfaceAmbientLayoutMath.GlowStep(
+                inner.X, inner.Y, inner.Width, inner.Height, radius,
+                spread, shadowX, shadowY, _params.GlowAlpha, i, steps, scale);
             var rect = new RectangleF(
-                inner.X + inset + shadowX,
-                inner.Y + inset + shadowY,
-                Math.Max(1f, inner.Width - inset * 2f),
-                Math.Max(1f, inner.Height - inset * 2f));
-            var alpha = Math.Clamp((int)Math.Round(_params.GlowAlpha * 255f * (1f - i / (float)steps)), 0, 255);
-            using var path = SurfaceRaster.RoundedRect(rect, Math.Max(0f, radius - inset));
-            using var pen = new Pen(Color.FromArgb(alpha, tint), Math.Max(1f, 5f * scale));
+                step.Rect.X, step.Rect.Y, step.Rect.Width, step.Rect.Height);
+            using var path = SurfaceRaster.RoundedRect(rect, step.Radius);
+            using var pen = new Pen(Color.FromArgb(step.Alpha, tint), step.PenWidth);
             graphics.DrawPath(pen, path);
         }
     }
@@ -517,41 +521,34 @@ public static class SurfaceAmbientScene
         var width = _params.EdgeWidth * scale;
         if (width < MinEdgeStroke) return;
         var hueStart = FamilyHueBase();
-        var window = Math.Min(FamilySpan, 4f * Math.Max(1f, _params.EdgeHueSpan));
-        var segment = window / 4f;
-        var r = Math.Max(0f, radius);
+        var (_, segment) = SurfaceAmbientLayoutMath.EdgeBandWindow(_params.EdgeHueSpan, FamilySpan);
 
         // 顺时针：上 0→1、右 1→2、下 2→3、左 3→4（4 与 0 在左上角相差一个窗口，是唯一的接缝）。
-        var edges = new (PointF A, PointF B, float From)[]
+        foreach (var edge in SurfaceAmbientLayoutMath.EdgeSegments(
+                     inner.X, inner.Y, inner.Width, inner.Height, radius))
         {
-            (new PointF(inner.X + r, inner.Y), new PointF(inner.Right - r, inner.Y), 0f),
-            (new PointF(inner.Right, inner.Y + r), new PointF(inner.Right, inner.Bottom - r), 1f),
-            (new PointF(inner.Right - r, inner.Bottom), new PointF(inner.X + r, inner.Bottom), 2f),
-            (new PointF(inner.X, inner.Bottom - r), new PointF(inner.X, inner.Y + r), 3f),
-        };
-
-        foreach (var (a, b, from) in edges)
-        {
-            PaintEdgeGradient(graphics, a, b, offset, worldWidth, worldHeight, scale, light, hueStart,
-                from * segment, (from + 1f) * segment, width, EdgeAlpha);
+            PaintEdgeGradient(
+                graphics,
+                new PointF(edge.A.X, edge.A.Y),
+                new PointF(edge.B.X, edge.B.Y),
+                offset, worldWidth, worldHeight, scale, light, hueStart,
+                edge.From * segment, (edge.From + 1f) * segment, width, EdgeAlpha);
         }
 
+        var r = Math.Max(0f, radius);
         if (r <= 0f) return;
-        var corners = new (RectangleF Rect, float Start, float Segment)[]
+        foreach (var corner in SurfaceAmbientLayoutMath.EdgeCorners(
+                     inner.X, inner.Y, inner.Width, inner.Height, radius))
         {
-            (new RectangleF(inner.X, inner.Y, r * 2f, r * 2f), 180f, 0f),
-            (new RectangleF(inner.Right - r * 2f, inner.Y, r * 2f, r * 2f), 270f, 1f),
-            (new RectangleF(inner.Right - r * 2f, inner.Bottom - r * 2f, r * 2f, r * 2f), 0f, 2f),
-            (new RectangleF(inner.X, inner.Bottom - r * 2f, r * 2f, r * 2f), 90f, 3f),
-        };
-
-        foreach (var (rect, start, segmentIndex) in corners)
-        {
+            var rect = new RectangleF(
+                corner.Rect.X, corner.Rect.Y, corner.Rect.Width, corner.Rect.Height);
             BackdropLab(
                 rect.X + offset.X, rect.Y + offset.Y, worldWidth, worldHeight, scale, light,
                 out var lstar, out var baseA, out var baseB);
-            using var rim = new Pen(DecorColor(lstar, baseA, baseB, hueStart + segmentIndex * segment, EdgeAlpha), width);
-            graphics.DrawArc(rim, rect, start, 90f);
+            using var rim = new Pen(
+                DecorColor(lstar, baseA, baseB, hueStart + corner.SegmentIndex * segment, EdgeAlpha),
+                width);
+            graphics.DrawArc(rim, rect, corner.Start, 90f);
         }
     }
 
@@ -560,17 +557,17 @@ public static class SurfaceAmbientScene
         Graphics graphics, PointF a, PointF b, Point offset, int worldWidth, int worldHeight, float scale,
         SurfaceLightState? light, float hueStart, float degrees0, float degrees1, float width, int alpha)
     {
-        var horizontal = Math.Abs(b.Y - a.Y) < 0.01f;
-        var forward = horizontal ? b.X > a.X : b.Y > a.Y;
-        var rect = horizontal
-            ? new RectangleF(Math.Min(a.X, b.X), a.Y, Math.Max(1f, Math.Abs(b.X - a.X)), 1f)
-            : new RectangleF(a.X, Math.Min(a.Y, b.Y), 1f, Math.Max(1f, Math.Abs(b.Y - a.Y)));
+        var line = SurfaceAmbientLayoutMath.EdgeGradientLine(
+            new MathematicalAlgorithms.Surface.SurfacePointF(a.X, a.Y),
+            new MathematicalAlgorithms.Surface.SurfacePointF(b.X, b.Y));
+        var rect = new RectangleF(line.Rect.X, line.Rect.Y, line.Rect.Width, line.Rect.Height);
         // 两端的 L* 取各自位置的底色：沿边线性插值即可匹配 45° 渐变，ΔL* 保持在量化误差量级。
         BackdropLab(a.X + offset.X, a.Y + offset.Y, worldWidth, worldHeight, scale, light, out var l0, out var a0, out var b0);
         BackdropLab(b.X + offset.X, b.Y + offset.Y, worldWidth, worldHeight, scale, light, out var l1, out var a1, out var b1);
         var from = DecorColor(l0, a0, b0, hueStart + degrees0, alpha);
         var to = DecorColor(l1, a1, b1, hueStart + degrees1, alpha);
-        using (var brush = new LinearGradientBrush(rect, forward ? from : to, forward ? to : from, horizontal ? 0f : 90f))
+        using (var brush = new LinearGradientBrush(
+            rect, line.Forward ? from : to, line.Forward ? to : from, line.Horizontal ? 0f : 90f))
         using (var pen = new Pen(brush, width) { StartCap = LineCap.Flat, EndCap = LineCap.Flat })
         {
             graphics.DrawLine(pen, a, b);
@@ -580,7 +577,7 @@ public static class SurfaceAmbientScene
     private static void PaintTexture(Graphics graphics, GraphicsPath innerPath, float scale)
     {
         if (_params.TextureAlpha <= 0f) return;
-        var alpha = Math.Clamp((int)Math.Round(_params.TextureAlpha * 255f), 0, 255);
+        var alpha = SurfaceAmbientLayoutMath.TextureAlpha(_params.TextureAlpha);
         if (_noise is null || Math.Abs(_noiseAlpha - alpha) > 0.5f)
         {
             _noise?.Dispose();
@@ -724,13 +721,13 @@ public static class SurfaceAmbientScene
             return _state;
         }
 
-        var scale = 96f / dpi;
+        var scale = BorderUnits.BaseDpi / dpi;
+        var carrierLoc = MathematicalAlgorithms.Surface.SurfaceLocMath.CarrierFromHost(
+            viewport.HostOriginXDip, viewport.HostOriginYDip,
+            viewport.HostWidth, viewport.HostHeight, scale, dpi);
         var carrier = new SurfaceCarrierFrame(
-            (float)viewport.HostOriginXDip,
-            (float)viewport.HostOriginYDip,
-            viewport.HostWidth * scale,
-            viewport.HostHeight * scale,
-            dpi);
+            carrierLoc.ScreenXDip, carrierLoc.ScreenYDip,
+            carrierLoc.WidthDip, carrierLoc.HeightDip, carrierLoc.Dpi);
         var probe = new SurfaceLightProbe(
             carrier.ScreenXDip,
             carrier.ScreenYDip,

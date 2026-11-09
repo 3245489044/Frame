@@ -7,6 +7,7 @@ using Share.Conversation.Rendering.Surface;
 using Share.Registry;
 using Share.SurfacePaint.Engine;
 using Share.SurfacePaint.Hosting;
+using SurfacePaint.Contracts;
 using TConfig;
 using UiBackend;
 
@@ -45,25 +46,62 @@ internal sealed class WinFormsSurfaceEnginePort : ISurfaceEnginePort
     /// <summary>单例（注册表寻址无状态）。</summary>
     internal static readonly WinFormsSurfaceEnginePort Instance = new();
 
+    /// <summary>就绪态复检窗口（毫秒）：注册表可能在装配后变化，但不得每帧寻址。</summary>
+    private const int StatusRefreshMs = 5000;
+
+    private static readonly object StatusGate = new();
+    private static Func<string, string>? _port;
+    private static PortStatus _status = PortStatus.Missing(PortKind.Engine, SurfaceReasonCode.Of(SurfaceReason.PortMissing));
+    private static long _checkedAt = long.MinValue / 2;
+
+    /// <inheritdoc />
+    public PortStatus Status
+    {
+        get
+        {
+            EnsureResolved();
+            return _status;
+        }
+    }
+
     /// <inheritdoc />
     public bool TryRender(EngineSurfaceRequest request, out EngineSurfaceFrame? frame, out string reason)
     {
         frame = null;
-        if (!TryPort(out var port))
+        EnsureResolved();
+        if (!_status.IsReady || _port is null)
         {
-            reason = "port-missing";
+            reason = string.IsNullOrEmpty(_status.Reason)
+                ? SurfaceReasonCode.Of(SurfaceReason.PortNotReady)
+                : _status.Reason;
             return false;
         }
 
         try
         {
-            frame = EngineSurfaceBridge.TryRender(port, request, out reason);
+            frame = EngineSurfaceBridge.TryRender(_port, request, out reason);
             return frame is not null;
         }
         catch (Exception ex)
         {
-            reason = "port-exception:" + ex.GetType().Name;
+            reason = SurfaceReasonCode.Of(SurfaceReason.PortCallException) + ":" + ex.GetType().Name;
             return false;
+        }
+    }
+
+    /// <summary>解析端口一次（5s 复检）；缺失 ⇒ <see cref="PortReadiness.Missing"/>，不冒充可调用。</summary>
+    private static void EnsureResolved()
+    {
+        var now = Environment.TickCount64;
+        if (now - System.Threading.Volatile.Read(ref _checkedAt) < StatusRefreshMs) return;
+        lock (StatusGate)
+        {
+            if (now - _checkedAt < StatusRefreshMs) return;
+            _port = TryPort(out var port) ? port : null;
+            _status = _port is null
+                ? PortStatus.Missing(PortKind.Engine, SurfaceReasonCode.Of(SurfaceReason.PortMissing))
+                : PortStatus.Ready(PortKind.Engine);
+            System.Threading.Volatile.Write(ref _checkedAt, now);
         }
     }
 

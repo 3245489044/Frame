@@ -30,7 +30,8 @@
     <ProjectReference Include="$(Proj_Observability)" />
     <ProjectReference Include="$(Proj_Catalog)" />
     <ProjectReference Include="$(Proj_Refresh)" />
-
+    <!-- 2026-11-09 B1b：表面帧宿主层（Refresh 的 IRefreshRenderer 实现 + Gather 取数）。 -->
+    <ProjectReference Include="$(Proj_SurfaceHosting)" />
   </ItemGroup>
 
   <!-- 排除通过 ProjectReference 引用的子项目源代码，避免与 DLL 引用冲突 -->
@@ -40,6 +41,7 @@
     <Compile Remove="DecisionRules\**\*.cs" />
     <Compile Remove="Observability\**\*.cs" />
     <Compile Remove="Refresh\**\*.cs" />
+    <Compile Remove="SurfaceHosting\**\*.cs" />
   </ItemGroup>
 
 </Project>

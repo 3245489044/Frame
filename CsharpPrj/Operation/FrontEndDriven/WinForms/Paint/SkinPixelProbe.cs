@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Windows.Forms;
+using MathematicalAlgorithms.Surface;
 using Modules.Common.Drawing;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint;
@@ -216,26 +217,11 @@ public static class SkinPixelProbe
             image.BoundaryDifferingPixels, image.BoundaryDifferingRatio, image.Reason);
     }
 
-    /// <summary>采样点：中心 + 四角内缩 + 四边中点（描边不再被结构性避开）。</summary>
+    /// <summary>采样点：中心 + 四角内缩 + 四边中点（描边不再被结构性避开）。坐标单源 = <see cref="SurfaceProbeMath"/>。</summary>
     private static IReadOnlyList<(string Label, Point Point)> Points(int width, int height)
-    {
-        var x1 = Math.Max(1, width / 5);
-        var x2 = Math.Max(1, width - width / 5 - 1);
-        var y1 = Math.Max(1, height / 5);
-        var y2 = Math.Max(1, height - height / 5 - 1);
-        return new[]
-        {
-            ("center", new Point(width / 2, height / 2)),
-            ("tl", new Point(x1, y1)),
-            ("tr", new Point(x2, y1)),
-            ("bl", new Point(x1, y2)),
-            ("br", new Point(x2, y2)),
-            ("border-left", new Point(0, height / 2)),
-            ("border-top", new Point(width / 2, 0)),
-            ("border-right", new Point(Math.Max(0, width - 1), height / 2)),
-            ("border-bottom", new Point(width / 2, Math.Max(0, height - 1))),
-        };
-    }
+        => SurfaceProbeMath.SamplePoints(width, height)
+            .Select(sample => (sample.Label, new Point(sample.X, sample.Y)))
+            .ToArray();
 
     /// <summary>未换肤基线：控件 BackColor（透明 ⇒ 取父级 BackColor；无父 ⇒ 系统窗体色）。</summary>
     private static Color BaselineOf(Control control)
@@ -332,15 +318,11 @@ public static class SkinPixelProbe
         return bitmap;
     }
 
-    /// <summary>RGBA 欧氏距离（含 alpha；半透明材质只比 RGB 会把 alpha 错误判成通过）。</summary>
+    /// <summary>RGBA 欧氏距离（含 alpha）；公式单源 = <see cref="SurfaceProbeMath"/>。</summary>
     private static double Distance(Color left, Color right)
-    {
-        var da = left.A - right.A;
-        var dr = left.R - right.R;
-        var dg = left.G - right.G;
-        var db = left.B - right.B;
-        return Math.Sqrt(da * da + dr * dr + dg * dg + db * db);
-    }
+        => SurfaceProbeMath.RgbaDistance(
+            left.A, left.R, left.G, left.B,
+            right.A, right.R, right.G, right.B);
 
     /// <summary>一帧捕获结果（Bitmap/Inputs 由 using 释放；Material 为 null ⇒ 未接线）。</summary>
     private sealed class Raster : IDisposable

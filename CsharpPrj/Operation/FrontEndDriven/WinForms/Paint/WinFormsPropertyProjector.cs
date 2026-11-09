@@ -118,7 +118,8 @@ public static class WinFormsPropertyProjector
         button.FlatAppearance.MouseOverBackColor = ControlPaint.Light(baseColor, SurfaceButtonSpec.HoverLighten);
         button.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(baseColor, SurfaceButtonSpec.PressedDarken);
 
-        var minHeight = (int)Math.Round(SurfaceButtonSpec.MinHeightDip * button.DeviceDpi / 96.0);
+        var minHeight = (int)Math.Round(
+            BorderUnits.DipsToPixels(SurfaceButtonSpec.MinHeightDip, button.DeviceDpi));
         if (button.MinimumSize.Height < minHeight)
             button.MinimumSize = new Size(button.MinimumSize.Width, minHeight);
     }

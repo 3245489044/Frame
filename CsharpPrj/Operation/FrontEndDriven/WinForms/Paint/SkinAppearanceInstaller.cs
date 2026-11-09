@@ -152,6 +152,9 @@ public static class SkinAppearanceInstaller
         SkinMaterialCatalog.SetGlobal(global);
         SkinMaterialCatalog.SetGlobalProperty(globalProperty);
         SkinDecorator.Enabled = global is not null || globalProperty is not null;
+        // 换档/重装配：目录已换，已挂控件必须按新目录重挂（否则切到 show 档仍画旧 quiet 材质）。
+        if (SkinDecorator.Enabled) SkinDecorator.RefreshAttached();
+        else SkinDecorator.Disable();
         // 边框模型可见化：遮挡/多描边/非法宽度都在安装期落日志，避免「边被盖掉」静默。
         var border = global is null ? null : BorderSpecProjection.Inspect(global);
         SkinDiagnostics.RecordInstall(
@@ -176,6 +179,11 @@ public static class SkinAppearanceInstaller
                 ? string.Empty
                 : string.Join(",", border.Issues.Select(issue => issue.Code).Distinct()),
             ambient = ambient.HasScene,
+            ambientScene = ambient.HasScene,
+            engineEnabled = SurfaceFramePump.Enabled,
+            engineQuality = SurfaceFramePump.Quality,
+            qualityProfile = quality.Profile,
+            pageBackground = pageBackground?.ToArgb(),
             ambientGutter = ambient.Gutter,
             ambientRibbon = ambient.RibbonWidth,
             decorUndeclared,

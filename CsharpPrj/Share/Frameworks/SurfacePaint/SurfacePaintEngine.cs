@@ -7,6 +7,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using MathematicalAlgorithms.Lighting;
+using MathematicalAlgorithms.Surface;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint.Raster;
 using UiBackend;
@@ -226,24 +227,19 @@ public static class SurfacePaintEngine
                 if (!valid) return false;
                 var color = Color.FromArgb(spec.ColorArgb);
                 // 阴影方位与全帧光源同源：声明只给「离面距离」，方向由光场 ShadowX/Y 决定（光在左上 ⇒ 影在右下）。
-                var offsetX = spec.OffsetX;
-                var offsetY = spec.OffsetY;
-                if (light is { HasValue: true } shadowLight)
-                {
-                    var magnitude = Math.Max(2f, MathF.Sqrt(offsetX * offsetX + offsetY * offsetY));
-                    offsetX = shadowLight.ShadowX * magnitude;
-                    offsetY = shadowLight.ShadowY * magnitude;
-                }
+                SurfaceLayerMath.ShadowOffset(
+                    spec.OffsetX, spec.OffsetY,
+                    light is { HasValue: true }, light?.ShadowX ?? 0f, light?.ShadowY ?? 0f,
+                    out var offsetX, out var offsetY);
 
                 // 偏移/扩散按声明值落成浮点盒（K2：不做整数截断；不再用固定 -2 内缩吃掉声明 spread）。
+                var shadow = SurfaceLayerMath.ShadowBox(
+                    bounds.X, bounds.Y, bounds.Width, bounds.Height,
+                    offsetX, offsetY, spec.Spread, spec.Blur);
                 var rect = new RectangleF(
-                    bounds.X + offsetX - spec.Spread,
-                    bounds.Y + offsetY - spec.Spread,
-                    Math.Max(1f, bounds.Width + spec.Spread * 2),
-                    Math.Max(1f, bounds.Height + spec.Spread * 2));
+                    shadow.Box.X, shadow.Box.Y, shadow.Box.Width, shadow.Box.Height);
                 // 外阴影相位 = Underlay（先于 fill/stroke），不会盖成内部暗带；模糊仍按 alpha 近似并记账。
-                using var brush = new SolidBrush(Color.FromArgb(
-                    Math.Min(120, 40 + (int)Math.Round(Math.Max(0, spec.Blur)) * 4), color));
+                using var brush = new SolidBrush(Color.FromArgb(shadow.Alpha, color));
                 using var path = SurfaceGeometry.Shaped(rect, RadiusOf(spec, bounds, materialRadius), graphics.DpiX);
                 if (path is null) graphics.FillRectangle(brush, rect.X, rect.Y, rect.Width, rect.Height);
                 else graphics.FillPath(brush, path);
@@ -272,7 +268,8 @@ public static class SurfacePaintEngine
                     {
                         if (path is not null) graphics.SetClip(path);
                         var blurBegin = SurfacePaintTelemetry.Current.Begin();
-                        using var blurred = SurfaceRaster.Blur(backdrop, (int)Math.Round(Math.Max(0, spec.Blur)));
+                        using var blurred = SurfaceRaster.Blur(
+                            backdrop, SurfaceLayerMath.RoundedNonNegative(spec.Blur));
                         SurfacePaintTelemetry.Current.RecordBlur(blurBegin);
                         graphics.DrawImage(blurred, bounds);
                     }
@@ -286,7 +283,7 @@ public static class SurfacePaintEngine
 
                 // 无快照来源（非窗口载体/宿主未注入）：按声明 alpha 近似，并显式记账，禁伪装真模糊。
                 var topAlpha = spec.Alpha;
-                var bottomAlpha = (int)Math.Round(topAlpha * 0.24);
+                var bottomAlpha = SurfaceLayerMath.BackdropBottomAlpha(topAlpha);
                 using var brush = new LinearGradientBrush(
                     bounds, Color.FromArgb(topAlpha, Lighten(color, 0.28)), Color.FromArgb(bottomAlpha, color),
                     LinearGradientMode.Vertical);
@@ -329,22 +326,13 @@ public static class SurfacePaintEngine
                     // 运行时光：强度由光态（矩阵镜面权重）驱动，声明的 strength 只作上限。
                     var peakAlpha = SheenPeak(spec.Strength, 90f, state);
                     var litColor = LitColor(color, state);
-                    var bandPx = Math.Clamp(Math.Min(bounds.Width, bounds.Height) * 0.12, 28, 64);
-                    var radians = state.Angle * Math.PI / 180.0;
-                    var extent = Math.Max(1.0, Math.Abs(bounds.Width * Math.Cos(radians)) + Math.Abs(bounds.Height * Math.Sin(radians)));
-                    var half = Math.Clamp(bandPx / 2.0 / extent, 0.012, 0.12);
-                    var low = (float)(0.5 - half);
-                    var high = (float)(0.5 + half);
-                    // 条带中心 = 世界固定锚点（屏幕 DIP）：把渐变几何整体平移，填充仍裁剪在面板内。
                     var dpiScale = graphics.DpiX / 96f;
-                    var shiftX = state.SpotRadiusDips > 0f
-                        ? (int)Math.Round(state.SpotLocalX * dpiScale - bounds.Width * 0.5f)
-                        : 0;
-                    var shiftY = state.SpotRadiusDips > 0f
-                        ? (int)Math.Round(state.SpotLocalY * dpiScale - bounds.Height * 0.5f)
-                        : 0;
+                    // 条带中心 = 世界固定锚点（屏幕 DIP）：几何单源 = Plate.Mathematics。
+                    var band = SurfaceLayerMath.SpecularBand(
+                        bounds.Width, bounds.Height, state.Angle,
+                        state.SpotLocalX, state.SpotLocalY, state.SpotRadiusDips, dpiScale);
                     var bandBounds = new Rectangle(
-                        bounds.X + shiftX, bounds.Y + shiftY, bounds.Width, bounds.Height);
+                        bounds.X + band.ShiftX, bounds.Y + band.ShiftY, bounds.Width, bounds.Height);
                     using var brush = new LinearGradientBrush(
                         bandBounds, Color.FromArgb(0, litColor), Color.FromArgb(0, litColor), state.Angle);
                     brush.InterpolationColors = new ColorBlend
@@ -357,7 +345,7 @@ public static class SurfacePaintEngine
                             Color.FromArgb(0, litColor),
                             Color.FromArgb(0, litColor),
                         },
-                        Positions = new[] { 0f, low, 0.5f, high, 1f },
+                        Positions = new[] { 0f, band.Low, 0.5f, band.High, 1f },
                     };
                     using var lightPath = SurfaceGeometry.Shaped(bounds, RadiusOf(spec, bounds, materialRadius), graphics.DpiX);
                     if (lightPath is null) graphics.FillRectangle(brush, bounds);
@@ -366,8 +354,9 @@ public static class SurfacePaintEngine
                 }
 
                 // 无运行时光：静态 sheen 也按声明 strength/angle，避免固定 alpha 把高光画成暗带。
-                var sheenAlpha = Math.Clamp((int)Math.Round(70 * spec.Strength), 0, 160);
-                var sheen = new Rectangle(bounds.X, bounds.Y, bounds.Width, Math.Max(1, bounds.Height / 3));
+                var sheenAlpha = SurfaceLayerMath.StaticSheenAlpha(spec.Strength);
+                var sheen = new Rectangle(
+                    bounds.X, bounds.Y, bounds.Width, SurfaceLayerMath.StaticSheenHeight(bounds.Height));
                 using var staticBrush = new LinearGradientBrush(
                     sheen, Color.FromArgb(sheenAlpha, color), Color.FromArgb(0, color), spec.Angle);
                 using var path = SurfaceGeometry.Shaped(sheen,
@@ -441,17 +430,18 @@ public static class SurfacePaintEngine
         Graphics graphics, Rectangle bounds, float radiusDips, float widthDips, Color color)
     {
         var dpi = graphics.DpiX;
-        var ringWidth = Math.Max(1f, BorderUnits.DipsToPixels(widthDips, dpi));
+        var ringWidth = BorderUnits.DipsToPixels(widthDips, dpi);
         var radiusPx = BorderUnits.DipsToPixels(radiusDips, dpi);
-        var outerRect = new RectangleF(bounds.X, bounds.Y, bounds.Width, bounds.Height);
+        var geometry = SurfaceLayerMath.InnerRing(
+            bounds.X, bounds.Y, bounds.Width, bounds.Height, ringWidth, radiusPx);
         var innerRect = new RectangleF(
-            outerRect.X + ringWidth, outerRect.Y + ringWidth,
-            Math.Max(0.5f, outerRect.Width - ringWidth * 2),
-            Math.Max(0.5f, outerRect.Height - ringWidth * 2));
+            geometry.Inner.X, geometry.Inner.Y, geometry.Inner.Width, geometry.Inner.Height);
         using var ring = new GraphicsPath(FillMode.Alternate);
-        using var outerPath = SurfaceGeometry.Path(outerRect, CornerRadii.Uniform(radiusPx));
+        using var outerPath = SurfaceGeometry.Path(
+            new RectangleF(bounds.X, bounds.Y, bounds.Width, bounds.Height),
+            CornerRadii.Uniform(geometry.OuterRadiusPx));
         using var innerPath = SurfaceGeometry.Path(innerRect,
-            CornerRadii.Uniform(Math.Max(0f, radiusPx - ringWidth)));
+            CornerRadii.Uniform(geometry.InnerRadiusPx));
         ring.AddPath(outerPath, false);
         ring.AddPath(innerPath, false);
         using var brush = new SolidBrush(color);
@@ -476,7 +466,7 @@ public static class SurfacePaintEngine
         var baseHue = HueOf(color);
         // spectral：颜色来源换成色相环（ColorBlend 多停靠点），仍为每条边 1 次 FillRectangle。
         var spectral = spec.Mode == "spectral" && spec.SpectralSpan > 0f;
-        var thickness = Math.Clamp((int)Math.Round(spec.Width), 1, 6);
+        var thickness = SurfaceLayerMath.EdgeThickness(spec.Width);
         var inset = 1;
         var saved = graphics.Save();
         GraphicsPath? clip = null;
@@ -513,7 +503,7 @@ public static class SurfacePaintEngine
             if (left > 0)
             {
                 // 左倒角：上亮下隐，长度取面板高度的 1/3，避免形成纵向整条。周长 t 由 1（上）到 0.75（下）。
-                var rect = new Rectangle(bounds.X + inset, bounds.Y + inset, thickness, Math.Max(1, bounds.Height / 3));
+                var rect = new Rectangle(bounds.X + inset, bounds.Y + inset, thickness, SurfaceLayerMath.EdgeRunLength(bounds.Height));
                 if (spectral)
                 {
                     FillSpectral(graphics, rect, LinearGradientMode.Vertical,
@@ -532,7 +522,7 @@ public static class SurfacePaintEngine
             if (right > 0)
             {
                 // 右倒角与左侧镜像：顶部最亮、向下渐隐（光源同在上方）。周长 t 由 0.25（上）到 0.5（下）。
-                var rect = new Rectangle(bounds.Right - inset - thickness, bounds.Y + inset, thickness, Math.Max(1, bounds.Height / 3));
+                var rect = new Rectangle(bounds.Right - inset - thickness, bounds.Y + inset, thickness, SurfaceLayerMath.EdgeRunLength(bounds.Height));
                 if (spectral)
                 {
                     FillSpectral(graphics, rect, LinearGradientMode.Vertical,
@@ -631,26 +621,22 @@ public static class SurfacePaintEngine
 
         var lit = LitColor(color, state);
         var dpiScale = graphics.DpiX / 96f;
-        var radius = state.SpotRadiusDips > 0f
-            ? Math.Max(8f, state.SpotRadiusDips * dpiScale * Math.Clamp(spec.Radius, 0.25f, 1.2f))
-            : Math.Max(8f, Math.Min(bounds.Width, bounds.Height) * Math.Clamp(spec.Radius, 0.25f, 1.2f));
         // 光斑中心 = 世界固定锚点在**控件本地坐标系**下的位置（DIP，非百分比）；
-        // 控件移动时 SpotLocal 同步反向变化，屏幕上光斑不动。
-        var centerX = state.SpotRadiusDips > 0f
-            ? bounds.X + state.SpotLocalX * dpiScale
-            : bounds.X + bounds.Width * Math.Clamp(state.SpotX, 0.05f, 0.95f);
-        var centerY = state.SpotRadiusDips > 0f
-            ? bounds.Y + state.SpotLocalY * dpiScale
-            : bounds.Y + bounds.Height * Math.Clamp(state.SpotY, 0.05f, 0.95f);
-        var size = (int)Math.Round(radius * 2);
-        var target = new Rectangle((int)Math.Round(centerX - radius), (int)Math.Round(centerY - radius), size, size);
+        // 控件移动时 SpotLocal 同步反向变化，屏幕上光斑不动。几何单源 = Plate.Mathematics。
+        var spot = SurfaceLayerMath.SpotGeometry(
+            bounds.X, bounds.Y, bounds.Width, bounds.Height,
+            state.SpotX, state.SpotY, state.SpotLocalX, state.SpotLocalY,
+            state.SpotRadiusDips, spec.Radius, dpiScale);
 
         // 光斑完全落在面板外 ⇒ 不落笔（避免无谓的大位图/Matrix 运算）。
-        if (target.Right < bounds.Left || target.Left > bounds.Right
-            || target.Bottom < bounds.Top || target.Top > bounds.Bottom)
+        if (!SurfaceLayerMath.SpotVisible(
+                spot.TargetX, spot.TargetY, spot.TargetSize,
+                bounds.Left, bounds.Top, bounds.Right, bounds.Bottom))
         {
             return;
         }
+
+        var target = new Rectangle(spot.TargetX, spot.TargetY, spot.TargetSize, spot.TargetSize);
 
         var saved = graphics.Save();
         GraphicsPath? clip = null;
@@ -759,7 +745,7 @@ public static class SurfacePaintEngine
     {
         var width = image.Width;
         var height = image.Height;
-        var cut = Math.Min(slice, Math.Min(width, height) / 2);
+        var cut = SurfaceLayerMath.NineSliceCut(slice, width, height);
         if (cut <= 0)
         {
             graphics.DrawImage(image, bounds);
@@ -772,8 +758,8 @@ public static class SurfacePaintEngine
         var sourceH = new[] { cut, height - cut * 2, cut };
         var targetX = new[] { bounds.X, bounds.X + cut, bounds.Right - cut };
         var targetY = new[] { bounds.Y, bounds.Y + cut, bounds.Bottom - cut };
-        var targetW = new[] { cut, Math.Max(1, bounds.Width - cut * 2), cut };
-        var targetH = new[] { cut, Math.Max(1, bounds.Height - cut * 2), cut };
+        var targetW = new[] { cut, SurfaceLayerMath.NineSliceCenter(bounds.Width, cut), cut };
+        var targetH = new[] { cut, SurfaceLayerMath.NineSliceCenter(bounds.Height, cut), cut };
 
         for (var row = 0; row < 3; row++)
         {
@@ -797,13 +783,13 @@ public static class SurfacePaintEngine
         return radius; // DIP；设备像素上限统一由 SkinGeometry 在换算后收敛（不在 DIP/px 混算）
     }
 
-    /// <summary>提亮（磨砂高光；amount 0..1）。</summary>
+    /// <summary>提亮（磨砂高光；amount 0..1）。公式单源 = <see cref="SurfaceLayerMath"/>。</summary>
     private static Color Lighten(Color color, double amount)
-    {
-        var t = Math.Clamp(amount, 0, 1);
-        int Mix(int channel) => (int)Math.Round(channel + (255 - channel) * t);
-        return Color.FromArgb(color.A, Mix(color.R), Mix(color.G), Mix(color.B));
-    }
+        => Color.FromArgb(
+            color.A,
+            SurfaceLayerMath.LightenChannel(color.R, amount),
+            SurfaceLayerMath.LightenChannel(color.G, amount),
+            SurfaceLayerMath.LightenChannel(color.B, amount));
 
     /// <summary>
     /// 材质底色（首个 fill/gradient 层的首个色）——**兼容保留**；属性通道请走

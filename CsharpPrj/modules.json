@@ -172,6 +172,7 @@
 
     "CircuitFramework": "Share\\Frameworks\\CircuitFramework\\CircuitFramework.csproj",
     "Share.Conversation": "Share\\Frameworks\\Conversation\\Share.Conversation.csproj",
+    "SurfacePaint.Contracts": "Share\\Frameworks\\SurfacePaint.Contracts\\SurfacePaint.Contracts.csproj",
     "Share.SurfacePaint": "Share\\Frameworks\\SurfacePaint\\Share.SurfacePaint.csproj",
     "Share.Messaging": "Share\\Frameworks\\Messaging\\Share.Messaging.csproj",
     "Share.ContextGeometry": "Share\\Frameworks\\ContextGeometry\\Share.ContextGeometry.csproj",
@@ -191,6 +192,7 @@
     "DecisionRules": "Strategy\\DecisionRules\\DecisionRules.csproj",
     "Observability": "Strategy\\Observability\\Observability.csproj",
     "Refresh": "Strategy\\Refresh\\Refresh.csproj",
+    "SurfaceHosting": "Strategy\\SurfaceHosting\\SurfaceHosting.csproj",
     "Strategy": "Strategy\\Strategy.csproj"
   }
 }

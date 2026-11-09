@@ -3,7 +3,7 @@
 using System;
 using Modules.Gather;
 
-namespace Strategy.Refresh.Surface;
+namespace Strategy.SurfaceHosting;
 
 /// <summary>
 /// 窗口帧视图的**显式回退**（仅在声明面不可用时使用）：形状与

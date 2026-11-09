@@ -13,6 +13,7 @@ using Share.SurfacePaint.Engine;
 
 namespace Share.SurfacePaint.Hosting;
 
+
 /// <summary>
 /// 窗口帧组合器（**唯一帧生产者**）：渲染事实 → 卡片预渲染 → <see cref="SurfaceFrameSnapshot"/>。
 /// <para>纪律：</para>
@@ -51,6 +52,8 @@ public sealed class SurfaceFrameComposer
 
         // 窗口级背景单次装配：所有卡片复用同一份事实/纹理（不再逐卡抓取）。
         var windowFacts = SurfaceRenderFactsReader.Read(input.Backdrop);
+        // 端口就绪态前置：Missing/NotReady 一律不进引擎，避免“调用后返回回显被当协议”。
+        var engineReady = _engine is not null && _engine.Status.IsReady;
 
         foreach (var card in input.Cards)
         {
@@ -66,7 +69,7 @@ public sealed class SurfaceFrameComposer
             var ownsFace = needsEngine && cardFacts.EngineOwnsFace;
 
             Bitmap? frame = null;
-            if (ownsFace && input.Light is { HasValue: true } && _engine is not null)
+            if (ownsFace && input.Light is { HasValue: true } && engineReady)
             {
                 frame = SurfaceEngineFramePump.TryFrame(
                     card.Viewport,

@@ -196,7 +196,8 @@ public sealed class SurfacePaintSession : IDisposable
         // 背景快照（按控件/按帧）：仅在“无窗口快照且引擎可能接管”时采集；快照模式由窗口生产者统一采集。
         var now = Environment.TickCount64;
         var hostFacts = SurfaceHostFacts.Current;
-        var wantsEngine = snapshot is null && _engine is not null && SurfaceEngineFramePump.Enabled
+        var wantsEngine = snapshot is null && _engine is not null && _engine.Status.IsReady
+            && SurfaceEngineFramePump.Enabled
             && hostFacts.Composition.Mode == SurfaceCompositionMode.EngineComposition
             && hostFacts.DeclaredTier is >= GlassTier.T0;
         SurfaceRenderInputs? ownedInputs = null;

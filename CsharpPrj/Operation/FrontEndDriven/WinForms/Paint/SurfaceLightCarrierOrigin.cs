@@ -2,6 +2,7 @@
 
 using System.Drawing;
 using System.Windows.Forms;
+using MathematicalAlgorithms.Surface;
 using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -10,6 +11,7 @@ namespace FrontEndDriven.WinForms.Paint;
 /// 载体屏幕原点的唯一产出点：WinForms 控件的客户区左上角 + 客户区尺寸，换算到 DIP。
 /// <para>所有锚点发布点（WinForms 采样 / HTML 推送）都必须用本方法取 <see cref="SurfaceCarrierFrame"/>，
 /// 避免某处自行拼 origin、再把已经减过原点的局部坐标当屏幕坐标二次相减。</para>
+/// <para>坐标算术单源 = <see cref="SurfaceLocMath"/>（Plate.Mathematics）；本类只取 Control 实测值。</para>
 /// </summary>
 public static class SurfaceLightCarrierOrigin
 {
@@ -17,14 +19,12 @@ public static class SurfaceLightCarrierOrigin
     public static SurfaceCarrierFrame Of(Control control)
     {
         var dpi = BorderUnits.NormalizeDpi(control.DeviceDpi);
-        var scale = 96f / dpi;
+        var scale = BorderUnits.BaseDpi / dpi;
         var origin = control.PointToScreen(Point.Empty);
         var client = control.ClientSize;
+        var loc = SurfaceLocMath.CarrierOf(
+            origin.X, origin.Y, client.Width, client.Height, scale, dpi);
         return new SurfaceCarrierFrame(
-            origin.X * scale,
-            origin.Y * scale,
-            client.Width * scale,
-            client.Height * scale,
-            dpi);
+            loc.ScreenXDip, loc.ScreenYDip, loc.WidthDip, loc.HeightDip, loc.Dpi);
     }
 }

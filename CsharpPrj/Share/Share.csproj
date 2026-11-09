@@ -26,6 +26,8 @@
     <ProjectReference Include="$(Proj_Share_Projection)" />
     <!-- ★ 表面模型门面 + 六域聚拢模块（2026-11-08 已并入 Share.Conversation.Rendering.Surface，减少表面专用工程） -->
     <!-- ★ 表面光栅原语已并入 Share.SurfacePaint（Raster/ 子目录）；2026-11-08 合并 -->
+    <!-- ★ 表面契约层（SurfacePaint.Contracts，2026-11-09 B1a）：端口就绪态/原因码/视口/皮肤，零依赖 -->
+    <ProjectReference Include="$(Proj_SurfacePaint_Contracts)" />
     <!-- ★ 表面绘制内核（Share.SurfacePaint）：几何/边框/缓存键/逐层落笔，载体无关 -->
     <ProjectReference Include="$(Proj_Share_SurfacePaint)" />
     <!-- ★ 通用信息传递内核（Share.Messaging）：信封/地址/状态机/路由/流控/闭包，零 ProjectReference（仅 BCL） -->

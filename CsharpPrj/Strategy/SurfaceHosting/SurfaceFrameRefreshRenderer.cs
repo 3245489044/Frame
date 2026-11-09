@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Gather;
@@ -9,7 +8,7 @@ using Share.SurfacePaint.Hosting;
 using Strategy.Refresh.Model;
 using Strategy.Refresh.Ports;
 
-namespace Strategy.Refresh.Surface;
+namespace Strategy.SurfaceHosting;
 
 /// <summary>窗口帧渲染器（Refresh 的唯一 Renderer）：Gather 取数 → 组合快照 → 指纹裁决。</summary>
 public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
@@ -113,7 +112,7 @@ internal sealed class SurfaceFrameGatherModule : IGatherModule
     }
 }
 
-/// <summary>帧落地端口：快照写入 <see cref="Share.Composition.AssemblyFramework.KeyedSnapshotStore{TValue}"/>，由宿主触发失效。</summary>
+/// <summary>帧落地端口：快照写入 <c>KeyedSnapshotStore</c>，由宿主触发失效。</summary>
 public sealed class SurfaceFrameRefreshSink : IRefreshSink
 {
     private readonly Action<SurfaceFrameSnapshot> _deliver;

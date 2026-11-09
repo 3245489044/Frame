@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Forms;
 using FrontEndDriven.Diagnostics;
 using FrontEndDriven.WinForms.Applier;
+using MathematicalAlgorithms.Surface;
 using Modules.CapabilityResolution;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint;
@@ -75,9 +76,12 @@ public static class SkinDecorator
             return;
         }
 
-        // 白名单外控件不能 owner-draw，但保持系统浅色会破坏整体玻璃观感 ⇒ 只做「属性级换肤」。
-        if (!SupportsOwnerDraw(control) && !customShell)
+        // 文本/内容控件禁止不透明 owner-draw：Button/Label 在自身 OnPaint 末尾才触发 Paint 事件，
+        // 在事件里铺不透明面会把控件自己画的文字盖掉（实测按钮文字消失）。
+        // 自绘外壳族改用「属性面材质色（familyDraw）+ 原生文字」，文字永不经过材质绘制。
+        if (PaintsOwnContent(control) || !SupportsOwnerDraw(control))
         {
+            if (customShell) PrepareCustomShell(control);
             int? tint = null;
             ResolvedMaterial? propertyMaterial;
             if (family is { Strategy: SurfaceStrategy.PropertyFace or SurfaceStrategy.CustomPaint })
@@ -85,6 +89,8 @@ public static class SkinDecorator
                 // B 类：族级 control_face（glass_fill）优先；不再因 FallbackUsed 换 GlobalProperty(row_surface)。
                 propertyMaterial = SkinMaterialCatalog.FamilyProperty(family.MaterialSlot)
                                    ?? SelectPropertyMaterial(descriptor);
+                // 自绘外壳族：面材质取族 draw 材质（与材质声明同槽），文字仍由控件自绘。
+                if (customShell) propertyMaterial = material ?? propertyMaterial;
                 tint = SurfaceStyleBridge.TintFor(descriptor, family.StyleRole);
                 // C2：RequireGlassFace 族不得越过声明最低档（越级即记账，不静默变实心 muted 面）。
                 if (propertyMaterial is { } glassFace
@@ -137,6 +143,7 @@ public static class SkinDecorator
         }
 
         var state = States.GetValue(control, static _ => new SkinState());
+        state.Descriptor = descriptor;
         // 结构宿主改用 host_surface(flat) 后自身材质不再带 stroke；族声明 FrameHost 的控件由边框宿主补 1px 内衬边。
         state.EdgeMode = family?.EdgeMode ?? SurfaceEdgeMode.Material;
         if (state.EdgeMode == SurfaceEdgeMode.FrameHost && SurfaceFrameHost.EdgeStrokeFor(material) is null)
@@ -231,6 +238,26 @@ public static class SkinDecorator
         SkinDiagnostics.RecordAttach(false);
     }
 
+    /// <summary>
+    /// 按最新材质目录重挂全部已附加控件（装配/换档/画质应用后调用）。
+    /// <para>Install 只换目录；已挂控件仍持有旧材质的会话 ⇒ 不重挂就看不到新档位（切 show 后仍是 quiet）。</para>
+    /// </summary>
+    internal static void RefreshAttached()
+    {
+        var pending = new List<(Control Control, ControlDescriptor Descriptor)>();
+        foreach (var pair in States)
+        {
+            if (pair.Key.IsDisposed || pair.Value.Descriptor is null) continue;
+            pending.Add((pair.Key, pair.Value.Descriptor!));
+        }
+
+        foreach (var (control, descriptor) in pending)
+        {
+            if (States.TryGetValue(control, out var state)) state.MaterialKey = null;
+            Attach(control, descriptor);
+        }
+    }
+
     /// <summary>控件当前生效材质（未挂载 ⇒ null；断言/诊断读取面）。</summary>
     /// <param name="control">目标控件。</param>
     public static ResolvedMaterial? MaterialOf(Control? control)
@@ -303,11 +330,11 @@ public static class SkinDecorator
 
         // 覆盖区与控件探针同口径（DIP）：HostWidth/Height 是像素，必须走 HostWidthDip/HostHeightDip，
         // 否则 150% DPI 下窗口级光斑/明暗范围偏大，与控件 CPU 路径结论不一致。
+        var coverageLoc = SurfaceLocMath.HostCoverageOf(
+            viewport.HostOriginXDip, viewport.HostOriginYDip,
+            viewport.HostWidthDip, viewport.HostHeightDip);
         var coverage = new SurfaceLightCoverage(
-            (float)viewport.HostOriginXDip,
-            (float)viewport.HostOriginYDip,
-            (float)Math.Max(1.0, viewport.HostWidthDip),
-            (float)Math.Max(1.0, viewport.HostHeightDip));
+            coverageLoc.X, coverageLoc.Y, coverageLoc.Width, coverageLoc.Height);
         var probe = new SurfaceLightProbe(
             coverage.X, coverage.Y, coverage.Width, coverage.Height, ZOrder: 0, Dpi: viewport.HostDpi);
         return SurfaceLightState.From(SurfaceLightPort.Sample(frame, probe));
@@ -318,7 +345,16 @@ public static class SkinDecorator
     public static bool IsOwnerDrawSupported(Control? control)
         => control is not null && SupportsOwnerDraw(control);
 
-    /// <summary>是否支持 owner-draw（容器/文本承载类；其余控件自绘内容）。</summary>
+    /// <summary>
+    /// 控件自身绘制文字/内容 ⇒ 禁止不透明 owner-draw（否则 Paint 事件落笔会盖掉文字）。
+    /// <para>这类控件只走属性通道：材质提供底色/前景/描边，文字由控件原生绘制。</para>
+    /// </summary>
+    private static bool PaintsOwnContent(Control control)
+        => control is ButtonBase or Label or GroupBox or TextBoxBase or ComboBox or ListBox or ListView
+            or TreeView or NumericUpDown or DateTimePicker or ToolStrip or ScrollBar or ProgressBar
+            or TrackBar or TabControl;
+
+    /// <summary>是否支持 owner-draw（仅纯容器；含文字/内容者见 <see cref="PaintsOwnContent"/>）。</summary>
     private static bool SupportsOwnerDraw(Control control)
     {
         var family = WinFormsControlFamilyMap.Resolve(control, null);
@@ -529,6 +565,9 @@ public static class SkinDecorator
 
     private sealed class SkinState
     {
+        /// <summary>最近一次装配用的描述符（换档重挂时按它重放，禁丢材质槽/SkinRefs）。</summary>
+        internal ControlDescriptor? Descriptor { get; set; }
+
         /// <summary>材质指纹（同材质不重挂）。</summary>
         internal string? MaterialKey { get; set; }
 

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows.Forms;
+using MathematicalAlgorithms.Surface;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint.Ambient;
 using Share.SurfacePaint.Hosting;
@@ -51,21 +52,20 @@ internal static class SurfaceAmbient
         var dpi = BorderUnits.NormalizeDpi(control.DeviceDpi);
         var origin = control.PointToScreen(Point.Empty);
         var formOrigin = form.PointToScreen(Point.Empty);
-        var scale = 96f / dpi;
-        var formScale = 96f / formDpi;
+        var scale = BorderUnits.BaseDpi / dpi;
+        var formScale = BorderUnits.BaseDpi / formDpi;
+        var loc = SurfaceLocMath.ViewportOf(
+            control.ClientSize.Width, control.ClientSize.Height, dpi,
+            form.ClientSize.Width, form.ClientSize.Height, formDpi,
+            origin.X - formOrigin.X, origin.Y - formOrigin.Y,
+            formOrigin.X, formOrigin.Y, origin.X, origin.Y,
+            scale, formScale);
         return new SurfaceViewport(
-            control.ClientSize.Width,
-            control.ClientSize.Height,
-            dpi <= 0 ? 96 : (int)dpi,
-            form.ClientSize.Width,
-            form.ClientSize.Height,
-            formDpi <= 0 ? 96 : (int)formDpi,
-            origin.X - formOrigin.X,
-            origin.Y - formOrigin.Y,
-            formOrigin.X * formScale,
-            formOrigin.Y * formScale,
-            origin.X * scale,
-            origin.Y * scale);
+            loc.Width, loc.Height, loc.Dpi,
+            loc.HostWidth, loc.HostHeight, loc.HostDpi,
+            loc.OffsetX, loc.OffsetY,
+            loc.HostOriginXDip, loc.HostOriginYDip,
+            loc.OriginXDip, loc.OriginYDip);
     }
 
     /// <summary>

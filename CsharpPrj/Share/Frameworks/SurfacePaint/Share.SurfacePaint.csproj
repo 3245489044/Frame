@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup Label="ModuleRule_Rules">
-    <ModuleRule_Rule Include="只依赖 Share.Conversation/Plate.Surface/Plate.Mathematics/Share.SurfaceRaster(已并入 Raster/) 与 BCL；禁依赖 Operation/Presentation" />
+    <ModuleRule_Rule Include="只依赖 SurfacePaint.Contracts/Share.Conversation/Plate.Surface/Plate.Mathematics (Raster 已并入 Raster/) 与 BCL；禁依赖 Operation/Presentation/Strategy" />
     <ModuleRule_Rule Include="只吃 Graphics/Bitmap/Image/Rectangle(F)/已解析材质/令牌；禁 Control/Form/Timer/消息循环" />
     <ModuleRule_Rule Include="宿主能力（视口/背后快照/运行时光/引擎/日志）一律经 Hosting 端口注入；禁读前端静态单例" />
     <ModuleRule_Rule Include="像素算法逐位稳定：同参数输出必须与迁移前实现完全一致" />
@@ -25,6 +25,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- 2026-11-09 B1a：契约层（端口就绪态/原因码/视口/皮肤）先行抽出，零依赖；
+         本工程只实现，不再拥有这些契约。 -->
+    <ProjectReference Include="$(Proj_SurfacePaint_Contracts)" />
     <ProjectReference Include="$(Proj_Plate_Surface)" />
     <ProjectReference Include="$(Proj_Mathematics)" />
     <ProjectReference Include="$(Proj_Share_Conversation)" />

@@ -96,6 +96,28 @@ public static class SurfaceLightPointer
     }
 
     /// <summary>
+    /// 载体只读版本：用 registry 已发布的指针成员合成一次（不读 UI 线程指针源）。
+    /// <para>HTML 侧固定 1Hz 的投影路径用它；指针位置仍来自 C# 单源发布，不在页面内采样。</para>
+    /// </summary>
+    public static SurfaceLightState? ApplyPublished(SurfaceLightFrame? frame, SurfaceLightCoverage coverage, int dpi)
+    {
+        if (frame is null) return null;
+
+        var pointer = SurfaceLightRegistry.Pointer;
+        if (pointer is null)
+        {
+            return Apply(frame, coverage, dpi, SurfacePointerState.Unavailable);
+        }
+
+        var client = new SurfacePointerState(
+            pointer.Value.ScreenX - coverage.X,
+            pointer.Value.ScreenY - coverage.Y,
+            true,
+            0);
+        return Apply(frame, coverage, dpi, client, coverage.Width, coverage.Height);
+    }
+
+    /// <summary>
     /// 供宿主把指针发布到 <see cref="SurfaceLightRegistry"/>（屏幕 DIP）。
     /// <para>TintArgb = 0 表示继承环境色；窗口外/关闭 ⇒ null。</para>
     /// </summary>

@@ -142,14 +142,47 @@ public static class SkinAppearanceInstaller
         SkinMaterialCatalog.SetFamilyProperty(familyProperty);
         SkinMaterialCatalog.SetGlobalProperty(globalProperty);
         SkinDecorator.Enabled = globalProperty is not null;
-        // B5-3：指针高光增幅（声明令牌单源；0 = 关闭，回滚路径）。
+        // 指针光（声明令牌单源）：weight = 峰值权重（0 = 关闭/回滚），sigma = 半径系数，boost = 高光增幅。
         var tokens = SurfaceResolver.TokensForProfile(program, profile);
+        var pointerWeight = SurfaceLightPointer.PointerWeight;
+        var pointerSigma = SurfaceLightPointer.PointerSigma;
+        var pointerBoost = SurfaceLightPointer.SpecBoost;
+        if (tokens.TryGetValue("light_pointer_weight", out var weightText)
+            && float.TryParse(weightText, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsedWeight))
+        {
+            pointerWeight = parsedWeight;
+        }
+        if (tokens.TryGetValue("light_pointer_sigma", out var sigmaText)
+            && float.TryParse(sigmaText, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsedSigma))
+        {
+            pointerSigma = parsedSigma;
+        }
         if (tokens.TryGetValue("light_pointer_spec_boost", out var boostText)
             && float.TryParse(boostText, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var boost))
         {
-            SurfaceLightPointer.Configure(boost);
+            pointerBoost = boost;
         }
+        SurfaceLightPointer.Configure(pointerWeight, pointerSigma, pointerBoost);
+
+        // HTML 载体本地读指针（显式豁免）：默认关闭；只有令牌为 1 才允许页面内 mousemove。
+        var htmlLocal = SurfaceLightPointer.HtmlLocalRead;
+        if (tokens.TryGetValue("light_pointer_html_local", out var htmlText)
+            && int.TryParse(htmlText, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsedHtml))
+        {
+            htmlLocal = parsedHtml != 0;
+        }
+        SurfaceLightPointer.ConfigureHtmlLocal(htmlLocal);
+        FrontEndDrivenLog.Log("SkinAppearance_PointerLight", new
+        {
+            weight = pointerWeight,
+            sigma = pointerSigma,
+            specBoost = pointerBoost,
+            htmlLocal,
+        });
         // 换档/重装配：目录已换，已挂控件必须按新目录重挂（否则切到 show 档仍画旧 quiet 材质）。
         if (SkinDecorator.Enabled) SkinDecorator.RefreshAttached();
         else SkinDecorator.Disable();

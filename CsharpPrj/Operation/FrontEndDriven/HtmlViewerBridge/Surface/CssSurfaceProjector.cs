@@ -327,6 +327,30 @@ public static class CssSurfaceProjector
                 backgrounds.Add(
                     $"radial-gradient({spotShape}, var(--sl-spot-color, {SurfaceColor.ToCssHexCompact(sheen.Argb)}) 0%, transparent 100%)");
                 backgroundAttachments.Add("fixed");
+
+                // 指针光：光源集合的第二成员（仅在显式豁免开关打开时投影）。
+                // 位置由页面内 33ms 节流 mousemove 写入 --sl-pointer-x/y（只读位置，不参与光数学）；
+                // 开关关闭时不生成任何 --sl-pointer-* 声明，也不注册页面监听（无隐形旁路）。
+                if (SurfaceLightPointer.HtmlLocalRead
+                    && light is { HasValue: true, PointerWeight: > 0f, PointerRadiusDips: > 0f } pointerLight)
+                {
+                    var pointerPeak = (int)Math.Round(
+                        SurfaceShadingMath.SheenPeak(90f, sheen.Strength, pointerLight.Specular, 1f)
+                        * pointerLight.PointerWeight);
+                    if (pointerPeak > 0)
+                    {
+                        declarations.Add(Pair("--sl-pointer-r",
+                            CssValue.Px(pointerLight.PointerRadiusDips * spotRadiusFactor)));
+                        declarations.Add(Pair("--sl-pointer-color",
+                            SurfaceColor.ToCssHexCompact((pointerPeak << 24) | (sheen.Argb & 0x00FFFFFF))));
+                        // 默认把圆心放到视口外：页面尚未收到 mouseMove 时不显示指针光。
+                        backgrounds.Add(
+                            "radial-gradient(circle var(--sl-pointer-r, 22vmin) at " +
+                            "var(--sl-pointer-x, -100vmax) var(--sl-pointer-y, -100vmax), " +
+                            "var(--sl-pointer-color, transparent) 0%, transparent 100%)");
+                        backgroundAttachments.Add("fixed");
+                    }
+                }
             }
             else
             {

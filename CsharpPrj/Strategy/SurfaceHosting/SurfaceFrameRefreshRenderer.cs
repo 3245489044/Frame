@@ -137,8 +137,13 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
                     plan = planBundle;
                 if (stage.Values.TryGetValue("surface-decor", out var decorValue) && decorValue is SurfaceDecorBundle decorBundle)
                     decor = decorBundle;
-                if (stage.Values.TryGetValue("surface-light", out var lightValue) && lightValue is SurfaceLightFrame frame)
-                    lightFrame = frame;
+                if (stage.Values.TryGetValue("surface-light", out var lightValue))
+                {
+                    if (lightValue is SurfaceLightFrame frame) lightFrame = frame;
+                    else if (lightValue is SurfaceLightUnavailable unavailable)
+                        Share.SurfacePaint.Compat.SurfaceCompatLog.Log(
+                            "surface.light.unavailable", new { reason = unavailable.Reason });
+                }
                 if (stage.Values.TryGetValue("surface-pointer", out var pointerValue) && pointerValue is SurfacePointerState pointerState)
                     pointer = pointerState;
                 if (stage.Values.TryGetValue("surface-frame-budget", out var budgetValue) && budgetValue is SurfaceFrameBudget frameBudget)

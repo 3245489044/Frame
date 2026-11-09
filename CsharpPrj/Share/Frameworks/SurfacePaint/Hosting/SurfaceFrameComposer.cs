@@ -70,10 +70,12 @@ public sealed class SurfaceFrameComposer
         var backend = Pick(gather.Composition, gather.Budget, out var engineMissing);
         if (engineMissing) diagnostics.Add("backend-missing");
 
-        var pageField = backend.RenderPageField(gather.Decor, input.Viewport, gather.Light, facts, gather.Budget);
-        if (pageField is null)
+        // 页场是可选装饰：门户未开启/后端不可用 ⇒ 不生产、不阻断卡片。
+        Bitmap? pageField = null;
+        if (SurfaceAmbientScene.Enabled)
         {
-            return SurfaceFrameSnapshot.Blocked(input.WindowId, "page-field-failed");
+            pageField = backend.RenderPageField(gather.Decor, input.Viewport, gather.Light, facts, gather.Budget);
+            if (pageField is null) diagnostics.Add("page-field-unavailable");
         }
 
         var faces = new Dictionary<string, SurfaceCardFace>(StringComparer.Ordinal);
@@ -91,14 +93,38 @@ public sealed class SurfaceFrameComposer
                 continue;
             }
 
+            // 光按卡片矩形重投影（锚点是屏幕固定 DIP）：同一窗口级光态不得原样复用给所有卡片。
+            var cardLight = gather.Light?.ForCard(
+                input.Viewport.HostOriginXDip + card.BoundsDip.X,
+                input.Viewport.HostOriginYDip + card.BoundsDip.Y,
+                card.BoundsDip.Width,
+                card.BoundsDip.Height);
+
             var request = new SurfaceBackendRequest(
-                card, entry, gather.Plan, gather.Light, facts, input.Viewport, gather.Budget, input.Backdrop);
-            if (!backend.TryRender(request, out var face, out var reason) || face is null)
+                card, entry, gather.Plan, cardLight, facts, input.Viewport, gather.Budget, input.Backdrop);
+            var rendered = backend.TryRender(request, out var face, out var reason);
+            var renderedKind = backend.Kind;
+
+            // 单卡失败只降级该卡：先用 CPU 后端重试，仍失败则留空面并记账；禁把整窗判 Blocked。
+            if ((!rendered || face is null) && backend.Kind != SurfaceBackendKind.Cpu)
             {
-                pageField.Dispose();
-                foreach (var produced in faces.Values) produced.Release();
-                return SurfaceFrameSnapshot.Blocked(
-                    input.WindowId, "card-face-failed:" + card.Key + ":" + reason);
+                var cpu = _backends[SurfaceBackendKind.Cpu];
+                if (cpu.TryRender(request, out var cpuFace, out var cpuReason) && cpuFace is not null)
+                {
+                    face = cpuFace;
+                    rendered = true;
+                    renderedKind = SurfaceBackendKind.Cpu;
+                    diagnostics.Add("card-face-fallback:" + card.Key);
+                }
+                else
+                {
+                    reason = string.IsNullOrEmpty(cpuReason) ? reason : cpuReason;
+                }
+            }
+
+            if (!rendered || face is null)
+            {
+                diagnostics.Add("card-face-missing:" + card.Key + ":" + reason);
             }
 
             var material = gather.Plan.FindMaterial(entry.MaterialSlot);
@@ -110,9 +136,9 @@ public sealed class SurfaceFrameComposer
                 entry.Role,
                 entry.Depth,
                 face,
-                Owned: backend.Kind == SurfaceBackendKind.Cpu,
+                Owned: face is not null && renderedKind == SurfaceBackendKind.Cpu,
                 Inherited: false,
-                Fingerprint: FaceFingerprint(card, entry, gather.Light));
+                Fingerprint: FaceFingerprint(card, entry, cardLight, material));
         }
 
         var generation = Interlocked.Increment(ref _generation);
@@ -175,13 +201,16 @@ public sealed class SurfaceFrameComposer
         return _backends[SurfaceBackendKind.Cpu];
     }
 
-    private static string FaceFingerprint(SurfaceCardGeometry card, SurfaceDecorEntry entry, SurfaceLightState? light)
+    private static string FaceFingerprint(
+        SurfaceCardGeometry card, SurfaceDecorEntry entry, SurfaceLightState? light, ResolvedMaterial? material)
     {
         var builder = new StringBuilder(96);
         builder.Append(card.Key).Append('|')
             .Append(card.BoundsDip.Width).Append('x').Append(card.BoundsDip.Height)
             .Append('|').Append(entry.MaterialSlot)
             .Append('|').Append(entry.Role).Append('|').Append(entry.Depth)
+            // 材质参数摘要必须进入指纹：仅用槽名会让「同槽改参数」被判 Unchanged 而不刷新。
+            .Append('|').Append(material is null ? "no-material" : SurfacePaintSession.FingerprintOf(material))
             .Append('|').Append(light is { } value ? value.CacheToken : "no-light");
         return SurfaceFrameContract.Fingerprint(builder.ToString());
     }

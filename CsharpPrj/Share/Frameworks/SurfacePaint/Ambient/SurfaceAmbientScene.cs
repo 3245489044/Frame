@@ -104,6 +104,7 @@ public static class SurfaceAmbientScene
         SurfaceFrameLightContext? context = null)
     {
         if (!viewport.IsValid) return;
+        if (!Enabled) return;
 
         // 正常路径：页面场也由 Engine 产生（同一虚拟矩阵光）；失败才走下面 CPU 降级。
         if (SurfaceEngineFramePump.Enabled && enginePort is not null)

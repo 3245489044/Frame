@@ -238,6 +238,7 @@ public static class FrameComposer
         var spec = CategorySpecOf(groupKind, presentation);
         var abnormal = CountAbnormal(rows);
         var span = SpanOf(rows);
+        var categoryId = spec?.Id;
 
         // 折叠态：open ⇒ 展开；open-on-error ⇒ 有异常才展开；其余收起（旧行为不变）。
         var open = spec is not null && (spec.OpensByDefault || (spec.OpensOnError && abnormal > 0));
@@ -263,7 +264,8 @@ public static class FrameComposer
             SurfaceRoleIds.Group,
             key,
             PresentationSurface.Process,
-            presentation.GroupClass is { Length: > 0 } declaredGroup ? declaredGroup : "process",
+            // 分类组走分类类部件（class_group_<id>）；非分类段保留声明缺省组类。
+            categoryId is { Length: > 0 } ? "group-" + categoryId : presentation.GroupClass is { Length: > 0 } declaredGroup ? declaredGroup : "process",
             fields,
             children,
             open ? UiNodeState.Open : UiNodeState.Closed,
@@ -271,6 +273,7 @@ public static class FrameComposer
         {
             FoldHint = open ? "open" : "closed",
             FoldKind = banner ? BannerFoldKind : null,
+            Category = categoryId,
             Facts = facts,
         };
     }

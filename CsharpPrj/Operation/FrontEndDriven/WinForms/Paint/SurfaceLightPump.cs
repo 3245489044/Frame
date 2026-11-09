@@ -83,8 +83,12 @@ internal static class SurfaceLightPump
             if (frame is null)
             {
                 // 原因码 port-parse-null：端口已注册且被调用，但快照被引擎明示不可用（diag）或格式不符。
+                // 与端口异常同一退化节奏：先保留上一帧，连续失败达阈值才发布 null（避免单次抖动闪断光源）。
                 SkinDiagnostics.RecordLightDegraded("port-parse-null", Clip(raw, 160));
+                DegradeIfIdle();
+                return;
             }
+
             SurfaceLightRegistry.Publish(frame);
         }
         catch (Exception ex)

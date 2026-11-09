@@ -124,3 +124,38 @@ details.fold[open] > summary.fold-summary::before { content: "▾ "; }
 .pager-prev, .pager-next { font-size: 12px; }
 .pager-pos { font-size: 12px; color: var(--muted); padding: 0 6px; }
 
+/* ── 分类段头：三维区分（左标识带 / 几何 / 图标+字重） ──
+   颜色取节点自身 --accent（由 ui_part_class_group_* 的 accent 槽位注入），
+   此处不写死分类色；data-category 由 HtmlSurfaceBackend 从声明透传。 */
+details.fold[data-category="execution"] > summary.fold-summary,
+details.fold[data-category="workflow"] > summary.fold-summary,
+details.fold[data-category="diagnostic"] > summary.fold-summary {
+    border-left: 4px solid var(--accent); border-radius: 2px;
+}
+details.fold[data-category="execution"] > summary.fold-summary { height: 28px; padding: 2px 0 2px 8px; font-weight: 600; }
+details.fold[data-category="execution"] > summary.fold-summary::before { content: "⚙ ▸ "; }
+details.fold[data-category="execution"][open] > summary.fold-summary::before { content: "⚙ ▾ "; }
+
+details.fold[data-category="workflow"] > summary.fold-summary {
+    height: 30px; padding: 2px 0 2px 8px; font-weight: 600;
+    box-shadow: inset 1px 0 var(--accent);
+}
+details.fold[data-category="workflow"] > summary.fold-summary::before { content: "⇉ ▸ "; }
+details.fold[data-category="workflow"][open] > summary.fold-summary::before { content: "⇉ ▾ "; }
+
+details.fold[data-category="runtime"] > summary.fold-summary {
+    border-left: 3px dotted var(--accent); height: 26px; padding: 2px 0 2px 8px; font-weight: 500;
+}
+details.fold[data-category="runtime"] > summary.fold-summary::before { content: "↻ ▸ "; }
+details.fold[data-category="runtime"][open] > summary.fold-summary::before { content: "↻ ▾ "; }
+
+details.fold[data-category="accounting"] > summary.fold-summary {
+    border-left: 0; height: 24px; padding: 2px 0; font-weight: 500; font-variant-numeric: tabular-nums;
+}
+details.fold[data-category="accounting"] > summary.fold-summary::before { content: "Σ ▸ "; }
+details.fold[data-category="accounting"][open] > summary.fold-summary::before { content: "Σ ▾ "; }
+
+details.fold[data-category="diagnostic"] > summary.fold-summary { height: 28px; padding: 2px 0 2px 8px; font-weight: 600; }
+details.fold[data-category="diagnostic"] > summary.fold-summary::before { content: "! ▸ "; }
+details.fold[data-category="diagnostic"][open] > summary.fold-summary::before { content: "! ▾ "; }
+

@@ -57,46 +57,13 @@ public static class CssSurfaceProjector
         ResolvedSurface surface, SurfaceLightSample? light = null, IReadOnlyDictionary<string, string>? tokens = null)
     {
         ArgumentNullException.ThrowIfNull(surface);
-        var builder = new CssDocumentBuilder();
-        var skipped = new List<string>();
-        var emitted = new HashSet<string>(StringComparer.Ordinal);
-        var spectral = new List<string>();
-        SurfaceLightState? lightState = null;
-
-        if (light is { HasValue: true } sample)
-        {
-            // 两载体共用同一端口：HTML 侧只把采样结果格式化成变量，不重算光数学。
-            builder.Rule(":root", LightVariables(sample));
-            // 材质级峰值/半径也走同一份窄视图（不再各自拼 alpha/radius）。
-            lightState = SurfaceLightState.From(sample);
-        }
-
-        // 页场：令牌开关打开时，HTML 宿主自身承载与 WinForms 同一套渐变/径向光/丝带。
-        if (tokens is not null && PageFieldEnabled(tokens))
-        {
-            builder.Rule("body", PageFieldDeclarations(tokens));
-            // 元素级材质下沉（B5）：卡片在自身矩形内承接同一份页场（同一令牌源，禁第二套配色）。
-            builder.Rule("[data-surface=\"panel_card\"]", PageFieldDeclarations(tokens));
-            builder.Rule("." + ClassName("panel_card"), PageFieldDeclarations(tokens));
-        }
-
+        var materials = new List<(string Slot, ResolvedMaterial Material)>();
         foreach (var container in surface.Containers)
         {
-            foreach (var material in container.Materials.Values)
-            {
-                if (material.Layers.Count == 0) continue;
-                var className = ClassName(material.FallbackUsed ?? material.MaterialId);
-                if (!emitted.Add(className)) continue;
-
-                builder.Rule("." + className, MaterialToCss(material, lightState, skipped, out var isSpectral));
-                if (isSpectral) spectral.Add(className);
-            }
+            foreach (var pair in container.Materials) materials.Add((pair.Key, pair.Value));
         }
 
-        return new SurfaceStyleSheet(builder.Build(), skipped.Distinct(StringComparer.Ordinal).ToArray())
-        {
-            SpectralClasses = spectral.ToArray(),
-        };
+        return ProjectMaterials(materials, tokens, ToState(light));
     }
 
     /// <summary>按聚拢产物投影材质类（HTML 侧唯一入口；Plan 决定类名，Tokens 决定页场）。</summary>
@@ -105,45 +72,7 @@ public static class CssSurfaceProjector
     public static SurfaceStyleSheet Project(SurfacePlanBundle bundle, SurfaceLightSample? light = null)
     {
         ArgumentNullException.ThrowIfNull(bundle);
-        var builder = new CssDocumentBuilder();
-        var skipped = new List<string>();
-        var emitted = new HashSet<string>(StringComparer.Ordinal);
-        var spectral = new List<string>();
-        SurfaceLightState? lightState = null;
-
-        if (light is { HasValue: true } sample)
-        {
-            builder.Rule(":root", LightVariables(sample));
-            lightState = SurfaceLightState.From(sample);
-        }
-
-        var tokens = bundle.Tokens.Count > 0 ? bundle.Tokens : null;
-        if (tokens is not null && PageFieldEnabled(tokens))
-        {
-            builder.Rule("body", PageFieldDeclarations(tokens));
-            builder.Rule("[data-surface=\"panel_card\"]", PageFieldDeclarations(tokens));
-            builder.Rule("." + ClassName("panel_card"), PageFieldDeclarations(tokens));
-        }
-
-        foreach (var surface in bundle.Views.Values)
-        {
-            foreach (var container in surface.Containers)
-            {
-                foreach (var material in container.Materials.Values)
-                {
-                    if (material.Layers.Count == 0) continue;
-                    var className = ClassName(material.FallbackUsed ?? material.MaterialId);
-                    if (!emitted.Add(className)) continue;
-                    builder.Rule("." + className, MaterialToCss(material, lightState, skipped, out var isSpectral));
-                    if (isSpectral) spectral.Add(className);
-                }
-            }
-        }
-
-        return new SurfaceStyleSheet(builder.Build(), skipped.Distinct(StringComparer.Ordinal).ToArray())
-        {
-            SpectralClasses = spectral.ToArray(),
-        };
+        return Project(bundle, ToState(light));
     }
 
     /// <summary>按聚拢产物投影材质类（光态入口：与窗口帧同一份窄视图）。</summary>
@@ -152,38 +81,66 @@ public static class CssSurfaceProjector
     public static SurfaceStyleSheet Project(SurfacePlanBundle bundle, SurfaceLightState? light)
     {
         ArgumentNullException.ThrowIfNull(bundle);
-        var builder = new CssDocumentBuilder();
-        var skipped = new List<string>();
-        var emitted = new HashSet<string>(StringComparer.Ordinal);
-        var spectral = new List<string>();
-        SurfaceLightState? lightState = null;
-
-        if (light is { HasValue: true } state)
-        {
-            builder.Rule(":root", LightVariables(state));
-            lightState = state;
-        }
-
-        var tokens = bundle.Tokens.Count > 0 ? bundle.Tokens : null;
-        if (tokens is not null && PageFieldEnabled(tokens))
-        {
-            builder.Rule("body", PageFieldDeclarations(tokens));
-            builder.Rule("[data-surface=\"panel_card\"]", PageFieldDeclarations(tokens));
-            builder.Rule("." + ClassName("panel_card"), PageFieldDeclarations(tokens));
-        }
-
+        var materials = new List<(string Slot, ResolvedMaterial Material)>();
         foreach (var surface in bundle.Views.Values)
         {
             foreach (var container in surface.Containers)
             {
-                foreach (var material in container.Materials.Values)
-                {
-                    if (material.Layers.Count == 0) continue;
-                    var className = ClassName(material.FallbackUsed ?? material.MaterialId);
-                    if (!emitted.Add(className)) continue;
-                    builder.Rule("." + className, MaterialToCss(material, lightState, skipped, out var isSpectral));
-                    if (isSpectral) spectral.Add(className);
-                }
+                foreach (var pair in container.Materials) materials.Add((pair.Key, pair.Value));
+            }
+        }
+
+        var tokens = bundle.Tokens.Count > 0 ? bundle.Tokens : null;
+        return ProjectMaterials(materials, tokens, light is { HasValue: true } ? light : null);
+    }
+
+    /// <summary>采样 → 载体窄视图（null/无值 ⇒ null，不伪装动态光）。</summary>
+    private static SurfaceLightState? ToState(SurfaceLightSample? light)
+        => light is { HasValue: true } sample ? SurfaceLightState.From(sample) : null;
+
+    /// <summary>唯一投影实现：光/页场只算一次，材质与语义槽规则同源。</summary>
+    private static SurfaceStyleSheet ProjectMaterials(
+        IReadOnlyList<(string Slot, ResolvedMaterial Material)> materials,
+        IReadOnlyDictionary<string, string>? tokens,
+        SurfaceLightState? light)
+    {
+        var builder = new CssDocumentBuilder();
+        var skipped = new List<string>();
+        var emittedClasses = new HashSet<string>(StringComparer.Ordinal);
+        var emittedSlots = new HashSet<string>(StringComparer.Ordinal);
+        var spectral = new List<string>();
+
+        if (light is { } lightState) builder.Rule(":root", LightVariables(lightState));
+
+        // 页场：令牌开关打开时，HTML 宿主自身承载与 WinForms 同一套渐变/径向光/丝带。
+        // 声明表只构造一次（原实现同一调用内重复构造 3 次）。
+        if (tokens is not null && PageFieldEnabled(tokens))
+        {
+            var pageField = PageFieldDeclarations(tokens);
+            builder.Rule("body", pageField);
+            builder.Rule("[data-surface=\"panel_card\"]", pageField);
+            builder.Rule("." + ClassName("panel_card"), pageField);
+        }
+
+        foreach (var (slot, material) in materials)
+        {
+            if (material.Layers.Count == 0) continue;
+
+            var className = ClassName(material.FallbackUsed ?? material.MaterialId);
+            if (emittedClasses.Add(className))
+            {
+                builder.Rule("." + className, MaterialToCss(material, light, skipped, out var isSpectral));
+                if (isSpectral) spectral.Add(className);
+            }
+
+            // 语义槽规则：硬编码 data-surface 的外壳也解析到「当前档位实际材质」，
+            // 不再要求模板知道 panel_card_quiet 之类的档位别名（D6）。
+            if (!string.IsNullOrEmpty(slot) && emittedSlots.Add(slot))
+            {
+                builder.Rule(
+                    "[data-surface=\"" + slot + "\"]",
+                    MaterialToCss(material, light, skipped, out var slotSpectral));
+                if (slotSpectral && !spectral.Contains(className)) spectral.Add(className);
             }
         }
 
@@ -379,6 +336,16 @@ public static class CssSurfaceProjector
             }
             else
             {
+                // 非 spot 的 sheen：峰值同样走两载体唯一公式（strength × Specular × Shade），
+                // 不再用全局 --sl-tint 的 220/255 且忽略 strength/Shade。
+                if (light is { HasValue: true } bandLight)
+                {
+                    var bandPeak = SurfaceLightState.SheenAlpha(
+                        90f, sheen.Strength, bandLight.Specular, bandLight.Shade);
+                    declarations.Add(Pair(
+                        "--sl-tint", CssColor((bandPeak << 24) | (sheen.Argb & 0x00FFFFFF))));
+                }
+
                 backgrounds.Add(
                     $"linear-gradient(var(--sl-angle, {Deg(sheen.Angle)}deg), transparent 40%, var(--sl-tint, {CssColor(sheen.Argb)}) 50%, transparent 60%)");
                 backgroundAttachments.Add("scroll");
@@ -488,29 +455,9 @@ public static class CssSurfaceProjector
     private static string ClampHalf(float radius)
         => $"min({FormatPx(radius)}, 50%)";
 
-    /// <summary>全局光态 → <c>--sl-*</c> 变量（唯一格式化的地方；不做任何光计算）。</summary>
+    /// <summary>全局光态 → <c>--sl-*</c> 变量（唯一格式化实现；采样入口先投影成窄视图）。</summary>
     private static List<KeyValuePair<string, string>> LightVariables(SurfaceLightSample sample)
-    {
-        var angle = (int)Math.Round(sample.Angle);
-        // 高光强度同样由光态驱动（与 WinForms 的 SheenPeak 同一判据：矩阵镜面权重 → alpha）；
-        // --sl-tint 只被 sheen/spot 背景层使用，故把强度直接编码进它的 alpha，避免 CSS 侧再做光数学。
-        var specular = Math.Clamp(sample.Specular, 0f, 1f);
-        var sheenAlpha = (int)Math.Round(255 * (0.25 + 0.75 * specular));
-        var sheenTint = unchecked((sheenAlpha << 24) | (sample.TintArgb & 0x00FFFFFF));
-        // 虹彩相位 = 「世界固定锚点 − 探针中心」的方位角（IridescenceRamp.Bearing01）；
-        // 这里取整个覆盖区为探针，故是全局一份。逐元素相位需要 rectQuery 回传几何（见 06 P6）。
-        var iridAngle = (int)Math.Round(Math.Clamp(sample.IridescencePhase, 0f, 1f) * 360) % 360;
-        return new List<KeyValuePair<string, string>>
-        {
-            Pair("--sl-angle", angle.ToString(CultureInfo.InvariantCulture) + "deg"),
-            // 共享模块不发布 --sl-anchor-x/y：同一份 CSS 服务多个 WebView，而每个载体的原点不同。
-            // 锚点由 SurfaceThemeBinding 在运行期按 viewer 换算后 setProperty 推送；无推送时
-            // radial-gradient 回落到 30vw/18vh（视口单位，仍属载体坐标）。
-            // --sl-spot-r 是材质级量（SpotRadiusDips × 声明 radius），由材质规则按需输出。
-            Pair("--sl-tint", CssColor(sheenTint)),
-            Pair("--sl-irid-angle", iridAngle.ToString(CultureInfo.InvariantCulture) + "deg"),
-        };
-    }
+        => LightVariables(SurfaceLightState.From(sample));
 
     /// <summary>页场开关：令牌显式打开且渐变两端都有值。</summary>
     private static bool PageFieldEnabled(IReadOnlyDictionary<string, string> tokens)

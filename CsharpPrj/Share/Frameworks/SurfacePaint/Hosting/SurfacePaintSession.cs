@@ -72,15 +72,6 @@ public sealed class SurfacePaintSession : IDisposable
     /// <summary>当前帧序号。</summary>
     public long Frame => _frame;
 
-    /// <summary>是否需要运行时光（诊断：材质是否含 backdrop/specular）。</summary>
-    public static bool NeedsLight(ResolvedMaterial? material)
-        => material is not null && material.Layers.Any(layer =>
-            layer.Primitive == "backdrop" || layer.Primitive == "specular");
-
-    /// <summary>是否含背后快照层（诊断）。</summary>
-    public static bool HasBackdrop(ResolvedMaterial? material)
-        => material is not null && material.Layers.Any(layer => layer.Primitive == "backdrop");
-
     /// <summary>材质指纹（含层参数摘要）。</summary>
     public static string FingerprintOf(ResolvedMaterial material)
         => SurfaceCacheKey.Fingerprint(material.MaterialId, material.FallbackUsed,
@@ -137,6 +128,20 @@ public sealed class SurfacePaintSession : IDisposable
             return new SurfaceFrameResult(_frame, SurfacePaintReport.Empty, false);
 
         _ = _host.Viewport;
+
+        // 页场是唯一由 Composer 生产的窗口级位图：按控件在宿主内的偏移切一片贴到本控件上。
+        // 缺失/尺寸不符 ⇒ 不贴（不伪造），后续卡片面仍照常绘制。
+        if (snapshot?.PageField is { } pageField)
+        {
+            var viewport = _host.Viewport;
+            var source = new Rectangle(viewport.OffsetX, viewport.OffsetY, bounds.Width, bounds.Height);
+            if (source.Width > 0 && source.Height > 0
+                && source.X >= 0 && source.Y >= 0
+                && source.Right <= pageField.Width && source.Bottom <= pageField.Height)
+            {
+                graphics.DrawImage(pageField, bounds, source, GraphicsUnit.Pixel);
+            }
+        }
 
         if (snapshot is not null && snapshot.Cards.TryGetValue(_hostId, out var card))
         {

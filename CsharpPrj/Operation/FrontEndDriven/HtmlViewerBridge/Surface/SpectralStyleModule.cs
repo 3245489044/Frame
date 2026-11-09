@@ -61,8 +61,7 @@ public static class SpectralStyleModule
                 .Append("-webkit-mask-composite:xor;mask-composite:exclude;")
                 // 峰值由材质声明 strength × 光态（两载体同一 SheenAlpha 公式）；不是写死的恒亮。
                 .Append("opacity:var(--sl-spectral-a);")
-                // 全局相位 = 锚点相对覆盖区的方位角，只由设施位置/光斑锚点决定。
-                .Append("filter:hue-rotate(var(--sl-irid-angle,0deg));")
+                // 色相相位已在上面的 hsl 中叠加 --sl-irid-angle；此处不得再 hue-rotate（否则 2× 旋转）。
                 .Append("}\n");
         }
 

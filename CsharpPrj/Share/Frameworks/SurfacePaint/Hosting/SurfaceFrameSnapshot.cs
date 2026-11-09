@@ -10,19 +10,6 @@ using UiBackend;
 namespace Share.SurfacePaint.Hosting;
 
 /// <summary>
-/// 一帧内某控件的旧形态（**兼容读取面**；新代码用 <see cref="SurfaceCardFace"/>）。
-/// </summary>
-[Obsolete("使用 SurfaceCardFace；本类型仅保留一版用于旧的 SurfaceFrameSnapshot.LegacyCards 读取。")]
-public sealed record SurfaceCardFrame(
-    string Key,
-    Rectangle Bounds,
-    string MaterialId,
-    string MaterialKey,
-    Bitmap? Frame,
-    bool EngineOwnsFace,
-    string Fingerprint);
-
-/// <summary>
 /// 窗口级不可变帧快照（<c>IRefreshRenderer</c> 的唯一产物；UI 只读）。
 /// <para>承载「一窗口一帧」：页面场 + 各卡片完整面 + 光 + 渲染事实 + 指针 + 降级清单。</para>
 /// <para>生命周期：由帧生产者持有；旧代由 Store 释放（自有位图），消费者不得 Dispose。</para>
@@ -81,26 +68,6 @@ public sealed record SurfaceFrameSnapshot(
             Fingerprint = "blocked:" + reason,
         };
 
-    /// <summary>旧形态读取面（一版过渡；Frame 来自 <see cref="SurfaceCardFace.Face"/>）。</summary>
-#pragma warning disable CS0618
-    public IReadOnlyDictionary<string, SurfaceCardFrame> LegacyCards
-    {
-        get
-        {
-            var legacy = new Dictionary<string, SurfaceCardFrame>(StringComparer.Ordinal);
-            foreach (var pair in Cards)
-            {
-                var card = pair.Value;
-                legacy[pair.Key] = new SurfaceCardFrame(
-                    card.Key, card.Bounds, card.MaterialId, card.MaterialKey,
-                    card.Face, EngineOwnsFace: !card.Owned && !card.Inherited, card.Fingerprint);
-            }
-
-            return legacy;
-        }
-    }
-#pragma warning restore CS0618
-
     /// <summary>
     /// 释放自有位图（引擎借用帧不在此释放；由帧泵 LRU 管理）。
     /// </summary>
@@ -110,17 +77,6 @@ public sealed record SurfaceFrameSnapshot(
         foreach (var card in Cards.Values) card.Release();
     }
 }
-
-/// <summary>一张卡片的帧生产请求（旧形态；新代码用 <see cref="SurfaceCardGeometry"/>）。</summary>
-/// <param name="Key">控件稳定键。</param>
-/// <param name="Viewport">控件视口。</param>
-/// <param name="Material">已解析材质。</param>
-/// <param name="Backdrop">本帧背后快照（可空）。</param>
-public sealed record SurfaceCardRequest(
-    string Key,
-    SurfaceViewport Viewport,
-    ResolvedMaterial Material,
-    SurfaceTextureFrame? Backdrop);
 
 /// <summary>一次窗口帧生产的输入（不可变；采集后即可离开 UI 线程）。</summary>
 /// <param name="WindowId">窗口稳定 id。</param>

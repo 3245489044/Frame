@@ -82,6 +82,45 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// <summary>光场签名（缓存失效依据）。</summary>
     public long LightSignature { get; init; }
 
+    /// <summary>
+    /// 把窗口级光态重投影到**卡片局部坐标**（唯一换算入口）。
+    /// <para>锚点是屏幕固定 DIP；卡片移动/嵌套时，光斑局部位置、照度权重与虹彩相位都必须按卡片矩形重算，
+    /// 否则同一份窗口级 SpotLocal 会被所有卡片复用（光斑错位、远处卡片仍被照亮）。</para>
+    /// </summary>
+    /// <param name="originXDip">卡片客户区左上角屏幕 X（DIP）。</param>
+    /// <param name="originYDip">卡片客户区左上角屏幕 Y（DIP）。</param>
+    /// <param name="widthDip">卡片宽（DIP）。</param>
+    /// <param name="heightDip">卡片高（DIP）。</param>
+    public SurfaceLightState ForCard(double originXDip, double originYDip, double widthDip, double heightDip)
+    {
+        if (!HasValue) return this;
+
+        var localX = Anchor.X - (float)originXDip;
+        var localY = Anchor.Y - (float)originYDip;
+        var spotX = widthDip > 1e-6 ? (float)(localX / widthDip) : SpotX;
+        var spotY = heightDip > 1e-6 ? (float)(localY / heightDip) : SpotY;
+
+        var centerX = (float)(originXDip + widthDip * 0.5);
+        var centerY = (float)(originYDip + heightDip * 0.5);
+        var dx = Anchor.X - centerX;
+        var dy = Anchor.Y - centerY;
+        var distance = MathF.Sqrt(dx * dx + dy * dy);
+        var litRadius = Anchor.LitRadiusDips;
+        var shade = litRadius <= 1e-6f
+            ? 1f
+            : Math.Clamp(1f - (distance / litRadius) * (distance / litRadius), 0f, 1f);
+
+        return this with
+        {
+            SpotLocalX = localX,
+            SpotLocalY = localY,
+            SpotX = spotX,
+            SpotY = spotY,
+            Shade = shade,
+            IridescencePhase = IridescenceRamp.Bearing01(dx, dy),
+        };
+    }
+
     /// <summary>无光场可用：载体不得据此重画光，只能保持声明值。</summary>
     public static readonly SurfaceLightState Unavailable = new(135f, 0f, 0f) { HasValue = false, Specular = 0f };
 

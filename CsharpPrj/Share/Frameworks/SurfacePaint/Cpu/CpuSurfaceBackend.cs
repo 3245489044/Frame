@@ -41,6 +41,7 @@ public sealed class CpuSurfaceBackend : ISurfaceRenderBackend
         var bitmap = new Bitmap(viewport.Width, viewport.Height);
         try
         {
+            if (viewport.Dpi > 0) bitmap.SetResolution(viewport.Dpi, viewport.Dpi);
             using var graphics = Graphics.FromImage(bitmap);
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             graphics.Clear(Color.Transparent);
@@ -64,8 +65,9 @@ public sealed class CpuSurfaceBackend : ISurfaceRenderBackend
         reason = string.Empty;
 
         var card = request.Card;
-        var width = Math.Max(1, card.BoundsDip.Width);
-        var height = Math.Max(1, card.BoundsDip.Height);
+        var cardViewport = request.Viewport.Card(card.BoundsDip);
+        var width = cardViewport.Width;
+        var height = cardViewport.Height;
 
         var material = request.Plan.FindMaterial(request.Decor.MaterialSlot)
                        ?? SurfaceMaterialCatalog.Global;
@@ -75,10 +77,10 @@ public sealed class CpuSurfaceBackend : ISurfaceRenderBackend
             return false;
         }
 
-        var cardViewport = CardViewport(request.Viewport, card.BoundsDip);
         var bitmap = new Bitmap(width, height);
         try
         {
+            if (cardViewport.Dpi > 0) bitmap.SetResolution(cardViewport.Dpi, cardViewport.Dpi);
             using var graphics = Graphics.FromImage(bitmap);
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             graphics.Clear(Color.Transparent);
@@ -115,23 +117,5 @@ public sealed class CpuSurfaceBackend : ISurfaceRenderBackend
             reason = "cpu-render-failed:" + exception.GetType().Name;
             return false;
         }
-    }
-
-    private static SurfaceViewport CardViewport(SurfaceViewport window, Rectangle boundsDip)
-    {
-        var scale = window.Scale;
-        return new SurfaceViewport(
-            Math.Max(1, boundsDip.Width),
-            Math.Max(1, boundsDip.Height),
-            window.Dpi,
-            window.HostWidth,
-            window.HostHeight,
-            window.HostDpi,
-            (int)Math.Round(boundsDip.X * scale),
-            (int)Math.Round(boundsDip.Y * scale),
-            window.HostOriginXDip,
-            window.HostOriginYDip,
-            window.HostOriginXDip + boundsDip.X,
-            window.HostOriginYDip + boundsDip.Y);
     }
 }

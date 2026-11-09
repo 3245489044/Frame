@@ -89,18 +89,7 @@ public sealed record SurfacePlanBundle(
             foreach (var container in view.Containers)
             {
                 if (!container.Materials.ContainsKey(slot)) continue;
-                var depth = 0;
-                var tier = "root";
-                var parent = container.Parent;
-                var guard = 0;
-                while (!string.IsNullOrEmpty(parent) && guard++ < 32)
-                {
-                    tier = "nested";
-                    depth++;
-                    parent = view.Container(parent!)?.Parent;
-                }
-
-                return new SurfaceRoleInfo(view.View, container.Key, container.Role, tier, depth);
+                return DescribeContainer(view, container);
             }
         }
 
@@ -119,21 +108,27 @@ public sealed record SurfacePlanBundle(
                 var view = pair.Value;
                 var container = view.Container(containerKey!);
                 if (container is null) continue;
-                var depth = 0;
-                var tier = "root";
-                var parent = container.Parent;
-                var guard = 0;
-                while (!string.IsNullOrEmpty(parent) && guard++ < 32)
-                {
-                    tier = "nested";
-                    depth++;
-                    parent = view.Container(parent!)?.Parent;
-                }
-
-                return new SurfaceRoleInfo(view.View, container.Key, container.Role, tier, depth);
+                return DescribeContainer(view, container);
             }
         }
 
         return Describe(slot);
+    }
+
+    /// <summary>容器角色/层级派生（**唯一实现**：父链深度与 tier）。</summary>
+    private static SurfaceRoleInfo DescribeContainer(ResolvedSurface view, ResolvedContainer container)
+    {
+        var depth = 0;
+        var tier = "root";
+        var parent = container.Parent;
+        var guard = 0;
+        while (!string.IsNullOrEmpty(parent) && guard++ < 32)
+        {
+            tier = "nested";
+            depth++;
+            parent = view.Container(parent!)?.Parent;
+        }
+
+        return new SurfaceRoleInfo(view.View, container.Key, container.Role, tier, depth);
     }
 }

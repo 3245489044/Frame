@@ -281,9 +281,15 @@ public static class SkinDecorator
             var viewport = SurfaceAmbient.ViewportOf(control);
             if (!viewport.IsValid) continue;
 
-            // 采集期只取几何 + 槽名（不解析材质、不采样光）。
+            // 采集期只取几何 + 槽名（不解析材质、不采样光）。几何一律 DIP（px 在非 96 DPI 下会让光斑/引擎偏移二次缩放）。
+            var dpi = BorderUnits.NormalizeDpi(control.DeviceDpi);
+            var scale = BorderUnits.BaseDpi / dpi;
             var origin = form.PointToClient(control.PointToScreen(Point.Empty));
-            var bounds = new Rectangle(origin, control.ClientSize);
+            var bounds = new Rectangle(
+                (int)Math.Round(origin.X * scale),
+                (int)Math.Round(origin.Y * scale),
+                Math.Max(1, (int)Math.Round(control.ClientSize.Width * scale)),
+                Math.Max(1, (int)Math.Round(control.ClientSize.Height * scale)));
             var slot = state.Session?.Material?.Slot ?? SurfaceCardGeometry.NoMaterial;
             // B6-3：容器键 = 控件声明名（与 surface.ushar 的 key 对齐）；空名 ⇒ 视图根直属。
             var containerKey = string.IsNullOrWhiteSpace(control.Name) ? null : control.Name;

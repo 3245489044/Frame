@@ -98,6 +98,26 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         {
             attributes["data-surface"] = node.Surface.ToString().ToLowerInvariant();
         }
+        if (node.Category is { Length: > 0 } category)
+        {
+            attributes["data-category"] = category;
+        }
+        if (node.Style is { Length: > 0 } styleName)
+        {
+            attributes["data-style"] = styleName;
+        }
+        if (node.FoldKind is { Length: > 0 } foldKind)
+        {
+            attributes["data-fold-kind"] = foldKind;
+        }
+        if (node.Facts is { Count: > 0 } facts)
+        {
+            foreach (var fact in facts)
+            {
+                if (fact.Key.Length == 0) continue;
+                attributes["data-fact-" + fact.Key] = fact.Value;
+            }
+        }
 
         if (isFold)
         {
@@ -109,6 +129,10 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         // M4a：容器结构/材质类来自已解析表面（可空 ⇒ 原路径）；仅新增 class/data 属性，不改段键。
         tag = ApplySurface(attributes, node.Key, tag);
         ApplyTheme(attributes, theme?.ThemeFor(node.Role, node.Class), node.State);
+
+        var isBanner = string.Equals(node.FoldKind, FrameComposer.BannerFoldKind, StringComparison.Ordinal);
+        // banner 收起 = 只出段头（结构事实进 data-fact-*），不产出段体。
+        var bodySuppressed = isFold && isBanner && node.State != UiNodeState.Open;
 
         var children = new List<UiNode>(node.Fields.Count + node.Children.Count + 1);
         if (isFold)
@@ -126,20 +150,64 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
                 summaryTag,
                 $"{node.Key}:summary",
                 new Dictionary<string, string>(StringComparer.Ordinal) { ["class"] = summaryClass },
-                label,
+                SummaryOf(label, node.SummaryMaxChars),
                 null,
                 null));
         }
 
-        foreach (var field in node.Fields)
+        var body = new List<UiNode>(node.Fields.Count + node.Children.Count);
+        if (!bodySuppressed)
         {
-            if (field.IsNotApplicable) continue;
-            children.Add(ProjectField(field, theme));
+            for (var i = 0; i < node.Fields.Count; i++)
+            {
+                // banner 段头已消费首字段；行折叠的段体保留主字段全文（展开无损）。
+                if (isFold && isBanner && i == 0) continue;
+                var field = node.Fields[i];
+                if (field.IsNotApplicable) continue;
+                body.Add(ProjectField(field, theme));
+            }
+
+            foreach (var child in node.Children) body.Add(ProjectNode(child, theme));
         }
 
-        foreach (var child in node.Children) children.Add(ProjectNode(child, theme));
+        if (isFold && body.Count > 0)
+        {
+            var bodyProps = _map.Props(BackendId, "foldBody");
+            var bodyTag = bodyProps is not null && bodyProps.TryGetValue("tag", out var declaredBody)
+                          && !string.IsNullOrWhiteSpace(declaredBody)
+                ? declaredBody
+                : "div";
+            var bodyClass = bodyProps is not null && bodyProps.TryGetValue("cls", out var bodyCls)
+                ? bodyCls
+                : "fold-body";
+            children.Add(new UiNode(
+                bodyTag,
+                $"{node.Key}:body",
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["class"] = bodyClass,
+                    ["data-role"] = "foldBody",
+                },
+                null,
+                body,
+                null));
+        }
+        else
+        {
+            children.AddRange(body);
+        }
 
         return new UiNode(tag, node.Key, attributes, null, children, null);
+    }
+
+    /// <summary>折叠摘要：取首行、按声明上限截断（0 = 不截断）；不改变段体全文。</summary>
+    private static string SummaryOf(string text, int maxChars)
+    {
+        if (maxChars <= 0) return text;
+        var line = text;
+        var breakAt = line.IndexOfAny(new[] { '\r', '\n' });
+        if (breakAt >= 0) line = line[..breakAt];
+        return line.Length > maxChars ? line[..maxChars] + "…" : line;
     }
 
     private UiNode ProjectField(UiField field, ResolvedUi? theme)

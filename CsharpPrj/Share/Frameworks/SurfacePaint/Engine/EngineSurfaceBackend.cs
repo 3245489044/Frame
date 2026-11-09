@@ -5,6 +5,7 @@ using System.Drawing;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint.Ambient;
 using Share.SurfacePaint.Hosting;
+using Share.SurfacePaint.Materials;
 using SurfacePaint.Contracts;
 using UiBackend;
 
@@ -42,11 +43,12 @@ public sealed class EngineSurfaceBackend : ISurfaceRenderBackend
         SurfaceRenderFacts facts,
         SurfaceFrameBudget budget)
     {
-        if (!viewport.IsValid || !_port.Status.IsReady || light is not { HasValue: true }) return null;
+        if (!viewport.IsValid || !_port.Status.IsReady) return null;
 
         var bitmap = new Bitmap(viewport.Width, viewport.Height);
         try
         {
+            if (viewport.Dpi > 0) bitmap.SetResolution(viewport.Dpi, viewport.Dpi);
             using var graphics = Graphics.FromImage(bitmap);
             graphics.Clear(Color.Transparent);
             SurfaceAmbientScene.PaintHostSurface(
@@ -72,29 +74,17 @@ public sealed class EngineSurfaceBackend : ISurfaceRenderBackend
             return false;
         }
 
-        var material = request.Plan.FindMaterial(request.Decor.MaterialSlot);
+        var material = request.Plan.FindMaterial(request.Decor.MaterialSlot)
+                       ?? SurfaceMaterialCatalog.Global;
         if (material is null)
         {
             reason = "material-missing";
             return false;
         }
 
-        if (request.Light is not { HasValue: true })
-        {
-            reason = "light-missing";
-            return false;
-        }
-
+        // 无光 ≠ 不可渲染：泵的 ToLight 会产出零光帧（引擎照常出基底像素）。
         var card = request.Card;
-        var scale = request.Viewport.Scale;
-        var cardViewport = request.Viewport.WithSize(
-            Math.Max(1, card.BoundsDip.Width), Math.Max(1, card.BoundsDip.Height)) with
-        {
-            OffsetX = (int)Math.Round(card.BoundsDip.X * scale),
-            OffsetY = (int)Math.Round(card.BoundsDip.Y * scale),
-            OriginXDip = request.Viewport.HostOriginXDip + card.BoundsDip.X,
-            OriginYDip = request.Viewport.HostOriginYDip + card.BoundsDip.Y,
-        };
+        var cardViewport = request.Viewport.Card(card.BoundsDip);
 
         var frame = SurfaceEngineFramePump.TryFrame(
             cardViewport, material, request.Light, SurfaceEngineFramePump.Quality, _port,

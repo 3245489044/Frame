@@ -39,6 +39,9 @@ public sealed record UiSurfaceNode(
     /// <summary>声明样式 token（视觉区分位；null ⇒ 仅角色/类主题）。</summary>
     public string? Style { get; init; }
 
+    /// <summary>分类标识（<c>PresentationDeclaration</c> 的分类键；null ⇒ 非分类段/未声明）。</summary>
+    public string? Category { get; init; }
+
     /// <summary>结构事实（进载体 <c>data-fact-*</c>；不参与可见字段计数）。</summary>
     public IReadOnlyDictionary<string, string>? Facts { get; init; }
 

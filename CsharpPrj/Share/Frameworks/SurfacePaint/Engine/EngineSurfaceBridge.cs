@@ -44,6 +44,8 @@ public static class EngineSurfaceBridge
 {
     private static int _sequence;
 
+    static EngineSurfaceBridge() => SurfaceFrameContract.Validate();
+
     /// <summary>渲染一帧；端口缺失/失败 ⇒ null（调用方必须可见降级）。</summary>
     public static EngineSurfaceFrame? TryRender(
         Func<string, string>? port, EngineSurfaceRequest request, out string reason)
@@ -55,7 +57,6 @@ public static class EngineSurfaceBridge
             return null;
         }
 
-        SurfaceFrameContract.Validate();
         var items = request.Items ?? Array.Empty<SurfaceDrawItem>();
         if (items.Count > SurfaceFrameContract.MaxItems)
         {
@@ -171,11 +172,17 @@ public static class EngineSurfaceBridge
         builder.Append(",\"itemsShm\":\"").Append(Escape(itemsShm)).Append('"');
         builder.Append(",\"itemCount\":").Append(itemCount);
 
-        if (request.Backdrop is { Available: true } backdrop)
+        if (request.Backdrop is { Available: true } backdrop && !string.IsNullOrEmpty(textureShm))
         {
             builder.Append(",\"backdrop\":{\"transport\":\"shm\",\"shm\":\"").Append(Escape(textureShm)).Append('"');
-            builder.Append(",\"width\":").Append(textureWidth > 0 ? textureWidth : (int)Math.Max(1f, backdrop.Coverage.Width));
-            builder.Append(",\"height\":").Append(textureHeight > 0 ? textureHeight : (int)Math.Max(1f, backdrop.Coverage.Height));
+            // 背景覆盖区是 DIP；外部 shm 未给像素尺寸时按 DPI 换算，禁把 DIP 当 px 直接读长度。
+            var backdropScale = backdrop.Dpi > 0 ? backdrop.Dpi / 96f : 1f;
+            builder.Append(",\"width\":").Append(textureWidth > 0
+                ? textureWidth
+                : (int)Math.Max(1f, backdrop.Coverage.Width * backdropScale));
+            builder.Append(",\"height\":").Append(textureHeight > 0
+                ? textureHeight
+                : (int)Math.Max(1f, backdrop.Coverage.Height * backdropScale));
             builder.Append(",\"dpi\":").Append(backdrop.Dpi);
             builder.Append(",\"version\":").Append(backdrop.Version);
             builder.Append(",\"originX\":").Append(backdrop.OriginX.ToString("F2", CultureInfo.InvariantCulture));

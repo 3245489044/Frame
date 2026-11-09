@@ -104,36 +104,44 @@ public static class SurfaceEngineFramePump
             return null;
         }
 
-        // 负缓存/退避：设备丢失或连续失败期间不允许每个控件每帧重试。
-        if (Environment.TickCount64 < Volatile.Read(ref _retryNotBeforeMs))
-        {
-            return null;
-        }
-
         // 无光不进 D3D 的判定由调用方（场景/会话）负责；本泵保留零光帧能力（ToLight 的既有语义）。
         var dpi = viewport.Dpi > 0 ? viewport.Dpi : 96;
-        SurfaceViewportRegistry.Publish(viewport.Width, viewport.Height, dpi, quality);
 
         // L-5：帧光签名必须与进程内唯一光帧一致；不一致 ⇒ 显式记账（以 registry 为准，不静默）。
         var registryFrame = SurfaceLightRegistry.Current;
         if (light is SurfaceLightState lightState && lightState.HasValue && registryFrame is not null
-            && lightState.LightSignature != registryFrame.Signature)
+            && lightState.LightSignature != registryFrame.StableSignature)
         {
             LastReason = "light-frame-mismatch";
             log?.Write("surface.light.mismatch", new
             {
                 request = lightState.LightSignature,
-                registry = registryFrame.Signature,
+                registry = registryFrame.StableSignature,
                 content = contentToken,
             });
+        }
+
+        var lightData = ToLight(light);
+        // 引擎着色器按**像素**比较 Spot：DIP → px 只在这里转换一次（卡片/页场同源）。
+        var lightScale = dpi / 96f;
+        if (lightData.SpotRadiusDips > 0f && Math.Abs(lightScale - 1f) > 1e-4f)
+        {
+            lightData = lightData with
+            {
+                SpotLocalX = lightData.SpotLocalX * lightScale,
+                SpotLocalY = lightData.SpotLocalY * lightScale,
+                SpotRadiusDips = lightData.SpotRadiusDips * lightScale,
+            };
         }
 
         var request = new EngineSurfaceRequest(
             viewport.Width, viewport.Height, dpi,
             (light?.CacheToken ?? "no-light") + "|" + contentToken,
-            quality, ToLight(light), items, backdrop);
+            quality, lightData, items, backdrop);
 
         var token = EngineSurfaceBridge.FrameTokenOf(request, items);
+
+        // 缓存优先于退避：退避只抑制「新请求」，不得把已缓存的可用帧也一起挡掉。
         lock (Gate)
         {
             if (Cache.TryGetValue(token, out var cached))
@@ -144,10 +152,28 @@ public static class SurfaceEngineFramePump
             }
         }
 
+        // 负缓存/退避：设备丢失或连续失败期间不允许每个控件每帧重试。
+        if (Environment.TickCount64 < Volatile.Read(ref _retryNotBeforeMs))
+        {
+            LastReason = "retry-backoff";
+            return null;
+        }
+
         Interlocked.Increment(ref _renderRequests);
         if (!port.TryRender(request, out var frame, out var reason) || frame is null || !frame.HasPixels)
         {
-            RecordFailure(frame is null ? reason : (string.IsNullOrEmpty(frame.Reason) ? "no-pixels" : frame.Reason));
+            var failure = frame is null
+                ? reason
+                : (string.IsNullOrEmpty(frame.Reason) ? "no-pixels" : frame.Reason);
+            LastReason = string.IsNullOrEmpty(failure) ? "engine-frame-missing" : failure;
+            if (IsTransient(LastReason))
+            {
+                // NotReady/积压是节奏问题，不是故障：不升级熔断、不触发全局退避。
+                log?.Write("surface.frame.pending", new { reason = LastReason, content = contentToken });
+                return null;
+            }
+
+            RecordFailure(LastReason);
             log?.Write("surface.frame.degraded", new { reason = LastReason, content = contentToken });
             return null;
         }
@@ -160,14 +186,18 @@ public static class SurfaceEngineFramePump
             log?.Write("surface.frame.degraded", new { reason = conversionReason, content = contentToken });
             return null;
         }
+
+        // 引擎回读是异步 FIFO：返回帧的 token 可能对应上一拍请求。
+        // 缓存键必须用**实际帧 token**，否则旧像素会被贴上新 token 永久复用（D2）。
+        var actualToken = string.IsNullOrEmpty(frame.FrameToken) ? token : frame.FrameToken;
         lock (Gate)
         {
             // 同一 token 可能已被并发帧写入：以首个命中为准，后者释放自己的副本（缓存所有权唯一）。
-            if (Cache.TryGetValue(token, out var existing))
+            if (Cache.TryGetValue(actualToken, out var existing))
             {
                 bitmap.Dispose();
                 Interlocked.Increment(ref _cacheHits);
-                Touch(token);
+                Touch(actualToken);
                 return existing;
             }
 
@@ -187,14 +217,18 @@ public static class SurfaceEngineFramePump
                 }
             }
 
-            // 查/存键必须同源（P0-1）：缓存键 = 请求指纹 token，不再使用引擎自报 FrameToken。
-            Cache[token] = bitmap;
-            CacheOrder.AddLast(token);
+            Cache[actualToken] = bitmap;
+            CacheOrder.AddLast(actualToken);
         }
 
         RecordSuccess();
         return bitmap;
     }
+
+    /// <summary>节奏类原因（未就绪/积压）：不升级熔断，仅下一拍重试。</summary>
+    private static bool IsTransient(string reason)
+        => reason is "frame-not-ready" or "readback-backlogged" or "retry-backoff";
+
 
 
     /// <summary>把命中项移到 LRU 尾部（调用方持 <see cref="Gate"/>）。</summary>

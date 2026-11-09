@@ -165,6 +165,12 @@ public sealed class SurfaceLightFrame
     /// <summary>合成签名（世界 ⊕ 配置 ⊕ 时间桶）。</summary>
     public long Signature { get; }
 
+    /// <summary>
+    /// 稳定签名（世界 ⊕ 配置，**不含时间桶**）：比较「光是否真的变了」只用本值。
+    /// <para><see cref="Signature"/> 每 epoch 必变；用它做去抖会导致静止时每秒重算全窗。</para>
+    /// </summary>
+    public long StableSignature => WorldSignature ^ ConfigSignature;
+
     /// <summary>虚拟矩阵签名（声明/生成器 ⊕ 采样区版本）。</summary>
     public long WorldSignature { get; }
 
@@ -563,7 +569,17 @@ public static class SurfaceLightRegistry
     {
         var previous = _current;
         if (frame is null && previous is null) return;
-        if (frame is not null && previous is not null && frame.Signature == previous.Signature) return;
+        // 去抖按**稳定签名 + 覆盖区 + 网格**：时间桶/epoch 变化不构成「光变了」。
+        // 命中时仍刷新发布时钟（否则 IsStale 会把当前帧误判为陈旧）。
+        if (frame is not null && previous is not null
+            && frame.StableSignature == previous.StableSignature
+            && frame.Coverage.Equals(previous.Coverage)
+            && frame.Columns == previous.Columns
+            && frame.Rows == previous.Rows)
+        {
+            Interlocked.Exchange(ref _publishedTick, Environment.TickCount64);
+            return;
+        }
 
         _current = frame;
         Interlocked.Exchange(ref _publishedTick, Environment.TickCount64);

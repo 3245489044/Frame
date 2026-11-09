@@ -59,4 +59,23 @@ public readonly record struct SurfaceViewport(
     /// <summary>以指定客户区尺寸重算（宿主尺寸/原点不变）。</summary>
     public SurfaceViewport WithSize(int width, int height)
         => this with { Width = width, Height = height };
+
+    /// <summary>
+    /// 卡片视口（**唯一换算入口**）：DIP 矩形 → 像素视口（宽高/偏移为像素，原点为屏幕 DIP）。
+    /// <para>卡片的位图与引擎请求都按像素尺寸；调用方不得再各自乘/除 scale。</para>
+    /// </summary>
+    /// <param name="boundsDip">卡片在宿主客户区内的矩形（DIP）。</param>
+    public SurfaceViewport Card(Rectangle boundsDip)
+    {
+        var scale = Scale;
+        return this with
+        {
+            Width = Math.Max(1, (int)Math.Round(boundsDip.Width * scale)),
+            Height = Math.Max(1, (int)Math.Round(boundsDip.Height * scale)),
+            OffsetX = (int)Math.Round(boundsDip.X * scale),
+            OffsetY = (int)Math.Round(boundsDip.Y * scale),
+            OriginXDip = HostOriginXDip + boundsDip.X,
+            OriginYDip = HostOriginYDip + boundsDip.Y,
+        };
+    }
 }

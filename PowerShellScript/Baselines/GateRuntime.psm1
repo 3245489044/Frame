@@ -1263,7 +1263,7 @@ function Get-GateUnrecognizedKind {
     return $script:GateUnrecognizedKind
 }
 
-<# 契约事实（A7）已归位到 GateFacts.psm1：Get-GateContractFacts（取数 + 过期断言单源）。 #>
+<# 契约事实（A7）：GateFacts 的 contract-facts 包装已随死码删除（无调用点）。 #>
 
 
 # 兼容别名：域侧既有调用名（18 份 Add-Violation / 4 份 Get-Prop）无需改名即可接管。

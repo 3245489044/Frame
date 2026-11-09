@@ -128,70 +128,7 @@ function Test-GateLayerTokenFacts {
     return $checked
 }
 
-<#
-.SYNOPSIS
-    注释感知的行提取（行号 + 行文本）。
-.DESCRIPTION
-    统一 `//` / `*` / `/*` / `#` 四套整行注释判定（与 Find-GatePattern -SkipComments 同口径），
-    只负责「取行」，不匹配、不解释。行尾注释不剥离（保持行文本原样）。
-.PARAMETER Path
-    文件路径（优先；复用 Read-TextFile 的 UTF-8 单源）
-.PARAMETER Text
-    裸文本（未给 Path 时使用）
-.PARAMETER SkipBlank
-    跳过空白行
-.PARAMETER KeepComment
-    保留注释行（默认丢弃）
-.PARAMETER CommentMarker
-    整行注释前缀集合（默认 // * /* #）
-.OUTPUTS
-    [{ Number; Text }] 行号（1 起）与去首尾空白的行文本
-#>
-function Get-GateCodeLine {
-    [CmdletBinding()]
-    param(
-        [Parameter(Position = 0)]
-        [string]$Path = '',
-
-        [Parameter(Position = 1)]
-        [AllowNull()]
-        [AllowEmptyString()]
-        [string]$Text = '',
-
-        [switch]$SkipBlank,
-
-        [switch]$KeepComment,
-
-        [string[]]$CommentMarker = @('//', '*', '/*', '#')
-    )
-
-    if (-not [string]::IsNullOrWhiteSpace($Path)) {
-        if (-not (Test-Path -LiteralPath $Path)) { return }
-        $Text = Read-TextFile -Path $Path
-    }
-    if ($null -eq $Text -or $Text.Length -eq 0) { return }
-
-    $markers = @($CommentMarker | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    $number = 0
-    foreach ($line in ($Text -split "`r?`n")) {
-        $number++
-        $trim = $line.Trim()
-        if ($SkipBlank -and $trim.Length -eq 0) { continue }
-
-        if (-not $KeepComment) {
-            $isComment = $false
-            foreach ($mk in $markers) {
-                if ($trim.StartsWith($mk)) { $isComment = $true; break }
-            }
-            if ($isComment) { continue }
-        }
-
-        [pscustomobject]@{ Number = $number; Text = $trim }
-    }
-}
-
 Export-ModuleMember -Function @(
     'Get-GateMissingToken',
-    'Test-GateLayerTokenFacts',
-    'Get-GateCodeLine'
+    'Test-GateLayerTokenFacts'
 )

@@ -16,7 +16,7 @@
 .NOTES
     用法（门禁脚本内）：
         Import-Module (Join-Path $GateRuntimeRoot 'Frame\PowerShellScript\Baselines\GateFacts.psm1') -Force -DisableNameChecking
-        $facts = Get-GateTransferFacts -LedgerForge $ledgerForge -UsharRoot $path -ConstantsPath $consts -CodecPath $codec
+        $facts = Get-GateGatherIssues -LedgerForge $ledgerForge -Directory $declDir
         if (-not $facts.Ok) { ... }
 #>
 
@@ -155,63 +155,6 @@ function Test-GateFactTextEqual {
     return [string]::Equals($Expected, $Actual, [System.StringComparison]::Ordinal)
 }
 
-<#
-.SYNOPSIS
-    转移键事实：LedgerForge transfer-facts（词表 / 文法 / 槽长边界）。
-#>
-function Get-GateTransferFacts {
-    param(
-        [Parameter(Mandatory = $true)][string]$LedgerForge,
-        [Parameter(Mandatory = $true)][string]$UsharRoot,
-        [Parameter(Mandatory = $true)][string]$ConstantsPath,
-        [Parameter(Mandatory = $true)][string]$CodecPath
-    )
-    return Invoke-GateFactTool -ToolPath $LedgerForge -Arguments @(
-        'transfer-facts', '--ushar', $UsharRoot, '--consts', $ConstantsPath, '--codec', $CodecPath
-    ) -AcceptExit @(0, 1)
-}
-
-<#
-.SYNOPSIS
-    PS 运行时事实：LedgerForge ps-runtime-facts（契约根唯一实现 = PowerShellHostRoots）。
-#>
-function Get-GatePsRuntimeFacts {
-    param(
-        [Parameter(Mandatory = $true)][string]$LedgerForge,
-        [Parameter(Mandatory = $true)][string]$RepoRoot,
-        [Parameter(Mandatory = $true)][string]$AgentRoot,
-        [Parameter(Mandatory = $true)][string]$FrameRoot
-    )
-    return Invoke-GateFactTool -ToolPath $LedgerForge -Arguments @(
-        'ps-runtime-facts', '--repo', $RepoRoot, '--agent', $AgentRoot, '--frame-root', $FrameRoot
-    ) -AcceptExit @(0)
-}
-
-<#
-.SYNOPSIS
-    契约事实：LedgerForge contract-facts；生成常量过期即抛错（不算通过）。
-#>
-function Get-GateContractFacts {
-    param(
-        [Parameter(Mandatory = $true)][string]$LedgerForge,
-        [Parameter(Mandatory = $true)][string]$RepoRoot,
-        [Parameter(Mandatory = $true)][string]$AgentRoot
-    )
-    $probe = Invoke-GateFactTool -ToolPath $LedgerForge -Arguments @(
-        'contract-facts', '--repo', $RepoRoot, '--agent', $AgentRoot
-    ) -AcceptExit @(0)
-    if (-not $probe.Ok) {
-        throw "contract-facts 不可执行（退出码 $($probe.ExitCode)）"
-    }
-
-    $facts = $probe.Payload
-    if ($facts.constantsStale) {
-        $detail = (@($facts.constantMismatches) | Select-Object -First 3) -join '；'
-        throw "生成契约常量已过期（与已提交 manifest 不一致）：$detail"
-    }
-    return $facts
-}
-
 # 文本读取单源（缺件 → ''）：避免本文件再复制一份 Read-Text。
 # 注意：嵌套导入**不加 -Force**（-Force 会把调用方会话里已加载的同名模块卸载）。
 Import-Module (Join-Path $PSScriptRoot '..\Operation\DSL\Meta\TextOps.psm1') -DisableNameChecking
@@ -258,8 +201,5 @@ Export-ModuleMember -Function @(
     'Get-GateGatherIssues',
     'Get-GateGatherDomains',
     'Get-GateKeyspaceFactsText',
-    'Test-GateFactTextEqual',
-    'Get-GateTransferFacts',
-    'Get-GatePsRuntimeFacts',
-    'Get-GateContractFacts'
+    'Test-GateFactTextEqual'
 ) -Alias @('Get-GatherDomains')

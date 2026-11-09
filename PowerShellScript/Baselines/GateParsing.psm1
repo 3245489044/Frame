@@ -164,45 +164,8 @@ function Get-GateDeclarationBlock {
     return $map
 }
 
-<#
-.SYNOPSIS
-    初始化体顶层成员名：剥离嵌套块后提取 name= 成员。
-.DESCRIPTION
-    等价于 GP\Check-TestDoubleParity.ps1 的 Get-InitializerMember：反复把 '{...}' 压成空格，
-    防止子初始化器成员被误归因到父类型。
-.PARAMETER Body
-    初始化体文本
-.OUTPUTS
-    [string[]] 顶层成员名（可能为空数组）
-#>
-function Get-GateInitializerMember {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true, Position = 0)]
-        [AllowNull()]
-        [AllowEmptyString()]
-        [string]$Body
-    )
-
-    if ($null -eq $Body -or [string]::IsNullOrWhiteSpace($Body)) { return @() }
-
-    $flat = $Body
-    $prev = $null
-    while ($prev -ne $flat) {
-        $prev = $flat
-        $flat = [regex]::Replace($flat, '\{[^{}]*\}', ' ')
-    }
-
-    $names = [System.Collections.Generic.List[string]]::new()
-    foreach ($m in [regex]::Matches($flat, '(?:^|,|\{|;)\s*(?<m>[A-Za-z_][A-Za-z0-9_]*)\s*=(?![=>])')) {
-        $names.Add($m.Groups['m'].Value)
-    }
-    return $names.ToArray()
-}
-
 Export-ModuleMember -Function @(
     'Get-GateBalancedBlock',
     'Get-GateMethodBody',
-    'Get-GateDeclarationBlock',
-    'Get-GateInitializerMember'
+    'Get-GateDeclarationBlock'
 )

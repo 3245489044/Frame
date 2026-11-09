@@ -278,6 +278,37 @@ public static class SurfaceColor
 
     private static string ByteHex(int value) => value.ToString("x2", System.Globalization.CultureInfo.InvariantCulture);
 
+    /// <summary>打包 ARGB → CSS 最短 hex（不透明 <c>#RRGGBB</c>，半透明 <c>#RRGGBBAA</c>）。</summary>
+    public static string ToCssHexCompact(int argb)
+    {
+        var a = (argb >> 24) & 0xFF;
+        var r = (argb >> 16) & 0xFF;
+        var g = (argb >> 8) & 0xFF;
+        var b = argb & 0xFF;
+        return a == 255
+            ? "#" + ByteHex(r) + ByteHex(g) + ByteHex(b)
+            : "#" + ByteHex(r) + ByteHex(g) + ByteHex(b) + ByteHex(a);
+    }
+
+    /// <summary>
+    /// hex（<c>#RRGGBB</c> / <c>#RRGGBBAA</c>，内嵌 alpha 不使用）+ 0..1 比例 alpha → CSS <c>rgba(...)</c>；
+    /// 非 hex ⇒ 原样返回（可见化，不静默吞）。
+    /// </summary>
+    public static string ToCssRgba(string? hex, float alpha)
+    {
+        if (hex is { Length: 7 or 9 } && hex[0] == '#'
+            && int.TryParse(
+                hex.AsSpan(1, 6),
+                System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var rgb))
+        {
+            return $"rgba({(rgb >> 16) & 0xFF},{(rgb >> 8) & 0xFF},{rgb & 0xFF},{CssValue.Ratio(alpha)})";
+        }
+
+        return hex ?? string.Empty;
+    }
+
     private static bool Nibble(char c, out int value)
     {
         if (c >= '0' && c <= '9') { value = c - '0'; return true; }

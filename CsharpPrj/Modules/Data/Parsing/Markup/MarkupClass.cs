@@ -30,4 +30,18 @@ public static class MarkupClass
         }
         return sb.ToString();
     }
+
+    /// <summary>多段类名拼接（跳过空/空白段，按出现顺序去重，单空格分隔）。</summary>
+    public static string JoinDistinct(params string?[] parts)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var kept = new List<string>(parts.Length);
+        foreach (var part in parts)
+        {
+            if (string.IsNullOrWhiteSpace(part)) continue;
+            var trimmed = part!.Trim();
+            if (seen.Add(trimmed)) kept.Add(trimmed);
+        }
+        return string.Join(" ", kept);
+    }
 }

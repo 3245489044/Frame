@@ -137,6 +137,9 @@ public static class SurfaceLayerMath
     public static int StaticSheenHeight(int height)
         => Math.Max(1, height / 3);
 
+    /// <summary>光斑半径乘子（材质声明 radius 夹到 0.25..1.2；两载体同一夹取口径）。</summary>
+    public static float SpotRadiusFactor(float declaredRadius) => Math.Clamp(declaredRadius, 0.25f, 1.2f);
+
     /// <summary>
     /// 径向光斑几何：半径来自世界光斑半径（回退短边比例），中心来自锚点载体局部位置
     /// （半径无效时回退归一化 SpotX/SpotY，并夹到 [0.05,0.95]）。
@@ -146,7 +149,7 @@ public static class SurfaceLayerMath
         float spotX, float spotY, float spotLocalX, float spotLocalY,
         float spotRadiusDips, float radiusFactor, float dpiScale)
     {
-        var factor = Math.Clamp(radiusFactor, 0.25f, 1.2f);
+        var factor = SpotRadiusFactor(radiusFactor);
         var radius = spotRadiusDips > 0f
             ? Math.Max(8f, spotRadiusDips * dpiScale * factor)
             : Math.Max(8f, Math.Min(width, height) * factor);

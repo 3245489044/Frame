@@ -4,7 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text;
+using MathematicalAlgorithms.Lighting;
+using MathematicalAlgorithms.Surface;
 using Share.Conversation.Rendering.Surface;
 using UiBackend;
 using UiBackend.Css;
@@ -39,15 +40,7 @@ public static class CssSurfaceProjector
     /// <summary>材质 id → CSS 类名（下划线保留，非法字符滤除）。</summary>
     /// <param name="materialId">材质 id。</param>
     public static string ClassName(string materialId)
-    {
-        var builder = new StringBuilder(MaterialClassPrefix);
-        foreach (var ch in materialId ?? string.Empty)
-        {
-            if (char.IsLetterOrDigit(ch) || ch is '-' or '_') builder.Append(ch);
-        }
-
-        return builder.ToString();
-    }
+        => CssIdentifier.Sanitize(materialId, MaterialClassPrefix);
 
     /// <summary>按已解析表面投影材质类（可带一份全局光态，写成 <c>:root</c> 的 <c>--sl-*</c> 变量）。</summary>
     /// <param name="surface">解析产物。</param>
@@ -161,9 +154,9 @@ public static class CssSurfaceProjector
         var iridAngle = (int)Math.Round(Math.Clamp(state.IridescencePhase, 0f, 1f) * 360) % 360;
         return new List<KeyValuePair<string, string>>
         {
-            Pair("--sl-angle", angle.ToString(CultureInfo.InvariantCulture) + "deg"),
-            Pair("--sl-tint", CssColor(sheenTint)),
-            Pair("--sl-irid-angle", iridAngle.ToString(CultureInfo.InvariantCulture) + "deg"),
+            Pair("--sl-angle", $"{CssValue.Deg(angle)}deg"),
+            Pair("--sl-tint", SurfaceColor.ToCssHexCompact(sheenTint)),
+            Pair("--sl-irid-angle", $"{CssValue.Deg(iridAngle)}deg"),
         };
     }
 
@@ -188,7 +181,7 @@ public static class CssSurfaceProjector
             switch (layerSpec.Kind)
             {
                 case LayerPrimitive.Fill:
-                    if (layerSpec.HasColor) backgroundColor = CssColor(layerSpec.ColorArgb);
+                    if (layerSpec.HasColor) backgroundColor = SurfaceColor.ToCssHexCompact(layerSpec.ColorArgb);
                     break;
 
                 case LayerPrimitive.Gradient:
@@ -198,12 +191,12 @@ public static class CssSurfaceProjector
                         break;
                     }
 
-                    backgrounds.Add($"linear-gradient({Deg(layerSpec.Angle)}deg, {GradientStopsCss(layerSpec.Gradient)})");
+                    backgrounds.Add($"linear-gradient({CssValue.Deg(layerSpec.Angle)}deg, {GradientStopsCss(layerSpec.Gradient)})");
                     backgroundAttachments.Add("scroll");
                     break;
 
                 case LayerPrimitive.Backdrop:
-                    backdropFilter = $"blur({FormatPx(layerSpec.Blur)})";
+                    backdropFilter = $"blur({CssValue.Px(layerSpec.Blur)})";
                     break;
 
                 case LayerPrimitive.Stroke:
@@ -248,7 +241,7 @@ public static class CssSurfaceProjector
         }
 
         // 解析期问题可见化（缺失 asset / 非法值 / 未换值 token 不得静默吞掉）。
-        foreach (var issue in parsed.Issues) SkipLayer(skipped, "parse", issue.Code + ":" + issue.Detail);
+        foreach (var issue in parsed.Issues) SkipLayer(skipped, "parse", $"{issue.Code}:{issue.Detail}");
 
         // 边框：同一模型（BorderSpec）取最大 z 的描边；多描边因 CSS 单 border 限制显式记账。
         var spec = BorderSpecProjection.From(material);
@@ -258,10 +251,10 @@ public static class CssSurfaceProjector
         {
             var parts = new List<string>
             {
-                FormatPx(glow.OffsetX), FormatPx(glow.OffsetY), FormatPx(glow.Blur),
+                CssValue.Px(glow.OffsetX), CssValue.Px(glow.OffsetY), CssValue.Px(glow.Blur),
             };
-            if (glow.Spread > 0) parts.Add(FormatPx(glow.Spread));
-            parts.Add(CssColor(glow.Argb));
+            if (glow.Spread > 0) parts.Add(CssValue.Px(glow.Spread));
+            parts.Add(SurfaceColor.ToCssHexCompact(glow.Argb));
             shadows.Add(string.Join(" ", parts));
         }
 
@@ -271,16 +264,16 @@ public static class CssSurfaceProjector
             if (edgeMode)
             {
                 // 顶高光；CSS 单条 inset 不能只亮左边 ⇒ 逐边语义显式降级记账。
-                shadows.Add($"inset 0 {FormatPx(innerLight.Width)} 0 {CssColor(innerLight.Argb)}");
+                shadows.Add($"inset 0 {CssValue.Px(innerLight.Width)} 0 {SurfaceColor.ToCssHexCompact(innerLight.Argb)}");
             }
 
             if (edgeMode || !string.Equals(innerLight.Sides, "all", StringComparison.Ordinal))
                 SkipLayer(skipped, "inner-light-sides-degraded", innerLight.Sides);
             if (edgeMode) continue;
             var inset = innerLight.Blur > 0
-                ? $"inset {ZeroAware(innerLight.OffsetX)} {ZeroAware(innerLight.OffsetY)} {FormatPx(innerLight.Blur)}"
-                : $"inset {ZeroAware(innerLight.OffsetX)} {ZeroAware(innerLight.OffsetY)} 0";
-            shadows.Add(inset + " " + CssColor(innerLight.Argb));
+                ? $"inset {CssValue.ZeroAware(innerLight.OffsetX)} {CssValue.ZeroAware(innerLight.OffsetY)} {CssValue.Px(innerLight.Blur)}"
+                : $"inset {CssValue.ZeroAware(innerLight.OffsetX)} {CssValue.ZeroAware(innerLight.OffsetY)} 0";
+            shadows.Add($"{inset} {SurfaceColor.ToCssHexCompact(innerLight.Argb)}");
         }
 
         // 光斑半径乘子 = 材质声明 radius（与 GDI+ PaintSpotHighlight 的 clamp(radius, 0.25, 1.2) 同一来源）。
@@ -290,7 +283,7 @@ public static class CssSurfaceProjector
             if (layerSpec.Kind == LayerPrimitive.Specular
                 && string.Equals(layerSpec.Mode, "spot", StringComparison.Ordinal))
             {
-                spotRadiusFactor = Math.Clamp(layerSpec.Radius, 0.25f, 1.2f);
+                spotRadiusFactor = SurfaceLayerMath.SpotRadiusFactor(layerSpec.Radius);
                 break;
             }
         }
@@ -302,15 +295,15 @@ public static class CssSurfaceProjector
                 // 光谱正文由独立样式模块（SpectralStyleModule）产出：这里只标记类名 + 带宽/峰值变量。
                 spectral = true;
                 // 带宽 = 材质声明 width（不再由模块写死 6px）；峰值与 GDI+ 走同一公式。
-                declarations.Add(Pair("--sl-spectral-w", FormatPx(sheen.Width)));
+                declarations.Add(Pair("--sl-spectral-w", CssValue.Px(sheen.Width)));
                 var spectralPeak = SurfaceLightState.SheenAlpha(
                     150f, sheen.Strength, light?.Specular ?? 1f, light?.Shade ?? 1f);
-                declarations.Add(Pair("--sl-spectral-a", FormatRatio(spectralPeak / 255f)));
+                declarations.Add(Pair("--sl-spectral-a", CssValue.Ratio(spectralPeak / 255f)));
                 // 与 WinForms 同一公式：令牌色相 + 世界相位 + (t-0.5)*span；HTML 用 conic 的角度区间表达 t。
                 declarations.Add(Pair("--sl-spectral-hue",
-                    Deg(HueOf(sheen.Argb)) + "deg"));
+                    $"{CssValue.Deg(SurfaceShadingMath.HueOf(sheen.Argb))}deg"));
                 declarations.Add(Pair("--sl-spectral-span",
-                    Math.Round(sheen.SpectralSpan).ToString(CultureInfo.InvariantCulture) + "deg"));
+                    $"{CssValue.Deg(sheen.SpectralSpan)}deg"));
                 continue;
             }
 
@@ -322,17 +315,17 @@ public static class CssSurfaceProjector
                 {
                     // 半径 = 光斑半径 × 材质 radius 乘子（与 GDI+ PaintSpotHighlight 同一乘子）；
                     // 色标走到 100% ⇒ 视觉半径不再被旧的 70% 缩成 1.27×。
-                    declarations.Add(Pair("--sl-spot-r", FormatPx(lit.SpotRadiusDips * spotRadiusFactor)));
+                    declarations.Add(Pair("--sl-spot-r", CssValue.Px(lit.SpotRadiusDips * spotRadiusFactor)));
                     // 峰值颜色 = 材质声明色 + **两载体同一峰值公式**（不再用 --sl-tint 的 220/255 且忽略 strength/Shade）。
                     // 注意：峰值（亮度）同源；颜色仍有一档差异 —— GDI+ 的 PaintSpotHighlight 会再叠 LitColor
                     // 的 15% 光照 tint，CSS 侧只叠 alpha、不混 tint。这是**已知不对称**，别当成同色。
                     var peak = SurfaceLightState.SheenAlpha(90f, sheen.Strength, lit.Specular, lit.Shade);
-                    declarations.Add(Pair("--sl-spot-color", CssColor((peak << 24) | (sheen.Argb & 0x00FFFFFF))));
+                    declarations.Add(Pair("--sl-spot-color", SurfaceColor.ToCssHexCompact((peak << 24) | (sheen.Argb & 0x00FFFFFF))));
                 }
 
+                var spotShape = "circle var(--sl-spot-r, 22vmin) at var(--sl-anchor-x, 50%) var(--sl-anchor-y, 30%)";
                 backgrounds.Add(
-                    "radial-gradient(circle var(--sl-spot-r, 22vmin) at var(--sl-anchor-x, 50%) var(--sl-anchor-y, 30%), " +
-                    $"var(--sl-spot-color, {CssColor(sheen.Argb)}) 0%, transparent 100%)");
+                    $"radial-gradient({spotShape}, var(--sl-spot-color, {SurfaceColor.ToCssHexCompact(sheen.Argb)}) 0%, transparent 100%)");
                 backgroundAttachments.Add("fixed");
             }
             else
@@ -344,11 +337,11 @@ public static class CssSurfaceProjector
                     var bandPeak = SurfaceLightState.SheenAlpha(
                         90f, sheen.Strength, bandLight.Specular, bandLight.Shade);
                     declarations.Add(Pair(
-                        "--sl-tint", CssColor((bandPeak << 24) | (sheen.Argb & 0x00FFFFFF))));
+                        "--sl-tint", SurfaceColor.ToCssHexCompact((bandPeak << 24) | (sheen.Argb & 0x00FFFFFF))));
                 }
 
                 backgrounds.Add(
-                    $"linear-gradient(var(--sl-angle, {Deg(sheen.Angle)}deg), transparent 40%, var(--sl-tint, {CssColor(sheen.Argb)}) 50%, transparent 60%)");
+                    $"linear-gradient(var(--sl-angle, {CssValue.Deg(sheen.Angle)}deg), transparent 40%, var(--sl-tint, {SurfaceColor.ToCssHexCompact(sheen.Argb)}) 50%, transparent 60%)");
                 backgroundAttachments.Add("scroll");
             }
         }
@@ -375,7 +368,7 @@ public static class CssSurfaceProjector
         // fill+radius 以 WinForms 为准：无描边材质也要圆角（材质级最大半径），否则填充直角/描边圆角错位。
         if (primary is null)
         {
-            if (parsed.MaterialRadius > 0) declarations.Add(Pair("border-radius", FormatPx(parsed.MaterialRadius)));
+            if (parsed.MaterialRadius > 0) declarations.Add(Pair("border-radius", CssValue.Px(parsed.MaterialRadius)));
         }
         // CSS 背景层「先写者在上」：按 z 升序收集，输出时反转，保证高 z 图元压在上面（不再后写覆盖先写）。
         if (backgrounds.Count > 0)
@@ -415,7 +408,7 @@ public static class CssSurfaceProjector
 
     /// <summary>降级记账唯一出口：所有"跳过"都必须以 kind:detail 形式可见，禁静默丢弃。</summary>
     private static void SkipLayer(List<string> skipped, string kind, string detail)
-        => skipped.Add(kind + ":" + detail);
+        => skipped.Add($"{kind}:{detail}");
 
     /// <summary>
     /// 描边投影（唯一模型读取点）：宽度/颜色/半径全部来自 <see cref="BorderSpec.TopStroke"/>，
@@ -424,21 +417,21 @@ public static class CssSurfaceProjector
     private static void AddBorder(List<KeyValuePair<string, string>> declarations, BorderStroke stroke)
     {
         declarations.Add(Pair("border-style", "solid"));
-        declarations.Add(Pair("border-top-width", FormatPx(stroke.Widths.Top)));
-        declarations.Add(Pair("border-right-width", FormatPx(stroke.Widths.Right)));
-        declarations.Add(Pair("border-bottom-width", FormatPx(stroke.Widths.Bottom)));
-        declarations.Add(Pair("border-left-width", FormatPx(stroke.Widths.Left)));
+        declarations.Add(Pair("border-top-width", CssValue.Px(stroke.Widths.Top)));
+        declarations.Add(Pair("border-right-width", CssValue.Px(stroke.Widths.Right)));
+        declarations.Add(Pair("border-bottom-width", CssValue.Px(stroke.Widths.Bottom)));
+        declarations.Add(Pair("border-left-width", CssValue.Px(stroke.Widths.Left)));
 
         if (stroke.Colors.IsUniform)
         {
-            declarations.Add(Pair("border-color", CssColor(stroke.Colors.Top)));
+            declarations.Add(Pair("border-color", SurfaceColor.ToCssHexCompact(stroke.Colors.Top)));
         }
         else
         {
-            declarations.Add(Pair("border-top-color", CssColor(stroke.Colors.Top)));
-            declarations.Add(Pair("border-right-color", CssColor(stroke.Colors.Right)));
-            declarations.Add(Pair("border-bottom-color", CssColor(stroke.Colors.Bottom)));
-            declarations.Add(Pair("border-left-color", CssColor(stroke.Colors.Left)));
+            declarations.Add(Pair("border-top-color", SurfaceColor.ToCssHexCompact(stroke.Colors.Top)));
+            declarations.Add(Pair("border-right-color", SurfaceColor.ToCssHexCompact(stroke.Colors.Right)));
+            declarations.Add(Pair("border-bottom-color", SurfaceColor.ToCssHexCompact(stroke.Colors.Bottom)));
+            declarations.Add(Pair("border-left-color", SurfaceColor.ToCssHexCompact(stroke.Colors.Left)));
         }
 
         var radii = stroke.Radii;
@@ -454,7 +447,7 @@ public static class CssSurfaceProjector
 
     /// <summary>半径 → <c>min(r, 50%)</c>（CSS 百分比按对应轴/短边解析，等价于半边长硬上限）。</summary>
     private static string ClampHalf(float radius)
-        => $"min({FormatPx(radius)}, 50%)";
+        => $"min({CssValue.Px(radius)}, 50%)";
 
     /// <summary>全局光态 → <c>--sl-*</c> 变量（唯一格式化实现；采样入口先投影成窄视图）。</summary>
     private static List<KeyValuePair<string, string>> LightVariables(SurfaceLightSample sample)
@@ -482,9 +475,8 @@ public static class CssSurfaceProjector
 
         var radialAlpha = Number(tokens, "ambient_radial_alpha", 0.42f);
         var radialRadius = Number(tokens, "ambient_radial_radius", 200f);
-        images.Add(
-            $"radial-gradient(circle {FormatPx(radialRadius)} at var(--sl-anchor-x,50%) var(--sl-anchor-y,30%), " +
-            $"rgba(255,255,255,{FormatRatio(radialAlpha)}) 0%, transparent 100%)");
+        var radialShape = $"radial-gradient(circle {CssValue.Px(radialRadius)} at var(--sl-anchor-x,50%) var(--sl-anchor-y,30%)";
+        images.Add($"{radialShape}, rgba(255,255,255,{CssValue.Ratio(radialAlpha)}) 0%, transparent 100%)");
         attachments.Add("fixed");
 
         if (tokens.TryGetValue("glass_edge_light", out var ribbonColor)
@@ -492,7 +484,7 @@ public static class CssSurfaceProjector
         {
             var ribbonAlpha = Number(tokens, "ambient_ribbon_alpha", 0.30f);
             images.Add(
-                $"linear-gradient(135deg, transparent 35%, {Rgba(ribbonColor, ribbonAlpha)} 50%, transparent 65%)");
+                $"linear-gradient(135deg, transparent 35%, {SurfaceColor.ToCssRgba(ribbonColor, ribbonAlpha)} 50%, transparent 65%)");
             attachments.Add("scroll");
         }
 
@@ -511,60 +503,13 @@ public static class CssSurfaceProjector
             ? value
             : fallback;
 
-    /// <summary>#RRGGBB / #RRGGBBAA → rgba(...)；非法值原样返回（可见化，不静默吞）。</summary>
-    private static string Rgba(string hex, float alpha)
-    {
-        if (hex.Length is 7 or 9 && hex[0] == '#'
-            && int.TryParse(hex.AsSpan(1, 6), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
-        {
-            return $"rgba({(rgb >> 16) & 0xFF},{(rgb >> 8) & 0xFF},{rgb & 0xFF},{FormatRatio(alpha)})";
-        }
-
-        return hex;
-    }
-
-    /// <summary>ARGB → HSV 色相（0..360；与 WinForms 环基色同一口径）。</summary>
-    private static float HueOf(int argb)
-    {
-        var r = (argb >> 16) & 0xFF;
-        var g = (argb >> 8) & 0xFF;
-        var b = argb & 0xFF;
-        var max = Math.Max(r, Math.Max(g, b));
-        var min = Math.Min(r, Math.Min(g, b));
-        var delta = max - min;
-        if (delta <= 0) return 0f;
-
-        float hue;
-        if (max == r) hue = 60f * (((g - b) / (float)delta) % 6f);
-        else if (max == g) hue = 60f * (((b - r) / (float)delta) + 2f);
-        else hue = 60f * (((r - g) / (float)delta) + 4f);
-        return hue < 0f ? hue + 360f : hue;
-    }
-
-    /// <summary>打包 ARGB → CSS 颜色（不透明输出 <c>#RRGGBB</c>，半透明输出 <c>#RRGGBBAA</c>）。</summary>
-    private static string CssColor(int argb)
-    {
-        var a = (argb >> 24) & 0xFF;
-        var r = (argb >> 16) & 0xFF;
-        var g = (argb >> 8) & 0xFF;
-        var b = argb & 0xFF;
-        return a == 255 ? $"#{r:x2}{g:x2}{b:x2}" : $"#{r:x2}{g:x2}{b:x2}{a:x2}";
-    }
-
-    /// <summary>模型角度 → CSS 角度（整数，保持既有输出形态）。</summary>
-    private static string Deg(float angle)
-        => ((int)Math.Round(float.IsNaN(angle) || float.IsInfinity(angle) ? 0 : angle)).ToString(CultureInfo.InvariantCulture);
-
-    /// <summary>零值不写单位（<c>inset 0 0 …</c>），非零按 DIP→px。</summary>
-    private static string ZeroAware(float value) => Math.Abs(value) < 0.001f ? "0" : FormatPx(value);
-
     /// <summary>九宫格（slice 非空才产出 border-image 一套；调用方保证不再叠加 background 同图）。</summary>
     private static IEnumerable<KeyValuePair<string, string>> NineSlice(ResolvedLayerSpec layerSpec)
     {
         var slice = layerSpec.SliceText;
         yield return Pair("border-style", "solid");
         yield return Pair("border-image-source", $"url(\"{layerSpec.Asset}\")");
-        yield return Pair("border-image-slice", slice + " fill");
+        yield return Pair("border-image-slice", $"{slice} fill");
         yield return Pair("border-image-repeat", layerSpec.Repeat.Length > 0 ? layerSpec.Repeat : "stretch");
         yield return Pair("border-image-width", slice);
     }
@@ -575,10 +520,11 @@ public static class CssSurfaceProjector
         var parts = new List<string>(gradient.Stops.Count);
         foreach (var stop in gradient.Stops)
         {
-            var text = CssColor(stop.Argb);
+            var text = SurfaceColor.ToCssHexCompact(stop.Argb);
             if (stop.HasPosition)
             {
-                text += " " + ((int)Math.Round(stop.Position * 100)).ToString(CultureInfo.InvariantCulture) + "%";
+                var percent = ((int)Math.Round(stop.Position * 100)).ToString(CultureInfo.InvariantCulture);
+                text = $"{text} {percent}%";
             }
 
             parts.Add(text);
@@ -588,13 +534,4 @@ public static class CssSurfaceProjector
     }
 
     private static KeyValuePair<string, string> Pair(string property, string value) => new(property, value);
-
-    private static string FormatPx(float value)
-        => Math.Abs(value - Math.Round(value)) < 1e-6
-            ? ((long)Math.Round(value)).ToString(CultureInfo.InvariantCulture) + "px"
-            : value.ToString("0.###", CultureInfo.InvariantCulture) + "px";
-
-    /// <summary>0..1 比例 → CSS 无单位数值（最多 3 位小数，供 <c>opacity</c> 消费）。</summary>
-    private static string FormatRatio(float value)
-        => Math.Clamp(value, 0f, 1f).ToString("0.###", CultureInfo.InvariantCulture);
 }

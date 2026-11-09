@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace UiBackend;
@@ -21,6 +22,27 @@ public static class CssValue
         for (var i = 0; i < parts.Length; i++) parts[i] += unit;
         return string.Join(" ", parts);
     }
+
+    /// <summary>DIP/像素 → CSS px 文本（整数值不带小数，否则最多 3 位小数）。</summary>
+    public static string Px(float value)
+    {
+        var rounded = Math.Round(value);
+        return Math.Abs(value - rounded) < 1e-6
+            ? ((long)rounded).ToString(CultureInfo.InvariantCulture) + "px"
+            : value.ToString("0.###", CultureInfo.InvariantCulture) + "px";
+    }
+
+    /// <summary>0..1 比例 → CSS 无单位数值（夹取到 0..1，最多 3 位小数）。</summary>
+    public static string Ratio(float value)
+        => Math.Clamp(value, 0f, 1f).ToString("0.###", CultureInfo.InvariantCulture);
+
+    /// <summary>角度 → CSS 数字（取整；NaN/∞ 按 0；单位 <c>deg</c> 由调用方补）。</summary>
+    public static string Deg(float angle)
+        => ((int)Math.Round(float.IsNaN(angle) || float.IsInfinity(angle) ? 0 : angle))
+            .ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>零值不写单位（<c>0</c>），非零按 DIP→px。</summary>
+    public static string ZeroAware(float value) => Math.Abs(value) < 0.001f ? "0" : Px(value);
 
     /// <summary>把 <c>prop:value</c> 声明合并进既有 style（同名后者覆盖；不丢弃上游声明）。</summary>
     public static string MergeStyle(string? existing, IEnumerable<string> declarations)

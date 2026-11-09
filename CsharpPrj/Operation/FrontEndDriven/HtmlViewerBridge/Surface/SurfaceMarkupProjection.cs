@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using Modules.Parsing.Markup;
 using Share.Conversation.Rendering.Surface;
 using UiBackend.Html;
 
@@ -39,7 +39,7 @@ public static class SurfaceMarkupProjection
 
             map[container.Key] = new SurfaceContainerMarkup(
                 tag,
-                string.Join(" ", classes.Distinct(StringComparer.Ordinal)),
+                MarkupClass.JoinDistinct(classes.ToArray()),
                 attributes);
         }
 

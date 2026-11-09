@@ -131,8 +131,6 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         ApplyTheme(attributes, theme?.ThemeFor(node.Role, node.Class), node.State);
 
         var isBanner = string.Equals(node.FoldKind, FrameComposer.BannerFoldKind, StringComparison.Ordinal);
-        // banner 收起 = 只出段头（结构事实进 data-fact-*），不产出段体。
-        var bodySuppressed = isFold && isBanner && node.State != UiNodeState.Open;
 
         var children = new List<UiNode>(node.Fields.Count + node.Children.Count + 1);
         if (isFold)
@@ -155,20 +153,18 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
                 null));
         }
 
+        // 段体恒产出：收起只是载体隐藏（<details> 原生语义），展开必须能拿到完整正文。
         var body = new List<UiNode>(node.Fields.Count + node.Children.Count);
-        if (!bodySuppressed)
+        for (var i = 0; i < node.Fields.Count; i++)
         {
-            for (var i = 0; i < node.Fields.Count; i++)
-            {
-                // banner 段头已消费首字段；行折叠的段体保留主字段全文（展开无损）。
-                if (isFold && isBanner && i == 0) continue;
-                var field = node.Fields[i];
-                if (field.IsNotApplicable) continue;
-                body.Add(ProjectField(field, theme));
-            }
-
-            foreach (var child in node.Children) body.Add(ProjectNode(child, theme));
+            // banner 段头已消费首字段；行折叠的段体保留主字段全文（展开无损）。
+            if (isFold && isBanner && i == 0) continue;
+            var field = node.Fields[i];
+            if (field.IsNotApplicable) continue;
+            body.Add(ProjectField(field, theme));
         }
+
+        foreach (var child in node.Children) body.Add(ProjectNode(child, theme));
 
         if (isFold && body.Count > 0)
         {

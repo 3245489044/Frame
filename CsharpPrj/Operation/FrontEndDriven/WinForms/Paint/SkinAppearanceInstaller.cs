@@ -6,6 +6,8 @@ using System.Drawing;
 using System.Linq;
 using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
+using Share.Conversation.Rendering.Surface.Gather;
+using Share.Conversation.Rendering.Surface.Selection;
 using Share.SurfacePaint;
 using Share.SurfacePaint.Ambient;
 using UiBackend;
@@ -48,27 +50,36 @@ public static class SkinAppearanceInstaller
         var profile = profileId.Trim();
         // 画质设置（用户态，数据根同 UI 布局）：只覆盖引擎/质量/玻璃/光场；档位不在此处覆盖。
         var quality = SurfaceQualitySettings.Load();
+        // 覆盖项唯一发布点：两载体与缓存键都从选择源读到同一份「参与解析的覆盖」。
+        SurfaceSelectionProvider.Current.Overrides = SurfaceQualitySettings.OverridesOf(quality);
+
+        // 生效快照（唯一装配入口）：声明 + 档 + 覆盖 ⇒ 全视图/令牌/设置/玻璃/引擎光同源。
+        var bundle = SurfacePlanBuilder.Build(
+            SurfaceProgram.From(program),
+            carrierId,
+            SurfaceSelectionProvider.Current.Select("render-surface", carrierId),
+            WinFormsPropertyProjector.ChannelId,
+            profileOverride: profile);
         var byKey = new Dictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>(StringComparer.Ordinal);
         var byKeyProperty = new Dictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>(StringComparer.Ordinal);
 
-        // 能力矩阵/层规格只建一次：每视图两次解析（draw / property）共用同一上下文。
+        // 能力矩阵/层规格只建一次：档级单槽查询（page/role slot）共用同一上下文。
         var context = SurfaceResolver.Prepare(program);
-        var pageBackground = ResolvePageColor(program, context, carrierId, profile);
-        foreach (var view in program.Views.Keys)
+        var pageBackground = ResolvePageColor(program, context, carrierId, bundle.Tokens);
+        foreach (var view in bundle.Views.Values)
         {
-            var resolved = SurfaceResolver.Resolve(program, context, view, carrierId, profile);
-            var resolvedProperty = SurfaceResolver.Resolve(
-                program, context, view, carrierId, profile,
-                channel: WinFormsPropertyProjector.ChannelId);
-            foreach (var container in resolved.Containers)
+            foreach (var container in view.Containers)
             {
                 if (container.Materials.Count == 0) continue;
                 byKey[container.Id] = container.Materials;
                 if (!string.Equals(container.Key, container.Id, StringComparison.Ordinal))
                     byKey.TryAdd(container.Key, container.Materials);
             }
+        }
 
-            foreach (var container in resolvedProperty.Containers)
+        foreach (var view in bundle.PropertyViews.Values)
+        {
+            foreach (var container in view.Containers)
             {
                 if (container.Materials.Count == 0) continue;
                 byKeyProperty[container.Id] = container.Materials;
@@ -79,8 +90,7 @@ public static class SkinAppearanceInstaller
 
         SkinMaterialCatalog.SetPageBackground(pageBackground);
         // 页面装饰层：唯一取值来源 = 当前档令牌（浅档主/深档备），代码端零颜色分支。
-        var ambient = SurfaceAmbientTokens.FromTokens(SurfaceQualitySettings.MergeTokens(
-            SurfaceResolver.TokensForProfile(program, profile), quality));
+        var ambient = SurfaceAmbientTokens.FromTokens(bundle.Tokens);
         SurfaceAmbient.Configure(ambient);
         // G-1 宿主合成真值登记（唯一装配入口）：能力/预算/声明上限；背景由载体快照在绘制期补登。
         // Q2 默认 T0、Q6 默认 balanced（G-6 落点：只改这里的取值，不改 Clamp）。
@@ -93,22 +103,26 @@ public static class SkinAppearanceInstaller
             "winforms-owner-draw"));
         SurfaceHostFacts.DeclareBudget(SurfaceFrameBudget.Default);
         SurfaceHostFacts.DeclareTier(quality.Tier ?? GlassTier.T0);
+        // 玻璃形态：声明表唯一值源（tier 参数/染色），选层不再按 tier 硬编码。
+        SurfaceHostFacts.DeclareGlassLook(bundle.GlassLook);
         // 2026-11-08：端口装配（引擎/日志/兼容层）走唯一装配点，避免与静态构造器两处接线。
         WinFormsSurfacePorts.Configure();
         // 引擎帧开关/质量档（配置态，非代码分支；缺失 ⇒ 默认 on/balanced）；用户设置优先。
-        var engineEnabled = !program.Settings.TryGetValue("surface_engine", out var engineSwitch)
+        var engineEnabled = !bundle.Settings.TryGetValue("surface_engine", out var engineSwitch)
             || !string.Equals(engineSwitch, "off", StringComparison.OrdinalIgnoreCase);
         if (quality.EngineEnabled is { } engineOverride)
             engineEnabled = engineOverride;
         SurfaceFramePump.Enabled = engineEnabled;
 
-        var engineQuality = program.Settings.TryGetValue("surface_engine_quality", out var declaredQuality)
+        var engineQuality = bundle.Settings.TryGetValue("surface_engine_quality", out var declaredQuality)
             ? declaredQuality
             : null;
         if (!string.IsNullOrWhiteSpace(quality.EngineQuality))
             engineQuality = quality.EngineQuality;
         // 覆盖项被清空 ⇒ 回到声明默认（原先只在非空时赋值，清空设置后旧档位残留）。
         SurfaceFramePump.Quality = string.IsNullOrWhiteSpace(engineQuality) ? "balanced" : engineQuality!;
+        // 引擎光 look 子集：生效快照唯一来源，泵只负责把 JSON 交给引擎（引擎侧仍可派生缺省字段）。
+        SurfaceLightPump.Look = bundle.EngineLight;
         // 记账：开了装饰却把结构主容器映射到未声明能力的材质 ⇒ 落日志（禁静默变成「没有装饰」）。
         var decorUndeclared = ambient.HasScene
             ? string.Join(",", StructuralSlots.Where(required =>
@@ -143,7 +157,7 @@ public static class SkinAppearanceInstaller
         SkinMaterialCatalog.SetGlobalProperty(globalProperty);
         SkinDecorator.Enabled = globalProperty is not null;
         // 指针光（声明令牌单源）：weight = 峰值权重（0 = 关闭/回滚），sigma = 半径系数，boost = 高光增幅。
-        var tokens = SurfaceResolver.TokensForProfile(program, profile);
+        var tokens = bundle.Tokens;
         var pointerWeight = SurfaceLightPointer.PointerWeight;
         var pointerSigma = SurfaceLightPointer.PointerSigma;
         var pointerBoost = SurfaceLightPointer.SpecBoost;
@@ -231,13 +245,13 @@ public static class SkinAppearanceInstaller
         SurfaceProgramDeclaration program,
         SurfaceResolveContext context,
         string carrierId,
-        string profile)
+        IReadOnlyDictionary<string, string> tokens)
     {
         foreach (var view in program.Views.Keys)
         {
             var resolved = SurfaceResolver.Resolve(
                 program, context, view, carrierId, SurfaceResolver.DefaultProfile,
-                tokens: SurfaceResolver.TokensForProfile(program, profile));
+                tokens: tokens);
             foreach (var container in resolved.Containers)
             {
                 foreach (var material in container.Materials.Values)

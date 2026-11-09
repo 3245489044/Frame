@@ -123,7 +123,7 @@ public static class CssSurfaceProjector
             var className = ClassName(material.FallbackUsed ?? material.MaterialId);
             if (emittedClasses.Add(className))
             {
-                builder.Rule(CssSelector.Class(className), MaterialToCss(material, light, skipped, out var isSpectral));
+                builder.Rule(CssSelector.Class(className), MaterialToCss(material, light, tokens, skipped, out var isSpectral));
                 if (isSpectral) spectral.Add(className);
             }
 
@@ -133,7 +133,7 @@ public static class CssSurfaceProjector
             {
                 builder.Rule(
                     CssSelector.Attr("data-surface", slot),
-                    MaterialToCss(material, light, skipped, out var slotSpectral));
+                    MaterialToCss(material, light, tokens, skipped, out var slotSpectral));
                 if (slotSpectral && !spectral.Contains(className)) spectral.Add(className);
             }
         }
@@ -162,7 +162,11 @@ public static class CssSurfaceProjector
 
     /// <summary>单个材质 → 声明列表（阴影/背景多值合并；边框走 BorderSpec）。</summary>
     private static List<KeyValuePair<string, string>> MaterialToCss(
-        ResolvedMaterial material, SurfaceLightState? light, List<string> skipped, out bool spectral)
+        ResolvedMaterial material,
+        SurfaceLightState? light,
+        IReadOnlyDictionary<string, string>? tokens,
+        List<string> skipped,
+        out bool spectral)
     {
         spectral = false;
         var declarations = new List<KeyValuePair<string, string>>();
@@ -382,10 +386,22 @@ public static class CssSurfaceProjector
         }
 
         // chrome：留白环/外发光在 HTML 侧用「令牌内衬边 + gutter 变量」表达；页面场由 body 承载。
+        // gutter/rim 必须取生效令牌（声明 + 用户覆盖），不得再引用无生产者的 --ui-* 变量。
         if ((material.Decoration & SurfaceDecoration.Chrome) != 0)
         {
-            declarations.Add(Pair("--sl-chrome-gutter", "var(--ui-ambient-gutter, 20px)"));
-            shadows.Add("inset 0 0 0 1px var(--ui-panel-rim, #dceaf8)");
+            if (tokens is not null
+                && tokens.TryGetValue("ambient_gutter", out var gutterText)
+                && float.TryParse(gutterText, NumberStyles.Float, CultureInfo.InvariantCulture, out var gutter))
+            {
+                declarations.Add(Pair("--sl-chrome-gutter", CssValue.Px(gutter)));
+            }
+
+            if (tokens is not null
+                && tokens.TryGetValue("panel_rim", out var rimText)
+                && SurfaceColor.TryParseColor(rimText, out var rimArgb))
+            {
+                shadows.Add("inset 0 0 0 1px " + SurfaceColor.ToCssHexCompact(rimArgb));
+            }
         }
 
         if (backgroundColor.Length > 0) declarations.Add(Pair("background-color", backgroundColor));

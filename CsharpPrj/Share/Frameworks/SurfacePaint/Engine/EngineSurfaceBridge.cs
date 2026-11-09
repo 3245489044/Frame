@@ -129,7 +129,11 @@ public static class EngineSurfaceBridge
         }
     }
 
-    /// <summary>帧 token（同视口/同绘制项/同光/同背景 ⇒ 同帧）。</summary>
+    /// <summary>
+    /// 帧 token（同视口/同绘制项/同光/同背景 ⇒ 同帧）。
+    /// <para>绘制项的**全部像素字段**都进键：玻璃档位（模糊/折射/色散/菲涅耳）就落在 Param0..3，
+    /// 不进键会在切档后复用旧档位像素（同一材质/光/尺寸 ⇒ 假命中）。</para>
+    /// </summary>
     public static string FrameTokenOf(EngineSurfaceRequest request, IReadOnlyList<SurfaceDrawItem> items)
     {
         var builder = new StringBuilder(96 + items.Count * 16);
@@ -148,9 +152,16 @@ public static class EngineSurfaceBridge
                 .Append(',').Append(item.Y.ToString("F1", CultureInfo.InvariantCulture))
                 .Append(',').Append(item.Width.ToString("F1", CultureInfo.InvariantCulture))
                 .Append(',').Append(item.Height.ToString("F1", CultureInfo.InvariantCulture))
+                .Append(',').Append(item.Radius.ToString("F2", CultureInfo.InvariantCulture))
                 .Append(',').Append(item.Argb).Append(',').Append(item.Kind)
+                .Append(',').Append(item.Flags)
                 .Append(',').Append(item.Opacity.ToString("F2", CultureInfo.InvariantCulture))
-                .Append(',').Append(item.TextureId);
+                .Append(',').Append(item.Z.ToString("F2", CultureInfo.InvariantCulture))
+                .Append(',').Append(item.TextureId)
+                .Append(',').Append(item.Param0.ToString("F3", CultureInfo.InvariantCulture))
+                .Append(',').Append(item.Param1.ToString("F3", CultureInfo.InvariantCulture))
+                .Append(',').Append(item.Param2.ToString("F3", CultureInfo.InvariantCulture))
+                .Append(',').Append(item.Param3.ToString("F3", CultureInfo.InvariantCulture));
         }
 
         return SurfaceFrameContract.Fingerprint(builder.ToString());

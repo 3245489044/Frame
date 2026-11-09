@@ -14,15 +14,11 @@ namespace FrontEndDriven.WinForms.Paint;
 
 /// <summary>
 /// 外观安装器（**宿主无关的唯一装配入口**）：吃表面声明 → 解析材质目录 + 全局回退材质 → 点亮 owner-draw。
-/// <para>宿主只需一行：<c>SkinAppearanceInstaller.Install(SurfaceProgramDeclaration.Parse(json))</c>。</para>
-/// <para>声明不可用 ⇒ 卸载并回到纯属性着色（零回归）；档位来自声明 <c>active_profile</c>，禁代码硬编码。</para>
+/// <para>宿主只需一行：<c>SkinAppearanceInstaller.Install(program, profileId)</c>；运行期换档走唯一入口 <see cref="SurfaceAppearanceSwitch"/>。</para>
+/// <para>声明不可用 ⇒ 卸载并回到纯属性着色（零回归）；档位由调用方显式给出，禁代码硬编码。</para>
 /// </summary>
 public static class SkinAppearanceInstaller
 {
-    /// <summary>最近一次安装的声明与载体（画质设置「重新装配」用；null ⇒ 尚未安装）。</summary>
-    private static SurfaceProgramDeclaration? _lastProgram;
-    private static string _lastCarrier = "winforms";
-
     /// <summary>区域主容器槽 → 必须具备的最低装饰能力（叶子槽不在此列）。</summary>
     private static readonly (string Slot, SurfaceDecoration Required)[] StructuralSlots =
     {
@@ -35,27 +31,23 @@ public static class SkinAppearanceInstaller
 
     /// <summary>按声明安装（幂等；可重复调用以换档）。</summary>
     /// <param name="program">表面声明（<c>surface.generated.json</c> 解析结果）。</param>
-    /// <param name="profileId">外观档（null/空 ⇒ 声明 <c>active_profile</c>）。</param>
+    /// <param name="profileId">外观档（**显式必填**：档位只有一个来源，见 <see cref="SurfaceAppearanceSwitch"/>）。</param>
     /// <param name="carrierId">载体 id（WinForms = <c>winforms</c>）。</param>
     /// <returns>是否已启用 owner-draw。</returns>
     public static bool Install(
         SurfaceProgramDeclaration program,
-        string? profileId = null,
+        string profileId,
         string carrierId = "winforms")
     {
-        if (program is null || !program.IsDeclared)
+        if (program is null || !program.IsDeclared || string.IsNullOrWhiteSpace(profileId))
         {
             Uninstall();
             return false;
         }
 
-        var profile = string.IsNullOrWhiteSpace(profileId) ? program.ActiveProfile : profileId;
-        // 画质设置（用户态，数据根同 UI 布局）：覆盖档位/引擎/玻璃/光场；缺项回退声明。
+        var profile = profileId.Trim();
+        // 画质设置（用户态，数据根同 UI 布局）：只覆盖引擎/质量/玻璃/光场；档位不在此处覆盖。
         var quality = SurfaceQualitySettings.Load();
-        if (!string.IsNullOrWhiteSpace(quality.Profile))
-            profile = quality.Profile!;
-        _lastProgram = program;
-        _lastCarrier = carrierId;
         var byKey = new Dictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>(StringComparer.Ordinal);
         var byKeyProperty = new Dictionary<string, IReadOnlyDictionary<string, ResolvedMaterial>>(StringComparer.Ordinal);
 
@@ -188,7 +180,6 @@ public static class SkinAppearanceInstaller
             ambientScene = ambient.HasScene,
             engineEnabled = SurfaceFramePump.Enabled,
             engineQuality = SurfaceFramePump.Quality,
-            qualityProfile = quality.Profile,
             pageBackground = pageBackground?.ToArgb(),
             ambientGutter = ambient.Gutter,
             ambientRibbon = ambient.RibbonWidth,
@@ -196,10 +187,6 @@ public static class SkinAppearanceInstaller
         });
         return SkinDecorator.Enabled;
     }
-
-    /// <summary>按当前持久化画质设置重新装配（幂等）；从未安装过 ⇒ false。</summary>
-    public static bool Reapply()
-        => _lastProgram is { } program && Install(program, null, _lastCarrier);
 
     /// <summary>
     /// 页面底色 = 默认档 <c>panel_surface</c> 槽的首个不透明 fill 层值。

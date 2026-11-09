@@ -27,9 +27,8 @@ internal static class SurfaceQualitySettings
     internal const string KeyRadial = "radial";
     internal const string KeyEdge = "edge";
 
-    /// <summary>已持久化的覆盖项（null = 未设置，走声明缺省）。</summary>
+    /// <summary>已持久化的覆盖项（null = 未设置，走声明缺省）。档位不在此列：它是切档请求，不是装配覆盖。</summary>
     internal sealed record Values(
-        string? Profile,
         bool? EngineEnabled,
         string? EngineQuality,
         GlassTier? Tier,
@@ -37,7 +36,22 @@ internal static class SurfaceQualitySettings
         float? RadialAlpha,
         float? EdgeWidth)
     {
-        internal static readonly Values Empty = new(null, null, null, null, null, null, null);
+        internal static readonly Values Empty = new(null, null, null, null, null, null);
+    }
+
+    /// <summary>
+    /// 画质面板持久化的请求档（null/空 ⇒ 未选择）。
+    /// <para>只由 <see cref="SurfaceAppearanceSwitch"/> 消费；它表达"用户请求的档"，不是"当前档"。</para>
+    /// </summary>
+    internal static string? RequestedProfile()
+    {
+        var store = AppServiceProvider.Resolve<IUiLayoutStateStore>();
+        if (store is null || !store.TryGetPanelValues(Scope, out var raw))
+            return null;
+
+        return raw.TryGetValue(KeyProfile, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.Trim()
+            : null;
     }
 
     /// <summary>读取持久化覆盖项（未装配存储/无记录 ⇒ 全 null）。</summary>
@@ -51,7 +65,6 @@ internal static class SurfaceQualitySettings
             => raw.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;
 
         return new Values(
-            Profile: Get(KeyProfile),
             EngineEnabled: ParseBool(Get(KeyEngine)),
             EngineQuality: Get(KeyQuality),
             Tier: ParseTier(Get(KeyTier)),

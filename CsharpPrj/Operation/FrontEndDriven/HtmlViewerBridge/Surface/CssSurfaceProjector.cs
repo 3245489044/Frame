@@ -113,7 +113,7 @@ public static class CssSurfaceProjector
             builder.Rule("body", pageField);
             builder.Rule("[data-surface=\"panel_card\"]", pageField);
             builder.Rule("[data-surface=\"panel_surface\"]", pageField);
-            builder.Rule("." + ClassName("panel_card"), pageField);
+            builder.Rule(CssSelector.Class(ClassName("panel_card")), pageField);
         }
 
         foreach (var (slot, material) in materials)
@@ -123,7 +123,7 @@ public static class CssSurfaceProjector
             var className = ClassName(material.FallbackUsed ?? material.MaterialId);
             if (emittedClasses.Add(className))
             {
-                builder.Rule("." + className, MaterialToCss(material, light, skipped, out var isSpectral));
+                builder.Rule(CssSelector.Class(className), MaterialToCss(material, light, skipped, out var isSpectral));
                 if (isSpectral) spectral.Add(className);
             }
 
@@ -132,7 +132,7 @@ public static class CssSurfaceProjector
             if (!string.IsNullOrEmpty(slot) && emittedSlots.Add(slot))
             {
                 builder.Rule(
-                    "[data-surface=\"" + slot + "\"]",
+                    CssSelector.Attr("data-surface", slot),
                     MaterialToCss(material, light, skipped, out var slotSpectral));
                 if (slotSpectral && !spectral.Contains(className)) spectral.Add(className);
             }

@@ -143,6 +143,8 @@ public static class SurfaceLayerMath
     /// <summary>
     /// 径向光斑几何：半径来自世界光斑半径（回退短边比例），中心来自锚点载体局部位置
     /// （半径无效时回退归一化 SpotX/SpotY，并夹到 [0.05,0.95]）。
+    /// <para>光源模型成员化后，**每个发射体各调一次**：环境光传锚点局部坐标，指针光传指针成员局部坐标；
+    /// 禁止把指针混进归一化 SpotX/SpotY（否则半径有效时会被这里的 SpotLocal 分支吞掉）。</para>
     /// </summary>
     public static SurfaceSpotGeometry SpotGeometry(
         float boundsX, float boundsY, float width, float height,

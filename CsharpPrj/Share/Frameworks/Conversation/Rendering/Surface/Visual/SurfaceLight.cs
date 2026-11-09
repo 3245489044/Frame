@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using MathematicalAlgorithms.Lighting;
 using SurfacePaint.Contracts;
@@ -79,6 +80,41 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// <summary>指针贡献比重（0..1；0 = 无指针或无指针源，禁伪造）。</summary>
     public float PointerWeight { get; init; }
 
+    /// <summary>
+    /// 光源发射体集合（**模型成员化**）：至少含环境光；指针可用时追加指针光。
+    /// <para>屏幕 DIP；<c>ForCard</c> 会对每个成员各投影一次局部位置。</para>
+    /// </summary>
+    public IReadOnlyList<SurfaceLightEmitter> Emitters { get; init; } = Array.Empty<SurfaceLightEmitter>();
+
+    /// <summary>指针成员在卡片本地的 X（DIP；无指针时 0）。</summary>
+    public float PointerLocalX { get; init; }
+
+    /// <inheritdoc cref="PointerLocalX"/>
+    public float PointerLocalY { get; init; }
+
+    /// <summary>指针成员半径（DIP；无指针时 0）。</summary>
+    public float PointerRadiusDips { get; init; }
+
+    /// <summary>指针成员色（0xAARRGGBB；无指针时 0）。</summary>
+    public int PointerTintArgb { get; init; }
+
+    /// <summary>指针成员失效令牌（无指针 = <c>no-pointer</c>；与整帧令牌相互独立）。</summary>
+    public string PointerToken
+    {
+        get
+        {
+            if (Emitters is { Count: > 0 } emitters)
+            {
+                for (var i = 0; i < emitters.Count; i++)
+                {
+                    if (emitters[i].Kind == SurfaceLightEmitterKind.Pointer) return emitters[i].Token;
+                }
+            }
+
+            return "no-pointer";
+        }
+    }
+
     /// <summary>光场签名（缓存失效依据）。</summary>
     public long LightSignature { get; init; }
 
@@ -110,6 +146,31 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
             ? 1f
             : Math.Clamp(1f - (distance / litRadius) * (distance / litRadius), 0f, 1f);
 
+        // 发射体列表逐成员投影：环境光与指针光各算一次局部坐标。
+        // 指针位置**不得**被锚点覆盖（历史断点 B-2：ForCard 把 SpotLocal 重算回 Anchor，指针偏移被抹掉）。
+        var source = Emitters;
+        var projected = source is { Count: > 0 } ? new SurfaceLightEmitter[source.Count] : Array.Empty<SurfaceLightEmitter>();
+        var pointerLocalX = 0f;
+        var pointerLocalY = 0f;
+        var pointerRadius = 0f;
+        var pointerTint = 0;
+        var pointerWeight = 0f;
+        for (var i = 0; i < projected.Length; i++)
+        {
+            var emitter = source![i];
+            var localEmitterX = emitter.ScreenX - (float)originXDip;
+            var localEmitterY = emitter.ScreenY - (float)originYDip;
+            projected[i] = emitter with { LocalX = localEmitterX, LocalY = localEmitterY };
+            if (emitter.Kind == SurfaceLightEmitterKind.Pointer)
+            {
+                pointerLocalX = localEmitterX;
+                pointerLocalY = localEmitterY;
+                pointerRadius = emitter.RadiusDips;
+                pointerTint = emitter.TintArgb;
+                pointerWeight = emitter.Weight;
+            }
+        }
+
         return this with
         {
             SpotLocalX = localX,
@@ -118,17 +179,26 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
             SpotY = spotY,
             Shade = shade,
             IridescencePhase = IridescenceRamp.Bearing01(dx, dy),
+            Emitters = projected,
+            PointerLocalX = pointerLocalX,
+            PointerLocalY = pointerLocalY,
+            PointerRadiusDips = pointerRadius,
+            PointerTintArgb = pointerTint,
+            PointerWeight = pointerWeight,
         };
     }
 
     /// <summary>无光场可用：载体不得据此重画光，只能保持声明值。</summary>
     public static readonly SurfaceLightState Unavailable = new(135f, 0f, 0f) { HasValue = false, Specular = 0f };
 
-    /// <summary>位图缓存键片段（含插值后的光参数；不含秒级噪声；格式与采样令牌同口径，不受区域设置影响）。</summary>
+    /// <summary>
+    /// 位图缓存键片段（含插值后的光参数；不含秒级噪声；格式与采样令牌同口径，不受区域设置影响）。
+    /// <para>末尾 <c>P{PointerToken}</c> 是**分成员失效**：指针移动只改变这一段，环境段保持稳定。</para>
+    /// </summary>
     public string CacheToken => HasValue
         ? string.Create(
             CultureInfo.InvariantCulture,
-            $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:{Specular:F2}:P{PointerWeight:F2}:S{LightSignature}")
+            $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:{Specular:F2}:P{PointerToken}:S{LightSignature}")
         : "light-unavailable";
 
     /// <summary>
@@ -181,6 +251,16 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
             Shade = sample.Shade,
             IridescencePhase = sample.IridescencePhase,
             LightSignature = sample.Signature,
+            Emitters = new[]
+            {
+                new SurfaceLightEmitter(
+                    SurfaceLightEmitterKind.Environment,
+                    sample.Anchor.X,
+                    sample.Anchor.Y,
+                    sample.SpotRadiusDips,
+                    1f,
+                    sample.TintArgb),
+            },
         };
     }
 }

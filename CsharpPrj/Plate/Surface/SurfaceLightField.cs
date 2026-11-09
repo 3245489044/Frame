@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Globalization;
 using System.Threading;
 
 namespace UiBackend;
@@ -534,15 +535,60 @@ public static class IridescenceRamp
 }
 
 /// <summary>
+/// 光源发射体种类：光源模型由「单个锚点」扩展为「发射体集合」后，环境光与指针光都是正式成员。
+/// </summary>
+public enum SurfaceLightEmitterKind
+{
+    /// <summary>环境光（世界固定锚点，低频 1Hz 发布）。</summary>
+    Environment = 0,
+
+    /// <summary>指针光（事件驱动，随鼠标位置独立失效）。</summary>
+    Pointer = 1,
+}
+
+/// <summary>
+/// 光源发射体（屏幕 DIP）：环境光与指针光共用同一种数据形状，投影/绘制不再区分来源。
+/// <para><see cref="LocalX"/>/<see cref="LocalY"/> 由卡片级重投影（<c>ForCard</c>）填入，屏幕坐标保持不变。</para>
+/// </summary>
+public readonly record struct SurfaceLightEmitter(
+    SurfaceLightEmitterKind Kind,
+    float ScreenX,
+    float ScreenY,
+    float RadiusDips,
+    float Weight,
+    int TintArgb)
+{
+    /// <summary>卡片局部 X（DIP；未投影时 0）。</summary>
+    public float LocalX { get; init; }
+
+    /// <summary>卡片局部 Y（DIP；未投影时 0）。</summary>
+    public float LocalY { get; init; }
+
+    /// <summary>成员失效令牌（InvariantCulture；位置 0.1 DIP、半径 0.1、权重 0.001）。</summary>
+    public string Token => string.Create(
+        CultureInfo.InvariantCulture,
+        $"{Kind}:{ScreenX:F1}:{ScreenY:F1}:{RadiusDips:F1}:{Weight:F3}:{TintArgb:X8}");
+}
+
+/// <summary>
 /// 进程级光场发布点（整帧替换、读侧无锁）。只允许**一个生产者**（通道泵）发布；
 /// 两个载体读同一份 <see cref="Current"/>，不得各自生成帧。
+/// <para>指针光是光源集合里的正式成员：走 <see cref="PublishPointer"/> 独立发布/失效，不顶高 <see cref="StableRevision"/>。</para>
 /// </summary>
 public static class SurfaceLightRegistry
 {
     private static volatile SurfaceLightFrame? _current;
+    private static volatile PointerHolder _pointer = new();
     private static long _revision;
     private static long _stableRevision;
     private static long _publishedTick;
+    private static long _pointerRevision;
+
+    /// <summary>指针成员的可变引用包装（<see cref="Nullable{T}"/> 不能是 volatile 字段）。</summary>
+    private sealed class PointerHolder
+    {
+        public SurfaceLightEmitter? Value;
+    }
 
     /// <summary>当前帧（null ⇒ 光源不可用）。</summary>
     public static SurfaceLightFrame? Current => _current;
@@ -571,6 +617,55 @@ public static class SurfaceLightRegistry
     /// </summary>
     public static event Action? Changed;
 
+    /// <summary>当前指针发射体（屏幕 DIP；null ⇒ 指针不在窗口内或指针光关闭）。</summary>
+    public static SurfaceLightEmitter? Pointer => _pointer.Value;
+
+    /// <summary>指针成员代数（只增不减；用于分成员失效，与整帧 <see cref="Revision"/> 无关）。</summary>
+    public static long PointerRevision => Interlocked.Read(ref _pointerRevision);
+
+    /// <summary>
+    /// 指针成员变更通知（事件驱动；不触发整帧 <see cref="Changed"/>，不顶高 <see cref="StableRevision"/>）。
+    /// </summary>
+    public static event Action? PointerChanged;
+
+    /// <summary>
+    /// 发布指针发射体（**分成员发布**）：位置差 &lt;0.5 DIP 且半径/权重/颜色相同 ⇒ 视为同一成员，不通知。
+    /// <para>这是光源集合的第二成员，不是第二条管道：采样/投影/失效仍复用同一套模型。</para>
+    /// </summary>
+    public static void PublishPointer(SurfaceLightEmitter? emitter)
+    {
+        var previous = _pointer.Value;
+        if (emitter is null)
+        {
+            if (previous is null) return;
+        }
+        else
+        {
+            var next = emitter.Value;
+            if (previous is { } current
+                && current.Kind == next.Kind
+                && MathF.Abs(current.ScreenX - next.ScreenX) < 0.5f
+                && MathF.Abs(current.ScreenY - next.ScreenY) < 0.5f
+                && MathF.Abs(current.RadiusDips - next.RadiusDips) < 0.1f
+                && MathF.Abs(current.Weight - next.Weight) < 0.001f
+                && current.TintArgb == next.TintArgb)
+            {
+                return;
+            }
+        }
+
+        _pointer = new PointerHolder { Value = emitter };
+        Interlocked.Increment(ref _pointerRevision);
+        try
+        {
+            PointerChanged?.Invoke();
+        }
+        catch (Exception)
+        {
+            // 消费方（重绘/调度）抛错不得让指针发布失效。
+        }
+    }
+
     /// <summary>整帧替换（同一稳定签名仍会刷新时钟并触发 Changed，供锚点/时效消费方使用）。</summary>
     public static void Publish(SurfaceLightFrame? frame)
     {
@@ -598,6 +693,10 @@ public static class SurfaceLightRegistry
         }
     }
 
-    /// <summary>清空（宿主切换/引擎退出）。</summary>
-    public static void Clear() => Publish(null);
+    /// <summary>清空（宿主切换/引擎退出）；同时清空指针成员。</summary>
+    public static void Clear()
+    {
+        Publish(null);
+        PublishPointer(null);
+    }
 }

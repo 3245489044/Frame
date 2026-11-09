@@ -658,24 +658,69 @@ public static class SurfacePaintEngine
     }
 
     /// <summary>
-    /// 径向聚光：中心来自世界锚点在控件本地的位置（<see cref="SurfaceLightState.SpotLocalX"/>/<see cref="SurfaceLightState.SpotLocalY"/>），
-    /// 半径来自 <see cref="SurfaceLightState.SpotRadiusDips"/>；强度来自矩阵镜面权重；中心亮、随距离衰减到 0。
+    /// 径向聚光：环境光与指针光都是**发射体成员**，各自用本成员的局部位置/半径绘制。
+    /// <para>环境光中心来自 <see cref="SurfaceLightState.SpotLocalX"/>/<see cref="SurfaceLightState.SpotLocalY"/>；
+    /// 指针光中心来自 <see cref="SurfaceLightEmitter.LocalX"/>/<see cref="SurfaceLightEmitter.LocalY"/>。
+    /// 两者都走同一个 <see cref="SurfaceLayerMath.SpotGeometry"/>，不再把指针混进归一化 SpotX/SpotY。</para>
     /// </summary>
     private static void PaintSpotHighlight(
         Graphics graphics, Rectangle bounds, ResolvedLayerSpec spec, SurfaceLightState state, float materialRadius)
     {
-        var color = Color.FromArgb(spec.ColorArgb);
-        var peak = SheenPeak(spec.Strength, 90f, state);
-        if (peak <= 0) return;
+        if (!state.HasValue) return;
 
+        var color = Color.FromArgb(spec.ColorArgb);
         var lit = LitColor(color, state);
         var dpiScale = graphics.DpiX / 96f;
-        // 光斑中心 = 世界固定锚点在**控件本地坐标系**下的位置（DIP，非百分比）；
-        // 控件移动时 SpotLocal 同步反向变化，屏幕上光斑不动。几何单源 = Plate.Mathematics。
+
+        // 成员一：环境光（照度权重 Shade 驱动；无指针时行为与历史一致）。
+        var envPeak = SheenPeak(spec.Strength, 90f, state);
+        if (envPeak > 0)
+        {
+            PaintSpotAt(
+                graphics, bounds, spec, materialRadius, lit, envPeak,
+                state.SpotLocalX, state.SpotLocalY, state.SpotRadiusDips,
+                state.SpotX, state.SpotY, dpiScale);
+        }
+
+        // 成员二：指针光（独立成员；权重来自 light_pointer_weight，不乘环境 Shade）。
+        if (state.Emitters is not { Count: > 0 } emitters) return;
+        for (var i = 0; i < emitters.Count; i++)
+        {
+            var emitter = emitters[i];
+            if (emitter.Kind != SurfaceLightEmitterKind.Pointer || emitter.Weight <= 0f || emitter.RadiusDips <= 0f) continue;
+
+            var peak = (int)Math.Round(
+                SurfaceShadingMath.SheenPeak(90f, spec.Strength, state.Specular, 1f) * emitter.Weight);
+            if (peak <= 0) continue;
+
+            PaintSpotAt(
+                graphics, bounds, spec, materialRadius, lit, peak,
+                emitter.LocalX, emitter.LocalY, emitter.RadiusDips,
+                emitter.LocalX, emitter.LocalY, dpiScale);
+        }
+    }
+
+    /// <summary>按单个发射体画一次光斑（几何与着色单源）。</summary>
+    private static void PaintSpotAt(
+        Graphics graphics,
+        Rectangle bounds,
+        ResolvedLayerSpec spec,
+        float materialRadius,
+        Color lit,
+        int peak,
+        float localX,
+        float localY,
+        float radiusDips,
+        float normalizedX,
+        float normalizedY,
+        float dpiScale)
+    {
+        // 光斑中心 = 发射体在**控件本地坐标系**下的位置（DIP，非百分比）；
+        // 控件移动时局部位置同步反向变化，屏幕上光斑不动。几何单源 = Plate.Mathematics。
         var spot = SurfaceLayerMath.SpotGeometry(
             bounds.X, bounds.Y, bounds.Width, bounds.Height,
-            state.SpotX, state.SpotY, state.SpotLocalX, state.SpotLocalY,
-            state.SpotRadiusDips, spec.Radius, dpiScale);
+            normalizedX, normalizedY, localX, localY,
+            radiusDips, spec.Radius, dpiScale);
 
         // 光斑完全落在面板外 ⇒ 不落笔（避免无谓的大位图/Matrix 运算）。
         if (!SurfaceLayerMath.SpotVisible(

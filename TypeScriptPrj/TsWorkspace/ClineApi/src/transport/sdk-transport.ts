@@ -36,6 +36,22 @@ type ClineCoreWithHost = import("@cline/sdk").ClineCore & { host: RuntimeHost };
 /** history 等无显式超时的管理命令，初始化阶段默认硬超时（ms）。 */
 const DEFAULT_INIT_TIMEOUT_MS = 15000;
 
+/** 超时后真正取消底层请求：abort 的宽限（中断当前工具/请求，保留会话）。 */
+const ABORT_GRACE_MS = 5000;
+/** abort 宽限内仍未结算 → stop 的宽限（终止会话，确保底层不再空转）。 */
+const STOP_GRACE_MS = 5000;
+
+/** 给任意 promise 套上有界等待：超时即 reject，绝不把取消动作本身再变成新的挂起。 */
+function withBoundedWait<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} 超过 ${timeoutMs}ms`)), timeoutMs);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
 /**
  * 工具循环最大迭代数缺省值（LLM 回合数）。
  * 优先级：payload（options.maxIterations，C# 配置 Agents.<name>.MaxIterations / Llm.MaxIterations 下发）> 本默认。
@@ -673,6 +689,7 @@ export class SdkTransport {
     this.emitStage(options.trace, "session-subscribe-ok");
 
     let timedOut = false;
+    let startSettled = false;
 
     // 阶段 2：core.start()（API 请求 / 会话执行）——沿用原竞速定时器。
     try {
@@ -685,6 +702,11 @@ export class SdkTransport {
         // 注入侧（P1）：localRuntime 为宿主本地专属装配面；未声明工具 ⇒ 不传（零回归）。
         ...(agentTools.length > 0 ? { localRuntime: { extraTools: agentTools } } : {}),
       });
+      // 只观测结算状态（是否还需要升级到 stop），不改变原有返回链。
+      const trackedStart: Promise<unknown> = startPromise.then(
+        (value: unknown) => { startSettled = true; return value; },
+        (err: unknown) => { startSettled = true; throw err; }
+      );
 
       if (timeoutMs > 0) {
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -696,15 +718,25 @@ export class SdkTransport {
           }, timeoutMs);
         });
         try {
-          await Promise.race([startPromise, timeout]);
+          await Promise.race([trackedStart, timeout]);
         } finally {
           if (timer !== undefined) clearTimeout(timer);
         }
       } else {
-        await startPromise;
+        await trackedStart;
       }
       this.emitStage(options.trace, "phase2-core-start-ok");
     } catch (err) {
+      if (timedOut) {
+        // 真取消：上层不再等待的同时，必须让底层请求真正停下（否则服务端继续吐字节/烧 token，无人可见）。
+        // sessionId 优先取调用方声明，其次取事件流已暴露的会话（SDK 仅能以 sessionId 取消）。
+        await this.cancelTimedOutRun(
+          core,
+          options.sessionId ?? collector.sessionId,
+          () => startSettled,
+          options.trace
+        );
+      }
       if (!timedOut && !collector.lastError) {
         const message = err instanceof Error ? err.message : String(err);
         collector.lastError = message;
@@ -836,6 +868,48 @@ export class SdkTransport {
   /** SDK 版本 */
   async version(): Promise<string> {
     return readSdkVersion();
+  }
+
+  /**
+   * 超时后的真正取消：不再只是「上层不等了」。
+   * 依序 abort（中断当前工具/请求，保留会话）→ 宽限内仍未结算 → stop（终止会话）。
+   * 每个取消动作都有界（ABORT_GRACE_MS / STOP_GRACE_MS），不会把超时等待再拖长；
+   * SDK 只接受 sessionId 取消，未拿到 sessionId 时可见化跳过（由 daemon 预算兜底 kill）。
+   */
+  private async cancelTimedOutRun(
+    core: ClineCoreWithHost,
+    sessionId: string | undefined,
+    isStartSettled: () => boolean,
+    traceEnabled: boolean | undefined
+  ): Promise<void> {
+    if (!sessionId) {
+      this.emitStage(traceEnabled, "api-abort-skipped", { reason: "no-session-id" });
+      return;
+    }
+
+    this.emitStage(traceEnabled, "api-abort-start", { sessionId });
+    try {
+      await withBoundedWait(core.abort(sessionId, { reason: "cline-api-timeout" }), ABORT_GRACE_MS, "core.abort");
+      this.emitStage(traceEnabled, "api-abort-ok", { sessionId });
+    } catch (err) {
+      this.emitStage(traceEnabled, "api-abort-failed", {
+        sessionId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    if (isStartSettled()) return;
+
+    this.emitStage(traceEnabled, "api-stop-start", { sessionId });
+    try {
+      await withBoundedWait(core.stop(sessionId), STOP_GRACE_MS, "core.stop");
+      this.emitStage(traceEnabled, "api-stop-ok", { sessionId });
+    } catch (err) {
+      this.emitStage(traceEnabled, "api-stop-failed", {
+        sessionId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   /**

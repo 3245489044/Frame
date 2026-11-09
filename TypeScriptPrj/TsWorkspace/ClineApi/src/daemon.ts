@@ -80,16 +80,20 @@ class EngineHost {
       return this.child;
     }
     const script = resolveEngineScript();
-    this.child = spawn(process.execPath, [script], { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(process.execPath, [script], { stdio: ["pipe", "pipe", "pipe"] });
+    this.child = child;
     // 执行面 stderr（--trace 阶段标记）透传至 daemon stderr，供 C# 侧捕获。
-    this.child.stderr.setEncoding("utf8");
-    this.child.stderr.on("data", (chunk: string) => process.stderr.write(chunk));
-    this.child.stdout.setEncoding("utf8");
-    this.child.stdout.on("data", (chunk: string) => this.onData(chunk));
-    this.child.on("error", () => {
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => process.stderr.write(chunk));
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => this.onData(chunk));
+    child.on("error", () => {
       /* 启动失败由 exit 兜底 */
     });
-    this.child.on("exit", () => {
+    child.on("exit", () => {
+      // 代际守卫：看门狗 kill 旧代后可能已 spawn 新一代；旧代迟到的 exit 不得终结新一代的挂起请求。
+      if (this.child !== child) return;
+      this.child = null;
       send({ id: "", type: "trace", stage: "engine-exited" });
       // 崩溃时终结所有仍挂起请求，回带最后阶段，供 C# 归因。
       for (const [id, resolve] of Array.from(this.pending.entries())) {
@@ -98,12 +102,12 @@ class EngineHost {
           id,
           ok: false,
           error: `执行面(engine) 意外退出，最后阶段=${this.lastStage || "(无)"}`,
+          stage: this.lastStage || undefined,
         });
       }
-      this.child = null;
     });
-    send({ id: "", type: "trace", stage: "engine-spawned", detail: { pid: this.child.pid } });
-    return this.child;
+    send({ id: "", type: "trace", stage: "engine-spawned", detail: { pid: child.pid } });
+    return child;
   }
 
   private onData(chunk: string): void {
@@ -175,7 +179,14 @@ class EngineHost {
           this.pending.delete(id);
           resolve(frame);
         } else {
-          send({ id, ok: frame.ok, result: frame.result, error: frame.error });
+          // 无挂起请求可结算：仍原样回带载荷（含 stage），让 C# 侧拒收处可归因。
+          send({
+            id,
+            ok: frame.ok,
+            result: frame.result,
+            error: frame.error,
+            ...(frame.stage !== undefined ? { stage: frame.stage } : {}),
+          });
         }
       }
     }
@@ -218,18 +229,31 @@ class EngineHost {
       }
     }, 1000);
 
+    // 终态收口：任一出口都必须清掉心跳与看门狗定时器。
+    // 否则终帧先到后看门狗仍会到期 → 在**下一个请求**进行中误杀 engine（假失败、不可归因）。
+    let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
+    let finished = false;
+    const finish = (): boolean => {
+      if (finished) return false;
+      finished = true;
+      clearInterval(heartbeatTimer);
+      if (watchdogTimer !== undefined) clearTimeout(watchdogTimer);
+      this.pending.delete(id);
+      return true;
+    };
+
     // 每请求预算看门狗（控制面常活循环可到期触发）：
     // 执行面预算内未出终帧 -> 杀 engine 进程树并以错误帧终帧回带最后阶段。
     const watchdog = new Promise<Record<string, unknown>>((resolve) => {
-      setTimeout(() => {
-        clearInterval(heartbeatTimer);
+      watchdogTimer = setTimeout(() => {
+        if (!finish()) return;
         const stage = this.lastStage || "(无)";
-        this.pending.delete(id);
         this.killEngine();
         resolve({
           id,
           ok: false,
           error: `执行面(engine) 超时（${Math.round(budgetMs / 1000)}s），最后阶段=${stage}；已终止引擎子进程`,
+          stage: this.lastStage || undefined,
         });
       }, budgetMs);
     });
@@ -237,16 +261,22 @@ class EngineHost {
     try {
       engine.stdin.write(`${JSON.stringify({ id, cmd: req.cmd, payload: req.payload ?? {} })}\n`, "utf8");
     } catch (err) {
-      clearInterval(heartbeatTimer);
-      this.pending.delete(id);
+      finish();
       const message = err instanceof Error ? err.message : String(err);
       respondError(id, `转发到执行面失败: ${message}`);
       return;
     }
 
     const frame = await Promise.race([terminal, watchdog]);
-    clearInterval(heartbeatTimer);
-    send({ id, ok: frame.ok, result: frame.result, error: frame.error });
+    finish();
+    // 终帧载荷原样回带（含 stage），拒收/超时处可归因；不做字段裁剪。
+    send({
+      id,
+      ok: frame.ok,
+      result: frame.result,
+      error: frame.error,
+      ...(frame.stage !== undefined ? { stage: frame.stage } : {}),
+    });
   }
 }
 

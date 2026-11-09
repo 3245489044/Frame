@@ -91,8 +91,14 @@ function Find-GateTarget {
     if (-not [string]::IsNullOrWhiteSpace($spec)) {
         $runner = Join-Path (Get-MappedPath -Key 'CentralTestGate') 'Invoke-GateRunner.ps1'
         if (Test-Path -LiteralPath $runner) {
+            # spec 目标只接受 runner 声明的参数：清单里的脚本专属开关（如 -NegativeControl）不得转发，
+            # 否则参数绑定失败会把可判定的门变成 exit 2。负对照在 spec 侧由 Negative 声明承载。
+            $runnerParams = (Get-Command -Name $runner).Parameters
             $merged = @{}
-            foreach ($k in $Args.Keys) { $merged[$k] = $Args[$k] }
+            foreach ($k in $Args.Keys) {
+                if (-not $runnerParams.ContainsKey([string]$k)) { continue }
+                $merged[$k] = $Args[$k]
+            }
             $merged['Spec'] = $spec
             $merged['Check'] = $true
             return [pscustomobject]@{ Kind = 'spec'; Script = $runner; Args = $merged }

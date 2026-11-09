@@ -69,16 +69,24 @@ public static class SurfaceLightPointer
         double viewportHeightDip = 0,
         bool includePointer = true)
     {
-        if (frame is null) return null;
+        // 指针光不依赖环境光帧：frame 为 null 时仍可投影「仅指针」光态（HasValue=false ⇒ 环境层保持声明值）。
+        SurfaceLightState state;
+        if (frame is null)
+        {
+            state = SurfaceLightState.Unavailable;
+        }
+        else
+        {
+            var probe = new SurfaceLightProbe(coverage.X, coverage.Y, coverage.Width, coverage.Height, ZOrder: 0, Dpi: dpi);
+            state = SurfaceLightState.From(SurfaceLightPort.Sample(frame, probe));
+            if (!state.HasValue) return state;
+        }
 
-        var probe = new SurfaceLightProbe(coverage.X, coverage.Y, coverage.Width, coverage.Height, ZOrder: 0, Dpi: dpi);
-        var state = SurfaceLightState.From(SurfaceLightPort.Sample(frame, probe));
-        if (!state.HasValue) return state;
-
-        if (!includePointer || _weight <= 0f || !pointer.Inside) return state with { PointerWeight = 0f };
+        if (!includePointer || _weight <= 0f || !pointer.Inside)
+            return frame is null ? null : state with { PointerWeight = 0f };
 
         var emitter = ResolvePointerEmitter(pointer, coverage, viewportWidthDip, viewportHeightDip, state.TintArgb);
-        if (emitter is null) return state with { PointerWeight = 0f };
+        if (emitter is null) return frame is null ? null : state with { PointerWeight = 0f };
 
         var envEmitters = state.Emitters;
         var emitters = new SurfaceLightEmitter[(envEmitters?.Count ?? 0) + 1];
@@ -86,12 +94,17 @@ public static class SurfaceLightPointer
         emitters[^1] = emitter.Value;
 
         // 指针只提升矩阵镜面权重；光斑中心由独立成员承载，不改写 SpotX/SpotY（历史断点 B-1）。
-        var specular = Math.Clamp(state.Specular * (1f + _specBoost * emitter.Value.Weight), 0f, 1f);
+        // 无环境帧时 Specular 取 1.0：环境层不落笔（HasValue=false），指针自身仍按声明强度可见。
+        var specular = frame is null
+            ? 1f
+            : Math.Clamp(state.Specular * (1f + _specBoost * emitter.Value.Weight), 0f, 1f);
         return state with
         {
+            HasValue = frame is not null,
             PointerWeight = emitter.Value.Weight,
             Specular = specular,
             Emitters = emitters,
+            LightSignature = frame?.Signature ?? 0L,
         };
     }
 
@@ -101,8 +114,6 @@ public static class SurfaceLightPointer
     /// </summary>
     public static SurfaceLightState? ApplyPublished(SurfaceLightFrame? frame, SurfaceLightCoverage coverage, int dpi)
     {
-        if (frame is null) return null;
-
         var pointer = SurfaceLightRegistry.Pointer;
         if (pointer is null)
         {

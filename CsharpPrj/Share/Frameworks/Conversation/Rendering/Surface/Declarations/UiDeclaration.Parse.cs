@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using Plate.JsonMethod.Utilities;
 
 namespace Share.Conversation.Rendering.Surface;
 
@@ -208,13 +209,11 @@ public sealed partial class UiDeclaration
     }
 
     private static string? ReadText(JsonElement element, string name)
-        => element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
+        => JsonTolerantReader.Str(element, name);
 
     /// <summary>布尔属性（缺失 ⇒ false）。</summary>
     private static bool ReadBool(JsonElement element, string name)
-        => element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.True;
+        => JsonTolerantReader.Bool(element, name) ?? false;
 
     private static IReadOnlyDictionary<string, string> ReadMap(
         JsonElement element, string? name, List<string> diagnostics, string owner)

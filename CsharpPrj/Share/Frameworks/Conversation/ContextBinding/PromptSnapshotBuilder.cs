@@ -60,7 +60,10 @@ public static class PromptSnapshotBuilder
             if (string.Equals(row.Key, AnchorKey.PromptL0.Value, StringComparison.Ordinal)) continue; // L0 由上方分段族/回退处理
 
             var declared = PromptSegmentCatalog.FixedSpecOf(row.Key);
-            if (declared is null) continue;  // 声明了未登记取值委托的段：由 PromptDeclarationClosure 门禁收口（不静默发空段）
+            // 声明了却未登记取值委托 = 声明面缺陷：禁静默跳过（否则该段永不发射且无痕）。
+            if (declared is null)
+                throw new InvalidOperationException(
+                    $"段 {row.Key} 已声明但未登记取值委托（PromptSegmentCatalog.Fixed）；请先过 PromptSegmentCatalog.Validate()");
 
             specs.Add(new TextSpec(
                 new TextKey(row.Key),

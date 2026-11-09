@@ -216,14 +216,39 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
     private static SurfaceLightState? ResolveLight(
         SurfaceLightFrame? frame, SurfaceViewport viewport, SurfacePointerState pointer, SurfaceLightState? fallback)
     {
-        if (frame is null) return fallback;
+        // 已钉光优先（显式覆盖/测试）：无帧且 fallback 有值时保持历史行为。
+        if (frame is null && fallback is not null) return fallback;
 
         var coverage = new SurfaceLightCoverage(
             (float)viewport.HostOriginXDip, (float)viewport.HostOriginYDip,
             (float)viewport.HostWidthDip, (float)viewport.HostHeightDip);
-        return SurfaceLightPointer.Apply(
+
+        // 指针光与环境光帧解耦：frame=null 时仍走 Apply 产出「仅指针」光态；
+        // 只有「无帧 + 无指针 + 无覆盖区」才返回 null，并且显式记账，不再静默。
+        var applied = SurfaceLightPointer.Apply(
             frame, coverage, viewport.HostDpi, pointer,
-            viewport.HostWidthDip, viewport.HostHeightDip) ?? fallback;
+            viewport.HostWidthDip, viewport.HostHeightDip);
+        if (applied is null)
+        {
+            Share.SurfacePaint.Compat.SkinDiagnostics.RecordLightDegraded(
+                frame is null ? "pointer-unavailable" : "surface-light-unavailable",
+                FormattableString.Invariant(
+                    $"frame={(frame is null ? "null" : "present")};inside={(pointer.Inside ? "true" : "false")};"
+                    + $"host={viewport.HostWidthDip:F0}x{viewport.HostHeightDip:F0};"
+                    + $"fallback={(fallback is null ? "null" : "present")}"));
+            return fallback;
+        }
+
+        if (frame is null)
+        {
+            // 正例证据：无环境光帧仍产出了指针光（HasValue=false，环境层保持声明值）。
+            Share.SurfacePaint.Compat.SkinDiagnostics.RecordLightDegraded(
+                "light-pointer-only",
+                FormattableString.Invariant(
+                    $"inside=true;host={viewport.HostWidthDip:F0}x{viewport.HostHeightDip:F0};"
+                    + $"weight={applied.Value.PointerWeight:F2}"));
+        }
+        return applied;
     }
 
     private static SurfaceFoundationSources BuildFoundationSources()

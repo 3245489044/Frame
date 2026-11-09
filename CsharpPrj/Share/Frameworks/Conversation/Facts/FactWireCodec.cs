@@ -73,26 +73,58 @@ public static class FactWireCodec
         return ConversationJson.Serialize(wire, Options);
     }
 
-    /// <summary>解析一行 JSON（键不合法 / JSON 破损 → false，**不猜测**）。</summary>
+    /// <summary>解析一行 JSON（键不合法 / JSON 破损 / 载荷非对象 → false，**不猜测**）。</summary>
     /// <param name="line">一行 JSON 文本。</param>
     /// <param name="fact">out：事实条目（失败为 null）。</param>
     public static bool TryDeserialize(string? line, out FactEnvelope? fact)
+        => TryDeserialize(line, out fact, out _);
+
+    /// <summary>
+    /// 解析一行 JSON，并给出失败原因（键/载荷形态可定位；行号由 JSONL 读取方补）。
+    /// <para>载荷非对象 = 非法行（与 <see cref="Serialize"/> 的 fail-fast 一致）：禁静默替换为 <c>{}</c>。</para>
+    /// </summary>
+    /// <param name="line">一行 JSON 文本。</param>
+    /// <param name="fact">out：事实条目（失败为 null）。</param>
+    /// <param name="error">out：失败原因（成功为 null）。</param>
+    public static bool TryDeserialize(string? line, out FactEnvelope? fact, out string? error)
     {
         fact = null;
-        if (string.IsNullOrWhiteSpace(line)) return false;
+        error = null;
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            error = "empty-line";
+            return false;
+        }
 
         FactWire? wire;
         try
         {
             wire = ConversationJson.Deserialize<FactWire>(line!, Options);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            error = "invalid-json: " + ex.Message;
             return false;
         }
 
-        if (wire is null) return false;
-        if (!FactId.TryParse(wire.Key, out var key)) return false;
+        if (wire is null)
+        {
+            error = "null-wire";
+            return false;
+        }
+
+        if (!FactId.TryParse(wire.Key, out var key))
+        {
+            error = $"invalid-key: {wire.Key}";
+            return false;
+        }
+
+        if (wire.Payload.ValueKind != JsonValueKind.Object)
+        {
+            // 载荷契约 = JSON 对象；非对象（数组/字符串/数字/布尔/null/缺失）一律判非法行。
+            error = $"payload-not-object: key={wire.Key}, shape={wire.Payload.ValueKind}";
+            return false;
+        }
 
         fact = new FactEnvelope(
             string.IsNullOrWhiteSpace(wire.V) ? FactEnvelope.CurrentVersion : wire.V,
@@ -103,7 +135,7 @@ public static class FactWireCodec
             wire.Actor,
             wire.Source,
             wire.Authority,
-            wire.Payload.ValueKind == JsonValueKind.Object ? wire.Payload.GetRawText() : FactPayload.Empty,
+            wire.Payload.GetRawText(),
             wire.ExternalRefs ?? Array.Empty<ExternalRef>());
         return true;
     }

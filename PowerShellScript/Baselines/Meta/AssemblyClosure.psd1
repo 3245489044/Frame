@@ -5,7 +5,7 @@
     Gate   = 'AssemblyClosure'
 
     # 正对照：装配组数下限（防声明面坍缩 ⇒ 假绿）
-    MinGroups = @{ Value = 6; Origin = 'Derived'; DueWhen = '' }
+    MinGroups = @{ Value = 7; Origin = 'Derived'; DueWhen = '' }
 
     # 正对照：已存在根数下限（产物面坍缩保底；实测 filedriven/core/agent ≥3）
     MinRoots = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }

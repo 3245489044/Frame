@@ -129,7 +129,8 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// <param name="heightDip">卡片高（DIP）。</param>
     public SurfaceLightState ForCard(double originXDip, double originYDip, double widthDip, double heightDip)
     {
-        if (!HasValue) return this;
+        // 无环境帧但仍有指针发射体（指针光与环境光解耦）⇒ 仍需投影成员局部坐标。
+        if (!HasValue && Emitters is not { Count: > 0 }) return this;
 
         var localX = Anchor.X - (float)originXDip;
         var localY = Anchor.Y - (float)originYDip;
@@ -199,7 +200,9 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
         ? string.Create(
             CultureInfo.InvariantCulture,
             $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:{Specular:F2}:P{PointerToken}:S{LightSignature}")
-        : "light-unavailable";
+        : Emitters is { Count: > 0 }
+            ? "pointer-only:P" + PointerToken
+            : "light-unavailable";
 
     /// <summary>
     /// **静态底图**缓存键片段：只含位置无关量（方向角/镜面/阴影/签名），

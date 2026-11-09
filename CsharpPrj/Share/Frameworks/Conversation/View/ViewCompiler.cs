@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Modules.CapabilityResolution;
+using Plate.JsonMethod.Utilities;
 using ValidationFramework.Declaration;
 
 namespace Share.Conversation.View;
@@ -614,40 +615,20 @@ public static class ViewCompiler
     }
 
     private static string? ReadString(JsonElement element, string name)
-        => element.ValueKind == JsonValueKind.Object
-           && element.TryGetProperty(name, out var node)
-           && node.ValueKind == JsonValueKind.String
-           && node.GetString() is { Length: > 0 } text
+        => element.ValueKind == JsonValueKind.Object && JsonTolerantReader.Str(element, name) is { Length: > 0 } text
             ? text
             : null;
 
     private static bool ReadBool(JsonElement element, string name, bool defaultValue = false)
         => element.ValueKind == JsonValueKind.Object
-           && element.TryGetProperty(name, out var node)
-           && node.ValueKind is JsonValueKind.True or JsonValueKind.False
-            ? node.GetBoolean()
+            ? JsonTolerantReader.Bool(element, name) ?? defaultValue
             : defaultValue;
 
     private static int? ReadInt(JsonElement element, string name)
-        => element.ValueKind == JsonValueKind.Object
-           && element.TryGetProperty(name, out var node)
-           && node.ValueKind == JsonValueKind.Number
-           && node.TryGetInt32(out var value)
-            ? value
-            : null;
+        => element.ValueKind == JsonValueKind.Object ? JsonTolerantReader.Int(element, name) : null;
 
     private static IReadOnlyList<string> ReadStringArray(JsonElement element, string name)
-    {
-        if (element.ValueKind != JsonValueKind.Object
-            || !element.TryGetProperty(name, out var node)
-            || node.ValueKind != JsonValueKind.Array)
-        {
-            return Array.Empty<string>();
-        }
-
-        return node.EnumerateArray()
-            .Where(static item => item.ValueKind == JsonValueKind.String && item.GetString() is { Length: > 0 })
-            .Select(static item => item.GetString()!)
-            .ToArray();
-    }
+        => element.ValueKind == JsonValueKind.Object && JsonTolerantReader.StrList(element, name) is { } list
+            ? list.Where(static item => item.Length > 0).ToArray()
+            : Array.Empty<string>();
 }

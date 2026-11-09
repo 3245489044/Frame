@@ -26,6 +26,17 @@ internal sealed class SurfaceRefreshHost
 {
     private static readonly ConditionalWeakTable<Form, SurfaceRefreshHost> Hosts = new();
 
+    /// <summary>尚未挂进窗口/句柄未就绪的待挂控件（弱引用；空闲时重试一次即可解析）。</summary>
+    private static readonly List<WeakReference<Control>> Pending = new();
+
+    private static readonly ConditionalWeakTable<Control, object> Deferred = new();
+    private static readonly object DeferredMarker = new();
+
+    private static EventHandler? _idleHandler;
+    private static long _ensureAttempts;
+    private static long _ensureFailures;
+    private static string _lastEnsureReason = "not-called";
+
     private readonly Form _form;
     private readonly string _windowId;
     private readonly string _slotKey;
@@ -37,6 +48,7 @@ internal sealed class SurfaceRefreshHost
     private RefreshService? _service;
     private string? _deliveredFingerprint;
     private bool _pointerSeeded;
+    private bool _attachLogged;
 
     private static long _pushes;
     private static long _unchanged;
@@ -74,14 +86,235 @@ internal sealed class SurfaceRefreshHost
         _form.FormClosed += (_, _) => Detach();
     }
 
-    /// <summary>确保窗口宿主存在并起表（幂等；UI 线程调用）。</summary>
+    /// <summary>确保帧宿主启动的尝试次数（诊断；含延迟挂起）。</summary>
+    internal static long EnsureAttemptCount => System.Threading.Interlocked.Read(ref _ensureAttempts);
+
+    /// <summary>帧宿主启动失败次数（诊断；静默跳过已消除）。</summary>
+    internal static long EnsureFailureCount => System.Threading.Interlocked.Read(ref _ensureFailures);
+
+    /// <summary>最近一次宿主启动判定（ready / deferred:&lt;原因&gt; / &lt;失败原因&gt;）。</summary>
+    internal static string LastEnsureReason => System.Threading.Volatile.Read(ref _lastEnsureReason);
+
+    /// <summary>仍待窗口就绪的控件数（诊断）。</summary>
+    internal static int PendingEnsureCount
+    {
+        get { lock (Pending) return Pending.Count; }
+    }
+
+    /// <summary>
+    /// 通用帧宿主入口：控件尚未挂进窗口/句柄未就绪 ⇒ 登记延迟重试并记录原因，
+    /// 不再静默空转后被永久掐断。
+    /// </summary>
+    internal static void EnsureFor(Control? control)
+    {
+        if (control is null || control.IsDisposed) return;
+        System.Threading.Interlocked.Increment(ref _ensureAttempts);
+        if (TryEnsureFor(control, out var reason))
+        {
+            ResolveDeferred(control);
+            return;
+        }
+        Defer(control, reason);
+    }
+
+    private static bool TryEnsureFor(Control control, out string reason)
+    {
+        if (control.IsDisposed)
+        {
+            reason = "disposed";
+            return false;
+        }
+        if (!control.IsHandleCreated)
+        {
+            reason = "handle-missing";
+            return false;
+        }
+        if (control.InvokeRequired)
+        {
+            reason = "off-ui-thread";
+            return false;
+        }
+        var form = control.FindForm();
+        if (form is null)
+        {
+            reason = "form-missing";
+            return false;
+        }
+        Ensure(form);
+        MarkDirty(control, "theme");
+        reason = string.Empty;
+        return true;
+    }
+
+    private static void Defer(Control control, string reason)
+    {
+        if (!Deferred.TryGetValue(control, out _))
+        {
+            Deferred.Add(control, DeferredMarker);
+            control.ParentChanged += OnDeferredControlChanged;
+            control.HandleCreated += OnDeferredControlChanged;
+            control.Disposed += OnDeferredControlDisposed;
+            lock (Pending) Pending.Add(new WeakReference<Control>(control));
+            FrontEndDrivenLog.Log("surface.frame.host_deferred", new
+            {
+                window = SurfaceAmbient.IdOf(control),
+                type = control.GetType().Name,
+                name = control.Name,
+                reason,
+            });
+        }
+        Volatile.Write(ref _lastEnsureReason, "deferred:" + reason);
+
+        if (!control.InvokeRequired)
+        {
+            // 与控件同线程（通常是 UI 线程）：空闲时重试，覆盖「祖先稍后挂进窗口」这类叶子控件无事件的情形。
+            EnsureIdleHook();
+            return;
+        }
+
+        // 已在句柄所属线程之外：投递一次到 UI 线程重试（UI 线程尚无消息循环时会抛，交由控件事件兜底）。
+        if (control.IsHandleCreated)
+        {
+            try
+            {
+                control.BeginInvoke((Action)(() => EnsureFor(control)));
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+    }
+
+    private static void OnDeferredControlChanged(object? sender, EventArgs e)
+    {
+        if (sender is Control control) EnsureFor(control);
+    }
+
+    private static void OnDeferredControlDisposed(object? sender, EventArgs e)
+    {
+        if (sender is Control control) ResolveDeferred(control);
+    }
+
+    private static void ResolveDeferred(Control control)
+    {
+        if (!Deferred.Remove(control)) return;
+        control.ParentChanged -= OnDeferredControlChanged;
+        control.HandleCreated -= OnDeferredControlChanged;
+        control.Disposed -= OnDeferredControlDisposed;
+        lock (Pending)
+        {
+            for (var i = Pending.Count - 1; i >= 0; i--)
+            {
+                if (!Pending[i].TryGetTarget(out var target) || ReferenceEquals(target, control))
+                    Pending.RemoveAt(i);
+            }
+        }
+        if (PendingEnsureCount == 0) UnhookIdle();
+    }
+
+    private static void EnsureIdleHook()
+    {
+        if (_idleHandler is not null) return;
+        _idleHandler = OnIdle;
+        Application.Idle += _idleHandler;
+    }
+
+    private static void UnhookIdle()
+    {
+        if (_idleHandler is null) return;
+        Application.Idle -= _idleHandler;
+        _idleHandler = null;
+    }
+
+    private static void OnIdle(object? sender, EventArgs e)
+    {
+        Control[] snapshot;
+        lock (Pending)
+        {
+            if (Pending.Count == 0)
+            {
+                UnhookIdle();
+                return;
+            }
+            var live = new List<Control>(Pending.Count);
+            for (var i = Pending.Count - 1; i >= 0; i--)
+            {
+                if (Pending[i].TryGetTarget(out var target)) live.Add(target);
+                else Pending.RemoveAt(i);
+            }
+            snapshot = live.ToArray();
+        }
+
+        var remaining = false;
+        foreach (var control in snapshot)
+        {
+            if (control.IsDisposed || TryEnsureFor(control, out _)) ResolveDeferred(control);
+            else remaining = true;
+        }
+        if (!remaining) UnhookIdle();
+    }
+
+    private static void RecordEnsureFailure(string reason, Form? form, Exception? exception)
+    {
+        System.Threading.Interlocked.Increment(ref _ensureFailures);
+        Volatile.Write(ref _lastEnsureReason, reason);
+        FrontEndDrivenLog.Log("surface.frame.host_unavailable", new
+        {
+            window = form is null ? string.Empty : SurfaceAmbient.IdOf(form),
+            type = form?.GetType().Name ?? string.Empty,
+            reason,
+            exception = exception is null ? string.Empty : exception.GetType().Name + ":" + exception.Message,
+        });
+    }
+
+    /// <summary>确保窗口宿主存在并起表（幂等；UI 线程调用）。失败不静默：记录原因后返回 null。</summary>
     internal static SurfaceRefreshHost? Ensure(Form? form)
     {
-        if (form is null) return null;
+        if (form is null || form.IsDisposed)
+        {
+            RecordEnsureFailure(form is null ? "form-null" : "form-disposed", form, null);
+            return null;
+        }
+
         SurfaceLightPump.EnsureStarted(form);
         WinFormsPointerSource.Ensure(form);
-        var host = Hosts.GetValue(form, static value => new SurfaceRefreshHost(value));
-        host.Attach();
+
+        if (!Hosts.TryGetValue(form, out var host))
+        {
+            try
+            {
+                host = new SurfaceRefreshHost(form);
+                Hosts.Add(form, host);
+            }
+            catch (Exception ex)
+            {
+                RecordEnsureFailure("factory-failed", form, ex);
+                return null;
+            }
+        }
+
+        try
+        {
+            host.Attach();
+        }
+        catch (Exception ex)
+        {
+            RecordEnsureFailure("attach-failed", form, ex);
+            return null;
+        }
+
+        if (!host._attachLogged)
+        {
+            host._attachLogged = true;
+            Volatile.Write(ref _lastEnsureReason, "ready");
+            FrontEndDrivenLog.Log("surface.frame.host_ready", new
+            {
+                window = host._windowId,
+                tickMs = 1000,
+                uiThread = System.Environment.CurrentManagedThreadId,
+                messageLoop = Application.MessageLoop,
+            });
+        }
         return host;
     }
 
@@ -131,25 +364,21 @@ internal sealed class SurfaceRefreshHost
         service.EnableIdlePolling(30_000, "layout");
         service.Attach();
         _service = service;
-        // 指针是事件驱动成员：发布到 registry 后由 PointerChanged → MarkDirty("pointer")，
-        // 这里再踢一拍（复用 RefreshScheduler.TickAsync 的单飞，不新增第二个 Timer）。
-        _form.MouseMove += OnPointerMove;
-        _form.MouseLeave += OnPointerLeave;
+        // 指针是事件驱动成员：输入源（应用消息过滤器）变化后发布到 registry，
+        // 由 PointerRevision 去重，再 MarkDirty("pointer") + 踢一拍（复用 RefreshScheduler 的单飞，不新增第二个 Timer）。
+        WinFormsPointerSource.Instance.Changed += OnPointerChanged;
     }
 
     private long _lastPointerDirtyMs;
 
     /// <summary>指针事件源：16ms 合并后发布指针成员并踢一拍（无定时轮询）。</summary>
-    private void OnPointerMove(object? sender, MouseEventArgs e)
+    private void OnPointerChanged()
     {
         var now = System.Environment.TickCount64;
         if (now - _lastPointerDirtyMs < 16) return;
         _lastPointerDirtyMs = now;
         PublishPointer();
     }
-
-    /// <summary>离开窗口 ⇒ 清空指针成员（唯一一次，registry 去重后不再通知）。</summary>
-    private void OnPointerLeave(object? sender, EventArgs e) => PublishPointer();
 
     /// <summary>
     /// 发布指针成员（屏幕 DIP）+ 踢一拍。静止时 registry 以 &lt;0.5 DIP 去重，
@@ -249,8 +478,7 @@ internal sealed class SurfaceRefreshHost
     {
         _lightSource.Stop();
         _layoutSource.Stop();
-        _form.MouseMove -= OnPointerMove;
-        _form.MouseLeave -= OnPointerLeave;
+        WinFormsPointerSource.Instance.Changed -= OnPointerChanged;
         SurfaceLightRegistry.PublishPointer(null);
         _service?.Detach();
         _store.Clear();

@@ -110,15 +110,15 @@ public sealed class JsonlSessionFactStore : ISessionFactStore
         var facts = new List<FactEnvelope>(lines.Length);
         for (var index = 0; index < lines.Length; index++)
         {
-            if (FactWireCodec.TryDeserialize(lines[index], out var fact) && fact is not null)
+            if (FactWireCodec.TryDeserialize(lines[index], out var fact, out var codecError) && fact is not null)
             {
                 facts.Add(fact);
                 continue;
             }
 
-            // 破损行不静默：丢弃并可见化（只增不丢的例外须留痕）。
+            // 破损行不静默：丢弃并可见化（只增不丢的例外须留痕；行号 + 载荷/键形态可定位）。
             if (!string.IsNullOrWhiteSpace(lines[index]))
-                SessionFactDiagnostics.Report("SessionFact_LineDropped", new { path, line = index + 1 });
+                SessionFactDiagnostics.Report("SessionFact_LineDropped", new { path, line = index + 1, reason = codecError });
         }
 
         return facts;

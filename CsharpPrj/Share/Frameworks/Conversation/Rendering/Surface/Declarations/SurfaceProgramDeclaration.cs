@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using Plate.JsonMethod.Utilities;
 
 namespace Share.Conversation.Rendering.Surface;
 
@@ -299,23 +300,14 @@ public sealed class SurfaceProgramDeclaration
     }
 
     private static string Str(JsonElement element, string name)
-        => element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString() ?? string.Empty
-            : string.Empty;
+        => JsonTolerantReader.Str(element, name) ?? string.Empty;
 
     private static int Int(JsonElement element, string name)
-        => element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number
-           && value.TryGetInt32(out var number)
-            ? number
-            : 0;
+        => JsonTolerantReader.Int(element, name) ?? 0;
 
     private static IReadOnlyList<string> StrList(JsonElement element, string name)
-        => element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array
-            ? value.EnumerateArray()
-                .Where(item => item.ValueKind == JsonValueKind.String)
-                .Select(item => item.GetString() ?? string.Empty)
-                .Where(item => item.Length > 0)
-                .ToArray()
+        => JsonTolerantReader.StrList(element, name) is { } list
+            ? list.Where(static item => item.Length > 0).ToArray()
             : Array.Empty<string>();
 
     private static string[] StrArray(JsonElement element, string name) => StrList(element, name).ToArray();

@@ -61,7 +61,8 @@ public static class FoldPlanner
             };
         }
 
-        return new RenderPlan(plan.ViewKey, roots) { Counts = plan.Counts };
+        // 折叠只改结构，不改诊断（未知字段/失败清单必须原样保留，禁在 Apply 后消失）。
+        return new RenderPlan(plan.ViewKey, roots) { Counts = plan.Counts, Diagnostics = plan.Diagnostics };
     }
 
     private static IReadOnlyList<UiSurfaceNode> Decorate(IReadOnlyList<UiSurfaceNode> nodes, FoldPolicy policy)

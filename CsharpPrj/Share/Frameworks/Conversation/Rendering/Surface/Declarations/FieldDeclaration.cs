@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
+using Plate.JsonMethod.Utilities;
 
 namespace Share.Conversation.Rendering.Surface;
 
@@ -129,23 +131,10 @@ public sealed class FieldDeclaration
     }
 
     private static string? ReadText(JsonElement element, string name)
-        => element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
+        => JsonTolerantReader.Str(element, name);
 
     private static IReadOnlyList<string> ReadList(JsonElement element, string name)
-    {
-        if (!element.TryGetProperty(name, out var property) || property.ValueKind != JsonValueKind.Array)
-        {
-            return Array.Empty<string>();
-        }
-
-        var list = new List<string>();
-        foreach (var item in property.EnumerateArray())
-        {
-            if (item.ValueKind == JsonValueKind.String && item.GetString() is { Length: > 0 } text) list.Add(text);
-        }
-
-        return list;
-    }
+        => JsonTolerantReader.StrList(element, name) is { } list
+            ? list.Where(static item => item.Length > 0).ToArray()
+            : Array.Empty<string>();
 }

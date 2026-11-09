@@ -226,7 +226,8 @@ public static class PromptSegmentCatalog
         return text.StartsWith(L0BandStagePrefix, StringComparison.Ordinal);
     }
 
-    /// <summary>段完备性判据（可机械复算）：每固定段须同时具备 UiStage/Produce/Text，且 CacheBand 序列**非降**（顺序单一权威）。</summary>
+    /// <summary>段完备性判据（可机械复算）：每固定段须同时具备 UiStage/Produce/Text，且 CacheBand 序列**非降**（顺序单一权威）；
+    /// 且当前生效的声明行（<see cref="Rows"/>）必须都有取值委托。</summary>
     public static IReadOnlyList<string> Validate()
     {
         var violations = new List<string>();
@@ -240,6 +241,28 @@ public static class PromptSegmentCatalog
                 violations.Add($"段 {spec.Key.Value} 的 CacheBand({spec.Band}) 低于前段({prev.Value})：顺序须按 Band 升序");
             prev = spec.Band;
         }
+
+        violations.AddRange(ValidateDeclared(Rows));
+        return violations;
+    }
+
+    /// <summary>
+    /// 声明行完备性（可机械复算）：除 L0 段（由分段族/回退处理）与分段族模板行外，
+    /// 每个声明行必须在 <see cref="Fixed"/> 登记取值委托 —— 否则装配期只能静默跳过。
+    /// </summary>
+    /// <param name="rows">待校验的声明行（注入前校验用）。</param>
+    public static IReadOnlyList<string> ValidateDeclared(IReadOnlyList<SegmentDeclRow> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        var violations = new List<string>();
+        foreach (var row in rows)
+        {
+            if (row.ExpandBands) continue;
+            if (string.Equals(row.Key, AnchorKey.PromptL0.Value, StringComparison.Ordinal)) continue;
+            if (FixedSpecOf(row.Key) is null)
+                violations.Add($"段 {row.Key} 已声明但未登记取值委托（PromptSegmentCatalog.Fixed）：装配期将无法发射");
+        }
+
         return violations;
     }
 }

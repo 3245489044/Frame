@@ -56,6 +56,11 @@ public static class SkinDecorator
             return;
         }
 
+        // 帧宿主必须在「同材质早退」之前启动：首次 Attach 常早于 MainForm 装配（FindForm()==null），
+        // 统一走 EnsureFor 的延迟重试，不能静默空转后被永久掐断；属性通道路径同样保证窗口帧可用
+        // （指针光/环境光来自窗口帧，而不是某个控件的绘制）。
+        SurfaceRefreshHost.EnsureFor(control);
+
         // 族声明的材质槽优先：结构宿主（host_surface）不得被背景槽（panel_surface→panel_frost）顶替，
         // 否则 SplitContainer 自身与两个 SplitterPanel 会把整窗铺成同一块玻璃面（panelToPage → 1.0）。
         var family = WinFormsControlFamilyMap.Resolve(control, descriptor.Type);
@@ -182,8 +187,7 @@ public static class SkinDecorator
         }
 
         // 窗口级刷新：一次 tick 生产一帧；控件不再各建 Timer。
-        var form = control.FindForm();
-        SurfaceRefreshHost.Ensure(form);
+        // 宿主已在方法入口通过 EnsureFor 启动（含延迟重试），此处只补一次脏标记。
         SurfaceRefreshHost.MarkDirty(control, "theme");
 
         control.Invalidate();

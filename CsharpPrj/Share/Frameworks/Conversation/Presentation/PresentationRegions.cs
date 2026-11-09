@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
+using Plate.JsonMethod.Utilities;
 
 namespace Share.Conversation.Presentation;
 
@@ -222,32 +224,15 @@ public sealed record PresentationRegions(
     }
 
     private static IReadOnlyList<string> ReadStringList(JsonElement element, string name)
-    {
-        if (!element.TryGetProperty(name, out var array) || array.ValueKind != JsonValueKind.Array)
-        {
-            return Array.Empty<string>();
-        }
-
-        var values = new List<string>(array.GetArrayLength());
-        foreach (var item in array.EnumerateArray())
-        {
-            if (item.ValueKind != JsonValueKind.String) continue;
-            var value = item.GetString();
-            if (!string.IsNullOrWhiteSpace(value)) values.Add(value!.Trim().ToLowerInvariant());
-        }
-
-        return values;
-    }
+        => JsonTolerantReader.StrList(element, name) is { } list
+            ? list.Where(static value => !string.IsNullOrWhiteSpace(value))
+                .Select(static value => value.Trim().ToLowerInvariant())
+                .ToArray()
+            : Array.Empty<string>();
 
     private static string? ReadString(JsonElement element, string name)
-        => element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
+        => JsonTolerantReader.Str(element, name);
 
     private static int ReadInt(JsonElement element, string name, int fallback)
-        => element.TryGetProperty(name, out var property)
-           && property.ValueKind == JsonValueKind.Number
-           && property.TryGetInt32(out var value)
-            ? value
-            : fallback;
+        => JsonTolerantReader.Int(element, name) ?? fallback;
 }

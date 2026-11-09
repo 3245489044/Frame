@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using Plate.JsonMethod.Utilities;
 using Share.Conversation.Rendering;
 
 namespace Share.Conversation.Presentation;
@@ -126,7 +127,5 @@ public sealed record FoldDeclaration(IReadOnlyDictionary<string, FoldModeSpec> M
         };
 
     private static string? ReadString(JsonElement element, string name)
-        => element.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
+        => JsonTolerantReader.Str(element, name);
 }

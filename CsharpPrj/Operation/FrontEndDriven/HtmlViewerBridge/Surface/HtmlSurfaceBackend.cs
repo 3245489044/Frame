@@ -188,6 +188,13 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
                 body,
                 null));
         }
+        else if (!isFold
+                 && body.Count > 0
+                 && string.Equals(node.Role, SurfaceRoleIds.Bubble, StringComparison.Ordinal))
+        {
+            // 气泡段体：材质（背景/内边距/圆角）由父级原地变量承载，本层只提供结构包裹。
+            children.Add(ProjectBubbleBody(node.Key, body));
+        }
         else
         {
             children.AddRange(body);
@@ -195,6 +202,36 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
 
         return new UiNode(tag, node.Key, attributes, null, children, null);
     }
+
+    /// <summary>
+    /// 气泡段体：结构包裹（载体族 = <c>bubbleBody</c>，未声明 ⇒ <c>div.block-body</c>）。
+    /// <para>材质（背景/前景/内边距/圆角）由父级原地变量承载，段体只负责结构。</para>
+    /// </summary>
+    private UiNode ProjectBubbleBody(string ownerKey, IReadOnlyList<UiNode> body)
+    {
+        var tag = "div";
+        var cls = "block-body";
+        if (_map.TryProps(BackendId, BubbleBodyKey, out var props) && props is not null)
+        {
+            if (props.TryGetValue("tag", out var declaredTag) && !string.IsNullOrWhiteSpace(declaredTag)) tag = declaredTag;
+            if (props.TryGetValue("cls", out var declaredCls) && !string.IsNullOrWhiteSpace(declaredCls)) cls = declaredCls;
+        }
+
+        return new UiNode(
+            tag,
+            $"{ownerKey}:body",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["class"] = cls,
+                ["data-role"] = BubbleBodyKey,
+            },
+            null,
+            body,
+            null);
+    }
+
+    /// <summary>气泡段体在载体映射中的键（未声明时按结构缺省生成）。</summary>
+    private const string BubbleBodyKey = "bubbleBody";
 
     /// <summary>折叠摘要：取首行、按声明上限截断（0 = 不截断）；不改变段体全文。</summary>
     private static string SummaryOf(string text, int maxChars)
@@ -278,10 +315,18 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         {
             // 4 类来源合并（映射 cls / 容器结构 cls / 材质类 / 声明 cls）：声明 cls 不再被静默丢弃。
             // 类选择器具体性相同，词序不改变级联结果；重复词只去重，不覆盖。
-            var existing = attributes.TryGetValue("class", out var current) ? current : string.Empty;
-            attributes["class"] = string.Join(" ",
-                (existing + " " + cls).Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                    .Distinct(StringComparer.Ordinal));
+            MergeClasses(attributes, cls);
+        }
+
+        // 气泡容器的呈现类结构词（user/assistant/answer…）必须并入 class：
+        // 否则 `.block.user` 永不命中。仅限 bubble 角色——其他角色把类 cls 并入会把
+        // 工具行等 fieldRow 结构误认成气泡结构。
+        if (string.Equals(theme.RolePart?.Name, SurfaceRoleIds.Bubble, StringComparison.Ordinal)
+            && theme.VisualPart?.Structure(BackendId) is { } visualStructure
+            && visualStructure.TryGetValue("cls", out var visualCls)
+            && visualCls.Length > 0)
+        {
+            MergeClasses(attributes, visualCls);
         }
 
         var stateId = StateId(state);
@@ -304,6 +349,15 @@ public sealed class HtmlSurfaceBackend : IBackendProjector<UiNode>
         // 槽位缺口只保留 DOM 属性（单一表示：供诊断读取；不进 UnsupportedCells）。
         var missing = theme.MissingSlots(BackendId, stateId);
         if (missing.Count > 0) attributes["data-unsupported"] = string.Join(",", missing);
+    }
+
+    /// <summary>并入结构类词：空白归一、按词去重，不覆盖既有来源。</summary>
+    private static void MergeClasses(IDictionary<string, string> attributes, string cls)
+    {
+        var existing = attributes.TryGetValue("class", out var current) ? current : string.Empty;
+        attributes["class"] = string.Join(" ",
+            (existing + " " + cls).Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Distinct(StringComparer.Ordinal));
     }
 
     private static string? StateId(UiNodeState state) => state switch

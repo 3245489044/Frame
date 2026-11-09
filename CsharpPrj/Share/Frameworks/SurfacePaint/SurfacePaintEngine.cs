@@ -349,7 +349,8 @@ public static class SurfacePaintEngine
                 var color = Color.FromArgb(spec.ColorArgb);
                 // K6：LightState.Unavailable（HasValue=false）不得当作「有光但权重 0」；
                 // 保持声明 strength/angle 的静态 sheen，避免高光整层消失。
-                if (light is { HasValue: true } state)
+                // 指针光与环境光帧解耦：无环境帧但存在指针发射体时，仍按 spot 成员落笔（环境层不落笔）。
+                if (light is { } state && (state.HasValue || (spec.Mode == "spot" && HasPointerEmitter(state))))
                 {
                     if (spec.Mode == "inner")
                     {
@@ -666,7 +667,8 @@ public static class SurfacePaintEngine
     private static void PaintSpotHighlight(
         Graphics graphics, Rectangle bounds, ResolvedLayerSpec spec, SurfaceLightState state, float materialRadius)
     {
-        if (!state.HasValue) return;
+        // 指针光独立于环境光帧：无环境帧但有指针发射体时仍要落笔（环境段会被 envPeak=0 跳过）。
+        if (!state.HasValue && !HasPointerEmitter(state)) return;
 
         var color = Color.FromArgb(spec.ColorArgb);
         var lit = LitColor(color, state);
@@ -759,6 +761,19 @@ public static class SurfacePaintEngine
             clip?.Dispose();
             graphics.Restore(saved);
         }
+    }
+
+    /// <summary>是否存在可落笔的指针发射体（与 <see cref="SurfaceLightState.HasValue"/> 无关，指针光不依赖环境光帧）。</summary>
+    private static bool HasPointerEmitter(SurfaceLightState state)
+    {
+        if (state.Emitters is not { Count: > 0 } emitters) return false;
+        for (var i = 0; i < emitters.Count; i++)
+        {
+            var emitter = emitters[i];
+            if (emitter.Kind == SurfaceLightEmitterKind.Pointer && emitter.Weight > 0f && emitter.RadiusDips > 0f)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -187,7 +186,7 @@ public sealed class ViewEngine
 
             var isWinner = winner.Frame is not null
                 && winner.Source.Domain == source.Domain
-                && FrameKey(winner.Frame) == FrameKey(frame);
+                && FrameIdentity.MergeKey(winner.Frame) == FrameIdentity.MergeKey(frame);
             var presentation = isWinner && !string.IsNullOrWhiteSpace(answer.TerminalPresentation)
                 ? answer.TerminalPresentation
                 : frame.Presentation ?? row?.Presentation ?? string.Empty;
@@ -200,7 +199,7 @@ public sealed class ViewEngine
             }
 
             rows.Add(new ViewRow(
-                $"{source.Domain}:{frame.Round}:{frame.Seq}:{frame.Kind}",
+                FrameIdentity.RowKey(source.Domain, frame),
                 frame.Kind,
                 presentation,
                 frame.Text,
@@ -225,23 +224,13 @@ public sealed class ViewEngine
         return new ViewSnapshot(query.View, status, ordered, meta, plan.Fingerprint);
     }
 
-    private static string FrameKey(ViewFrame frame)
-    {
-        // Seq 是「域内到达序」；缺省 0 不代表同一帧。退回文本哈希，
-        // 禁把同轮同 Kind 的多个过程帧并成一帧（原实现会实际丢帧）。
-        var seq = frame.Seq > 0
-            ? frame.Seq.ToString(CultureInfo.InvariantCulture)
-            : "t:" + PromptSnapshotBuilder.Hash(frame.Text);
-        return $"{frame.Kind}\u001F{frame.Round}\u001F{seq}";
-    }
-
     /// <summary>同键帧合并：先到者身份胜出，字段袋取并集（后到源独有事实不丢）。</summary>
     private static void AddFrame(
         List<(ReadSource Source, ViewFrame Frame)> collected,
         Dictionary<string, int> seen,
         (ReadSource Source, ViewFrame Frame) entry)
     {
-        var key = FrameKey(entry.Frame);
+        var key = FrameIdentity.MergeKey(entry.Frame);
         if (seen.TryGetValue(key, out var index))
         {
             collected[index] = (collected[index].Source, MergeFrame(collected[index].Frame, entry.Frame));

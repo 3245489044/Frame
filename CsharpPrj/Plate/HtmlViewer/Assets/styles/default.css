@@ -9,27 +9,38 @@ body {
     word-wrap: break-word;
 }
 /* ── 块式对话 ── */
-.block { display: flex; flex-direction: column; margin: 10px 0; }
+.block { display: flex; flex-direction: column; margin: 10px 0; min-width: 0; }
 .block.user { align-items: flex-end; }
 .block.assistant { align-items: flex-start; }
+.block.answer { align-items: flex-start; }
 .block-badge {
     font-size: 12px; color: var(--muted);
     margin: 0 6px 3px; letter-spacing: .02em;
 }
-.block-body {
-    max-width: 86%; padding: 8px 12px;
-    border-radius: 10px;
-    white-space: pre-wrap; word-break: break-word;
+.block-body { min-width: 0; white-space: pre-wrap; word-break: break-word; }
+/* 气泡面：材质只消费声明投影的原地变量（--bg/--fg/--pad/--radius），不另命名。 */
+.block[data-part^="class_"] .block-body,
+.block.user .block-body,
+.block.assistant .block-body,
+.block.answer .block-body,
+.block.bubble-reasoning .block-body,
+.block[data-style="bubble-reasoning"] .block-body {
+    max-width: 78%; padding: var(--pad); border-radius: var(--radius);
+    background: var(--bg); color: var(--fg);
 }
-.block.user .block-body {
-    background: var(--user-bg); color: var(--user-fg);
-    border-top-right-radius: 2px;
-}
-.block.assistant .block-body {
-    background: var(--agent-bg); color: var(--agent-fg);
-    border-top-left-radius: 2px;
-}
+.block.user .block-body { max-width: 72%; border-top-right-radius: 2px; }
+.block.assistant .block-body,
+.block.answer .block-body { border-top-left-radius: 2px; }
+/* 模板路径（无节点角色属性）：沿用角色别名色，防模板气泡失色。 */
+.block.user:not([data-role]) .block-body { background: var(--user-bg); color: var(--user-fg); }
+.block.assistant:not([data-role]) .block-body,
+.block.answer:not([data-role]) .block-body { background: var(--agent-bg); color: var(--agent-fg); }
+/* 泡内代码/结构文本：自身横向滚动，不撑破气泡。 */
+.block-body pre { max-width: 100%; min-width: 0; overflow: auto; white-space: pre; }
 .empty { color: var(--muted); text-align: center; margin-top: 24px; }
+/* ── 纵向节奏：流通道与概览（概览不气泡化） ── */
+.region.stream { display: flex; flex-direction: column; gap: var(--gap); }
+section[data-part="overview"] { margin: 0 0 var(--gap); }
 /* ── 层次化对话 ── */
 .section { margin: 4px 0 14px; }
 .section-header {
@@ -50,18 +61,13 @@ details.fold-layer[open] > .fold-summary::before { content: "▾ "; }
     border: 1px dashed var(--border); font-size: 13px;
 }
 /* 思考气泡：弱化呈现（淡色/虚线边/斜体）——值仍来自 --bg/--fg/--border，不新增色值。 */
-.block.bubble-reasoning {
+.block.bubble-reasoning .block-body,
+.block[data-style="bubble-reasoning"] .block-body {
     border: 1px dashed var(--border);
-    border-radius: var(--radius, 0);
-    padding: var(--pad, 0);
     font-style: italic;
     color: var(--muted);
 }
 /* ── 呈现类分派：终答沿用助手气泡样式；过程/通知行不占气泡面 ── */
-.block.answer .block-body {
-    background: var(--agent-bg); color: var(--agent-fg);
-    border-top-left-radius: 2px;
-}
 .process-row { margin: 2px 6px; padding: 2px 0; }
 .process-badge { font-size: 12px; color: var(--muted); letter-spacing: .02em; }
 .process-text { white-space: pre-wrap; word-break: break-word; font-size: 13px; color: var(--fg); }

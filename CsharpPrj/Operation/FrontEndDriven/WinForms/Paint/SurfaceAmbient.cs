@@ -35,12 +35,12 @@ internal static class SurfaceAmbient
     internal static void Release(Control? control)
         => SurfaceAmbientScene.Release(control is null ? null : IdOf(control));
 
-    /// <summary>宿主背景（页面场切片）。</summary>
+    /// <summary>宿主背景（页面场切片）。B4 后仅测试/诊断调用；生产像素来自快照。</summary>
     internal static void PaintHostSurface(Control control, Graphics graphics)
         => SurfaceAmbientScene.PaintHostSurface(
             ViewportOf(control), IdOf(control), graphics, WinFormsSurfacePorts.Engine ?? WinFormsSurfaceEnginePort.Instance, WinFormsSurfacePorts.Log);
 
-    /// <summary>卡片 chrome。</summary>
+    /// <summary>卡片 chrome。B4 后仅测试/诊断调用；生产像素来自快照。</summary>
     internal static void PaintPanelChrome(Control control, Graphics graphics, Rectangle bounds, ResolvedMaterial material)
         => SurfaceAmbientScene.PaintPanelChrome(IdOf(control), ViewportOf(control), graphics, bounds, material);
 

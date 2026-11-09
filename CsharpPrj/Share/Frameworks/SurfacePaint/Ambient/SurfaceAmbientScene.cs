@@ -728,35 +728,27 @@ public static class SurfaceAmbientScene
         var carrier = new SurfaceCarrierFrame(
             carrierLoc.ScreenXDip, carrierLoc.ScreenYDip,
             carrierLoc.WidthDip, carrierLoc.HeightDip, carrierLoc.Dpi);
-        var probe = new SurfaceLightProbe(
-            carrier.ScreenXDip,
-            carrier.ScreenYDip,
-            carrier.WidthDip,
-            carrier.HeightDip,
-            ZOrder: 0,
-            Dpi: carrier.Dpi);
-        var sample = SurfaceLightPort.Sample(frame, probe);
-        if (sample.HasValue)
+        var coverage = new global::UiBackend.SurfaceLightCoverage(
+            carrier.ScreenXDip, carrier.ScreenYDip, carrier.WidthDip, carrier.HeightDip);
+        // B5-1：唯一采样点 = SurfaceLightPointer.Apply（页场与卡片同一份光）。
+        var state = global::Share.Conversation.Rendering.Surface.SurfaceLightPointer.Apply(
+            frame, coverage, carrier.Dpi,
+            global::SurfacePaint.Contracts.SurfacePointerState.Unavailable, carrier.WidthDip, carrier.HeightDip);
+        if (state is { HasValue: true })
         {
-            if (!sample.SpotInsideBounds)
-            {
-                // 越界只记账、不夹取（光斑允许落在面板之外，Shade 决定是否受光）。
-                SurfaceAmbientLog.RecordCarrierOutOfBounds("carrier:" + hostId, sample.SpotBoundsDetail);
-            }
-
             SurfaceAmbientLog.RecordCarrierProjection(
                 "carrier:" + hostId,
                 frame.Anchor,
                 carrier,
                 new SurfaceLightCarrierPoint(
-                    sample.SpotLocalX, sample.SpotLocalY, sample.SpotInsideBounds, sample.SpotBoundsDetail));
+                    state.Value.SpotLocalX, state.Value.SpotLocalY, true, string.Empty));
         }
 
         _stateFrameToken = frameToken;
         _stateDpi = dpi;
         _stateOrigin = screen;
         _stateClient = client;
-        _state = sample.HasValue ? SurfaceLightState.From(sample) : null;
+        _state = state;
         return _state;
     }
 

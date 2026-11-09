@@ -579,6 +579,51 @@
         Note   = '表面程序结构闭合（surface-v1）：容器 view=owner / write 受控 / 映射存在 / 视图→容器闭合 / 无孤儿映射 / 外观闭合（层→图元、材质→层+fallback、Profile→材质、caps 三态、每图元有落地载体）；负对照删映射必红'
     }
 
+    SurfaceFrameSingleProducer = @{
+        Domain = 'Ui'
+        Form   = 'SingleSource'
+        Args   = @{ Check = $true }
+        Tier   = 'fast'
+        Expect = 0
+        Note   = '窗口帧单生产者：S1 声明单源（Strategy/SurfaceHosting 内 new GatherViewSpec=0）/ S2 surface-frame-input producer=1 / S3 快照构造仅 Composer / S4 TryFrame 仅 Composer+EngineBackend+端口门面'
+    }
+
+    SurfaceCardFaceSingle = @{
+        Domain = 'Ui'; Form = 'SingleSource'
+        Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
+        Note = '卡片面单构造（B7-5）：new SurfaceCardFace( 仅 Composer + SurfaceCardFace.Inherit；负对照必红'
+    }
+
+    SurfaceRoleCoverage = @{
+        Domain = 'Ui'; Form = 'Consistency'
+        Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
+        Note = '角色化声明覆盖（B6）：每容器有 role / 嵌套容器 parent+appearance 成对 / role_{host,card,nested,leaf}_slot 各 1；负对照必红'
+    }
+
+    SurfacePointerSingleSource = @{
+        Domain = 'Ui'; Form = 'SingleSource'
+        Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
+        Note = '指针来源单源（B5）：生产实现恰 1（WinFormsPointerSource）；负对照必红'
+    }
+
+    SurfaceLightSingleSample = @{
+        Domain = 'Ui'; Form = 'SingleSource'
+        Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
+        Note = '光采样单源（B5-1）：SurfaceLightPort.Sample 调用点恰 1（SurfaceLightPointer.Apply）；负对照必红'
+    }
+
+    SurfaceCacheLedger = @{
+        Domain = 'Ui'; Form = 'SingleSource'
+        Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
+        Note = '贴图会话无缓存账（B4-2）：SurfacePaintSession 无 _cache/new Bitmap/引擎直调，且有 DrawImageUnscaled；负对照必红'
+    }
+
+    SurfaceShadowSoft = @{
+        Domain = 'Ui'; Form = 'Consistency'
+        Args = @{ Check = $true; NegativeControl = $true }; Tier = 'fast'; Expect = 0
+        Note = '柔和阴影落笔（S0）：SurfaceRaster.Blur + ShadowBoxSoft/ShadowPadding + Exclude；负对照必红'
+    }
+
     ViewFingerprint = @{
         Domain = 'Agent'
         Family = 'Presentation'

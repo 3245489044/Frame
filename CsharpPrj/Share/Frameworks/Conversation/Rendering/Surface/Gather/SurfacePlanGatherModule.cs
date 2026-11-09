@@ -114,7 +114,25 @@ public sealed class SurfacePlanGatherModule : IGatherModule
             }
         }
 
-        return new SurfacePlanBundle(carrier, selection.ProfileId, views, Distinguish(issues));
+        return new SurfacePlanBundle(carrier, selection.ProfileId, views, Distinguish(issues))
+        {
+            Tokens = SurfaceResolver.TokensForProfile(program.Declaration, selection.ProfileId),
+            RoleSlots = RoleSlotsOf(program.Declaration),
+        };
+    }
+
+    private static IReadOnlyDictionary<string, string> RoleSlotsOf(SurfaceProgramDeclaration declaration)
+    {
+        var slots = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var role in new[] { "host", "card", "nested", "leaf" })
+        {
+            if (declaration.Settings.TryGetValue("role_" + role + "_slot", out var slot) && slot.Length > 0)
+            {
+                slots[role] = slot;
+            }
+        }
+
+        return slots;
     }
 
     private IReadOnlyList<SurfaceIssue> Degradations()

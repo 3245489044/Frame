@@ -3,6 +3,7 @@
 using System;
 using System.Globalization;
 using MathematicalAlgorithms.Lighting;
+using SurfacePaint.Contracts;
 using UiBackend;
 
 namespace Share.Conversation.Rendering.Surface;
@@ -166,7 +167,8 @@ public static class SurfaceLight
         if (read.Frame is null) return SurfaceLightState.Unavailable;
 
         var coverage = read.Frame.Coverage;
-        var probe = new SurfaceLightProbe(coverage.X, coverage.Y, coverage.Width, coverage.Height);
-        return SurfaceLightState.From(SurfaceLightPort.Sample(read.Frame, probe));
+        return SurfaceLightPointer.Apply(
+                   read.Frame, coverage, 96, SurfacePointerState.Unavailable)
+               ?? SurfaceLightState.Unavailable;
     }
 }

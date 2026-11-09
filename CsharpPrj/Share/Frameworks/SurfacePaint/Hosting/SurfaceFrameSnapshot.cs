@@ -42,6 +42,15 @@ public sealed record SurfaceFrameSnapshot(
     /// <summary>指针输入（阶段一进快照；<see cref="SurfacePointerState.Unavailable"/> = 无指针源）。</summary>
     public SurfacePointerState Pointer { get; init; }
 
+    /// <summary>装饰层是否启用（帧证据：ambient=on/off）。</summary>
+    public bool AmbientEnabled { get; init; }
+
+    /// <summary>质量档（帧证据：minimal/balanced/full）。</summary>
+    public string QualityProfile { get; init; } = string.Empty;
+
+    /// <summary>引擎后端是否就绪（帧证据：backend=cpu|engine 的判定事实）。</summary>
+    public bool EngineReady { get; init; }
+
     /// <summary>结构化诊断（与 <see cref="Degradations"/> 同源；供帧证据读取）。</summary>
     public IReadOnlyList<string> Diagnostics => Degradations;
 

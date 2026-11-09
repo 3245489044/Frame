@@ -4,6 +4,7 @@ using System;
 using System.Windows.Forms;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint.Hosting;
+using SurfacePaint.Contracts;
 using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
@@ -43,31 +44,12 @@ internal sealed class WinFormsLightSource : ISurfaceLightSource
         }
 
         var carrier = SurfaceLightCarrierOrigin.Of(_control);
-        var probe = new SurfaceLightProbe(
-            carrier.ScreenXDip,
-            carrier.ScreenYDip,
-            carrier.WidthDip,
-            carrier.HeightDip,
-            ZOrder: 0,
-            Dpi: carrier.Dpi);
-        var sample = SurfaceLightPort.Sample(current, probe);
-        if (sample.HasValue && !sample.SpotInsideBounds)
-        {
-            // 越界只记账、不夹取：光斑允许落在面板之外，是否受光由 Shade 判定。
-            SkinDiagnostics.RecordCarrierOutOfBounds(CarrierId(), sample.SpotBoundsDetail);
-        }
-
-        if (sample.HasValue)
-        {
-            SkinDiagnostics.RecordCarrierProjection(
-                CarrierId(),
-                current.Anchor,
-                carrier,
-                new SurfaceLightCarrierPoint(
-                    sample.SpotLocalX, sample.SpotLocalY, sample.SpotInsideBounds, sample.SpotBoundsDetail));
-        }
-
-        return sample.HasValue ? SurfaceLightState.From(sample) : null;
+        var coverage = new SurfaceLightCoverage(
+            carrier.ScreenXDip, carrier.ScreenYDip, carrier.WidthDip, carrier.HeightDip);
+        var state = SurfaceLightPointer.Apply(
+            current, coverage, carrier.Dpi,
+            SurfacePointerState.Unavailable, carrier.WidthDip, carrier.HeightDip);
+        return state is { HasValue: true } ? state : null;
     }
 
     private string CarrierId() => SurfaceAmbient.IdOf(_control);

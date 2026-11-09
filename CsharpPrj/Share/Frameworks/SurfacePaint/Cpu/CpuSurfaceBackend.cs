@@ -19,6 +19,9 @@ namespace Share.SurfacePaint.Cpu;
 /// </summary>
 public sealed class CpuSurfaceBackend : ISurfaceRenderBackend
 {
+    /// <summary>最近一次单卡合成的绘制报告（诊断/像素断言：引擎关闭时 specular 仍应落笔）。</summary>
+    public static SurfacePaintReport LastReport { get; private set; } = SurfacePaintReport.Empty;
+
     /// <summary>后端类别。</summary>
     public SurfaceBackendKind Kind => SurfaceBackendKind.Cpu;
 
@@ -86,7 +89,7 @@ public sealed class CpuSurfaceBackend : ISurfaceRenderBackend
             var plan = request.Decor.Plan;
 
             // Base + Dynamic（含 specular 高光）。
-            SurfacePaintEngine.Paint(
+            LastReport = SurfacePaintEngine.Paint(
                 graphics, bounds, material, backdrop, request.Light, SurfacePaintScope.All);
 
             if (plan.Paints(SurfacePaintStage.Chrome))

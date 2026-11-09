@@ -221,7 +221,15 @@ function Get-GateScriptCell {
         [string]$Domain = '',
         [switch]$AllowFallback
     )
-    $abs = Resolve-GateScript -Gate $Gate -Domain $Domain -AllowFallback:$AllowFallback
+    try {
+        $abs = Resolve-GateScript -Gate $Gate -Domain $Domain -AllowFallback:$AllowFallback
+    }
+    catch {
+        # 脚本不存在时回退 spec（单一 runner 承载）；与 GateRuntime.Find-GateTarget 同口径。
+        $spec = Join-Path (Get-MappedPath -Key 'CentralTestGate') ('Spec\' + $Gate + '.gate.psd1')
+        if (-not (Test-Path -LiteralPath $spec)) { throw }
+        $abs = $spec
+    }
     $root = Get-RepositoryRoot
     return ($abs.Substring($root.Length + 1) -replace '/', '\')
 }

@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using Share.Conversation.Rendering.Surface;
 using MathematicalAlgorithms.Surface;
+using Share.SurfacePaint.Ambient;
 using Share.SurfacePaint.Cpu;
 using Share.SurfacePaint.Engine;
 using SurfacePaint.Contracts;
@@ -128,6 +129,10 @@ public sealed class SurfaceFrameComposer
             Environment.TickCount64)
         {
             Pointer = gather.Pointer,
+            AmbientEnabled = SurfaceAmbientScene.Enabled,
+            QualityProfile = gather.Budget.Quality.ToString().ToLowerInvariant(),
+            EngineReady = _backends.TryGetValue(SurfaceBackendKind.Engine, out var engineBackend)
+                          && engineBackend.Status.IsReady,
         };
 
         _log.Write("surface.frame.composed", new
@@ -136,6 +141,9 @@ public sealed class SurfaceFrameComposer
             generation,
             cards = faces.Count,
             backend = backend.Kind.ToString().ToLowerInvariant(),
+            ambient = snapshot.AmbientEnabled,
+            quality = snapshot.QualityProfile,
+            engineReady = snapshot.EngineReady,
             degradations = snapshot.Degradations.Count,
         });
         return snapshot;

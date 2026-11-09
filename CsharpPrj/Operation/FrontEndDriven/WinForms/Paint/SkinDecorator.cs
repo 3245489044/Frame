@@ -59,27 +59,10 @@ public static class SkinDecorator
         // 族声明的材质槽优先：结构宿主（host_surface）不得被背景槽（panel_surface→panel_frost）顶替，
         // 否则 SplitContainer 自身与两个 SplitterPanel 会把整窗铺成同一块玻璃面（panelToPage → 1.0）。
         var family = WinFormsControlFamilyMap.Resolve(control, descriptor.Type);
-        var familyDraw = SkinMaterialCatalog.FamilyDraw(family?.MaterialSlot);
-        // C1：自绘外壳族必须有族声明 draw 材质；缺 ⇒ 显式降级到属性面（禁拿全局卡面冒充按钮外壳）。
+        // B4-3：绘制通道目录分发已取消（合成归 Composer）；自绘外壳只按族策略判定。
         var customShell = family is { Strategy: SurfaceStrategy.CustomPaint };
-        if (customShell && familyDraw is null)
-        {
-            LogCustomShellUnavailable(control, family);
-            customShell = false;
-        }
-
-        var material = familyDraw
-            ?? (descriptor.SkinRefs is { Count: > 0 }
-                ? SelectMaterial(descriptor.SkinRefs)
-                : SelectMaterial(SkinMaterialCatalog.For(descriptor.Id) ?? SkinMaterialCatalog.For(descriptor.Name))
-                  ?? SkinMaterialCatalog.Global);
-        // 属性通道族不依赖绘制通道材质：缺绘制材质时仍要走属性面，否则会被 WinFormApplier 的样式桥
-        // 剥掉旧底色后无任何写入，退化成系统色（property_button 白岛）。
-        if (material is null && family is not { Strategy: SurfaceStrategy.PropertyFace or SurfaceStrategy.CustomPaint })
-        {
-            Detach(control);
-            return;
-        }
+        // 声明材质仅用于诊断/属性通道；绘制像素来自窗口帧快照。
+        var material = ResolveDeclaredMaterial(descriptor);
 
         // 文本/内容控件禁止不透明 owner-draw：Button/Label 在自身 OnPaint 末尾才触发 Paint 事件，
         // 在事件里铺不透明面会把控件自己画的文字盖掉（实测按钮文字消失）。
@@ -140,30 +123,24 @@ public static class SkinDecorator
             return;
         }
 
-        // 空性收窄：PropertyFace 族已在属性分支返回，其余族缺材质已在上方首个判据 Detach（此处不可达）。
-        if (material is null)
-        {
-            Detach(control);
-            return;
-        }
-
+        // B4：owner-draw 容器不再要求绘制材质（像素由快照提供）；声明材质可为空。
         var state = States.GetValue(control, static _ => new SkinState());
         state.Descriptor = descriptor;
         // 结构宿主改用 host_surface(flat) 后自身材质不再带 stroke；族声明 FrameHost 的控件由边框宿主补 1px 内衬边。
         state.EdgeMode = family?.EdgeMode ?? SurfaceEdgeMode.Material;
-        if (state.EdgeMode == SurfaceEdgeMode.FrameHost && SurfaceFrameHost.EdgeStrokeFor(material) is null)
+        if (state.EdgeMode == SurfaceEdgeMode.FrameHost && (material is null || SurfaceFrameHost.EdgeStrokeFor(material) is null))
         {
             FrontEndDrivenLog.Log("SkinDecorator_frame_host_unavailable", new
             {
                 type = control.GetType().Name,
                 family = family?.TypeKey,
-                material = material.MaterialId,
+                material = material?.MaterialId,
                 reason = "stroke-source-missing",
             });
         }
 
         // 幂等键必须含边缘模式：仅族 EdgeMode 变化（材质不变）时，也要把新模式推给会话。
-        var key = SurfacePaintSession.FingerprintOf(material) + "|" + state.EdgeMode;
+        var key = (material is null ? "no-material" : SurfacePaintSession.FingerprintOf(material)) + "|" + state.EdgeMode;
         if (string.Equals(state.MaterialKey, key, StringComparison.Ordinal) && state.Handler is not null)
         {
             return; // 同材质：不重挂、不重绘
@@ -175,7 +152,7 @@ public static class SkinDecorator
             FrontEndDrivenLog.Log("SkinDecorator_issues", new
             {
                 type = control.GetType().Name,
-                material = material.MaterialId,
+                material = material?.MaterialId,
                 issues = string.Join(";", issues.Take(4).Select(issue => issue.Code + ":" + issue.Detail)),
             });
         }
@@ -184,12 +161,9 @@ public static class SkinDecorator
         if (state.Session is null)
         {
             var host = new WinFormsSurfaceHost(control);
-            var backdrop = new WinFormsBackdropSource(control);
-            var light = new WinFormsLightSource(control);
+            // B4：合成/采集/光采样全部归 Composer；会话只保留贴图入口。
             state.Session = new SurfacePaintSession(
-                SurfaceAmbient.IdOf(control), host, backdrop, light,
-                WinFormsSurfacePorts.Engine ?? WinFormsSurfaceEnginePort.Instance,
-                WinFormsSurfacePorts.Log);
+                SurfaceAmbient.IdOf(control), host, log: WinFormsSurfacePorts.Log);
             // 首挂：双缓冲失败只记账不抛（绘制仍正确，仅闪烁风险，禁静默）。
             host.PrepareSurface();
         }
@@ -311,8 +285,10 @@ public static class SkinDecorator
             var origin = form.PointToClient(control.PointToScreen(Point.Empty));
             var bounds = new Rectangle(origin, control.ClientSize);
             var slot = state.Session?.Material?.Slot ?? SurfaceCardGeometry.NoMaterial;
+            // B6-3：容器键 = 控件声明名（与 surface.ushar 的 key 对齐）；空名 ⇒ 视图根直属。
+            var containerKey = string.IsNullOrWhiteSpace(control.Name) ? null : control.Name;
             cards.Add(new SurfaceCardGeometry(
-                SurfaceAmbient.IdOf(control), bounds, "control", ContainerKey: null, DepthHint: 0, MaterialSlot: slot));
+                SurfaceAmbient.IdOf(control), bounds, "control", containerKey, DepthHint: 0, MaterialSlot: slot));
         }
 
         if (cards.Count == 0) return null;
@@ -324,30 +300,14 @@ public static class SkinDecorator
         return new SurfaceFrameInput(
             SurfaceAmbient.IdOf(form),
             windowViewport,
-            ResolveWindowLight(windowViewport),
+            // B5-1：光只由 Composer 的 SurfaceLightPointer.Apply 采样一次；采集期不再持有光态。
+            Light: null,
             cards,
             Array.Empty<string>(),
             backdrop)
         {
             Pointer = WinFormsPointerSource.Instance.Read(),
         };
-    }
-
-    private static SurfaceLightState? ResolveWindowLight(SurfaceViewport viewport)
-    {
-        var frame = SurfaceLightRegistry.Current;
-        if (frame is null) return null;
-
-        // 覆盖区与控件探针同口径（DIP）：HostWidth/Height 是像素，必须走 HostWidthDip/HostHeightDip，
-        // 否则 150% DPI 下窗口级光斑/明暗范围偏大，与控件 CPU 路径结论不一致。
-        var coverageLoc = SurfaceLocMath.HostCoverageOf(
-            viewport.HostOriginXDip, viewport.HostOriginYDip,
-            viewport.HostWidthDip, viewport.HostHeightDip);
-        var coverage = new SurfaceLightCoverage(
-            coverageLoc.X, coverageLoc.Y, coverageLoc.Width, coverageLoc.Height);
-        var probe = new SurfaceLightProbe(
-            coverage.X, coverage.Y, coverage.Width, coverage.Height, ZOrder: 0, Dpi: viewport.HostDpi);
-        return SurfaceLightState.From(SurfaceLightPort.Sample(frame, probe));
     }
 
     /// <summary>是否属于 owner-draw 白名单（断言前置：白名单外永远不着色）。</summary>
@@ -509,6 +469,12 @@ public static class SkinDecorator
 
         public void Dispose() { }
     }
+
+    /// <summary>声明材质（属性通道/诊断）：SkinRefs → 容器目录 → 全局；缺 ⇒ null。</summary>
+    private static ResolvedMaterial? ResolveDeclaredMaterial(ControlDescriptor descriptor)
+        => (descriptor.SkinRefs is { Count: > 0 } ? SelectMaterial(descriptor.SkinRefs) : null)
+           ?? SelectMaterial(SkinMaterialCatalog.For(descriptor.Id) ?? SkinMaterialCatalog.For(descriptor.Name))
+           ?? SkinMaterialCatalog.Global;
 
     /// <summary>槽优先选择（唯一实现：<see cref="SurfaceSlotSelection"/>）。</summary>
     private static ResolvedMaterial? SelectMaterial(IReadOnlyDictionary<string, ResolvedMaterial>? materials)

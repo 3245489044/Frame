@@ -145,13 +145,19 @@ public static class SkinAppearanceInstaller
         var controlFaceDraw = SurfaceResolver.ResolveProfileSlot(program, context, profile, carrierId, "control_face");
         if (controlFaceDraw is not null) familyDraw["control_face"] = controlFaceDraw;
 
-        SkinMaterialCatalog.Set(byKey);
+        // B4-3：绘制通道目录分发取消（像素归 Composer）；只保留属性通道目录。
         SkinMaterialCatalog.SetProperty(byKeyProperty);
         SkinMaterialCatalog.SetFamilyProperty(familyProperty);
-        SkinMaterialCatalog.SetFamilyDraw(familyDraw);
-        SkinMaterialCatalog.SetGlobal(global);
         SkinMaterialCatalog.SetGlobalProperty(globalProperty);
-        SkinDecorator.Enabled = global is not null || globalProperty is not null;
+        SkinDecorator.Enabled = globalProperty is not null;
+        // B5-3：指针高光增幅（声明令牌单源；0 = 关闭，回滚路径）。
+        var tokens = SurfaceResolver.TokensForProfile(program, profile);
+        if (tokens.TryGetValue("light_pointer_spec_boost", out var boostText)
+            && float.TryParse(boostText, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var boost))
+        {
+            SurfaceLightPointer.Configure(boost);
+        }
         // 换档/重装配：目录已换，已挂控件必须按新目录重挂（否则切到 show 档仍画旧 quiet 材质）。
         if (SkinDecorator.Enabled) SkinDecorator.RefreshAttached();
         else SkinDecorator.Disable();

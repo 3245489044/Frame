@@ -61,26 +61,38 @@ public sealed class SurfaceComposeGatherModule : IGatherModule
         var pageField = _pageFieldAvailable();
         foreach (var card in cards)
         {
-            var material = planBundle.FindMaterial(card.MaterialSlot);
             var role = planBundle.DescribeCard(card.ContainerKey, card.MaterialSlot);
+            var roleName = role?.Role ?? "face";
+            // B6-4：角色 → 声明槽（host/card/nested/leaf）；未声明角色沿用采集槽。
+            var slot = planBundle.RoleSlot(roleName);
+            if (slot.Length == 0) slot = card.MaterialSlot;
+            var material = planBundle.FindMaterial(slot) ?? planBundle.FindMaterial(card.MaterialSlot);
             if (material is null)
             {
-                entries[card.Key] = SurfaceDecorEntry.Missing(card.Key, card.MaterialSlot);
+                entries[card.Key] = SurfaceDecorEntry.Missing(card.Key, slot);
                 continue;
             }
 
-            var roleName = role?.Role ?? "face";
-            var tier = role?.Tier ?? "root";
+            var nested = IsNested(roleName);
+            var tier = nested ? "nested" : role?.Tier ?? "root";
             var depth = role?.Depth ?? card.DepthHint;
             var scope = ScopeOf(roleName, material);
-            var decorPlan = SurfaceDecorPlan.Resolve(material, scope, pageField);
+            // 嵌套/叶子：不产面（继承父面）——阶段集显式为空的唯一判据。
+            var decorPlan = nested
+                ? new SurfaceDecorPlan(SurfaceDecoration.None, Array.Empty<SurfacePaintStage>(), string.Empty)
+                : SurfaceDecorPlan.Resolve(material, scope, pageField);
             entries[card.Key] = new SurfaceDecorEntry(
-                card.Key, roleName, tier, depth, decorPlan, card.MaterialSlot,
+                card.Key, roleName, tier, depth, decorPlan, slot,
                 MissingDeclaration: decorPlan.Missing.Length > 0);
         }
 
         return new SurfaceDecorBundle(entries);
     }
+
+    private static bool IsNested(string role)
+        => string.Equals(role, "nested", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(role, "leaf", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(role, "stream", StringComparison.OrdinalIgnoreCase);
 
     private static SurfaceDecorScope ScopeOf(string role, ResolvedMaterial material)
     {

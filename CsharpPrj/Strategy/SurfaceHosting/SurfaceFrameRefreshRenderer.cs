@@ -33,8 +33,8 @@ public interface ISurfaceFrameModuleSource
 public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
 {
     private readonly SurfaceFrameComposer _composer;
-    private readonly GatherViewSpec _view;
-    private readonly GatherHub _hub;
+    private readonly GatherViewSpec? _view;
+    private readonly GatherHub? _hub;
     private readonly SurfaceFrameContext _context = new();
     private SurfaceFrameInput? _lastInput;
     private string? _lastFingerprint;
@@ -56,8 +56,16 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
     {
         SlotKey = slotKey;
         _composer = composer;
-        // 声明单源：优先取宿主注入的声明面视图；缺失 ⇒ 显式回退（记录 surface-frame-view-unavailable）。
-        _view = viewSource?.View ?? SurfaceFrameViewFallback.View;
+        // 声明单源：宿主必须注入声明面视图与子模块；缺一 ⇒ 整帧 Blocked（B4-7：回退视图已删除）。
+        _view = viewSource?.View;
+        _hub = null;
+        if (_view is null || moduleSource is null)
+        {
+            Share.SurfacePaint.Compat.SurfaceCompatLog.Log(
+                "surface-frame-module-unavailable",
+                new { reason = _view is null ? "declaration-missing" : "module-source-missing" });
+            return;
+        }
 
         var parts = new List<IGatherModule>
         {
@@ -70,21 +78,17 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
                 () => SurfaceAmbientScene.Enabled),
         };
 
-        if (moduleSource?.Create(_view, _context) is { } host)
+        if (moduleSource.Create(_view, _context) is { } host)
         {
             parts.Insert(0, host);
         }
         else
         {
-            // 宿主子模块不可用 ⇒ 可见降级到最小视图（1 need），不中断窗口挂载。
             Share.SurfacePaint.Compat.SurfaceCompatLog.Log(
                 "surface-frame-module-unavailable",
-                new { view = _view.View, action = "legacy-fallback" });
-            _view = SurfaceFrameViewFallback.LegacyView;
-            parts = new List<IGatherModule>
-            {
-                new SurfaceFrameGatherModule(_view, CaptureAndRemember(capture), _context),
-            };
+                new { view = _view.View, reason = "host-module-missing" });
+            _view = null;
+            return;
         }
 
         var composite = new CompositeGatherModule("surface-window-frame", parts.ToArray());
@@ -106,7 +110,16 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
         {
             _context.Reset();
             _lastInput = null;
-            var stages = await _hub.RunAsync(_view, request.Scopes, ct).ConfigureAwait(false);
+            var view = _view;
+            if (view is null || _hub is null)
+            {
+                return new RefreshArtifact(
+                    Payload: SurfaceFrameSnapshot.Blocked(string.Empty, "surface-frame-module-unavailable"),
+                    Outcome: RefreshOutcome.Blocked,
+                    Fingerprint: "surface-frame-module-unavailable");
+            }
+
+            var stages = await _hub.RunAsync(view, request.Scopes, ct).ConfigureAwait(false);
             SurfaceFrameInput? input = null;
             SurfacePlanBundle? plan = null;
             SurfaceDecorBundle? decor = null;
@@ -161,7 +174,7 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
                 viewport);
 
             var snapshot = _composer.Compose(input, gather, ct);
-            var ticket = _hub.Emit(_view, "surface-frame", snapshot);
+            var ticket = _hub.Emit(view, "surface-frame", snapshot);
             var payload = ticket.Payload;
             var fingerprint = snapshot.Fingerprint;
             if (string.Equals(_lastFingerprint, fingerprint, StringComparison.Ordinal))

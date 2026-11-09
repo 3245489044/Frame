@@ -12,6 +12,16 @@ namespace Share.Conversation.Rendering.Surface;
 /// </summary>
 public static class SurfaceLightPointer
 {
+    private static volatile float _specBoost = 0.45f;
+
+    /// <summary>
+    /// 指针高光增幅上限（声明令牌 <c>light_pointer_spec_boost</c> 单源；0 = 关闭）。
+    /// </summary>
+    /// <param name="specBoost">增幅（0..1）。</param>
+    public static void Configure(float specBoost) => _specBoost = Math.Clamp(specBoost, 0f, 1f);
+
+    /// <summary>当前指针高光增幅。</summary>
+    public static float SpecBoost => _specBoost;
     /// <summary>在给定覆盖区采样一次，并叠加指针权重。</summary>
     /// <param name="frame">光帧（null ⇒ 无光）。</param>
     /// <param name="coverage">采样覆盖区（屏幕 DIP）。</param>
@@ -34,7 +44,24 @@ public static class SurfaceLightPointer
         if (!state.HasValue) return state;
 
         var weight = Weight(pointer, viewportWidthDip, viewportHeightDip);
-        return weight <= 0f ? state with { PointerWeight = 0f } : state with { PointerWeight = weight };
+        if (weight <= 0f) return state with { PointerWeight = 0f };
+
+        // B5-3：指针只调强度（矩阵镜面权重乘性增幅，封顶 1）；weight=0 逐位不变。
+        var specular = Math.Clamp(state.Specular * (1f + _specBoost * weight), 0f, 1f);
+
+        // B6-5：阶段二把光斑中心向指针位置偏移（屏幕位置稳定，不改锚点语义）。
+        var spotX = state.SpotX;
+        var spotY = state.SpotY;
+        if (viewportWidthDip > 0 && viewportHeightDip > 0)
+        {
+            var targetX = (float)Math.Clamp(pointer.X / viewportWidthDip, 0.0, 1.0);
+            var targetY = (float)Math.Clamp(pointer.Y / viewportHeightDip, 0.0, 1.0);
+            var blend = weight * 0.5f;
+            spotX = state.SpotX + (targetX - state.SpotX) * blend;
+            spotY = state.SpotY + (targetY - state.SpotY) * blend;
+        }
+
+        return state with { PointerWeight = weight, Specular = specular, SpotX = spotX, SpotY = spotY };
     }
 
     private static float Weight(SurfacePointerState pointer, double width, double height)

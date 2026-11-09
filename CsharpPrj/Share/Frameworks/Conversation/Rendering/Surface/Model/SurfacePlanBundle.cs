@@ -34,6 +34,31 @@ public sealed record SurfacePlanBundle(
         new Dictionary<string, ResolvedSurface>(StringComparer.Ordinal),
         Array.Empty<SurfaceIssue>());
 
+    /// <summary>外观令牌（档位已换值；CSS 页场/指针增幅的同一来源）。</summary>
+    public IReadOnlyDictionary<string, string> Tokens { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>角色 → 材质槽（声明 <c>role_*_slot</c>；未声明 ⇒ 内置约定）。</summary>
+    public IReadOnlyDictionary<string, string> RoleSlots { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>按角色取材质槽（未声明 ⇒ 内置约定；未知角色 ⇒ 原样返回）。</summary>
+    /// <param name="role">角色（host/card/nested/leaf/region/stream…）。</param>
+    public string RoleSlot(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role)) return string.Empty;
+        if (RoleSlots.TryGetValue(role!, out var slot) && slot.Length > 0) return slot;
+        return role!.ToLowerInvariant() switch
+        {
+            "host" => "host_surface",
+            "card" => "panel_surface",
+            "nested" => "nested_surface",
+            "leaf" => "leaf_surface",
+            "stream" => "nested_surface",
+            _ => string.Empty,
+        };
+    }
+
     /// <summary>是否来自可用声明。</summary>
     public bool IsDeclared => Views.Count > 0;
 

@@ -54,6 +54,27 @@ internal static class SurfaceQualitySettings
             : null;
     }
 
+    /// <summary>
+    /// 已提交的档（启动装配的唯一依据）：优先 <c>surface.profile</c>；
+    /// 旧文件无 <c>surface</c> 节点时，一次性兼容读 <c>panels.profile</c>。
+    /// </summary>
+    internal static string? CommittedProfile()
+    {
+        var store = AppServiceProvider.Resolve<IUiLayoutStateStore>();
+        if (store is null)
+            return null;
+
+        if (store.TryGetSurfaceSelection(out var selection) && !string.IsNullOrWhiteSpace(selection.Profile))
+            return selection.Profile.Trim();
+
+        // 升级期兼容：老构建只写过 panels.profile（当时它就是"用户选择"）。
+        return store.TryGetPanelValues(Scope, out var raw)
+               && raw.TryGetValue(KeyProfile, out var value)
+               && !string.IsNullOrWhiteSpace(value)
+            ? value.Trim()
+            : null;
+    }
+
     /// <summary>读取持久化覆盖项（未装配存储/无记录 ⇒ 全 null）。</summary>
     internal static Values Load()
     {

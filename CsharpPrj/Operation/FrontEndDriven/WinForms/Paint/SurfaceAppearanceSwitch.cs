@@ -76,6 +76,15 @@ public static class SurfaceAppearanceSwitch
     public static bool ReapplyRequested()
         => _currentProgram is { } program && Apply(program, null, _currentCarrier);
 
+    /// <summary>
+    /// 启动装配：只用**已提交**档（<c>surface.profile</c>，旧文件兼容 <c>panels.profile</c>），
+    /// 缺省回落声明 <c>active_profile</c>；**不写盘**。
+    /// </summary>
+    public static bool ApplyCommitted(
+        SurfaceProgramDeclaration program,
+        string carrierId = "winforms")
+        => Apply(program, SurfaceQualitySettings.CommittedProfile(), carrierId);
+
     private static void RaiseApplied(string profile)
     {
         var handlers = Applied;

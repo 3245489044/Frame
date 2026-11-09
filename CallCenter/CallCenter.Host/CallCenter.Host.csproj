@@ -10,11 +10,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CallCenter.Core\CallCenter.Core.csproj" />
     <!-- 阶段 A：宿主 C#Track 接入 ExecutionFramework（经适配层），使 call/Func_Execute 同栈执行 -->
     <ProjectReference Include="..\CallCenter.Adapters\CallCenter.Adapters.csproj" />
     <!-- P3 TS/PS 接入：McpBridge 终端轨（官方 SDK 自包含客户端），mcp-list-tools / mcp-call 冒烟命令使用 -->
     <ProjectReference Include="..\CallCenter.Mcp\CallCenter.Mcp.csproj" />
+    <!-- LlmGate 承载（llm-gate 模式）：代理 + 控制 API + 读模型端点 -->
+    <ProjectReference Include="..\CallCenter.LlmGate.Hosting\CallCenter.LlmGate.Hosting.csproj" />
     <!-- ★ 烘焙轨（方案 B，2026-09-12）：TConfig/CSG 走权威烘焙二进制引用（Private=false 不复制产物）；
          运行期由 Bootstrap\FrameBootstrap.cs 的默认 ALC 探针从 CsharpPrj 权威目录解析。 -->
     <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />

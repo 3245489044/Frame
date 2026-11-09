@@ -73,8 +73,9 @@ namespace Plate.HttpMethod.OpenAI
             bool jsonMode = false,
             double? temperature = null,
             int hop = 0,
-            CancellationToken ct = default)
-            => ChatOnceAsync(messages, tools, jsonMode, temperature, hop, ct);
+            CancellationToken ct = default,
+            IReadOnlyDictionary<string, string>? headers = null)
+            => ChatOnceAsync(messages, tools, jsonMode, temperature, hop, ct, headers);
 
         /// <summary>单次往返（传输零领域：只发一次并透出 <c>tool_calls</c>，<b>不执行、不回填</b>）。
         /// 多轮工具循环归 L1 会话内核（P2 执行归属收口）：内核执行工具后携带 assistant/tool 消息再调本入口。
@@ -85,13 +86,14 @@ namespace Plate.HttpMethod.OpenAI
             bool jsonMode = false,
             double? temperature = null,
             int hop = 0,
-            CancellationToken ct = default)
+            CancellationToken ct = default,
+            IReadOnlyDictionary<string, string>? headers = null)
         {
             var parsed = await SendOnceAsync(
                 messages?.ToList() ?? new List<OpenAiChatMessage>(),
                 temperature, jsonMode,
                 (tools ?? Array.Empty<OpenAiTool>()).ToList(),
-                hop, ct).ConfigureAwait(false);
+                hop, ct, headers).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(parsed.Error))
                 return OpenAiChatResult.Fail(parsed.Error);
             if (string.IsNullOrWhiteSpace(parsed.Content) && (parsed.ToolCalls is null || parsed.ToolCalls.Count == 0))
@@ -102,7 +104,8 @@ namespace Plate.HttpMethod.OpenAI
         /// <summary>执行一次 HTTP POST 并解析响应（网络/状态/解析错误 → ParsedResponse.Error）。</summary>
         private async Task<ParsedResponse> SendOnceAsync(
             List<OpenAiChatMessage> messages, double? temperature, bool jsonMode,
-            List<OpenAiTool> tools, int hop, CancellationToken ct)
+            List<OpenAiTool> tools, int hop, CancellationToken ct,
+            IReadOnlyDictionary<string, string>? headers = null)
         {
             // 无凭据不外发（结构判据：key 空 ∧ 端点非回环 ∧ 未显式允许匿名）——避免把本地配置缺失伪装成远端鉴权失败。
             if (string.IsNullOrWhiteSpace(_apiKey) && !_allowAnonymous)
@@ -129,6 +132,17 @@ namespace Plate.HttpMethod.OpenAI
                 // 递归跳数头（显式）：hop 由调用方显式传入（外部入口 0；服务端经 hop 传播显式传 hop+1），
                 // 服务端据此检测并硬限自环深度（见 RecursionHopGuard）。真实端点忽略未知头。
                 req.Headers.TryAddWithoutValidation(_guard.HeaderName, _guard.BuildHeaderValue(hop));
+                // 归因头（X-Llm-Session/Task/Round/Caller）：由调用方（网关/作用域路由）显式提供；
+                // 外部端点忽略未知头，代理端据此归集任务/会话（缺失 ⇒ 归属缺失，不伪造）。
+                if (headers is { Count: > 0 })
+                {
+                    foreach (var pair in headers)
+                    {
+                        if (string.IsNullOrWhiteSpace(pair.Key))
+                            continue;
+                        req.Headers.TryAddWithoutValidation(pair.Key, pair.Value);
+                    }
+                }
                 if (!string.IsNullOrWhiteSpace(_apiKey))
                     req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
 

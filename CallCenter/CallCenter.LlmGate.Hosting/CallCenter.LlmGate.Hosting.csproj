@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>LlmGate 承载</ModuleRule_Title>
+    <ModuleRule_Layer>5</ModuleRule_Layer>
+    <ModuleRule_Description>LlmGate 的 Kestrel 承载：OpenAI 兼容 wire 代理（原样透传，含 SSE）、控制面 /api/gate/*、读模型端点、声明式配置与价格表装载。零 Agent / 零 FileDriven 依赖。</ModuleRule_Description>
+    <ModuleRule_Keywords>LlmGate;Kestrel;代理;SSE;控制面;LLM</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CallCenter.LlmGate.Hosting</RootNamespace>
+    <AssemblyName>CallCenter.LlmGate.Hosting</AssemblyName>
+    <Description>LlmGate 承载 — 代理 + 控制 API + 配置/价格装载</Description>
+    <CallCenterNoExternalUsings>true</CallCenterNoExternalUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CallCenter.LlmGate\CallCenter.LlmGate.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup Label="CsharpPrjBakedRefs">
+    <!-- 复用出站受管连接池 + 递归跳数护栏（Plate HttpMethod.Transport，零 AspNetCore 依赖）；Private=false 不复制上游产物 -->
+    <Reference Include="Plate.HttpMethod.Transport" HintPath="$(CsharpBuildOutputDir)Plate.HttpMethod.Transport.dll" Private="false" />
+  </ItemGroup>
+
+</Project>

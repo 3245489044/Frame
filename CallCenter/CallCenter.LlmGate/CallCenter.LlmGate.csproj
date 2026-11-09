@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="ModuleRule">
+    <ModuleRule_Title>LlmGate 纯内核</ModuleRule_Title>
+    <ModuleRule_Layer>5</ModuleRule_Layer>
+    <ModuleRule_Description>LLM API 观测与拦截的纯内核：请求指纹、规则表、逐调用账本（环形缓冲 + JSONL）、读模型、控制端口与函数库。零 Agent / 零 HTTP 宿主 / 零 WinForms。</ModuleRule_Description>
+    <ModuleRule_Keywords>LlmGate;LLM;观测;拦截;成本;指纹;规则;账本</ModuleRule_Keywords>
+  </PropertyGroup>
+
+  <ItemGroup Label="ModuleRule_Rules">
+    <ModuleRule_Rule Include="零 Agent 依赖：本层只做纯计算、账本与端口抽象" />
+    <ModuleRule_Rule Include="未知一律 Unknown，不写 0（对齐 AX.NoSilentOutlet）" />
+    <ModuleRule_Rule Include="成本计算复用 CallCenter.Cost，不重造计价" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CallCenter.LlmGate</RootNamespace>
+    <AssemblyName>CallCenter.LlmGate</AssemblyName>
+    <Description>LlmGate 纯内核 — 指纹/规则/账本/读模型/函数库</Description>
+    <!-- 纯内核只依赖 BCL + CallCenter.Cost；不引入 CSG/TConfig 的 global using 面 -->
+    <CallCenterNoExternalUsings>true</CallCenterNoExternalUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CallCenter.Cost\CallCenter.Cost.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Label="CsharpPrjBakedRefs">
+    <!-- 函数库注册面（[FunctionLibrary] / ITrConfigRegistry / ListData）：烘焙二进制引用，Private=false 不复制上游产物 -->
+    <Reference Include="Share.Registry" HintPath="$(CsharpBuildOutputDir)Share.Registry.dll" Private="false" />
+    <Reference Include="CommandFramework" HintPath="$(CsharpBuildOutputDir)CommandFramework.dll" Private="false" />
+    <Reference Include="FrameworkAbstractions" HintPath="$(CsharpBuildOutputDir)FrameworkAbstractions.dll" Private="false" />
+    <Reference Include="Modules.TConfig" HintPath="$(CsharpBuildOutputDir)Modules.TConfig.dll" Private="false" />
+  </ItemGroup>
+
+</Project>

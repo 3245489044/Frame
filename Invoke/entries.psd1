@@ -159,6 +159,13 @@
             Map = @{ Product = 'Product' }
         }
 
+        # ---------- LlmGate（LLM API 观测与拦截） ----------
+        'llm-gate' = @{
+            Kind = 'Ps'
+            Target = '..\PowerShellScript\Operation\LlmGate\Start-LlmGate.ps1'
+            Map = @{ Port = 'Port'; Listen = 'Listen'; Upstream = 'Upstream'; Mode = 'Mode'; Config = 'Config'; DataRoot = 'DataRoot'; Pricing = 'Pricing' }
+        }
+
         # ---------- 生效 ----------
         'invoke-buildeffective' = @{
             Kind = 'Ps'

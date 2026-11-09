@@ -66,6 +66,11 @@ if (mode == "stdio")
 if (mode == "call")
     return await CallToolAsync(BuildRouter(csharpSource, csharpDefs), cliArgs);
 
+// --llm-gate：起 LlmGate 代理（OpenAI 兼容 wire 观测 + 拦截），阻塞常驻直到 Ctrl+C。
+// 与 --http/--stdio 同构：宿主只接线，装配收敛在 CallCenter.LlmGate.Hosting。
+if (mode == "llm-gate")
+    return await RunLlmGateAsync(cliArgs);
+
 switch (mode)
 {
     case "list-tools":
@@ -77,7 +82,7 @@ switch (mode)
         break;
 
     default:
-        Console.Error.WriteLine($"未知模式 '{mode}'。用法：--list-tools | --smoke | --call <toolName> [jsonArgs] | --http [--port N] | --http-call <toolName> [jsonArgs] | --stdio | --mcp-list-tools | --mcp-call <toolName> [jsonArgs] | --watch | --face");
+        Console.Error.WriteLine($"未知模式 '{mode}'。用法：--list-tools | --smoke | --call <toolName> [jsonArgs] | --http [--port N] | --http-call <toolName> [jsonArgs] | --stdio | --mcp-list-tools | --mcp-call <toolName> [jsonArgs] | --watch | --face | --llm-gate [--port N] [--mode enforce|manual|off] [--upstream URL]");
         return 2;
 }
 
@@ -362,5 +367,66 @@ static async Task<int> HttpCallToolAsync(string[] args)
     var result = await client.CallToolAsync(name, argJson);
     Console.WriteLine(result.IsError ? $"[error] {result.Text}" : (result.Text ?? "null"));
     return result.IsError ? 1 : 0;
+}
+
+/// <summary>读取 `--name value` 形式的长选项（缺省 null）。</summary>
+static string? ReadOption(string[] args, string name)
+{
+    for (var i = 0; i + 1 < args.Length; i++)
+    {
+        if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
+            return args[i + 1];
+    }
+
+    return null;
+}
+
+/// <summary>
+/// --llm-gate：起 LlmGate 代理（OpenAI 兼容 wire 观测与拦截）。
+/// 配置默认取 Config/llm-gate/gate.json；命令行覆盖优先；Ctrl+C 停止。
+/// </summary>
+static async Task<int> RunLlmGateAsync(string[] args)
+{
+    try
+    {
+        var configPath = ReadOption(args, "--config") ?? CallCenter.LlmGate.Ledger.GateDataPaths.DefaultConfigPath();
+        var config = CallCenter.LlmGate.Hosting.GateConfigFile.Load(configPath);
+
+        var port = ReadPortArg(args);
+        var listen = ReadOption(args, "--listen") ?? (port > 0 ? $"http://127.0.0.1:{port}" : null);
+
+        var options = config.ToOptions(
+            configPath,
+            modeOverride: ReadOption(args, "--mode"),
+            listenOverride: listen,
+            upstreamOverride: ReadOption(args, "--upstream"),
+            dataRootOverride: ReadOption(args, "--data-root"));
+
+        var pricingPath = ReadOption(args, "--pricing")
+            ?? CallCenter.LlmGate.Ledger.GateDataPaths.DefaultPricingPath();
+
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cts.Cancel();
+        };
+
+        await using var gate = await CallCenter.LlmGate.Hosting.LlmGateProxyHost
+            .StartAsync(options, pricingPath, Console.Error.WriteLine, cts.Token)
+            .ConfigureAwait(false);
+
+        Console.WriteLine($"[llm-gate] 已启动 listen={gate.ListenUrl} upstream={gate.Upstream} mode={options.Mode}");
+        Console.WriteLine($"[llm-gate] config={configPath}");
+        Console.WriteLine("[llm-gate] Ctrl+C 停止；窗口 Halt/Resume 或 /api/gate/* 控制。");
+
+        await gate.WaitForShutdownAsync(cts.Token).ConfigureAwait(false);
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"[llm-gate] 启动失败：{ex.Message}");
+        return 2;
+    }
 }
 

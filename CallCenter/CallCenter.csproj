@@ -37,6 +37,8 @@
     <ProjectReference Include="CallCenter.Core\CallCenter.Core.csproj" />
     <ProjectReference Include="CallCenter.Adapters\CallCenter.Adapters.csproj" />
     <ProjectReference Include="CallCenter.Mcp\CallCenter.Mcp.csproj" />
+    <ProjectReference Include="CallCenter.LlmGate\CallCenter.LlmGate.csproj" />
+    <ProjectReference Include="CallCenter.LlmGate.Hosting\CallCenter.LlmGate.Hosting.csproj" />
     <ProjectReference Include="CallCenter.Host\CallCenter.Host.csproj" />
   </ItemGroup>
 

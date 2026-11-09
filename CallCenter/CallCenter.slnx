@@ -6,5 +6,7 @@
   <Project Path="CallCenter.Core/CallCenter.Core.csproj" />
   <Project Path="CallCenter.Adapters/CallCenter.Adapters.csproj" />
   <Project Path="CallCenter.Mcp/CallCenter.Mcp.csproj" />
+  <Project Path="CallCenter.LlmGate/CallCenter.LlmGate.csproj" />
+  <Project Path="CallCenter.LlmGate.Hosting/CallCenter.LlmGate.Hosting.csproj" />
   <Project Path="CallCenter.Host/CallCenter.Host.csproj" />
 </Solution>

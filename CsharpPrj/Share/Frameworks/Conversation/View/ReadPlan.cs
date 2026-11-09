@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+using Modules.Foundations.Collections.Keyed;
+
 namespace Share.Conversation.View;
 
 /// <summary>
@@ -90,15 +92,10 @@ public sealed record ReadPlanTable(IReadOnlyDictionary<string, ReadPlan> Plans, 
     /// <param name="view">视图键。</param>
     /// <param name="plan">读计划（未命中为 null）。</param>
     public bool TryGet(string? view, out ReadPlan? plan)
-    {
-        plan = null;
-        return !string.IsNullOrWhiteSpace(view) && Plans.TryGetValue(view!, out plan);
-    }
+        => new KeyedTable<ReadPlan>(Plans).TryGet(view, out plan);
 
     /// <summary>按视图取计划；未声明 ⇒ 抛。</summary>
     /// <param name="view">视图键。</param>
     public ReadPlan Require(string view)
-        => TryGet(view, out var plan)
-            ? plan!
-            : throw new InvalidOperationException($"读计划未声明：{view}（ReadPlan）");
+        => new KeyedTable<ReadPlan>(Plans).Require(view, $"读计划未声明：{view}（ReadPlan）");
 }

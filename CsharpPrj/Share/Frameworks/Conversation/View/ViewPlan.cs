@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+using Modules.Foundations.Collections.Keyed;
+
 namespace Share.Conversation.View;
 
 /// <summary>取数阶段（<c>gather/conversation.json</c> 的 stages[] 编译视图）。</summary>
@@ -44,15 +46,10 @@ public sealed record ViewPlanTable(IReadOnlyDictionary<string, ViewPlanRow> View
     /// <param name="view">视图键。</param>
     /// <param name="plan">计划（未命中为 null）。</param>
     public bool TryGet(string? view, out ViewPlanRow? plan)
-    {
-        plan = null;
-        return !string.IsNullOrWhiteSpace(view) && Views.TryGetValue(view!, out plan);
-    }
+        => new KeyedTable<ViewPlanRow>(Views).TryGet(view, out plan);
 
     /// <summary>按视图取计划；未声明 ⇒ 抛。</summary>
     /// <param name="view">视图键。</param>
     public ViewPlanRow Require(string view)
-        => TryGet(view, out var plan)
-            ? plan!
-            : throw new InvalidOperationException($"视图计划未声明：{view}（ViewPlan）");
+        => new KeyedTable<ViewPlanRow>(Views).Require(view, $"视图计划未声明：{view}（ViewPlan）");
 }

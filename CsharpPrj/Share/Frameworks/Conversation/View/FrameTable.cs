@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Modules.Foundations.Collections.Keyed;
 
 namespace Share.Conversation.View;
 
@@ -53,15 +54,10 @@ public sealed record FrameTable(IReadOnlyDictionary<string, FrameRow> Rows, stri
     /// <param name="kind">帧类别。</param>
     /// <param name="row">行（未命中为 null）。</param>
     public bool TryGet(string? kind, out FrameRow? row)
-    {
-        row = null;
-        return !string.IsNullOrWhiteSpace(kind) && Rows.TryGetValue(kind!, out row);
-    }
+        => new KeyedTable<FrameRow>(Rows).TryGet(kind, out row);
 
     /// <summary>按 kind 取行；未声明 ⇒ 抛（装配期显式失败）。</summary>
     /// <param name="kind">帧类别。</param>
     public FrameRow Require(string kind)
-        => TryGet(kind, out var row)
-            ? row!
-            : throw new InvalidOperationException($"帧语义未声明：{kind}（FrameTable）");
+        => new KeyedTable<FrameRow>(Rows).Require(kind, $"帧语义未声明：{kind}（FrameTable）");
 }

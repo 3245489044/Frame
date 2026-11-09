@@ -164,14 +164,15 @@ function Invoke-GatesParallel {
         while ($running.Count -lt $MaxParallel -and $queue.Count -gt 0) {
             $name = $queue.Dequeue()
             $spec = $Gates[$name]
-            try { $scriptPath = Find-GateScript -Name $name -Domain ([string]$spec.Domain) -AllowFallback } catch { $scriptPath = '' }
+            $target = Find-GateTarget -Name $name -Domain ([string]$spec.Domain) -AllowFallback -Args $spec.Args
+            $scriptPath = $target.Script
             if (-not (Test-Path -LiteralPath $scriptPath)) {
                 $collected[$name] = [PSCustomObject]@{ Name = $name; Status = 'FAIL'; Ms = 0; Rc = 2; Output = @("脚本不存在: $scriptPath") }
                 continue
             }
             $outFile = Join-Path $tmp "$name.out.txt"
             $errFile = Join-Path $tmp "$name.err.txt"
-            $argString = "-NoProfile -File `"$scriptPath`" $(ConvertTo-GateArgString -SpecArgs $spec.Args)"
+            $argString = "-NoProfile -File `"$scriptPath`" $(ConvertTo-GateArgString -SpecArgs $target.Args)"
             $sw = [System.Diagnostics.Stopwatch]::StartNew()
             $proc = Start-Process -FilePath $pwsh -ArgumentList $argString -NoNewWindow -PassThru `
                 -RedirectStandardOutput $outFile -RedirectStandardError $errFile
@@ -229,13 +230,9 @@ foreach ($name in $names) {
     $spec = $gates[$name]
     # 脚本定位单源 = 门禁运行时（委托目录映射框架）：Domain → 候选目录（+ 名称例外）派生；
     #   DSL\ 全域兜底 ⇒ 与目录布局解耦（移动/分类脚本无需改本聚合器）。
-    $scriptPath = ''
-    try {
-        $scriptPath = Find-GateScript -Name $name -Domain ([string]$spec.Domain) -AllowFallback
-    }
-    catch {
-        $scriptPath = ''
-    }
+    # 脚本定位：优先 Check-<Name>.ps1；无脚本时回退 spec（统一走 Invoke-GateRunner.ps1）。
+    $target = Find-GateTarget -Name $name -Domain ([string]$spec.Domain) -AllowFallback -Args $spec.Args
+    $scriptPath = $target.Script
 
     if (-not (Test-Path -LiteralPath $scriptPath)) {
         Write-Result "FAIL" "$name — 脚本不存在: $scriptPath"
@@ -246,8 +243,8 @@ foreach ($name in $names) {
 
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
-    # 哈希表 splatting（按名传参）；$spec.Args 若为 hashtable 则直接用，若为空数组则空 splatting
-    $argList = $spec.Args
+    # 哈希表 splatting（按名传参）；spec 目标已在 Find-GateTarget 中并入 -Spec/-Check
+    $argList = $target.Args
     $output = @()
     $rc = 2
     try {

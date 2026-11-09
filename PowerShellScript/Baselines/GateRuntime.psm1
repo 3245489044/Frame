@@ -56,6 +56,54 @@ function Find-GateScript {
 
 <#
 .SYNOPSIS
+    按名发现 spec（Gate\Spec\<Name>.gate.psd1；缺省返回空串）。
+#>
+function Find-GateSpec {
+    param([Parameter(Mandatory = $true)][string]$Name)
+    if ($Name -match '[\\/:*?"<>|]') { return '' }
+    $specRoot = Join-Path (Get-MappedPath -Key 'CentralTestGate') 'Spec'
+    $path = Join-Path $specRoot ($Name + '.gate.psd1')
+    if (-not (Test-Path -LiteralPath $path)) { return '' }
+    return (Resolve-Path -LiteralPath $path).Path
+}
+
+<#
+.SYNOPSIS
+    门禁执行目标：优先 Check-<Name>.ps1，其次 spec（统一走 Invoke-GateRunner.ps1）。
+.OUTPUTS
+    { Kind = script|spec|none; Script = 绝对路径; Args = 传给脚本的参数表 }
+#>
+function Find-GateTarget {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [string]$Domain = '',
+        [switch]$AllowFallback,
+        [hashtable]$Args = @{}
+    )
+
+    $script = ''
+    try { $script = Resolve-GateScript -Gate $Name -Domain $Domain -AllowFallback:$AllowFallback } catch { $script = '' }
+    if ($script -and (Test-Path -LiteralPath $script)) {
+        return [pscustomobject]@{ Kind = 'script'; Script = $script; Args = $Args }
+    }
+
+    $spec = Find-GateSpec -Name $Name
+    if (-not [string]::IsNullOrWhiteSpace($spec)) {
+        $runner = Join-Path (Get-MappedPath -Key 'CentralTestGate') 'Invoke-GateRunner.ps1'
+        if (Test-Path -LiteralPath $runner) {
+            $merged = @{}
+            foreach ($k in $Args.Keys) { $merged[$k] = $Args[$k] }
+            $merged['Spec'] = $spec
+            $merged['Check'] = $true
+            return [pscustomobject]@{ Kind = 'spec'; Script = $runner; Args = $merged }
+        }
+    }
+
+    return [pscustomobject]@{ Kind = 'none'; Script = $script; Args = $Args }
+}
+
+<#
+.SYNOPSIS
     构造结构化门结果（供组合门读结果产物，脱文本耦合）。Exit: 0 无违规 / 1 违规 / 2 异常前置缺失。
 #>
 function New-GateResult {
@@ -1276,6 +1324,8 @@ Export-ModuleMember -Function @(
     # 自有（门禁运行时）
     'Get-GateRepoRoot',
     'Find-GateScript',
+    'Find-GateSpec',
+    'Find-GateTarget',
     'New-GateResult',
     'Write-GateHeader',
     'Write-GateVerdict',

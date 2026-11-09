@@ -26,6 +26,14 @@ internal static class SurfaceLightPump
     private static bool _pullInProgress;
     private static int _pixelScaleDpi = 96;
     private static Control? _anchor;
+    private static volatile SurfaceLightLook _look = SurfaceLightLook.Empty;
+
+    /// <summary>引擎光 look 子集（装配期由生效快照登记；空 ⇒ 引擎按覆盖区派生）。</summary>
+    public static SurfaceLightLook Look
+    {
+        get => _look;
+        set => _look = value ?? SurfaceLightLook.Empty;
+    }
 
     /// <summary>首次需要光时惰性启动（必须在含消息循环的 UI 线程调用）。</summary>
     public static void EnsureStarted(Control anchor)
@@ -82,7 +90,7 @@ internal static class SurfaceLightPump
                 (int)Math.Round(coverage.X), (int)Math.Round(coverage.Y),
                 Math.Max(1, (int)Math.Round(coverage.Width)), Math.Max(1, (int)Math.Round(coverage.Height)));
 
-            var raw = sample(rect.X, rect.Y, rect.Width, rect.Height, string.Empty);
+            var raw = sample(rect.X, rect.Y, rect.Width, rect.Height, _look.ToJson());
             var frame = SurfaceLightFrameCodec.Parse(raw);
             if (frame is null)
             {

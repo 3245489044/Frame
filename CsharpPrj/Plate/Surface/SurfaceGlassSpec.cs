@@ -81,6 +81,22 @@ public sealed record SurfaceGlassSpec(
         SurfaceBackdropFrame? backdrop,
         GlassTier? declared,
         SurfaceFrameBudget? budget)
+        => Clamp(composition, backdrop, declared, budget, SurfaceGlassLookTable.BuiltIn);
+
+    /// <summary>
+    /// 选层（声明值版）：形态参数从 <paramref name="look"/> 读取，本类型不再按 tier 硬编码。
+    /// </summary>
+    /// <param name="composition">宿主合成能力。</param>
+    /// <param name="backdrop">背后内容源。</param>
+    /// <param name="declared">材质声明的层级上限（<c>null</c> = 未声明，与「不可用」区分）。</param>
+    /// <param name="budget">帧预算（可空 ⇒ 不参与钳制）。</param>
+    /// <param name="look">玻璃形态声明表（<c>null</c> ⇒ 未装配，显式降级）。</param>
+    public static SurfaceGlassSpec Clamp(
+        SurfaceCompositionCapability? composition,
+        SurfaceBackdropFrame? backdrop,
+        GlassTier? declared,
+        SurfaceFrameBudget? budget,
+        SurfaceGlassLookTable? look)
     {
         if (composition is null)
         {
@@ -108,51 +124,22 @@ public sealed record SurfaceGlassSpec(
             };
         }
 
+        var table = look ?? SurfaceGlassLookTable.Empty;
+        if (!table.TryGet(tier, out var layer))
+        {
+            return Opaque with { Reason = "glass-look-undeclared:" + tier };
+        }
+
         return new SurfaceGlassSpec(
             tier,
-            BlurSigmaOf(tier),
-            RefractStrengthOf(tier),
-            DispersionOf(tier),
-            FresnelStrengthOf(tier),
-            unchecked((int)0xFFDCEBFF),
+            layer.BlurSigma,
+            layer.RefractStrength,
+            layer.Dispersion,
+            layer.FresnelStrength,
+            table.TintArgb,
             SurfaceGlassFallback.Opaque,
             tier < declaredTier ? "tier-clamped" : string.Empty);
     }
-
-    private static float BlurSigmaOf(GlassTier tier) => tier switch
-    {
-        GlassTier.T0 => 8f,
-        GlassTier.T1 => 12f,
-        GlassTier.T2 => 18f,
-        GlassTier.T3 => 24f,
-        GlassTier.T4 => 32f,
-        _ => 0f,
-    };
-
-    private static float RefractStrengthOf(GlassTier tier) => tier switch
-    {
-        GlassTier.T2 => 0.35f,
-        GlassTier.T3 => 0.55f,
-        GlassTier.T4 => 0.75f,
-        _ => 0f,
-    };
-
-    private static float DispersionOf(GlassTier tier) => tier switch
-    {
-        GlassTier.T3 => 0.25f,
-        GlassTier.T4 => 0.45f,
-        _ => 0f,
-    };
-
-    private static float FresnelStrengthOf(GlassTier tier) => tier switch
-    {
-        GlassTier.T0 => 0.35f,
-        GlassTier.T1 => 0.45f,
-        GlassTier.T2 => 0.55f,
-        GlassTier.T3 => 0.65f,
-        GlassTier.T4 => 0.75f,
-        _ => 0f,
-    };
 
     private static string Value(string? text) => string.IsNullOrWhiteSpace(text) ? "-" : text;
 }

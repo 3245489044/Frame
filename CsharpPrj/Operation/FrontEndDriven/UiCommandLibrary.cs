@@ -145,6 +145,22 @@ public static class UiCommandLibrary
             "面板状态：清除某 scope（空 ⇒ 全部面板）；不影响分隔比例与窗体边界");
 
         // 画质设置（游戏式设置面板）：值落在 data（同 UI 布局），应用 = 重新装配即时生效。
+        // 用户可写面只有两处：声明文件 与 ui-layout-state.json 的 surface 节点。
+        registry.Register("Ui_SurfaceParamGet",
+            (Func<string, Task<string>>)(key => Task.FromResult(SurfaceParamGet(key))),
+            new IParamConfig[]
+            {
+                new ParameterDescriptor { Name = "key", Type = typeof(string) },
+            },
+            "表面用户态：读取 surface.values 的单键值（未缓存 ⇒ 空串，调用方按声明默认值回退）");
+        registry.Register("Ui_SurfaceParamSave",
+            (Func<string, string, Task<string>>)((key, value) => Task.FromResult(SurfaceParamSave(key, value))),
+            new IParamConfig[]
+            {
+                new ParameterDescriptor { Name = "key", Type = typeof(string) },
+                new ParameterDescriptor { Name = "value", Type = typeof(string) },
+            },
+            "表面用户态：写 surface.values 单键值（空值 ⇒ 删除该键；立即落盘）");
         registry.Register("Ui_GraphicsApply",
             (Func<string>)(GraphicsApply),
             "画质设置：按已保存设置重新装配外观（档位/引擎/质量/玻璃上限/光场）");
@@ -164,6 +180,7 @@ public static class UiCommandLibrary
     {
         var store = AppServiceProvider.Resolve<FrontEndDriven.Abstractions.IUiLayoutStateStore>();
         store?.ResetPanelValues(SurfaceQualitySettings.Scope);
+        store?.ResetSurfaceValues();
         store?.ResetSurfaceSelection();
         store?.Flush();
         return SurfaceAppearanceSwitch.ReapplyRequested()
@@ -195,6 +212,38 @@ public static class UiCommandLibrary
         return string.IsNullOrWhiteSpace(value)
             ? $"面板状态已清除：{scope}/{key}"
             : $"面板状态已保存：{scope}/{key}";
+    }
+
+    /// <summary>
+    /// 读取 surface 节点单键值（未装配/未缓存 ⇒ 空串，禁静默编造）。
+    /// </summary>
+    private static string SurfaceParamGet(string key)
+    {
+        var store = AppServiceProvider.Resolve<FrontEndDriven.Abstractions.IUiLayoutStateStore>();
+        if (store is null)
+            return string.Empty;
+
+        if (store.TryGetSurfaceValues(out var values) && values.TryGetValue(key, out var value))
+            return value;
+        // 升级期：老构建把画质设置写在 panels[panel/graphics]，读时兼容、写时只写 surface。
+        return store.TryGetPanelValues(SurfaceQualitySettings.Scope, out var legacy)
+               && legacy.TryGetValue(key, out var legacyValue)
+            ? legacyValue
+            : string.Empty;
+    }
+
+    /// <summary>写 surface 节点单键值（立即落盘：设置面板需可被外部复算/取证）。</summary>
+    private static string SurfaceParamSave(string key, string value)
+    {
+        var store = AppServiceProvider.Resolve<FrontEndDriven.Abstractions.IUiLayoutStateStore>();
+        if (store is null)
+            return "表面用户态：布局缓存端口未装配";
+
+        store.SetSurfaceValue(key, value);
+        store.Flush();
+        return string.IsNullOrWhiteSpace(value)
+            ? $"表面用户态已清除：{key}"
+            : $"表面用户态已保存：{key}";
     }
 
     /// <summary>导出面板全部持久化值（JSON；无缓存 ⇒ 空对象）。</summary>

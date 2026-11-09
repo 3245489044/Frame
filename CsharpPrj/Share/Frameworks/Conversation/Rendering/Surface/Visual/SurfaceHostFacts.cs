@@ -14,7 +14,8 @@ public sealed record SurfaceHostFactsSnapshot(
     SurfaceCompositionCapability Composition,
     SurfaceTextureFrame Backdrop,
     SurfaceFrameBudget Budget,
-    GlassTier? DeclaredTier);
+    GlassTier? DeclaredTier,
+    SurfaceGlassLookTable Look);
 
 /// <summary>
 /// 宿主合成事实（**唯一存储**）：装配入口写入，载体/Gather 只读。
@@ -27,6 +28,7 @@ public static class SurfaceHostFacts
     private static SurfaceTextureFrame _backdrop = SurfaceTextureFrame.Unavailable;
     private static SurfaceFrameBudget _budget = SurfaceFrameBudget.Default;
     private static GlassTier? _declaredTier;
+    private static SurfaceGlassLookTable _look = SurfaceGlassLookTable.BuiltIn;
 
     /// <summary>当前事实快照。</summary>
     public static SurfaceHostFactsSnapshot Current
@@ -35,7 +37,7 @@ public static class SurfaceHostFacts
         {
             lock (Gate)
             {
-                return new SurfaceHostFactsSnapshot(_composition, _backdrop, _budget, _declaredTier);
+                return new SurfaceHostFactsSnapshot(_composition, _backdrop, _budget, _declaredTier, _look);
             }
         }
     }
@@ -80,12 +82,21 @@ public static class SurfaceHostFacts
         }
     }
 
+    /// <summary>登记玻璃形态声明表（装配期一次；null ⇒ 回退内置形态）。</summary>
+    public static void DeclareGlassLook(SurfaceGlassLookTable? look)
+    {
+        lock (Gate)
+        {
+            _look = look is { IsDeclared: true } ? look : SurfaceGlassLookTable.BuiltIn;
+        }
+    }
+
     /// <summary>当前玻璃选层（唯一计算入口）。</summary>
     public static SurfaceGlassSpec Glass()
     {
         var facts = Current;
         return SurfaceGlassSpec.Clamp(
-            facts.Composition, facts.Backdrop.FromTextureFrame(), facts.DeclaredTier, facts.Budget);
+            facts.Composition, facts.Backdrop.FromTextureFrame(), facts.DeclaredTier, facts.Budget, facts.Look);
     }
 
     /// <summary>清空事实（测试/重装配；E-21）。</summary>
@@ -97,6 +108,7 @@ public static class SurfaceHostFacts
             _backdrop = SurfaceTextureFrame.Unavailable;
             _budget = SurfaceFrameBudget.Default;
             _declaredTier = null;
+            _look = SurfaceGlassLookTable.BuiltIn;
         }
     }
 }

@@ -850,42 +850,62 @@ public sealed class SurfaceAmbientTokens
         var sparkle = ParseColor("ambient_sparkle");
         var shadow = ParseColor("ambient_shadow");
 
+        // 只读一次缺省：字段赋值与缓存 Token 串必须同源（否则改一处漏另一处 ⇒ 视觉变了缓存键没变）。
+        var ambientEnabled = Number("ambient_enabled", 1f);
+        var gutter = Number("ambient_gutter", 20f);
+        var cornerRadius = Number("panel_radius", 24f);
+        var ribbonWidth = Number("ambient_ribbon_width", 34f);
+        var ribbonAlpha = Number("ambient_ribbon_alpha", 0.22f);
+        var ribbonSpan = Number("ambient_ribbon_span", 96f);
+        var hueBudget = Number("ambient_hue_budget", 150f);
+        var ribbonAmplitude = Number("ambient_ribbon_amplitude", 0.075f);
+        var channelOffset = Number("ambient_channel_offset", 12f);
+        var sparkleDensity = Number("ambient_sparkle_density", 0.000062f);
+        var glowRadius = Number("ambient_glow_radius", 34f);
+        var glowAlpha = Number("ambient_glow_alpha", 0.10f);
+        var radialAlpha = Number("ambient_radial_alpha", 0.42f);
+        var radialRadius = Number("ambient_radial_radius", 200f);
+        var edgeWidth = Number("ambient_edge_width", 3.6f);
+        var edgeHueSpan = Number("ambient_edge_span", 11f);
+        var wideEdgeWidth = Number("ambient_wide_edge_width", 28f);
+        var textureAlpha = Number("ambient_texture_alpha", 0.06f);
+
         return new SurfaceAmbientTokens
         {
-            Enabled = Number("ambient_enabled", 1f) >= 0.5f,
+            Enabled = ambientEnabled >= 0.5f,
             GradientFrom = gradientFrom,
             GradientTo = gradientTo,
             SparkleTint = sparkle,
             ShadowTint = shadow,
-            Gutter = Number("ambient_gutter", 20f),
-            CornerRadius = Number("panel_radius", 24f),
-            RibbonWidth = Number("ambient_ribbon_width", 34f),
-            RibbonAlpha = Number("ambient_ribbon_alpha", 0.22f),
-            RibbonSpan = Number("ambient_ribbon_span", 96f),
-            HueBudget = Math.Clamp(Number("ambient_hue_budget", 150f), 1f, 360f),
-            RibbonAmplitude = Number("ambient_ribbon_amplitude", 0.075f),
-            ChannelOffset = Number("ambient_channel_offset", 12f),
-            SparkleDensity = Number("ambient_sparkle_density", 0.000062f),
-            GlowRadius = Number("ambient_glow_radius", 34f),
-            GlowAlpha = Number("ambient_glow_alpha", 0.10f),
-            RadialAlpha = Number("ambient_radial_alpha", 0.42f),
-            RadialRadius = Number("ambient_radial_radius", 200f),
-            EdgeWidth = Number("ambient_edge_width", 3.6f),
-            EdgeHueSpan = Number("ambient_edge_span", 11f),
-            WideEdgeWidth = Number("ambient_wide_edge_width", 28f),
-            TextureAlpha = Number("ambient_texture_alpha", 0.06f),
+            Gutter = gutter,
+            CornerRadius = cornerRadius,
+            RibbonWidth = ribbonWidth,
+            RibbonAlpha = ribbonAlpha,
+            RibbonSpan = ribbonSpan,
+            HueBudget = Math.Clamp(hueBudget, 1f, 360f),
+            RibbonAmplitude = ribbonAmplitude,
+            ChannelOffset = channelOffset,
+            SparkleDensity = sparkleDensity,
+            GlowRadius = glowRadius,
+            GlowAlpha = glowAlpha,
+            RadialAlpha = radialAlpha,
+            RadialRadius = radialRadius,
+            EdgeWidth = edgeWidth,
+            EdgeHueSpan = edgeHueSpan,
+            WideEdgeWidth = wideEdgeWidth,
+            TextureAlpha = textureAlpha,
             Token = string.Create(CultureInfo.InvariantCulture,
                 $"{(gradientFrom is { } f ? f.ToArgb().ToString("X8", CultureInfo.InvariantCulture) : "-")}/" +
                 $"{(gradientTo is { } t ? t.ToArgb().ToString("X8", CultureInfo.InvariantCulture) : "-")}/" +
-                $"{Number("ambient_gutter", 20f):F1}/{Number("panel_radius", 24f):F1}/" +
-                $"{Number("ambient_ribbon_width", 34f):F1}/{Number("ambient_ribbon_alpha", 0.22f):F2}/" +
-                $"{Number("ambient_ribbon_span", 96f):F0}/{Number("ambient_hue_budget", 150f):F0}/" +
-                $"{Number("ambient_ribbon_amplitude", 0.075f):F3}/" +
-                $"{Number("ambient_channel_offset", 12f):F1}/{Number("ambient_sparkle_density", 0.000062f):F5}/" +
-                $"{Number("ambient_glow_radius", 34f):F1}/{Number("ambient_glow_alpha", 0.10f):F2}/" +
-                $"{Number("ambient_radial_alpha", 0.42f):F2}/{Number("ambient_radial_radius", 200f):F1}/" +
-                $"{Number("ambient_edge_width", 3.6f):F1}/{Number("ambient_edge_span", 11f):F0}/" +
-                $"{Number("ambient_wide_edge_width", 28f):F1}/{Number("ambient_texture_alpha", 0.06f):F2}"),
+                $"{gutter:F1}/{cornerRadius:F1}/" +
+                $"{ribbonWidth:F1}/{ribbonAlpha:F2}/" +
+                $"{ribbonSpan:F0}/{hueBudget:F0}/" +
+                $"{ribbonAmplitude:F3}/" +
+                $"{channelOffset:F1}/{sparkleDensity:F5}/" +
+                $"{glowRadius:F1}/{glowAlpha:F2}/" +
+                $"{radialAlpha:F2}/{radialRadius:F1}/" +
+                $"{edgeWidth:F1}/{edgeHueSpan:F0}/" +
+                $"{wideEdgeWidth:F1}/{textureAlpha:F2}"),
         };
     }
 }

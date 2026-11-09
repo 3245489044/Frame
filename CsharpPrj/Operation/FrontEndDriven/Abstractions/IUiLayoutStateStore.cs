@@ -65,6 +65,18 @@ namespace FrontEndDriven.Abstractions
         /// <summary>清除已提交的表面档选择（下次启动回退声明 <c>active_profile</c>）。</summary>
         void ResetSurfaceSelection();
 
+        /// <summary>
+        /// 读取 <c>surface</c> 节点的用户覆盖值（画质设置等）；未记录返回 false。
+        /// <para>与已提交档同节点、同落盘策略；不再新增可写作用域。</para>
+        /// </summary>
+        bool TryGetSurfaceValues(out IReadOnlyDictionary<string, string> values);
+
+        /// <summary>写单个表面覆盖值（null/空 ⇒ 删除该键）。</summary>
+        void SetSurfaceValue(string key, string? value);
+
+        /// <summary>清除表面覆盖值（不动已提交档、分隔比例、窗体边界）。</summary>
+        void ResetSurfaceValues();
+
         /// <summary>立即落盘（关闭/退出时调用；幂等；无脏数据不触碰文件）。</summary>
         void Flush();
     }

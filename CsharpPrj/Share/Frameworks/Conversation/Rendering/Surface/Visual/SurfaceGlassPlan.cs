@@ -38,8 +38,24 @@ public sealed record SurfaceGlassPlan(
         SurfaceTextureFrame? backdrop,
         SurfaceFrameBudget? budget,
         GlassTier? declared)
+        => Negotiate(composition, backdrop, budget, declared, SurfaceGlassLookTable.BuiltIn);
+
+    /// <summary>
+    /// 装配计划（声明值版）：玻璃形态从 <paramref name="look"/> 读取。
+    /// </summary>
+    /// <param name="composition">合成能力。</param>
+    /// <param name="backdrop">背后内容源。</param>
+    /// <param name="budget">帧预算。</param>
+    /// <param name="declared">声明层级上限。</param>
+    /// <param name="look">玻璃形态声明表。</param>
+    public static SurfaceGlassPlan Negotiate(
+        SurfaceCompositionCapability? composition,
+        SurfaceTextureFrame? backdrop,
+        SurfaceFrameBudget? budget,
+        GlassTier? declared,
+        SurfaceGlassLookTable? look)
     {
-        var spec = SurfaceGlassSpec.Clamp(composition, backdrop.FromTextureFrame(), declared, budget);
+        var spec = SurfaceGlassSpec.Clamp(composition, backdrop.FromTextureFrame(), declared, budget, look);
         var ownership = SurfaceStageOwnership.Resolve(spec.Tier, composition?.Mode ?? SurfaceCompositionMode.None);
         var degradations = new List<string>();
         if (!string.IsNullOrWhiteSpace(spec.Reason)) degradations.Add(spec.Reason!);

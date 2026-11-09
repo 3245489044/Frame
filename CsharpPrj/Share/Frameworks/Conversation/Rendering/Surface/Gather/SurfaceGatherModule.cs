@@ -82,13 +82,7 @@ public sealed class SurfaceGatherModule : IGatherModule
         }
 
         var selection = _selection.Select(_view.View, effectiveCarrier);
-        var issues = new List<SurfaceIssue>(DegradationsOf(program).Count);
-        foreach (var issue in DegradationsOf(program))
-        {
-            issues.Add(new SurfaceIssue(issue.Code, issue.Detail));
-        }
-
-        return new SurfacePlanBundle(effectiveCarrier, selection.ProfileId, PlanOf(program), issues);
+        return SurfacePlanBuilder.Build(program, effectiveCarrier, selection);
     }
 
     private static CapabilityMatrix CapabilitiesOf(SurfaceProgram? program)
@@ -118,62 +112,19 @@ public sealed class SurfaceGatherModule : IGatherModule
     /// <para>聚拢视图键（render-surface-html…）与表面视图键不是同一坐标；一个载体计划覆盖程序内全部表面视图。</para>
     /// </summary>
     private IReadOnlyDictionary<string, ResolvedSurface> PlanOf(SurfaceProgram? program)
-    {
-        var plans = new Dictionary<string, ResolvedSurface>(StringComparer.Ordinal);
-        if (program is null || !program.IsDeclared) return plans;
-
-        var selection = _selection.Select(_view.View, _carrier);
-        var overrides = selection.Overrides;
-        foreach (var view in program.Views.Keys)
-        {
-            plans[view] = SurfaceResolver.Resolve(
-                program.Declaration,
-                view,
-                _carrier,
-                selection.ProfileId,
-                tokens: null,
-                overrides);
-        }
-
-        return plans;
-    }
+        => program is null || !program.IsDeclared
+            ? new Dictionary<string, ResolvedSurface>(StringComparer.Ordinal)
+            : Bundle(_carrier, _view.View).Views;
 
     private IReadOnlyList<ResolutionIssue> DegradationsOf(SurfaceProgram? program)
     {
-        var issues = new List<ResolutionIssue>();
         if (program is null || !program.IsDeclared)
         {
-            issues.Add(new ResolutionIssue("program-unavailable", "surface.generated.json 未装配"));
-            return issues;
+            return new[] { new ResolutionIssue("program-unavailable", "surface.generated.json 未装配") };
         }
 
-        foreach (var plan in PlanOf(program))
-        {
-            foreach (var issue in plan.Value.Issues)
-            {
-                issues.Add(new ResolutionIssue(issue.Code, plan.Key + ":" + issue.Detail));
-            }
-
-            foreach (var container in plan.Value.Containers)
-            {
-                foreach (var issue in container.Issues)
-                {
-                    issues.Add(new ResolutionIssue(issue.Code, plan.Key + ":" + container.Id + ":" + issue.Detail));
-                }
-
-                foreach (var material in container.Materials.Values)
-                {
-                    foreach (var issue in material.Issues)
-                    {
-                        issues.Add(new ResolutionIssue(
-                            issue.Code,
-                            plan.Key + ":" + container.Id + ":" + material.Slot + ":" + issue.Detail));
-                    }
-                }
-            }
-        }
-
-        return issues
+        return Bundle(_carrier, _view.View).Degradations
+            .Select(issue => new ResolutionIssue(issue.Code, issue.Detail))
             .GroupBy(issue => issue.Code + "|" + issue.Detail, StringComparer.Ordinal)
             .Select(group => group.First())
             .ToArray();

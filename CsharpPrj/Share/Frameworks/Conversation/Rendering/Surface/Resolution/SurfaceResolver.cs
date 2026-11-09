@@ -142,11 +142,16 @@ public static class SurfaceResolver
         ArgumentNullException.ThrowIfNull(context);
         var carrier = carrierId ?? string.Empty;
         var profileName = string.IsNullOrWhiteSpace(profileId) ? DefaultProfile : profileId!;
-        // 档位令牌表（program.tokens）先铺底，调用方显式 token 覆盖（调用方优先级更高）。
+        // 档位令牌表（program.tokens）先铺底，调用方显式 token 覆盖，最后用户覆盖（最高优先级）。
         var values = new Dictionary<string, string>(TokensForProfile(program, profileName), StringComparer.Ordinal);
         if (tokens is not null)
         {
             foreach (var pair in tokens) values[pair.Key] = pair.Value;
+        }
+
+        if (overrides is not null)
+        {
+            foreach (var pair in overrides) values[pair.Key] = pair.Value;
         }
 
         var issues = new List<SurfaceIssue>();

@@ -54,7 +54,7 @@ public static class SurfaceRenderFactsReader
         var host = SurfaceHostFacts.Current;
         var light = SurfaceLightReader.Read();
         var source = backdrop ?? host.Backdrop;
-        var plan = SurfaceGlassPlan.Negotiate(host.Composition, source, host.Budget, host.DeclaredTier);
+        var plan = SurfaceGlassPlan.Negotiate(host.Composition, source, host.Budget, host.DeclaredTier, host.Look);
 
         var degradations = new List<string>(plan.Degradations);
         if (!light.HasFrame && !string.IsNullOrWhiteSpace(light.Reason)) degradations.Add(light.Reason);

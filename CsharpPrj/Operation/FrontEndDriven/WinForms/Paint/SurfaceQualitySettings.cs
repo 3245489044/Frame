@@ -42,15 +42,26 @@ internal static class SurfaceQualitySettings
     }
 
     /// <summary>
-    /// 用户主动切换时要应用的档（草稿优先）：<c>panels.profile</c>；
+    /// 用户主动切换时要应用的档（草稿优先）：<c>surface.values.profile</c>（兼容读旧 <c>panels.profile</c>）；
     /// 未改过下拉时回落已提交 <see cref="CommittedProfile"/>。
     /// <para>只由 <see cref="SurfaceAppearanceSwitch"/> 消费；它表达"用户请求的档"，不是"当前档"。</para>
     /// </summary>
     internal static string? RequestedProfile()
     {
         var store = AppServiceProvider.Resolve<IUiLayoutStateStore>();
-        if (store is not null
-            && store.TryGetPanelValues(Scope, out var raw)
+        if (store is null)
+            return CommittedProfile();
+
+        // 新：surface.values.profile（唯一用户可写节点）。
+        if (store.TryGetSurfaceValues(out var surfaceValues)
+            && surfaceValues.TryGetValue(KeyProfile, out var surfaceValue)
+            && !string.IsNullOrWhiteSpace(surfaceValue))
+        {
+            return surfaceValue.Trim();
+        }
+
+        // 升级期兼容：老构建只写过 panels.profile。
+        if (store.TryGetPanelValues(Scope, out var raw)
             && raw.TryGetValue(KeyProfile, out var value)
             && !string.IsNullOrWhiteSpace(value))
         {
@@ -81,12 +92,29 @@ internal static class SurfaceQualitySettings
             : null;
     }
 
-    /// <summary>读取持久化覆盖项（未装配存储/无记录 ⇒ 全 null）。</summary>
+    /// <summary>读取持久化覆盖项（surface 节点优先，兼容旧 panels；无记录 ⇒ 全 null）。</summary>
     internal static Values Load()
     {
         var store = AppServiceProvider.Resolve<IUiLayoutStateStore>();
-        if (store is null || !store.TryGetPanelValues(Scope, out var raw))
+        if (store is null)
             return Values.Empty;
+
+        // 升级期兼容：老值在 panels[panel/graphics]；surface 覆盖逐键胜出（可只迁移部分键）。
+        var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (store.TryGetPanelValues(Scope, out var legacy))
+        {
+            foreach (var pair in legacy) merged[pair.Key] = pair.Value;
+        }
+
+        if (store.TryGetSurfaceValues(out var surface))
+        {
+            foreach (var pair in surface) merged[pair.Key] = pair.Value;
+        }
+
+        if (merged.Count == 0)
+            return Values.Empty;
+
+        var raw = (IReadOnlyDictionary<string, string>)merged;
 
         string? Get(string key)
             => raw.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;
@@ -107,6 +135,21 @@ internal static class SurfaceQualitySettings
             declared,
             new Share.SurfacePaint.Materials.SurfaceAmbientOverride(
                 values.AmbientEnabled, values.RadialAlpha, values.EdgeWidth));
+
+    /// <summary>
+    /// 覆盖项的令牌形态（**唯一**发布给选择源的形态）：两载体与缓存键都经
+    /// <c>SurfaceSelectionProvider.Overrides</c> 读到同一份参与解析的覆盖。
+    /// </summary>
+    internal static IReadOnlyDictionary<string, string> OverridesOf(Values values)
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (values.AmbientEnabled is { } ambient) map["ambient_enabled"] = ambient ? "1" : "0";
+        if (values.RadialAlpha is { } radial)
+            map["ambient_radial_alpha"] = radial.ToString("R", CultureInfo.InvariantCulture);
+        if (values.EdgeWidth is { } edge)
+            map["ambient_edge_width"] = edge.ToString("R", CultureInfo.InvariantCulture);
+        return map;
+    }
 
     private static bool? ParseBool(string? text)
         => text?.ToLowerInvariant() switch

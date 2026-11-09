@@ -34,9 +34,31 @@ public sealed record SurfacePlanBundle(
         new Dictionary<string, ResolvedSurface>(StringComparer.Ordinal),
         Array.Empty<SurfaceIssue>());
 
-    /// <summary>外观令牌（档位已换值；CSS 页场/指针增幅的同一来源）。</summary>
+    /// <summary>外观令牌（档位已换值 + 用户覆盖；CSS 页场/指针增幅的同一来源）。</summary>
     public IReadOnlyDictionary<string, string> Tokens { get; init; } =
         new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>声明原值令牌（未叠加用户覆盖；诊断/回退依据）。</summary>
+    public IReadOnlyDictionary<string, string> DeclaredTokens { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>令牌来源（键 → declared | override；未列出的键均为 declared）。</summary>
+    public IReadOnlyDictionary<string, string> TokenSources { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>表面设置（<c>surface_setting_*</c> 的扁平值；角色槽/引擎开关等）。</summary>
+    public IReadOnlyDictionary<string, string> Settings { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
+    /// <summary>属性通道解析结果（WinForms 写入面；HTML 载体为空）。</summary>
+    public IReadOnlyDictionary<string, ResolvedSurface> PropertyViews { get; init; } =
+        new Dictionary<string, ResolvedSurface>(StringComparer.Ordinal);
+
+    /// <summary>玻璃形态声明表（tier → 参数 + 染色；空 ⇒ 选层显式降级）。</summary>
+    public UiBackend.SurfaceGlassLookTable GlassLook { get; init; } = UiBackend.SurfaceGlassLookTable.Empty;
+
+    /// <summary>引擎光 look 子集（声明值；空 ⇒ 引擎按覆盖区派生）。</summary>
+    public SurfaceLightLook EngineLight { get; init; } = SurfaceLightLook.Empty;
 
     /// <summary>角色 → 材质槽（声明 <c>role_*_slot</c>；未声明 ⇒ 内置约定）。</summary>
     public IReadOnlyDictionary<string, string> RoleSlots { get; init; } =

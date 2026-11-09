@@ -11,5 +11,5 @@
     MinRoots = @{ Value = 3; Origin = 'Derived'; DueWhen = '' }
 
     # A3：函数库程序集归属必须唯一（0 = 缺，>1 = 多源）
-    RequireSingleOwnership = @{ Value = $true; Origin = 'Verdict'; DueWhen = '' }
+    RequireSingleOwnership = @{ Value = $true; Origin = 'Verdict'; DueWhen = '函数库程序集归属改由构建声明派生后重裁' }
 }

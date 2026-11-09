@@ -16,7 +16,7 @@
     Projectors = @{ Value = 6; Origin = 'Derived'; DueWhen = '' }
 
     # 视图侧缓存形态计数上限（RM-B/C 删除会话树缓存/成本 TTL 后实测 = 0；棘轮只降不升）。
-    ViewCacheSites = @{ Value = 0; Origin = 'Debt'; DueWhen = '' }
+    ViewCacheSites = @{ Value = 0; Origin = 'Debt'; DueWhen = '视图侧缓存形态恒为 0 后改为 Verdict 并销账' }
 
     # 版本源词表（声明处选定；projector 自带版本 ⇒ 红）。
     VersionModes = @{ Value = @('None', 'Ttl', 'Event', 'GraphMembership'); Origin = 'Derived'; DueWhen = '' }

@@ -541,6 +541,7 @@ public static class SurfaceLightRegistry
 {
     private static volatile SurfaceLightFrame? _current;
     private static long _revision;
+    private static long _stableRevision;
     private static long _publishedTick;
 
     /// <summary>当前帧（null ⇒ 光源不可用）。</summary>
@@ -548,6 +549,12 @@ public static class SurfaceLightRegistry
 
     /// <summary>发布代数（只增不减；用于触发重绘/缓存失效）。</summary>
     public static long Revision => Interlocked.Read(ref _revision);
+
+    /// <summary>
+    /// 稳定代数：只在「世界/配置/覆盖区/网格」变化时递增（epoch 不参与）。
+    /// <para>消费方用它决定是否重投影；仅时间桶变化时只推锚点，不重算整窗外观。</para>
+    /// </summary>
+    public static long StableRevision => Interlocked.Read(ref _stableRevision);
 
     /// <summary>最近一次实际发布的单调时钟（ms）；E-17 陈旧判定用。</summary>
     public static long PublishedTick => Interlocked.Read(ref _publishedTick);
@@ -564,22 +571,19 @@ public static class SurfaceLightRegistry
     /// </summary>
     public static event Action? Changed;
 
-    /// <summary>整帧替换（同一 <see cref="SurfaceLightFrame.Signature"/> 不触发 Changed，E-18）。</summary>
+    /// <summary>整帧替换（同一稳定签名仍会刷新时钟并触发 Changed，供锚点/时效消费方使用）。</summary>
     public static void Publish(SurfaceLightFrame? frame)
     {
         var previous = _current;
         if (frame is null && previous is null) return;
-        // 去抖按**稳定签名 + 覆盖区 + 网格**：时间桶/epoch 变化不构成「光变了」。
-        // 命中时仍刷新发布时钟（否则 IsStale 会把当前帧误判为陈旧）。
-        if (frame is not null && previous is not null
-            && frame.StableSignature == previous.StableSignature
-            && frame.Coverage.Equals(previous.Coverage)
-            && frame.Columns == previous.Columns
-            && frame.Rows == previous.Rows)
-        {
-            Interlocked.Exchange(ref _publishedTick, Environment.TickCount64);
-            return;
-        }
+
+        var stable = frame is null
+                     || previous is null
+                     || frame.StableSignature != previous.StableSignature
+                     || !frame.Coverage.Equals(previous.Coverage)
+                     || frame.Columns != previous.Columns
+                     || frame.Rows != previous.Rows;
+        if (stable) Interlocked.Increment(ref _stableRevision);
 
         _current = frame;
         Interlocked.Exchange(ref _publishedTick, Environment.TickCount64);

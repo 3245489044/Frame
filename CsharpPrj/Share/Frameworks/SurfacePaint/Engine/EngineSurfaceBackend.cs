@@ -87,7 +87,8 @@ public sealed class EngineSurfaceBackend : ISurfaceRenderBackend
         var cardViewport = request.Viewport.Card(card.BoundsDip);
 
         var frame = SurfaceEngineFramePump.TryFrame(
-            cardViewport, material, request.Light, SurfaceEngineFramePump.Quality, _port,
+            cardViewport, material, request.Light,
+            request.Budget.Quality.ToString().ToLowerInvariant(), _port,
             request.Backdrop, request.Facts?.Glass.Spec, _log);
         if (frame is null)
         {

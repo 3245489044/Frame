@@ -91,14 +91,14 @@ public sealed class SurfacePaintSession : IDisposable
         return NoopScope.Instance;
     }
 
-    /// <summary>兼容入口：返回空输入（不再采集背景/解析光）。</summary>
+    /// <summary>兼容入口：返回当前光态（背景/视口不再由会话采集）。</summary>
     public SurfaceRenderInputs BuildRenderInputs(
         SurfaceViewport viewport, SurfaceLightState? light = null, bool forceBackdrop = false)
     {
         _ = viewport;
-        _ = light;
         _ = forceBackdrop;
-        return SurfaceRenderInputs.Create(null, null, 0);
+        // 快照管线不再在会话内解析背景；光仍返回给探针/兼容调用方（不得静默丢光）。
+        return SurfaceRenderInputs.Create(light, null, 0);
     }
 
     /// <summary>卸载。</summary>

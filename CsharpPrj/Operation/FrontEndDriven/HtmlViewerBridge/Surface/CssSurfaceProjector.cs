@@ -119,6 +119,7 @@ public static class CssSurfaceProjector
             var pageField = PageFieldDeclarations(tokens);
             builder.Rule("body", pageField);
             builder.Rule("[data-surface=\"panel_card\"]", pageField);
+            builder.Rule("[data-surface=\"panel_surface\"]", pageField);
             builder.Rule("." + ClassName("panel_card"), pageField);
         }
 

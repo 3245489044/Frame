@@ -12,6 +12,7 @@ namespace FrontEndDriven.WinForms.Paint;
 internal sealed class SurfaceLightRefreshSource : IRefreshSource
 {
     private bool _started;
+    private long _lastStableRevision;
 
     public string Name => "surface-light";
 
@@ -21,6 +22,7 @@ internal sealed class SurfaceLightRefreshSource : IRefreshSource
     {
         if (_started) return;
         _started = true;
+        _lastStableRevision = SurfaceLightRegistry.StableRevision;
         SurfaceLightRegistry.Changed += OnChanged;
     }
 
@@ -31,7 +33,14 @@ internal sealed class SurfaceLightRefreshSource : IRefreshSource
         SurfaceLightRegistry.Changed -= OnChanged;
     }
 
-    private void OnChanged() => Changed?.Invoke("light");
+    /// <summary>仅「光真的变了」（世界/配置/覆盖区/网格）才标脏；epoch 秒桶不触发整窗重组。</summary>
+    private void OnChanged()
+    {
+        var revision = SurfaceLightRegistry.StableRevision;
+        if (revision == _lastStableRevision) return;
+        _lastStableRevision = revision;
+        Changed?.Invoke("light");
+    }
 }
 
 /// <summary>布局变化源：窗口尺寸/位置变化即标脏 <c>layout</c>。</summary>

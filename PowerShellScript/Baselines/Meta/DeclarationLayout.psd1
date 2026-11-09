@@ -14,6 +14,6 @@
     MigrationRootFiles = @{
         Value = @()
         Origin = 'Debt'
-        DueWhen = ''
+        DueWhen = '根级声明清单恒为空、本项由 L1 直接断言后销账'
     }
 }

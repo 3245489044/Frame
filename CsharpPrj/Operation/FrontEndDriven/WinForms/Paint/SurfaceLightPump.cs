@@ -69,14 +69,18 @@ internal static class SurfaceLightPump
             }
 
             _idleTicks = 0;
-            var screen = SystemInformation.VirtualScreen;
-            // E-25：跨屏移动后 DPI 可能变化；每次拉取取当前值，不再只用启动时快照。
-            var dpi = _anchor is { IsDisposed: false } anchor && anchor.DeviceDpi > 0
-                ? anchor.DeviceDpi
-                : _pixelScaleDpi;
-            _pixelScaleDpi = dpi;
-            var rect = SurfaceLocMath.RoundedScreenRectOf(
-                screen.X, screen.Y, screen.Width, screen.Height, BorderUnits.BaseDpi / dpi);
+            // 覆盖区唯一换算入口（ScreenCoverage）；像素矩形由同一 DIP 结果取整，避免两套 DPI/scale 计算漂移。
+            var anchor = _anchor;
+            if (anchor is null || anchor.IsDisposed)
+            {
+                DegradeIfIdle();
+                return;
+            }
+
+            var coverage = ScreenCoverage(anchor);
+            var rect = new SurfaceScreenRectLoc(
+                (int)Math.Round(coverage.X), (int)Math.Round(coverage.Y),
+                Math.Max(1, (int)Math.Round(coverage.Width)), Math.Max(1, (int)Math.Round(coverage.Height)));
 
             var raw = sample(rect.X, rect.Y, rect.Width, rect.Height, string.Empty);
             var frame = SurfaceLightFrameCodec.Parse(raw);

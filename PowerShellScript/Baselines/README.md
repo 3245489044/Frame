@@ -54,11 +54,11 @@
 
 | 面 | 状态 |
 |---|---|
-| `Baselines\` 规范根（`<Domain>\<Gate>.psd1`；件数以文件系统为准，禁写死） | ✅ 45 件单件基线按域落位（10 个域目录；`OrchestrationKernel` 死数据已删、`FixedSleepBaseline` 转登记册 `_fixed-sleep.psd1`）· 分类索引 `_catalog.psd1`（U12 双射）· 装载按名字索引解析（消费方零路径耦合） |
+| `Baselines\` 规范根（`<Domain>\<Gate>.psd1`；件数以文件系统为准，禁写死） | ✅ 45 件单件基线按域落位（10 个域目录；`OrchestrationKernel` 死数据已删、`FixedSleepBaseline` 转登记册 `_fixed-sleep.psd1`）· 分类索引 `_catalog.psd1`（U12 双射，**批次 5 起随「并入 spec」计划退役**）· 装载按名字索引解析（消费方零路径耦合） |
 | **遗留子根** `Modules\Node\Baselines\` | ✅ **已并入规范根并删除**（禁第二基线根；U8「退役名再入即红」强制） |
-| 内联数值基线（`$*Baseline* = <n>` 形态） | ✅ **0 处 / 0 件**（起点 15 处 / 9 件；实测命令：`Check-GateBaselines.ps1 -Check -ShowDetail`） |
-| 事实行类型（`@{ Value; Origin; DueWhen }`） | ✅ 全部事实键已改事实行（**U9 强制**；此前裸值可静默通过 U3 ⇒ 外置基线可退化为「另一种散落常量」） |
-| `_inline-baselines.psd1` 清册 | ✅ 已清空（终端态；新增内联基线无自动在册路径） |
+| 内联数值基线（`$*Baseline* = <n>` 形态） | ⚠️ **3 处 / 3 件**（2026-11-09 批次 5 实测；已登记 `_inline-baselines.psd1` 为 Debt，逐件外置后销账） |
+| 事实行类型（`@{ Value; Origin; DueWhen }`） | ⏳ U9 已退役（批次 5）：其判的是单件基线载体，该载体由 `Gate\Spec\*.gate.psd1` 取代；存量裸值随迁移清掉 |
+| `_inline-baselines.psd1` 清册 | ⚠️ 3 件 Debt 在册（2026-11-09 批次 5；每件带 DueWhen，只减不增） |
 | **第二形态**：内联目标表（`<X> = <n>` 键值行） | ⏳ SR-1c：实测 **47 行 / 2 件**（`Check-SessionDuplication.ps1` 32 · `Check-ContentSingleSource.ps1` 15）+ `Check-AgentOrchestrationFlow.ps1` 的两张 `[ordered]@{}` 表（7 行）⇒ 待整体外置为 `<Gate>.psd1` |
 
 ## 判据清单（守卫 = `Check-GateBaselines.ps1`）
@@ -71,12 +71,12 @@
 | U4 | 正对照 | 基线文件数 0 或 K1 事实 < 7（判据无标的 ⇒ 假绿） |
 | U5 | 负对照 | 合成样本未捕获 / 非赋值式样被误捕（正则被改坏） |
 | U6 | 可见化（不拦） | 清册 `[待迁移]` / `[可销账]` 台账 |
-| U7 | 接线一致性 | psd1 未被同名消费脚本装载；事实键名未出现于消费脚本（拼写漂移 ⇒ 取 `$null` 静默降级为 0） |
+| U7 | ~~接线一致性~~ | **已退役（批次 5）**：前提「消费脚本必为同名 `Check-<Gate>.ps1`」与 `_catalog.psd1` 的 `Consumer` 映射矛盾（合并门/策略文件被误判），实测 64 条全为误报；载体随 spec 迁移 |
 | U8 | 命名唯一性 | 规范函数名定义数 > 1；**退役名再入**（`Import-NodeGateBaseline` / `Get-LegacyBaselinesRoots`） |
-| U9 | 事实行类型强制 | 事实键是裸值 / 行元素缺 `Origin`（否则 U3 静默跳过） |
+| U9 | ~~事实行类型强制~~ | **已退役（批次 5）**：判的是单件基线载体形态，该载体由 `Gate\Spec\*.gate.psd1` 取代 |
 | U10 | 声明面路径存在性 | 声明面（`GateManifests` / `Baselines\*.psd1` / 本 README / 门禁脚本头注）引用的 `…\Baselines\<X>.psd1` 不存在 |
-| U11 | 行形态唯一 | 事实行出现第二形态（非 `Value`，如 `Baseline`/`RelativePath`）⇒ 消费端读法分裂 |
-| U12 | 分类索引双射 | `_catalog.psd1` 与文件系统（`*.psd1`+`*.psm1`）不双射；`Role` 非法；`Data` 的 `Domain` 与 `GateManifests` 不一致；文件名 ≠ `<Gate>.psd1` 且无 `NameDeviation`；Gate 未注册且无 `UnregisteredGate` |
+| U11 | ~~行形态唯一~~ | **已退役（批次 5）**：同 U9，随载体迁移 |
+| U12 | ~~分类索引双射~~ | **已退役（批次 5）**：`_catalog.psd1` 本身在合并方案 §5 第 3 批删除清单内；索引保留为说明性文档，不再由机器判红 |
 
 > 扫描面 = 「`Frame\PowerShellScript` 目录规约」 ∪ 「`GateManifests` 登记的 `Path` 所在目录」—— 后者覆盖 `Modules`/`Projects` 侧门禁（此前硬编码单根 ⇒ 覆盖漏洞）。
 

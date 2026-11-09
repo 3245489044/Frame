@@ -15,5 +15,11 @@
     #   新增内联基线：优先外置到 Baselines\<Gate>.psd1（Origin=Derived）；确属存量债务才登记本表（Origin=Debt + DueWhen）。
     # 历史（已销账）：宽口径曾入 13 件 → 严格口径实测 9 件（+ NodeKeyAddress）→ 全部迁移；
     #   其中 2 件零命中（ContentSingleSource / SessionDuplication）属**第二形态**（内联目标表 `Target = <n>`，宽口径 31 处）另记 SR-1c。
-    Entries = @()
+    # 2026-11-09（批次 5 实测）：检查器恢复可执行后拦到 3 件新增内联基线（自 2026-09-29 终端态后漂入）。
+    #   按本表口径先登记为 Debt（可见化、只减不增），迁移时外置到对应 Baselines\<Gate>.psd1。
+    Entries = @(
+        @{ File = 'Check-ContractSingleSource.ps1'; Origin = 'Debt'; Migrated = $false; DueWhen = 'tryGetBaseline 外置为 ContractSingleSource.psd1' }
+        @{ File = 'Check-NodeReadSingleSource.ps1'; Origin = 'Debt'; Migrated = $false; DueWhen = 'normalizeBaseline 外置为 NodeReadSingleSource.psd1' }
+        @{ File = 'Check-UiLocDeclaration.ps1'; Origin = 'Debt'; Migrated = $false; DueWhen = 'chineseBaseline 外置为 UiLocDeclaration.psd1' }
+    )
 }

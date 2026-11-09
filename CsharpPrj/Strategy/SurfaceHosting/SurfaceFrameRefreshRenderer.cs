@@ -179,13 +179,16 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
                 viewport);
 
             var snapshot = _composer.Compose(input, gather, ct);
-            var ticket = _hub.Emit(view, "surface-frame", snapshot);
-            var payload = ticket.Payload;
             var fingerprint = snapshot.Fingerprint;
             if (string.Equals(_lastFingerprint, fingerprint, StringComparison.Ordinal))
             {
+                // 未变化帧不会交付 ⇒ 必须主动释放本轮自有位图（页场/CPU 卡面），否则每次空转都泄漏。
+                snapshot.ReleaseFrames();
                 return RefreshArtifact.Unchanged(fingerprint, snapshot.Generation.ToString());
             }
+
+            var ticket = _hub.Emit(view, "surface-frame", snapshot);
+            var payload = ticket.Payload;
 
             _lastFingerprint = fingerprint;
             return RefreshArtifact.Changed(payload, fingerprint, snapshot.Generation.ToString());

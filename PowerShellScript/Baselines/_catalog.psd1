@@ -1,6 +1,7 @@
 @{
-    # ===== 基线分类索引（A1 角色 × A2 域 × A3 来源 × A4 形态；守卫 = Check-GateBaselines U12）=====
-    # 语义：分类的唯一可判定面。文件系统 ↔ 本表**双射**；Role=Data 的 Domain 与 GateManifests.psd1 同源。
+    # ===== 基线分类索引（A1 角色 × A2 域 × A3 来源 × A4 形态；U12 双射守卫已于批次 5 退役）=====
+    # 语义：分类的说明性单源（不再是机器判据面）；文件系统 ↔ 本表建议保持双射，Role=Data 的 Domain 与 GateManifests.psd1 同源。
+    #   退役原因：本索引在合并方案 §5 第 3 批的删除清单内（判据/基线并入 Gate\Spec\*.gate.psd1），继续为它维护双射判红只会把迁移目标判成红。
     #   目录轴只落 A1（扩展名 / `_` 前缀）与 A2（子目录 <Domain>\）；A3/A4 只登记不落目录（禁目录维度爆炸）。
     #   Role=Data ⇒ 文件名须 = <Gate>.psd1；遗留不符须显式 NameDeviation + DueWhen（可见化债务，禁静默例外）。
     Schema    = 'baseline-catalog-v1'

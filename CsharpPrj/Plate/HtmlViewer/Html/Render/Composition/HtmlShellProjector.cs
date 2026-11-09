@@ -142,7 +142,7 @@ public static class HtmlShellProjector
         var bubbleFragment = bubbleHtml.Length == 0
             ? UiMarkup.Empty
             : UiMarkup.Trusted(
-                "<div class=\"material-panel_card\" data-surface=\"panel_card\">" + bubbleHtml + "</div>");
+                "<div class=\"material-panel_card\" data-surface=\"panel_surface\">" + bubbleHtml + "</div>");
         var mainInner = new StringBuilder();
         foreach (var container in containers)
         {

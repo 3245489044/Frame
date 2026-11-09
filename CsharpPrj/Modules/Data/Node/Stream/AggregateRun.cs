@@ -21,15 +21,32 @@ namespace Modules.Node.Stream;
 /// ③ **只增不丢**（帧一经接受即保序保留；释放以「清空 + 复位轮次」表达）。
 /// </para>
 /// <para>限流：同 kind **连续同载荷去重** + 每 run 每 kind 上限；被丢弃/拒收条数逐 kind 计数 —— 不做「静默丢」。</para>
+/// <para>
+/// **迟到帧残渣（Residue）**：轮已结算 / 未成轮期间到达的帧，不只是计数——载荷必须被保留（有界采样 + 最后一条完整载荷），
+/// 并在 <see cref="Release"/> 时**先报后清**（一次汇总，不逐帧刷屏）。这是「轮已结算 + 调用在飞」在落库侧的可见面。
+/// </para>
 /// </summary>
 public class AggregateRun
 {
+    /// <summary>迟到帧残渣汇总的日志键（框架级可观测键；域侧不重复定义）。</summary>
+    public const string ResidueLogKey = "RunBoundary_late_frames";
+
+    /// <summary>残渣样本上限（有界，防载荷爆炸）。</summary>
+    public const int MaxResidueSamples = 16;
+
+    /// <summary>单条残渣样本载荷上限（字节；超出截断并标记）。</summary>
+    public const int ResidueSamplePayloadLimit = 4096;
+
+    /// <summary>最后一条拒收帧载荷上限（字节；超出截断并标记）。</summary>
+    public const int ResidueLastPayloadLimit = 8192;
+
     private readonly object _gate = new();
     private readonly List<AggregateRoundBuilder> _rounds = new();
     private readonly Dictionary<string, string> _lastFingerprintOfKind = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _countOfKind = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _droppedOfKind = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _refusedOfKind = new(StringComparer.Ordinal);
+    private readonly List<ResidueSample> _residueSamples = new();
     private readonly string _kindFieldName;
     private readonly Func<string, string> _positionKeyOf;
     private readonly string _appendBeforeRoundLogKey;
@@ -39,6 +56,10 @@ public class AggregateRun
     private string? _runId;
     private DateTimeOffset? _startedAtUtc;
     private DateTimeOffset? _endedAtUtc;
+    private long _refusedTotal;
+    private ResidueSample? _lastRefused;
+    private DateTimeOffset? _firstRefusedAtUtc;
+    private DateTimeOffset? _lastRefusedAtUtc;
 
     /// <param name="partitionKey">分区键（一分区恰一条聚合记录）。</param>
     /// <param name="kindFieldName">帧类别字段名（写入帧载荷的键名）。</param>
@@ -117,6 +138,15 @@ public class AggregateRun
         get { lock (_gate) return new Dictionary<string, int>(_refusedOfKind, StringComparer.Ordinal); }
     }
 
+    /// <summary>
+    /// 迟到帧残渣（**载荷保留**，非只计数）：轮已结算 / 未成轮期间到达的帧，有界采样 + 最后一条完整载荷。
+    /// <para>写者：<see cref="Append"/>（拒收路径）；清理：<see cref="Release"/>（先报后清）。</para>
+    /// </summary>
+    public AggregateResidue Residue
+    {
+        get { lock (_gate) return BuildResidue(); }
+    }
+
     /// <summary>丢失账（丢弃 + 拒收；与过程面共用同一读数面语义）。</summary>
     public AggregateAccounting Accounting()
     {
@@ -179,13 +209,7 @@ public class AggregateRun
         {
             if (Round < 0)
             {
-                _refusedOfKind[kind] = (_refusedOfKind.TryGetValue(kind, out var r) ? r : 0) + 1;
-                _logSink?.Invoke(_appendBeforeRoundLogKey, new
-                {
-                    taskKey = PartitionKey,
-                    kind,
-                    action = "run 边界未建立（未 BeginRound / 已 Release）：本事件拒收（可见化，不静默）",
-                });
+                RecordResidue(kind, stamp, fields);
                 return null;
             }
 
@@ -339,11 +363,35 @@ public class AggregateRun
         }
     }
 
-    /// <summary>释放本次 run 的内存帧（落库成功后调用；同 run 只落一次 ⇒ 只释放一次）。</summary>
-    public void Release()
+    /// <summary>
+    /// 释放本次 run 的内存帧（落库成功后调用；同 run 只落一次 ⇒ 只释放一次）。
+    /// <para>
+    /// **先报后清**：若存在迟到帧残渣，先外发一次汇总（<see cref="ResidueLogKey"/>），再清空；
+    /// 返回的残渣供调用方继续上报（不吞、不重复计数）。
+    /// </para>
+    /// </summary>
+    public AggregateResidue Release()
     {
         lock (_gate)
         {
+            var residue = BuildResidue();
+            if (residue.RefusedTotal > 0 && _logSink is not null)
+            {
+                _logSink(ResidueLogKey, new
+                {
+                    taskKey = PartitionKey,
+                    runId = residue.RunId,
+                    lastRound = residue.LastRound,
+                    refusedTotal = residue.RefusedTotal,
+                    refusedByKind = residue.RefusedOfKind,
+                    firstAtUtc = residue.FirstRefusedAtUtc,
+                    lastAtUtc = residue.LastRefusedAtUtc,
+                    sampleCount = residue.Samples.Count,
+                    lastPayload = residue.LastRefused?.Payload,
+                    action = "轮已结算后仍到达的帧：载荷已保留在 Residue（不静默丢弃）",
+                });
+            }
+
             _rounds.Clear();
             _lastFingerprintOfKind.Clear();
             _countOfKind.Clear();
@@ -354,8 +402,78 @@ public class AggregateRun
             Round = -1;
             _startedAtUtc = null;
             _endedAtUtc = null;
+            _refusedTotal = 0;
+            _lastRefused = null;
+            _firstRefusedAtUtc = null;
+            _lastRefusedAtUtc = null;
+            _residueSamples.Clear();
+            return residue;
         }
     }
+
+    /// <summary>登记一条迟到帧残渣（**保留载荷**；有界采样 + 最后一条完整载荷）。调用方须持 <see cref="_gate"/>。</summary>
+    private void RecordResidue(string kind, DateTimeOffset atUtc, IReadOnlyDictionary<string, object?>? fields)
+    {
+        _refusedOfKind[kind] = (_refusedOfKind.TryGetValue(kind, out var r) ? r : 0) + 1;
+        _refusedTotal++;
+        _firstRefusedAtUtc ??= atUtc;
+        _lastRefusedAtUtc = atUtc;
+
+        var sample = BuildResidueSample(kind, atUtc, fields, ResidueSamplePayloadLimit);
+        if (_residueSamples.Count >= MaxResidueSamples) _residueSamples.RemoveAt(0);
+        _residueSamples.Add(sample);
+        _lastRefused = BuildResidueSample(kind, atUtc, fields, ResidueLastPayloadLimit);
+
+        // 逐帧刷屏会让真信号淹没：只在首帧外发一次（其余进 Release 汇总）。
+        if (_refusedTotal == 1)
+        {
+            _logSink?.Invoke(_appendBeforeRoundLogKey, new
+            {
+                taskKey = PartitionKey,
+                kind,
+                action = "run 边界未建立（未 BeginRound / 已 Release）：本事件拒收（载荷进 Residue，Release 汇总）",
+            });
+        }
+    }
+
+    private ResidueSample BuildResidueSample(
+        string kind, DateTimeOffset atUtc, IReadOnlyDictionary<string, object?>? fields, int payloadLimit)
+    {
+        var obj = new JsonObject
+        {
+            ["refused"] = true,
+            [_kindFieldName] = kind,
+            ["atUtc"] = atUtc.ToString("O"),
+        };
+
+        if (fields is not null)
+        {
+            foreach (var pair in fields)
+            {
+                if (pair.Value is not null)
+                {
+                    obj[pair.Key] = FrameValueJson.ToNode(pair.Value);
+                }
+            }
+        }
+
+        return new ResidueSample(kind, Truncate(obj.ToJsonString(), payloadLimit), atUtc);
+    }
+
+    private AggregateResidue BuildResidue()
+        => new(
+            _runId,
+            Round,
+            _refusedTotal,
+            new Dictionary<string, int>(_refusedOfKind, StringComparer.Ordinal),
+            _residueSamples.ToArray(),
+            _lastRefused,
+            _firstRefusedAtUtc,
+            _lastRefusedAtUtc);
+
+    /// <summary>有界载荷：超限截断并打标记（保留可诊断前缀，绝不伪造完整）。</summary>
+    private static string Truncate(string payload, int limit)
+        => payload.Length <= limit ? payload : payload.Substring(0, limit) + "…(truncated)";
 
     /// <summary>帧摘要去重键（同 kind 连续同载荷：字段按名序拼接，避免字段顺序造成假去重）。
     /// 值一律取**结构化的帧载荷文本**（与落库序列化同源）：字典/集合按内容比较，禁落回 <c>ToString()</c>

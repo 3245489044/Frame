@@ -8,11 +8,12 @@ using UiBackend;
 
 namespace FrontEndDriven.WinForms.Paint;
 
-/// <summary>光变化源：光场签名变化即标脏 <c>light</c>。</summary>
+/// <summary>光变化源：环境光看 StableRevision，指针成员看 PointerRevision（分成员失效）。</summary>
 internal sealed class SurfaceLightRefreshSource : IRefreshSource
 {
     private bool _started;
     private long _lastStableRevision;
+    private long _lastPointerRevision;
 
     public string Name => "surface-light";
 
@@ -23,7 +24,9 @@ internal sealed class SurfaceLightRefreshSource : IRefreshSource
         if (_started) return;
         _started = true;
         _lastStableRevision = SurfaceLightRegistry.StableRevision;
+        _lastPointerRevision = SurfaceLightRegistry.PointerRevision;
         SurfaceLightRegistry.Changed += OnChanged;
+        SurfaceLightRegistry.PointerChanged += OnPointerChanged;
     }
 
     public void Stop()
@@ -31,6 +34,7 @@ internal sealed class SurfaceLightRefreshSource : IRefreshSource
         if (!_started) return;
         _started = false;
         SurfaceLightRegistry.Changed -= OnChanged;
+        SurfaceLightRegistry.PointerChanged -= OnPointerChanged;
     }
 
     /// <summary>仅「光真的变了」（世界/配置/覆盖区/网格）才标脏；epoch 秒桶不触发整窗重组。</summary>
@@ -40,6 +44,15 @@ internal sealed class SurfaceLightRefreshSource : IRefreshSource
         if (revision == _lastStableRevision) return;
         _lastStableRevision = revision;
         Changed?.Invoke("light");
+    }
+
+    /// <summary>指针成员独立失效：只标 <c>pointer</c>，不冒充整帧光变化。</summary>
+    private void OnPointerChanged()
+    {
+        var revision = SurfaceLightRegistry.PointerRevision;
+        if (revision == _lastPointerRevision) return;
+        _lastPointerRevision = revision;
+        Changed?.Invoke("pointer");
     }
 }
 

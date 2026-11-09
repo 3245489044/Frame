@@ -19,6 +19,21 @@ internal static class SurfaceFrameViewFallback
     /// <summary>唯一取数域（声明面同一域）。</summary>
     internal const string InputDomain = "surface-frame-input";
 
+    /// <summary>
+    /// 最小回退视图（仅 1 need）：仅在宿主子模块不可用时使用，保证窗口不因装配失败而挂载中断。
+    /// <para>产物名仍为 <c>surface-frame</c>（出口闭合）；其余域全部缺席 ⇒ Composer 显式降级。</para>
+    /// </summary>
+    private static readonly Lazy<GatherViewSpec> Legacy = new(
+        () => new GatherViewSpec(
+            ViewId,
+            new[] { new GatherStageSpec("frame", new[] { InputDomain }, Array.Empty<string>(), new[] { "frame" }) },
+            new[] { new GatherNeedSpec(InputDomain, "window", GatherCostClass.High, Reusable: false) },
+            new[] { new GatherProduceSpec("surface-frame", "window-frame", "transient", "micro") }),
+        isThreadSafe: true);
+
+    /// <summary>最小回退视图（宿主子模块不可用时的可见降级）。</summary>
+    internal static GatherViewSpec LegacyView => Legacy.Value;
+
     private static readonly Lazy<GatherViewSpec> Spec = new(Create, isThreadSafe: true);
 
     /// <summary>回退视图声明（惰性；首次构造时记一次可见降级）。</summary>
@@ -32,8 +47,45 @@ internal static class SurfaceFrameViewFallback
 
         return new GatherViewSpec(
             ViewId,
-            new[] { new GatherStageSpec("frame", new[] { InputDomain }, Array.Empty<string>(), new[] { "frame" }) },
-            new[] { new GatherNeedSpec(InputDomain, "window", GatherCostClass.High, Reusable: false) },
-            new[] { new GatherProduceSpec("surface-frame", "bitmap-frame", "transient", "micro") });
+            new[]
+            {
+                new GatherStageSpec("policy", new[] { "render-policy", "carrier-capabilities" },
+                    Array.Empty<string>(), new[] { "feed" }),
+                new GatherStageSpec("declaration", new[] { "surface-program", "surface-selection", "surface-plan" },
+                    new[] { "policy" }, new[] { "feed" }),
+                new GatherStageSpec("context",
+                    new[]
+                    {
+                        "surface-light", "surface-pointer", "surface-composition",
+                        "surface-backdrop", "surface-glass", "surface-frame-budget",
+                    },
+                    new[] { "declaration" }, new[] { "frame" }),
+                new GatherStageSpec("compose",
+                    new[] { "surface-frame-input", "surface-decor", "surface-viewport" },
+                    new[] { "context" }, new[] { "frame" }),
+            },
+            new[]
+            {
+                new GatherNeedSpec("render-policy", "config", GatherCostClass.Low, Reusable: true),
+                new GatherNeedSpec("carrier-capabilities", "config", GatherCostClass.Low, Reusable: true),
+                new GatherNeedSpec("surface-program", "config", GatherCostClass.Low, Reusable: true),
+                new GatherNeedSpec("surface-selection", "profile", GatherCostClass.Low, Reusable: true),
+                new GatherNeedSpec("surface-plan", "view", GatherCostClass.Low, Reusable: false),
+                new GatherNeedSpec("surface-light", "frame", GatherCostClass.Low, Reusable: false),
+                new GatherNeedSpec("surface-pointer", "frame", GatherCostClass.Low, Reusable: false),
+                new GatherNeedSpec("surface-composition", "host", GatherCostClass.Low, Reusable: true),
+                new GatherNeedSpec("surface-backdrop", "window", GatherCostClass.High, Reusable: false),
+                new GatherNeedSpec("surface-glass", "frame", GatherCostClass.Low, Reusable: false),
+                new GatherNeedSpec("surface-frame-budget", "config", GatherCostClass.Low, Reusable: true),
+                new GatherNeedSpec("surface-decor", "view", GatherCostClass.Low, Reusable: false),
+                new GatherNeedSpec("surface-viewport", "frame", GatherCostClass.Low, Reusable: false),
+                new GatherNeedSpec("surface-frame-input", "window", GatherCostClass.High, Reusable: false),
+            },
+            new[]
+            {
+                new GatherProduceSpec("surface-frame", "window-frame", "transient", "micro"),
+                new GatherProduceSpec("render-frame-diagnostics", "report", "contextual", "macro",
+                    "Frame\\Invoke\\Invoke-Frame.ps1 -Action invoke-verify"),
+            });
     }
 }

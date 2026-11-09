@@ -42,6 +42,7 @@ public sealed class SurfaceFrameStore
         {
             if (_latest.TryGetValue(snapshot.WindowId, out var current))
             {
+                if (_previous.TryGetValue(snapshot.WindowId, out var older)) older.ReleaseFrames();
                 _previous[snapshot.WindowId] = current;
             }
 
@@ -60,6 +61,7 @@ public sealed class SurfaceFrameStore
             if (!_previous.TryGetValue(windowId, out var previous)) return false;
             if (previous.Generation >= generation) return false;
             _previous.Remove(windowId);
+            previous.ReleaseFrames();
         }
 
         System.Threading.Interlocked.Increment(ref _released);
@@ -71,6 +73,8 @@ public sealed class SurfaceFrameStore
     {
         lock (_gate)
         {
+            foreach (var snapshot in _latest.Values) snapshot.ReleaseFrames();
+            foreach (var snapshot in _previous.Values) snapshot.ReleaseFrames();
             _latest.Clear();
             _previous.Clear();
         }

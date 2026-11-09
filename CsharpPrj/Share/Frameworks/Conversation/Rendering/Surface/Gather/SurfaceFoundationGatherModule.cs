@@ -16,6 +16,8 @@ namespace Share.Conversation.Rendering.Surface.Gather;
 /// <param name="Budget">帧预算。</param>
 /// <param name="Light">光帧（null = 引擎不可用）。</param>
 /// <param name="Glass">玻璃选层（可空 ⇒ 由前四项经 <see cref="SurfaceGlassSpec.Clamp"/> 推导）。</param>
+/// <param name="LightUnavailableReason">光不可用原因码。</param>
+/// <param name="LightRead">光读取（三态：帧 / 显式不可用 / 失败）。</param>
 public sealed record SurfaceFoundationSources(
     Func<SurfaceCompositionCapability> Composition,
     Func<SurfaceBackdropFrame> Backdrop,

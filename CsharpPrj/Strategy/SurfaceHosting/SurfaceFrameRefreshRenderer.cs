@@ -1,14 +1,33 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Modules.Gather;
+using Share.Conversation.Rendering.Surface;
+using Share.Conversation.Rendering.Surface.Gather;
+using Share.SurfacePaint.Ambient;
 using Share.SurfacePaint.Hosting;
 using Strategy.Refresh.Model;
 using Strategy.Refresh.Ports;
+using SurfacePaint.Contracts;
+using UiBackend;
 
 namespace Strategy.SurfaceHosting;
+
+/// <summary>
+/// 窗口帧宿主子模块装配端口（**窄端口**）：声明单源与装配主体都在 Projects，渲染器只接收已闭合的子模块。
+/// </summary>
+public interface ISurfaceFrameModuleSource
+{
+    /// <summary>
+    /// 按渲染器的**同一视图实例**装配宿主侧子模块（null ⇒ 不可用，渲染器落可见降级）。
+    /// </summary>
+    /// <param name="view">视图声明（必须与渲染器共用同一实例：组合去重依赖引用相等）。</param>
+    /// <param name="context">帧作用域共享槽（plan → decor 桥接）。</param>
+    IGatherModule? Create(GatherViewSpec view, SurfaceFrameContext context);
+}
 
 /// <summary>窗口帧渲染器（Refresh 的唯一 Renderer）：Gather 取数 → 组合快照 → 指纹裁决。</summary>
 public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
@@ -16,28 +35,67 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
     private readonly SurfaceFrameComposer _composer;
     private readonly GatherViewSpec _view;
     private readonly GatherHub _hub;
+    private readonly SurfaceFrameContext _context = new();
+    private SurfaceFrameInput? _lastInput;
     private string? _lastFingerprint;
 
+    /// <summary>构造渲染器。</summary>
+    /// <param name="slotKey">刷新槽键。</param>
+    /// <param name="capture">窗口采集（UI 线程执行）。</param>
+    /// <param name="composer">唯一帧生产者。</param>
+    /// <param name="viewSource">声明单源端口（null ⇒ 显式回退）。</param>
+    /// <param name="moduleSource">宿主侧子模块装配端口（null ⇒ 闭合失败可见）。</param>
+    /// <param name="pointerSource">指针来源（null ⇒ 显式不可用）。</param>
     public SurfaceFrameRefreshRenderer(
-        string slotKey, Func<SurfaceFrameInput?> capture, SurfaceFrameComposer composer,
-        ISurfaceFrameGatherSource? viewSource = null)
+        string slotKey,
+        Func<SurfaceFrameInput?> capture,
+        SurfaceFrameComposer composer,
+        ISurfaceFrameGatherSource? viewSource = null,
+        ISurfaceFrameModuleSource? moduleSource = null,
+        ISurfacePointerSource? pointerSource = null)
     {
         SlotKey = slotKey;
         _composer = composer;
         // 声明单源：优先取宿主注入的声明面视图；缺失 ⇒ 显式回退（记录 surface-frame-view-unavailable）。
         _view = viewSource?.View ?? SurfaceFrameViewFallback.View;
 
-        var registry = GatherRegistry.Build(new IGatherModule[]
+        var parts = new List<IGatherModule>
         {
-            new SurfaceFrameGatherModule(_view, capture),
-        }, _view);
+            new SurfaceFrameGatherModule(_view, CaptureAndRemember(capture), _context),
+            new SurfacePointerGatherModule(_view, pointerSource ?? UnavailablePointerSource.Instance),
+            new SurfaceFoundationGatherModule(_view, BuildFoundationSources()),
+            new SurfaceComposeGatherModule(
+                _view, _context,
+                () => _lastInput?.Viewport ?? SurfaceViewport.Empty,
+                () => SurfaceAmbientScene.Enabled),
+        };
+
+        if (moduleSource?.Create(_view, _context) is { } host)
+        {
+            parts.Insert(0, host);
+        }
+        else
+        {
+            // 宿主子模块不可用 ⇒ 可见降级到最小视图（1 need），不中断窗口挂载。
+            Share.SurfacePaint.Compat.SurfaceCompatLog.Log(
+                "surface-frame-module-unavailable",
+                new { view = _view.View, action = "legacy-fallback" });
+            _view = SurfaceFrameViewFallback.LegacyView;
+            parts = new List<IGatherModule>
+            {
+                new SurfaceFrameGatherModule(_view, CaptureAndRemember(capture), _context),
+            };
+        }
+
+        var composite = new CompositeGatherModule("surface-window-frame", parts.ToArray());
+        var registry = GatherRegistry.Build(new[] { composite }, _view);
         if (!registry.IsClosed)
         {
             throw new InvalidOperationException(
                 "surface-frame gather 未闭合：" + string.Join("；", registry.Issues));
         }
 
-        _hub = new GatherHub(registry);
+        _hub = GatherHub.For(registry);
     }
 
     public string SlotKey { get; }
@@ -46,17 +104,39 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
     {
         try
         {
+            _context.Reset();
+            _lastInput = null;
             var stages = await _hub.RunAsync(_view, request.Scopes, ct).ConfigureAwait(false);
             SurfaceFrameInput? input = null;
+            SurfacePlanBundle? plan = null;
+            SurfaceDecorBundle? decor = null;
+            SurfaceLightFrame? lightFrame = null;
+            SurfacePointerState pointer = SurfacePointerState.Unavailable;
+            SurfaceFrameBudget? budget = null;
+            SurfaceCompositionCapability? composition = null;
+            SurfaceViewport viewport = SurfaceViewport.Empty;
+
             foreach (var stage in stages)
             {
-                if (stage.Values.TryGetValue("surface-frame-input", out var value)
-                    && value is SurfaceFrameInput frameInput)
-                {
+                if (stage.Values.TryGetValue("surface-frame-input", out var value) && value is SurfaceFrameInput frameInput)
                     input = frameInput;
-                }
+                if (stage.Values.TryGetValue("surface-plan", out var planValue) && planValue is SurfacePlanBundle planBundle)
+                    plan = planBundle;
+                if (stage.Values.TryGetValue("surface-decor", out var decorValue) && decorValue is SurfaceDecorBundle decorBundle)
+                    decor = decorBundle;
+                if (stage.Values.TryGetValue("surface-light", out var lightValue) && lightValue is SurfaceLightFrame frame)
+                    lightFrame = frame;
+                if (stage.Values.TryGetValue("surface-pointer", out var pointerValue) && pointerValue is SurfacePointerState pointerState)
+                    pointer = pointerState;
+                if (stage.Values.TryGetValue("surface-frame-budget", out var budgetValue) && budgetValue is SurfaceFrameBudget frameBudget)
+                    budget = frameBudget;
+                if (stage.Values.TryGetValue("surface-composition", out var compValue) && compValue is SurfaceCompositionCapability capability)
+                    composition = capability;
+                if (stage.Values.TryGetValue("surface-viewport", out var viewportValue) && viewportValue is SurfaceViewport stageViewport)
+                    viewport = stageViewport;
             }
 
+            input ??= _lastInput;
             if (input is null)
             {
                 return new RefreshArtifact(
@@ -65,7 +145,22 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
                     Fingerprint: "surface-window-unavailable");
             }
 
-            var snapshot = _composer.Compose(input, ct);
+            if (!viewport.IsValid) viewport = input.Viewport;
+            if (pointer.Equals(default(SurfacePointerState))) pointer = input.Pointer;
+
+            var light = ResolveLight(lightFrame, viewport, pointer, input.Light);
+            var facts = SurfaceRenderFactsReader.Read(input.Backdrop);
+            var gather = new SurfaceGatherFrame(
+                plan ?? SurfacePlanBundle.Empty,
+                decor ?? SurfaceDecorBundle.Empty,
+                light,
+                pointer,
+                budget ?? SurfaceHostFacts.Current.Budget,
+                facts,
+                composition ?? SurfaceHostFacts.Current.Composition,
+                viewport);
+
+            var snapshot = _composer.Compose(input, gather, ct);
             var ticket = _hub.Emit(_view, "surface-frame", snapshot);
             var payload = ticket.Payload;
             var fingerprint = snapshot.Fingerprint;
@@ -88,18 +183,62 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
             return RefreshArtifact.Failed("surface-refresh-failed");
         }
     }
+
+    private Func<SurfaceFrameInput?> CaptureAndRemember(Func<SurfaceFrameInput?> capture)
+        => () =>
+        {
+            var input = capture();
+            _lastInput = input;
+            return input;
+        };
+
+    private static SurfaceLightState? ResolveLight(
+        SurfaceLightFrame? frame, SurfaceViewport viewport, SurfacePointerState pointer, SurfaceLightState? fallback)
+    {
+        if (frame is null) return fallback;
+
+        var coverage = new SurfaceLightCoverage(
+            (float)viewport.HostOriginXDip, (float)viewport.HostOriginYDip,
+            (float)viewport.HostWidthDip, (float)viewport.HostHeightDip);
+        return SurfaceLightPointer.Apply(
+            frame, coverage, viewport.HostDpi, pointer,
+            viewport.HostWidthDip, viewport.HostHeightDip) ?? fallback;
+    }
+
+    private static SurfaceFoundationSources BuildFoundationSources()
+        => new(
+            static () => SurfaceHostFacts.Current.Composition,
+            static () => SurfaceHostFacts.Current.Backdrop.FromTextureFrame(),
+            static () => SurfaceHostFacts.Current.Budget,
+            static () => SurfaceLightReader.Read().Frame,
+            static () => SurfaceHostFacts.Glass(),
+            SurfaceLightReader.LastReason,
+            static () => SurfaceLightReader.Read());
 }
 
-/// <summary>Surface 帧聚拢模块（唯一取数入口）：只声明并提供一个 need，便于后续扩展域。</summary>
+/// <summary>无指针源（显式不可用；禁返回 null 冒充有值）。</summary>
+internal sealed class UnavailablePointerSource : ISurfacePointerSource
+{
+    internal static readonly UnavailablePointerSource Instance = new();
+
+    public PortStatus Status => PortStatus.Missing(PortKind.Pointer, "pointer-source-missing");
+
+    public SurfacePointerState Read() => SurfacePointerState.Unavailable;
+}
+
+/// <summary>Surface 帧聚拢模块（唯一取数入口）：surface-frame-input 的**唯一 producer**。</summary>
 internal sealed class SurfaceFrameGatherModule : IGatherModule
 {
     private readonly GatherViewSpec _view;
     private readonly Func<SurfaceFrameInput?> _capture;
+    private readonly SurfaceFrameContext _context;
 
-    internal SurfaceFrameGatherModule(GatherViewSpec view, Func<SurfaceFrameInput?> capture)
+    internal SurfaceFrameGatherModule(
+        GatherViewSpec view, Func<SurfaceFrameInput?> capture, SurfaceFrameContext context)
     {
         _view = view;
         _capture = capture;
+        _context = context;
     }
 
     public string Name => "surface-frame-gather";
@@ -107,8 +246,12 @@ internal sealed class SurfaceFrameGatherModule : IGatherModule
     public void Declare(GatherModuleBuilder builder)
     {
         builder.FromView(_view);
-        builder.ProvideFor(_view, "surface-frame-input",
-            (_, _) => Task.FromResult<object?>(_capture()));
+        builder.ProvideFor(_view, "surface-frame-input", (_, _) =>
+        {
+            var input = _capture();
+            if (input is not null) _context.SetCards(input.Cards);
+            return Task.FromResult<object?>(input);
+        });
     }
 }
 

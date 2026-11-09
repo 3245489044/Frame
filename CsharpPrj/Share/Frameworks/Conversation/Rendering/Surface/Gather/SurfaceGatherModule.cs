@@ -63,6 +63,34 @@ public sealed class SurfaceGatherModule : IGatherModule
     private SurfaceSelection Selection(SurfaceProgram? program)
         => _selection.Select(_view.View, _carrier);
 
+    /// <summary>
+    /// 组装可被 Composer 直接消费的计划产物（**只新增，不改既有方法**）。
+    /// </summary>
+    /// <param name="carrier">载体 id。</param>
+    /// <param name="view">表面视图键（诊断用；产物覆盖程序内全部视图）。</param>
+    public SurfacePlanBundle Bundle(string carrier, string view)
+    {
+        var program = _program();
+        var effectiveCarrier = string.IsNullOrEmpty(carrier) ? _carrier : carrier;
+        if (program is null || !program.IsDeclared)
+        {
+            return new SurfacePlanBundle(
+                effectiveCarrier,
+                string.Empty,
+                new Dictionary<string, ResolvedSurface>(StringComparer.Ordinal),
+                Array.Empty<SurfaceIssue>());
+        }
+
+        var selection = _selection.Select(_view.View, effectiveCarrier);
+        var issues = new List<SurfaceIssue>(DegradationsOf(program).Count);
+        foreach (var issue in DegradationsOf(program))
+        {
+            issues.Add(new SurfaceIssue(issue.Code, issue.Detail));
+        }
+
+        return new SurfacePlanBundle(effectiveCarrier, selection.ProfileId, PlanOf(program), issues);
+    }
+
     private static CapabilityMatrix CapabilitiesOf(SurfaceProgram? program)
         => program is null || !program.IsDeclared
             ? CapabilityMatrix.Empty

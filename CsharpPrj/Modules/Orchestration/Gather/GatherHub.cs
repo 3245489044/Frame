@@ -63,6 +63,13 @@ public sealed class GatherHub
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
     }
 
+    /// <summary>
+    /// 由注册表构造 Hub（**唯一装配工厂**）：装配点只允许经此入口，禁在宿主内散落 <c>new GatherHub</c>。
+    /// </summary>
+    /// <param name="registry">已闭合的注册表。</param>
+    public static GatherHub For(GatherRegistry registry)
+        => new(registry);
+
     /// <summary>是否允许跨作用域复用（默认 false：影子缓存视为缺陷）。</summary>
     public bool CrossScope { get; init; }
 

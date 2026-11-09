@@ -20,6 +20,9 @@ public enum PortKind
     /// <summary>取数声明。</summary>
     Gather,
 
+    /// <summary>指针输入（光标作为实时光源的唯一来源）。</summary>
+    Pointer,
+
     /// <summary>事件日志。</summary>
     Log,
 }

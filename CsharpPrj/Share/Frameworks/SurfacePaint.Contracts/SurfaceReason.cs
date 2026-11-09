@@ -52,6 +52,24 @@ public enum SurfaceReason
 
     /// <summary>装饰声明缺失。</summary>
     DecorUndeclared,
+
+    /// <summary>surface-plan 为空或缺少载体条目。</summary>
+    PlanMissing,
+
+    /// <summary>结构角色无法确定（parent 链断裂）。</summary>
+    RoleUndetermined,
+
+    /// <summary>指针端口未就绪（光退化为「只有太阳项」，不伪造坐标）。</summary>
+    PointerMissing,
+
+    /// <summary>CPU/Engine 后端都不可用（该卡不产面，不贴旧帧）。</summary>
+    BackendMissing,
+
+    /// <summary>同帧同卡面被生产两次（双路径复发）。</summary>
+    FrameDoubleProduced,
+
+    /// <summary>阴影无法按 blur 绘制（不画，禁回退成硬边）。</summary>
+    ShadowDegraded,
 }
 
 /// <summary><see cref="SurfaceReason"/> → 稳定字符串码（唯一映射点）。</summary>
@@ -75,6 +93,12 @@ public static class SurfaceReasonCode
         SurfaceReason.FrameViewUnavailable => "surface-frame-view-unavailable",
         SurfaceReason.FrameRefreshFailed => "surface-refresh-failed",
         SurfaceReason.DecorUndeclared => "surface.decor.undeclared",
+        SurfaceReason.PlanMissing => "plan-missing",
+        SurfaceReason.RoleUndetermined => "role-undetermined",
+        SurfaceReason.PointerMissing => "pointer-missing",
+        SurfaceReason.BackendMissing => "backend-missing",
+        SurfaceReason.FrameDoubleProduced => "frame-double-produced",
+        SurfaceReason.ShadowDegraded => "shadow-degraded",
         _ => reason.ToString(),
     };
 }

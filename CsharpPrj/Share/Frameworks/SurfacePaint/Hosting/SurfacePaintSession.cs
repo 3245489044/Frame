@@ -166,9 +166,24 @@ public sealed class SurfacePaintSession : IDisposable
         if (!viewport.IsValid) return new SurfaceFrameResult(_frame, SurfacePaintReport.Empty, false);
 
         var pinned = _pinned;
-        var card = snapshot is not null && snapshot.Cards.TryGetValue(_hostId, out var foundCard)
-            ? foundCard
-            : null;
+
+        // 快照消费：载体降级为纯贴图（B4）。未拿到卡片帧才走下面的兼容 CPU 路径。
+        if (snapshot is not null && snapshot.Cards.TryGetValue(_hostId, out var faceCard))
+        {
+            if (faceCard.Inherited)
+            {
+                return new SurfaceFrameResult(_frame, SurfacePaintReport.Empty, false);
+            }
+
+            if (faceCard.Face is not null)
+            {
+                graphics.DrawImageUnscaled(faceCard.Face, bounds.X, bounds.Y);
+                _frame++;
+                _lastReport = new SurfacePaintReport(1, 1, 0, 0, 0, new[] { "snapshot-face" });
+                return new SurfaceFrameResult(_frame, _lastReport, false);
+            }
+        }
+
         var baseLight = snapshot is not null
             ? snapshot.Light
             : pinned is { } frozen
@@ -219,35 +234,9 @@ public sealed class SurfacePaintSession : IDisposable
             : new SurfaceFrameLightContext(snapshot.Light, snapshot.Facts, snapshot.Generation);
         var ownership = facts.Ownership;
         var engineLight = inputs?.Light ?? baseLight;
-        var engineFrame = card?.Frame;
-        if (engineFrame is null && snapshot is null)
-        {
-            engineFrame = facts.EngineOwnsFace && engineLight is { HasValue: true }
-                ? SurfaceEngineFramePump.TryFrame(
-                    viewport, material, engineLight, SurfaceEngineFramePump.Quality, _engine!,
-                    facts.Backdrop, facts.Glass.Spec, _log)
-                : null;
-        }
-
-        var engineOwnsFace = snapshot is not null
-            ? card?.EngineOwnsFace == true
-            : facts.EngineOwnsFace;
-        if (snapshot is null && engineOwnsFace && engineFrame is null)
-        {
-            // Gather 事实与帧泵事实不一致 ⇒ 按泵事实降级，并显式记账（每宿主一次，防逐帧刷屏）。
-            ownership = SurfaceStageOwnership.Carrier;
-            engineOwnsFace = false;
-            if (!_engineFallbackLogged)
-            {
-                _engineFallbackLogged = true;
-                _log.Write("surface.gather.fallback", new { host = _hostId, reason = "engine-frame-missing" });
-            }
-        }
-        else if (snapshot is null && !engineOwnsFace && engineFrame is not null)
-        {
-            // 玻璃层不可达 ⇒ 即使引擎能出帧也不接管。
-            engineFrame = null;
-        }
+        // 载体会话不再请求引擎（B4：合成收敛到 Composer；S4 = 0）。
+        var engineFrame = (Bitmap?)null;
+        var engineOwnsFace = false;
 
         if (engineFrame is not null) _engineFallbackLogged = false;
 

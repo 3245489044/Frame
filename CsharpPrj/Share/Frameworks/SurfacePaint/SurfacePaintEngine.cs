@@ -10,6 +10,7 @@ using MathematicalAlgorithms.Lighting;
 using MathematicalAlgorithms.Surface;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint.Raster;
+using SurfacePaint.Contracts;
 using UiBackend;
 
 namespace Share.SurfacePaint;
@@ -232,17 +233,65 @@ public static class SurfacePaintEngine
                     light is { HasValue: true }, light?.ShadowX ?? 0f, light?.ShadowY ?? 0f,
                     out var offsetX, out var offsetY);
 
-                // 偏移/扩散按声明值落成浮点盒（K2：不做整数截断；不再用固定 -2 内缩吃掉声明 spread）。
-                var shadow = SurfaceLayerMath.ShadowBox(
+                // E2 单次落点：阴影必须按 blur 生成。旧实现只用 blur 算 alpha + SolidBrush 平移圆角矩形，
+                // 偏移被控件位图裁掉后只剩内侧一条硬边色块（F5）。
+                var shadow = SurfaceLayerMath.ShadowBoxSoft(
                     bounds.X, bounds.Y, bounds.Width, bounds.Height,
                     offsetX, offsetY, spec.Spread, spec.Blur);
                 var rect = new RectangleF(
                     shadow.Box.X, shadow.Box.Y, shadow.Box.Width, shadow.Box.Height);
-                // 外阴影相位 = Underlay（先于 fill/stroke），不会盖成内部暗带；模糊仍按 alpha 近似并记账。
-                using var brush = new SolidBrush(Color.FromArgb(shadow.Alpha, color));
-                using var path = SurfaceGeometry.Shaped(rect, RadiusOf(spec, bounds, materialRadius), graphics.DpiX);
-                if (path is null) graphics.FillRectangle(brush, rect.X, rect.Y, rect.Width, rect.Height);
-                else graphics.FillPath(brush, path);
+                var blurPx = SurfaceLayerMath.ShadowBlurPx(spec.Blur);
+                var width = Math.Max(1, (int)Math.Ceiling(shadow.Box.Width));
+                var height = Math.Max(1, (int)Math.Ceiling(shadow.Box.Height));
+                var radius = RadiusOf(spec, bounds, materialRadius);
+
+                // 离屏面 + 模糊：把边缘摊开；失败不画（显式 shadow-degraded），禁回退成硬边。
+                Bitmap? layer = null;
+                try
+                {
+                    layer = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+                    using (var layerGraphics = Graphics.FromImage(layer))
+                    {
+                        layerGraphics.SmoothingMode = SmoothingMode.AntiAlias;
+                        var local = new RectangleF(0, 0, width, height);
+                        using var brush = new SolidBrush(Color.FromArgb(shadow.Alpha, color));
+                        using var path = SurfaceGeometry.Shaped(local, radius, graphics.DpiX);
+                        if (path is null) layerGraphics.FillRectangle(brush, local);
+                        else layerGraphics.FillPath(brush, path);
+                    }
+
+                    using var blurred = SurfaceRaster.Blur(layer, blurPx);
+                    // 阴影只落在面外（挖空本控件矩形）：否则模糊后的整块暗面会压在卡面下，
+                    // 半透明填充被二次压暗（LightTier 面层亮度判据失败）。
+                    var saved = graphics.Save();
+                    try
+                    {
+                        var target = Rectangle.Round(rect);
+                        if (target.IntersectsWith(bounds))
+                        {
+                            using var region = new Region(target);
+                            region.Exclude(bounds);
+                            graphics.SetClip(region, CombineMode.Replace);
+                        }
+
+                        graphics.DrawImage(blurred, rect);
+                    }
+                    finally
+                    {
+                        graphics.Restore(saved);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    degraded = true;
+                    skipped.Add(SurfaceReasonCode.Of(SurfaceReason.ShadowDegraded) + ":" + ex.GetType().Name);
+                    return false;
+                }
+                finally
+                {
+                    layer?.Dispose();
+                }
+
                 return true;
             }
 

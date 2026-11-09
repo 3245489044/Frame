@@ -57,6 +57,32 @@ public static class SurfaceLayerMath
     public static int ShadowAlpha(float blur)
         => Math.Min(120, 40 + RoundedNonNegative(blur) * 4);
 
+    /// <summary>阴影向外扩张量（设备像素）：扩散 + 模糊半径（模糊至少 1px，保证边缘能被摊开）。</summary>
+    public static float ShadowPadding(float spread, float blur)
+        => Math.Max(0f, spread) + Math.Max(1f, Math.Max(0f, blur));
+
+    /// <summary>阴影模糊半径（设备像素，1..64）：E2 判据「无模糊不画阴影」的取值单源。</summary>
+    public static int ShadowBlurPx(float blur)
+        => Math.Clamp(RoundedNonNegative(blur), 1, 64);
+
+    /// <summary>
+    /// 柔和阴影落笔盒：按 blur 向外扩张（旧 <see cref="ShadowBox"/> 只把 blur 用于 alpha ⇒ 偏移被裁后只剩硬边色块）。
+    /// <para>扩张量 = 面位图必须保留的外边距；形状仍由同一圆角/扩散决定。</para>
+    /// </summary>
+    public static SurfaceShadowGeometry ShadowBoxSoft(
+        float boundsX, float boundsY, float width, float height,
+        float offsetX, float offsetY, float spread, float blur)
+    {
+        var padding = ShadowPadding(spread, blur);
+        return new SurfaceShadowGeometry(
+            new SurfaceBoxF(
+                boundsX + offsetX - padding,
+                boundsY + offsetY - padding,
+                Math.Max(1f, width + padding * 2),
+                Math.Max(1f, height + padding * 2)),
+            ShadowAlpha(blur));
+    }
+
     /// <summary>四舍五入后的非负值（模糊半径/采样半径口径）。</summary>
     public static int RoundedNonNegative(float value)
         => (int)Math.Round(Math.Max(0, value));

@@ -7,137 +7,192 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using MathematicalAlgorithms.Surface;
 using Share.Conversation.Rendering.Surface;
+using MathematicalAlgorithms.Surface;
+using Share.SurfacePaint.Cpu;
 using Share.SurfacePaint.Engine;
+using SurfacePaint.Contracts;
+using UiBackend;
 
 namespace Share.SurfacePaint.Hosting;
 
 
 /// <summary>
-/// 窗口帧组合器（**唯一帧生产者**）：渲染事实 → 卡片预渲染 → <see cref="SurfaceFrameSnapshot"/>。
-/// <para>纪律：</para>
-/// <list type="bullet">
-/// <item>只在材质疑似需要光/背景时才请求引擎（资格门；普通 Label 不再进 GPU）；</item>
-/// <item>不直接读宿主/Registry；事实统一经 <see cref="SurfaceRenderFactsReader"/>；</item>
-/// <item>失败不抛：记降级原因并把该卡片交回载体 CPU 路径；</item>
-/// <item>不持有 Control；输入全部来自 <see cref="SurfaceFrameInput"/>（可后台执行）。</item>
-/// </list>
+/// 窗口帧组合器（**唯一帧生产者**）：聚拢事实 → 整窗帧（页面场 + 每卡完整面 + 诊断）。
+/// <para>同一帧只用一个后端；材质只从 <c>SurfacePlanBundle</c> 取；失败 ⇒ 整帧 Blocked。</para>
 /// </summary>
 public sealed class SurfaceFrameComposer
 {
-    private readonly ISurfaceEnginePort? _engine;
+    private readonly IReadOnlyDictionary<SurfaceBackendKind, ISurfaceRenderBackend> _backends;
     private readonly ISurfaceEventLog _log;
     private long _generation;
 
-    /// <summary>构造组合器。</summary>
-    /// <param name="engine">引擎帧端口（可空 ⇒ 不产引擎帧，全部交载体）。</param>
+    /// <summary>构造组合器（默认装配 CPU + 可选引擎后端）。</summary>
+    /// <param name="engine">引擎帧端口（可空 ⇒ 只有 CPU 后端）。</param>
     /// <param name="log">事件日志端口（可空 ⇒ 静默）。</param>
     public SurfaceFrameComposer(ISurfaceEnginePort? engine, ISurfaceEventLog? log = null)
+        : this(new CpuSurfaceBackend(), engine is null ? null : new EngineSurfaceBackend(engine, log), log)
     {
-        _engine = engine;
+    }
+
+    /// <summary>构造组合器（显式后端；测试/替换用）。</summary>
+    /// <param name="cpu">CPU 后端（必填）。</param>
+    /// <param name="engine">引擎后端（可空）。</param>
+    /// <param name="log">事件日志端口。</param>
+    public SurfaceFrameComposer(ISurfaceRenderBackend cpu, ISurfaceRenderBackend? engine, ISurfaceEventLog? log = null)
+    {
+        ArgumentNullException.ThrowIfNull(cpu);
         _log = log ?? NullSurfaceEventLog.Instance;
+        var backends = new Dictionary<SurfaceBackendKind, ISurfaceRenderBackend>
+        {
+            [SurfaceBackendKind.Cpu] = cpu,
+        };
+        if (engine is not null) backends[SurfaceBackendKind.Engine] = engine;
+        _backends = backends;
     }
 
     /// <summary>组合一帧（可在后台线程执行；不触碰 Control）。</summary>
     /// <param name="input">窗口级输入（由 UI 线程采集）。</param>
+    /// <param name="gather">本轮聚拢事实。</param>
     /// <param name="ct">取消令牌。</param>
-    public SurfaceFrameSnapshot Compose(SurfaceFrameInput input, CancellationToken ct = default)
+    public SurfaceFrameSnapshot Compose(
+        SurfaceFrameInput input, SurfaceGatherFrame gather, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(gather);
 
-        var cards = new Dictionary<string, SurfaceCardFrame>(StringComparer.Ordinal);
-        var degradations = new List<string>(input.Degradations);
-        SurfaceRenderFacts? facts = null;
+        var facts = gather.Facts ?? SurfaceRenderFactsReader.Read(input.Backdrop);
+        var diagnostics = new List<string>(input.Degradations);
+        foreach (var issue in gather.Plan.Degradations) diagnostics.Add(issue.Code);
+        foreach (var degradation in facts.Degradations) diagnostics.Add(degradation);
 
-        // 窗口级背景单次装配：所有卡片复用同一份事实/纹理（不再逐卡抓取）。
-        var windowFacts = SurfaceRenderFactsReader.Read(input.Backdrop);
-        // 端口就绪态前置：Missing/NotReady 一律不进引擎，避免“调用后返回回显被当协议”。
-        var engineReady = _engine is not null && _engine.Status.IsReady;
+        var backend = Pick(gather.Composition, gather.Budget, out var engineMissing);
+        if (engineMissing) diagnostics.Add("backend-missing");
 
-        foreach (var card in input.Cards)
+        var pageField = backend.RenderPageField(gather.Decor, input.Viewport, gather.Light, facts, gather.Budget);
+        if (pageField is null)
+        {
+            return SurfaceFrameSnapshot.Blocked(input.WindowId, "page-field-failed");
+        }
+
+        var faces = new Dictionary<string, SurfaceCardFace>(StringComparer.Ordinal);
+        foreach (var card in input.Cards.OrderBy(c => c.DepthHint).ThenBy(c => c.Key, StringComparer.Ordinal))
         {
             ct.ThrowIfCancellationRequested();
 
-            var cardFacts = card.Backdrop is null ? windowFacts : SurfaceRenderFactsReader.Read(card.Backdrop);
-            facts ??= cardFacts;
-            var backdrop = card.Backdrop ?? input.Backdrop;
+            var entry = gather.Decor.For(card.Key) ?? SurfaceDecorEntry.Missing(card.Key, card.MaterialSlot);
+            if (entry.MissingDeclaration) diagnostics.Add("decor-undeclared:" + card.Key);
 
-            // 资格门：只有材质本身需要光/背景才进引擎；composition 为 Engine 不等于所有控件都要 GPU。
-            var needsEngine = SurfacePaintSession.NeedsLight(card.Material)
-                              || SurfacePaintSession.HasBackdrop(card.Material);
-            var ownsFace = needsEngine && cardFacts.EngineOwnsFace;
-
-            Bitmap? frame = null;
-            if (ownsFace && input.Light is { HasValue: true } && engineReady)
+            // 嵌套/叶子：不产面（继承父面）——治层叠的唯一规则。
+            if (entry.Inherits)
             {
-                frame = SurfaceEngineFramePump.TryFrame(
-                    card.Viewport,
-                    card.Material,
-                    input.Light,
-                    SurfaceEngineFramePump.Quality,
-                    _engine,
-                    backdrop,
-                    cardFacts.Glass.Spec,
-                    _log);
+                faces[card.Key] = SurfaceCardFace.Inherit(card, entry);
+                continue;
             }
 
-            if (ownsFace && frame is null)
+            var request = new SurfaceBackendRequest(
+                card, entry, gather.Plan, gather.Light, facts, input.Viewport, gather.Budget, input.Backdrop);
+            if (!backend.TryRender(request, out var face, out var reason) || face is null)
             {
-                ownsFace = false;
-                degradations.Add("engine-frame-missing");
+                pageField.Dispose();
+                foreach (var produced in faces.Values) produced.Release();
+                return SurfaceFrameSnapshot.Blocked(
+                    input.WindowId, "card-face-failed:" + card.Key + ":" + reason);
             }
 
-            cards[card.Key] = new SurfaceCardFrame(
+            var material = gather.Plan.FindMaterial(entry.MaterialSlot);
+            faces[card.Key] = new SurfaceCardFace(
                 card.Key,
-                card.Viewport.Bounds,
-                card.Material.MaterialId,
-                SurfacePaintSession.FingerprintOf(card.Material),
-                frame,
-                ownsFace,
-                CardFingerprint(card, frame, input.Light));
-        }
-
-        if (facts is null)
-        {
-            facts = windowFacts;
+                card.BoundsDip,
+                material?.MaterialId ?? entry.MaterialSlot,
+                material is null ? entry.MaterialSlot : SurfacePaintSession.FingerprintOf(material),
+                entry.Role,
+                entry.Depth,
+                face,
+                Owned: backend.Kind == SurfaceBackendKind.Cpu,
+                Inherited: false,
+                Fingerprint: FaceFingerprint(card, entry, gather.Light));
         }
 
         var generation = Interlocked.Increment(ref _generation);
-        return new SurfaceFrameSnapshot(
+        var snapshot = new SurfaceFrameSnapshot(
             input.WindowId,
             generation,
             input.Viewport,
-            input.Light,
+            gather.Light,
             facts,
-            PageField: null,
-            cards,
-            DegradationsDistinct(degradations),
-            FrameFingerprint(input, cards),
-            Environment.TickCount64);
+            pageField,
+            faces,
+            DegradationsDistinct(diagnostics),
+            FrameFingerprint(input, gather, pageField, faces),
+            Environment.TickCount64)
+        {
+            Pointer = gather.Pointer,
+        };
+
+        _log.Write("surface.frame.composed", new
+        {
+            window = snapshot.WindowId,
+            generation,
+            cards = faces.Count,
+            backend = backend.Kind.ToString().ToLowerInvariant(),
+            degradations = snapshot.Degradations.Count,
+        });
+        return snapshot;
     }
 
-    private static string CardFingerprint(SurfaceCardRequest card, Bitmap? frame, SurfaceLightState? light)
+    /// <summary>兼容入口（无聚拢事实；显式降级为 CPU 路径）。</summary>
+    /// <param name="input">窗口级输入。</param>
+    /// <param name="ct">取消令牌。</param>
+    public SurfaceFrameSnapshot Compose(SurfaceFrameInput input, CancellationToken ct = default)
+        => Compose(input, SurfaceGatherFrame.Empty(input.Viewport) with
+        {
+            Light = input.Light,
+            Pointer = input.Pointer,
+        }, ct);
+
+    private ISurfaceRenderBackend Pick(
+        SurfaceCompositionCapability composition, SurfaceFrameBudget budget, out bool engineMissing)
+    {
+        engineMissing = composition.Mode == SurfaceCompositionMode.EngineComposition;
+        if (engineMissing
+            && budget.Quality != SurfaceFrameQuality.Minimal
+            && _backends.TryGetValue(SurfaceBackendKind.Engine, out var engine)
+            && engine.Status.IsReady)
+        {
+            engineMissing = false;
+            return engine;
+        }
+
+        return _backends[SurfaceBackendKind.Cpu];
+    }
+
+    private static string FaceFingerprint(SurfaceCardGeometry card, SurfaceDecorEntry entry, SurfaceLightState? light)
     {
         var builder = new StringBuilder(96);
         builder.Append(card.Key).Append('|')
-            .Append(card.Viewport.Width).Append('x').Append(card.Viewport.Height).Append('@').Append(card.Viewport.Dpi)
-            .Append('|').Append(SurfacePaintSession.FingerprintOf(card.Material))
-            .Append('|').Append(frame is null ? "carrier" : "engine")
+            .Append(card.BoundsDip.Width).Append('x').Append(card.BoundsDip.Height)
+            .Append('|').Append(entry.MaterialSlot)
+            .Append('|').Append(entry.Role).Append('|').Append(entry.Depth)
             .Append('|').Append(light is { } value ? value.CacheToken : "no-light");
         return SurfaceFrameContract.Fingerprint(builder.ToString());
     }
 
     private static string FrameFingerprint(
-        SurfaceFrameInput input, IReadOnlyDictionary<string, SurfaceCardFrame> cards)
+        SurfaceFrameInput input,
+        SurfaceGatherFrame gather,
+        Bitmap? pageField,
+        IReadOnlyDictionary<string, SurfaceCardFace> faces)
     {
         var builder = new StringBuilder(256);
         builder.Append(input.WindowId).Append('|')
             .Append(input.Viewport.Width).Append('x').Append(input.Viewport.Height)
             .Append('@').Append(input.Viewport.Dpi)
-            .Append('|').Append(input.Light is { } light ? light.CacheToken : "no-light");
+            .Append('|').Append(gather.Light is { } light ? light.CacheToken : "no-light")
+            .Append('|').Append(gather.Plan.ProfileId)
+            .Append('|').Append(pageField?.Width ?? 0).Append('x').Append(pageField?.Height ?? 0);
 
-        foreach (var pair in cards.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        foreach (var pair in faces.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             builder.Append('|').Append(pair.Key).Append(':').Append(pair.Value.Fingerprint);
         }

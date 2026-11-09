@@ -75,6 +75,9 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     /// <summary>虹彩相位（0..1）：光斑相对控件中心的方位角（世界固定锚点 − 控件中心）。</summary>
     public float IridescencePhase { get; init; }
 
+    /// <summary>指针贡献比重（0..1；0 = 无指针或无指针源，禁伪造）。</summary>
+    public float PointerWeight { get; init; }
+
     /// <summary>光场签名（缓存失效依据）。</summary>
     public long LightSignature { get; init; }
 
@@ -85,7 +88,7 @@ public readonly record struct SurfaceLightState(float Angle, float Intensity, fl
     public string CacheToken => HasValue
         ? string.Create(
             CultureInfo.InvariantCulture,
-            $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:{Specular:F2}:S{LightSignature}")
+            $"{Angle:F1}:{Intensity:F2}:{Warmth:F3}:{SpotX:F2}:{SpotY:F2}:{Specular:F2}:P{PointerWeight:F2}:S{LightSignature}")
         : "light-unavailable";
 
     /// <summary>

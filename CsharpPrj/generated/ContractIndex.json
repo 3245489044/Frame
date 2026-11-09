@@ -2,7 +2,7 @@
   "schema": "contract-index-v1",
   "sentinel": "此文件由 Frame\\PowerShellScript\\Share\\Index\\Build-ContractIndex.ps1 生成，禁止手工编辑",
   "builtBy": "Build-ContractIndex.ps1",
-  "builtAt": "2026-11-08T16:25:56.8077752Z",
+  "builtAt": "2026-11-09T04:53:13.5269721Z",
   "repoAnchor": ".git",
   "submoduleSafe": "per-repo git grep（超仓 grep 不进 gitlink）",
   "scan": {
@@ -313,14 +313,14 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/Surface/CssSurfaceProjector.cs",
-          "line": 453,
+          "line": 456,
           "role": "Code",
           "text": "/// <summary>#RRGGBB / #RRGGBBAA → rgba(...)；非法值原样返回（可见化，不静默吞）。</summary>"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/HtmlViewerBridge/Surface/CssSurfaceProjector.cs",
-          "line": 483,
+          "line": 486,
           "role": "Code",
           "text": "/// <summary>打包 ARGB → CSS 颜色（不透明输出 <c>#RRGGBB</c>，半透明输出 <c>#RRGGBBAA</c>）。</summary>"
         },
@@ -4707,7 +4707,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Applier/WinFormApplier.cs",
-          "line": 309,
+          "line": 315,
           "role": "Code",
           "text": "result.RelationsProcessed = relations.Count;"
         },
@@ -6545,49 +6545,49 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 350,
+          "line": 416,
           "role": "Code",
           "text": "var result = session.Paint(e.Graphics, bounds, snapshot);"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 356,
+          "line": 425,
           "role": "Code",
           "text": "if (session.Material is { } material)"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 365,
+          "line": 435,
           "role": "Code",
           "text": "material = session.Material?.MaterialId,"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 378,
+          "line": 448,
           "role": "Code",
           "text": "material = session.Material?.MaterialId,"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 410,
+          "line": 480,
           "role": "Code",
           "text": "? session.PinInputs(inputs)"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 417,
+          "line": 487,
           "role": "Code",
           "text": "? session.BuildRenderInputs(SurfaceAmbient.ViewportOf(control), light)"
         },
         {
           "repo": "Frame",
           "file": "CsharpPrj/Operation/FrontEndDriven/WinForms/Paint/SkinDecorator.cs",
-          "line": 423,
+          "line": 493,
           "role": "Code",
           "text": "? new SkinFrameReport(session.Frame, session.LastReport)"
         },
@@ -7161,7 +7161,7 @@
         {
           "repo": "Frame",
           "file": "CsharpPrj/Share/Frameworks/SurfacePaint/Hosting/SurfacePaintSession.cs",
-          "line": 430,
+          "line": 434,
           "role": "Code",
           "text": "_session._pinned = _previous;"
         },
@@ -7888,6 +7888,27 @@
         },
         {
           "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.8/ui-visual-optimization/03-P2-载体合成与性能施工单.md",
+          "line": 48,
+          "role": "Doc",
+          "text": "// SkinDecorator.PaintControl 内，session.Paint 前后"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.8/ui-visual-optimization/03-P2-载体合成与性能施工单.md",
+          "line": 51,
+          "role": "Doc",
+          "text": "var result = session.Paint(e.Graphics, bounds, snapshot);"
+        },
+        {
+          "repo": "Main",
+          "file": "Docs/analysis/2026/11/11.8/ui-visual-optimization/03-P2-载体合成与性能施工单.md",
+          "line": 61,
+          "role": "Doc",
+          "text": "material = session.Material?.MaterialId,"
+        },
+        {
+          "repo": "Main",
           "file": "Docs/analysis/2026/6/6.10/WdUI_Json逻辑迁移到FileDriven方案.md",
           "line": 186,
           "role": "Doc",
@@ -8543,27 +8564,6 @@
           "line": 136,
           "role": "Doc",
           "text": "| 事实 | conversation `session-view` 键 = `session.{container}.r{round}.{kind}.{ordinal}`；message `session-message` 键 = **逐字同形** |"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
-          "line": 171,
-          "role": "Doc",
-          "text": "| **P1** | ERR-2 | 批 **A2-fix** | ✅ **已修复（2026-09-27，路线① 声明驱动）**：`conversation.json` 补 `archive-raw-legacy`（`key=cline.session.{container}.round.{round}`、`state:\"legacy\"`、`writer-archive-legacy`）；`pla"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/节点写入调用链-重复冗余错误逻辑分析.md",
-          "line": 184,
-          "role": "Doc",
-          "text": "- **ERR-2 已闭合**（见上表 P1 行）；**ERR-1 补回归**：既有 `ClineArchiveRoundPolicyTests` 的 L-C/L-B 线格式断言已随批更新为统一键形（`cline.session.work.round.7.stage.1` / `session.work.r7.tool.1`）。"
-        },
-        {
-          "repo": "Main",
-          "file": "Docs/analysis/2026/9/9.27/W2-A2-身份统一-前置spike-旧键到新键映射与兼容读设计.md",
-          "line": 34,
-          "role": "Doc",
-          "text": "| `archive-raw` | `cline.session.{container}.round.{round}` | `cline.session.{container}.round.{round}.{kind}.{ordinal}` | ✅（本域**唯一**写目标） | **F1 必改**：不带 `{kind}.{ordinal}` ⇒ 多身份塌成同一位置键 |"
         }
       ]
     },
@@ -12065,7 +12065,7 @@
       },
       {
         "repo": "Main",
-        "lines": 1437
+        "lines": 1440
       }
     ]
   }

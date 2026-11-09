@@ -36,6 +36,8 @@
     <ProjectReference Include="$(Proj_JsonMethod)" />
     <!-- 聚拢契约（IGatherModule / GatherModuleBuilder）：2026-11-08 随 Share.SurfaceModel 并入（表面聚拢模块）。 -->
     <ProjectReference Include="$(Proj_Gather)" />
+    <!-- 表面运行契约（零依赖）：卡片几何/指针/端口就绪态；聚拢模块只读这些中性 DTO。 -->
+    <ProjectReference Include="$(Proj_SurfacePaint_Contracts)" />
     <!-- 表面色值契约（UiBackend.SurfaceColor / SurfaceColorDomain）：值域分类与不透明合成的单点。 -->
     <ProjectReference Include="$(Proj_Plate_Surface)" />
     <!-- 表面着色数学（MathematicalAlgorithms.Lighting.SurfaceShadingMath）：Sheen/暖度公式单源。 -->

@@ -34,6 +34,11 @@ public static class SkinDecorator
     /// </summary>
     public static ISurfaceFrameGatherSource? FrameGatherSource { get; set; }
 
+    /// <summary>
+    /// 窗口帧宿主子模块装配端口（装配期由宿主注入一次；null ⇒ 渲染器只用 Frame 侧子模块并可见降级）。
+    /// </summary>
+    public static Strategy.SurfaceHosting.ISurfaceFrameModuleSource? FrameModuleSource { get; set; }
+
     private static readonly ConditionalWeakTable<Control, SkinState> States = new();
 
     /// <summary>属性通道已由材质投影器接管的控件（单一写者判据：声明属性不得再写 BackColor）。</summary>
@@ -291,7 +296,7 @@ public static class SkinDecorator
         var windowViewport = SurfaceAmbient.ViewportOf(form);
         if (!windowViewport.IsValid) return null;
 
-        var cards = new List<SurfaceCardRequest>();
+        var cards = new List<SurfaceCardGeometry>();
         foreach (var pair in States)
         {
             var control = pair.Key;
@@ -299,13 +304,15 @@ public static class SkinDecorator
             if (control.IsDisposed || !control.IsHandleCreated || !control.Visible) continue;
             if (!ReferenceEquals(control.FindForm(), form)) continue;
 
-            var material = state.Session?.Material;
-            if (material is null) continue;
-
             var viewport = SurfaceAmbient.ViewportOf(control);
             if (!viewport.IsValid) continue;
 
-            cards.Add(new SurfaceCardRequest(SurfaceAmbient.IdOf(control), viewport, material, Backdrop: null));
+            // 采集期只取几何 + 槽名（不解析材质、不采样光）。
+            var origin = form.PointToClient(control.PointToScreen(Point.Empty));
+            var bounds = new Rectangle(origin, control.ClientSize);
+            var slot = state.Session?.Material?.Slot ?? SurfaceCardGeometry.NoMaterial;
+            cards.Add(new SurfaceCardGeometry(
+                SurfaceAmbient.IdOf(control), bounds, "control", ContainerKey: null, DepthHint: 0, MaterialSlot: slot));
         }
 
         if (cards.Count == 0) return null;
@@ -320,7 +327,10 @@ public static class SkinDecorator
             ResolveWindowLight(windowViewport),
             cards,
             Array.Empty<string>(),
-            backdrop);
+            backdrop)
+        {
+            Pointer = WinFormsPointerSource.Instance.Read(),
+        };
     }
 
     private static SurfaceLightState? ResolveWindowLight(SurfaceViewport viewport)

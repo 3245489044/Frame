@@ -57,7 +57,9 @@ internal sealed class SurfaceRefreshHost
             new SurfaceFrameComposer(
                 WinFormsSurfacePorts.Engine ?? WinFormsSurfaceEnginePort.Instance,
                 WinFormsSurfacePorts.Log),
-            SkinDecorator.FrameGatherSource);
+            SkinDecorator.FrameGatherSource,
+            SkinDecorator.FrameModuleSource,
+            WinFormsPointerSource.Instance);
         _layoutSource = new SurfaceLayoutRefreshSource(form);
         _form.FormClosed += (_, _) => Detach();
     }
@@ -67,6 +69,7 @@ internal sealed class SurfaceRefreshHost
     {
         if (form is null) return null;
         SurfaceLightPump.EnsureStarted(form);
+        WinFormsPointerSource.Ensure(form);
         var host = Hosts.GetValue(form, static value => new SurfaceRefreshHost(value));
         host.Attach();
         return host;
@@ -118,6 +121,18 @@ internal sealed class SurfaceRefreshHost
         service.EnableIdlePolling(30_000, "layout");
         service.Attach();
         _service = service;
+        _form.MouseMove += OnPointerMove;
+    }
+
+    private long _lastPointerDirtyMs;
+
+    /// <summary>指针事件源：16–33ms 合并后标脏（无定时轮询）。</summary>
+    private void OnPointerMove(object? sender, MouseEventArgs e)
+    {
+        var now = System.Environment.TickCount64;
+        if (now - _lastPointerDirtyMs < 16) return;
+        _lastPointerDirtyMs = now;
+        _service?.MarkDirty("pointer");
     }
 
     private async Task<bool> PushOnceAsync(IReadOnlyCollection<string>? scopes, CancellationToken ct)
@@ -138,6 +153,7 @@ internal sealed class SurfaceRefreshHost
     {
         _lightSource.Stop();
         _layoutSource.Stop();
+        _form.MouseMove -= OnPointerMove;
         _service?.Detach();
         _store.Clear();
         _service = null;

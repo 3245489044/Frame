@@ -86,7 +86,7 @@ public static class SpectralStyleModule
                 Pair("opacity", "var(--sl-spectral-a)")));
         }
 
-        return string.Join("\n", rules) + "\n";
+        return $"{string.Join("\n", rules)}\n";
     }
 
     /// <summary>单条规则文本（复用 plate 的 CSS 文本构建器：属性序保留、空值跳过、统一 <c>prop:value;</c>）。</summary>

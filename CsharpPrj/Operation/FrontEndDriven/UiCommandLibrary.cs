@@ -153,17 +153,18 @@ public static class UiCommandLibrary
             "画质设置：清除已保存设置并恢复声明缺省（重新装配）");
     }
 
-    /// <summary>应用画质设置（切档走唯一入口；未安装过 ⇒ 明确未应用，不假装生效）。</summary>
+    /// <summary>应用画质设置（切档走唯一入口；成功后持久化，未安装过 ⇒ 明确未应用，不假装生效）。</summary>
     private static string GraphicsApply()
         => SurfaceAppearanceSwitch.ReapplyRequested()
-            ? $"画质设置已应用（当前档：{Share.Conversation.Rendering.Surface.Selection.SurfaceSelectionProvider.Current.ProfileId}）"
+            ? $"画质设置已应用并持久化（当前档：{Share.Conversation.Rendering.Surface.Selection.SurfaceSelectionProvider.Current.ProfileId}）"
             : "画质设置未应用：外观尚未安装，或请求档位在声明中不存在";
 
-    /// <summary>恢复画质设置的声明缺省（只清画质面板，不动分隔比例/窗体边界）。</summary>
+    /// <summary>恢复画质设置的声明缺省（清画质面板 + 已提交档，不动分隔比例/窗体边界）。</summary>
     private static string GraphicsReset()
     {
         var store = AppServiceProvider.Resolve<FrontEndDriven.Abstractions.IUiLayoutStateStore>();
         store?.ResetPanelValues(SurfaceQualitySettings.Scope);
+        store?.ResetSurfaceSelection();
         store?.Flush();
         return SurfaceAppearanceSwitch.ReapplyRequested()
             ? "画质设置已恢复缺省并重新装配"

@@ -3,8 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using FrameworkAbstractions.ComponentRegistry;
 using FrontEndDriven.Abstractions;
+using FrontEndDriven.Diagnostics;
 using Share.Conversation.Rendering.Surface;
 using UiBackend;
 
@@ -40,18 +42,22 @@ internal static class SurfaceQualitySettings
     }
 
     /// <summary>
-    /// 画质面板持久化的请求档（null/空 ⇒ 未选择）。
+    /// 用户主动切换时要应用的档（草稿优先）：<c>panels.profile</c>；
+    /// 未改过下拉时回落已提交 <see cref="CommittedProfile"/>。
     /// <para>只由 <see cref="SurfaceAppearanceSwitch"/> 消费；它表达"用户请求的档"，不是"当前档"。</para>
     /// </summary>
     internal static string? RequestedProfile()
     {
         var store = AppServiceProvider.Resolve<IUiLayoutStateStore>();
-        if (store is null || !store.TryGetPanelValues(Scope, out var raw))
-            return null;
+        if (store is not null
+            && store.TryGetPanelValues(Scope, out var raw)
+            && raw.TryGetValue(KeyProfile, out var value)
+            && !string.IsNullOrWhiteSpace(value))
+        {
+            return value.Trim();
+        }
 
-        return raw.TryGetValue(KeyProfile, out var value) && !string.IsNullOrWhiteSpace(value)
-            ? value.Trim()
-            : null;
+        return CommittedProfile();
     }
 
     /// <summary>
@@ -115,14 +121,32 @@ internal static class SurfaceQualitySettings
             ? value
             : null;
 
+    private static int _unsupportedTierLogged;
+
     private static GlassTier? ParseTier(string? text)
-        => text?.ToLowerInvariant() switch
+    {
+        // tier=Unsupported 是「声明不支持的画质上限」，不是可用选择：视为未设置，回落声明默认。
+        if (string.Equals(text?.Trim(), "unsupported", StringComparison.OrdinalIgnoreCase))
         {
-            "unsupported" => GlassTier.Unsupported,
+            if (Interlocked.Exchange(ref _unsupportedTierLogged, 1) == 0)
+            {
+                FrontEndDrivenLog.Log("SurfaceQualitySettings_tier_unsupported_ignored", new
+                {
+                    scope = Scope,
+                    value = text
+                });
+            }
+
+            return null;
+        }
+
+        return text?.ToLowerInvariant() switch
+        {
             "t0" => GlassTier.T0,
             "t1" => GlassTier.T1,
             "t2" => GlassTier.T2,
             "t3" => GlassTier.T3,
             _ => null,
         };
+    }
 }

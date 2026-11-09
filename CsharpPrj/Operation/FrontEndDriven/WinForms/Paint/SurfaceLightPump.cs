@@ -2,6 +2,7 @@
 
 using System;
 using System.Windows.Forms;
+using FrontEndDriven.Diagnostics;
 using MathematicalAlgorithms.Surface;
 using Share.Registry;
 using Share.Conversation.Rendering.Surface;

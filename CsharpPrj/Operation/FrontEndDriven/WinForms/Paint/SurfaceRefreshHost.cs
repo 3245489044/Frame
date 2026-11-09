@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using FrontEndDriven.Diagnostics;
 using Share.Composition.AssemblyFramework;
 using Share.Conversation.Rendering.Surface;
 using Share.SurfacePaint.Hosting;
@@ -124,20 +125,16 @@ internal sealed class SurfaceRefreshHost
             reason = "disposed";
             return false;
         }
-        if (!control.IsHandleCreated)
-        {
-            reason = "handle-missing";
-            return false;
-        }
-        if (control.InvokeRequired)
-        {
-            reason = "off-ui-thread";
-            return false;
-        }
         var form = control.FindForm();
         if (form is null)
         {
             reason = "form-missing";
+            return false;
+        }
+        // 句柄未建也允许启动（宿主不依赖绘制句柄）；仅当已建句柄且确实跨线程时才延迟。
+        if (control.IsHandleCreated && control.InvokeRequired)
+        {
+            reason = "off-ui-thread";
             return false;
         }
         Ensure(form);
@@ -165,9 +162,9 @@ internal sealed class SurfaceRefreshHost
         }
         Volatile.Write(ref _lastEnsureReason, "deferred:" + reason);
 
-        if (!control.InvokeRequired)
+        if (control.IsHandleCreated && !control.InvokeRequired)
         {
-            // 与控件同线程（通常是 UI 线程）：空闲时重试，覆盖「祖先稍后挂进窗口」这类叶子控件无事件的情形。
+            // 已在句柄所属的 UI 线程：空闲时重试，覆盖「祖先稍后挂进窗口」这类叶子控件无事件的情形。
             EnsureIdleHook();
             return;
         }

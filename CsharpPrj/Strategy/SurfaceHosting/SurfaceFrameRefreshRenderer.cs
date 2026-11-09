@@ -232,10 +232,9 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
         {
             Share.SurfacePaint.Compat.SkinDiagnostics.RecordLightDegraded(
                 frame is null ? "pointer-unavailable" : "surface-light-unavailable",
-                FormattableString.Invariant(
-                    $"frame={(frame is null ? "null" : "present")};inside={(pointer.Inside ? "true" : "false")};"
-                    + $"host={viewport.HostWidthDip:F0}x{viewport.HostHeightDip:F0};"
-                    + $"fallback={(fallback is null ? "null" : "present")}"));
+                string.Create(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    $"frame={(frame is null ? "null" : "present")};inside={(pointer.Inside ? "true" : "false")};host={viewport.HostWidthDip:F0}x{viewport.HostHeightDip:F0};fallback={(fallback is null ? "null" : "present")}"));
             return fallback;
         }
 
@@ -244,9 +243,9 @@ public sealed class SurfaceFrameRefreshRenderer : IRefreshRenderer
             // 正例证据：无环境光帧仍产出了指针光（HasValue=false，环境层保持声明值）。
             Share.SurfacePaint.Compat.SkinDiagnostics.RecordLightDegraded(
                 "light-pointer-only",
-                FormattableString.Invariant(
-                    $"inside=true;host={viewport.HostWidthDip:F0}x{viewport.HostHeightDip:F0};"
-                    + $"weight={applied.Value.PointerWeight:F2}"));
+                string.Create(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    $"inside=true;host={viewport.HostWidthDip:F0}x{viewport.HostHeightDip:F0};weight={applied.Value.PointerWeight:F2}"));
         }
         return applied;
     }
